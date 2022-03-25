@@ -27,7 +27,9 @@ import org.apache.flink.types.Row;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.apache.flink.connector.pulsar.table.PulsarTableTestUtils.collectRows;
@@ -42,7 +44,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
 
     @ParameterizedTest
     @ValueSource(strings = {JSON_FORMAT})
-    public void pulsarrSourceSink(String format) throws Exception {
+    public void pulsarSourceSink(String format) throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
         final String topic = "test_topic_" + format + randomAlphanumeric(3);
@@ -69,7 +71,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  %s\n"
                                 + ")",
-                        PulsarDynamicTableFactory.IDENTIFIER,
+                        PulsarTableFactory.IDENTIFIER,
                         topic,
                         pulsar.operator().serviceUrl(),
                         pulsar.operator().adminUrl(),
@@ -127,99 +129,6 @@ public class PulsarTableITCase extends PulsarTableTestBase {
         assertThat(TestingSinkFunction.rows).isEqualTo(expected);
     }
 
-    //    @ParameterizedTest
-    //    @ValueSource(strings = {JSON_FORMAT})
-    //    public void pulsarSourceSinkWithMetadata(String format) throws Exception {
-    //        // we always use a different topic name for each parameterized topic,
-    //        // in order to make sure the topic can be created.
-    //        final String topic = "test_metadata_topic_" + format + randomAlphanumeric(3);
-    //        // TODO create topic
-    //
-    //        // ---------- Produce an event time stream into Kafka -------------------
-    //
-    //        final String createTable =
-    //                String.format(
-    //                        "CREATE TABLE pulsar (\n"
-    //                                + "  `physical_1` STRING,\n"
-    //                                + "  `physical_2` INT,\n"
-    //                                // metadata fields are out of order on purpose
-    //                                // offset is ignored because it might not be deterministic
-    //                                + "  `message_id` INT METADATA VIRTUAL,\n"
-    //                                + "  `publish_time` TIMESTAMP(3) METADATA VIRTUAL,\n"
-    //                                + "  `message_size` INT METADATA VIRTUAL,\n"
-    //                                + "  `producer_name` STRING METADATA VIRTUAL,\n"
-    //                                + "  `event_time` STRING METADATA VIRTUAL,\n"
-    //                                + "  `physical_3` BOOLEAN\n"
-    //                                + ") WITH (\n"
-    //                                + "  'connector' = 'kafka',\n"
-    //                                + "  'topic' = '%s',\n"
-    //                                + "  'properties.bootstrap.servers' = '%s',\n"
-    //                                + "  'properties.group.id' = '%s',\n"
-    //                                + "  'scan.startup.mode' = 'earliest-offset',\n"
-    //                                + "  %s\n"
-    //                                + ")",
-    //                        topic, bootstraps, groupId, formatOptions());
-    //        tEnv.executeSql(createTable);
-    //
-    //        String initialValues =
-    //                "INSERT INTO kafka\n"
-    //                        + "VALUES\n"
-    //                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1',
-    // X'C0FFEE', 'k2', X'BABE01'], TRUE),\n"
-    //                        + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS
-    // MAP<STRING, BYTES>), FALSE),\n"
-    //                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1',
-    // X'102030', 'k2', X'203040'], TRUE)";
-    //        tEnv.executeSql(initialValues).await();
-    //
-    //        // ---------- Consume stream from Kafka -------------------
-    //
-    //        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
-    //
-    //        final List<Row> expected =
-    //                Arrays.asList(
-    //                        Row.of(
-    //                                "data 1",
-    //                                1,
-    //                                "CreateTime",
-    //                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
-    //                                0,
-    //                                map(
-    //                                        entry("k1", EncodingUtils.decodeHex("C0FFEE")),
-    //                                        entry("k2", EncodingUtils.decodeHex("BABE01"))),
-    //                                0,
-    //                                topic,
-    //                                true),
-    //                        Row.of(
-    //                                "data 2",
-    //                                2,
-    //                                "CreateTime",
-    //                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
-    //                                0,
-    //                                Collections.emptyMap(),
-    //                                0,
-    //                                topic,
-    //                                false),
-    //                        Row.of(
-    //                                "data 3",
-    //                                3,
-    //                                "CreateTime",
-    //                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
-    //                                0,
-    //                                map(
-    //                                        entry("k1", EncodingUtils.decodeHex("102030")),
-    //                                        entry("k2", EncodingUtils.decodeHex("203040"))),
-    //                                0,
-    //                                topic,
-    //                                true));
-    //
-    //        assertThat(result, deepEqualTo(expected, true));
-    //
-    //        // ------------- cleanup -------------------
-    //
-    //        deleteTestTopic(topic);
-    //    }
-
     @ParameterizedTest
     @ValueSource(strings = {JSON_FORMAT})
     public void testKafkaSourceSinkWithKeyAndPartialValue(String format) throws Exception {
@@ -249,7 +158,7 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 + "  'key.format' = '%s',\n"
                                 + "  'key.fields' = 'user_id; event_id'\n"
                                 + ")",
-                        PulsarDynamicTableFactory.IDENTIFIER,
+                        PulsarTableFactory.IDENTIFIER,
                         topic,
                         pulsar.operator().serviceUrl(),
                         pulsar.operator().adminUrl(),
@@ -277,6 +186,53 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                         Row.of(3L, "name 3", 102L, "payload 3"));
         // TODO what should be expected here
         assertThat(result).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {JSON_FORMAT})
+    public void testPulsarSourceSinkWithMetadata(String format) throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "metadata_topic_" + format + randomAlphanumeric(3);
+        createTestTopic(topic, 1);
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE pulsar (\n"
+                                + "  `physical_1` STRING,\n"
+                                + "  `physical_2` INT,\n"
+                                + "  `message_size` INT METADATA VIRTUAL,\n"
+                                + "  `event_time` TIMESTAMP(3) METADATA,\n"
+                                + "  `message_id` BYTES METADATA VIRTUAL,\n"
+                                + "  `producer_name` STRING METADATA VIRTUAL,\n"
+                                + "  `physical_3` BOOLEAN\n"
+                                + ") WITH (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'pulsar.client.serviceUrl' = '%s',\n"
+                                + "  'pulsar.admin.adminUrl' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        PulsarTableFactory.IDENTIFIER,
+                        topic,
+                        pulsar.operator().serviceUrl(),
+                        pulsar.operator().adminUrl(),
+                        format);
+        tableEnv.executeSql(createTable);
+
+        String initialValues =
+                "INSERT INTO pulsar\n"
+                        + "VALUES\n"
+                        + " ('data 1', 1, TIMESTAMP '2022-03-24 13:12:11.123', TRUE),\n"
+                        + " ('data 2', 2, TIMESTAMP '2022-03-25 13:12:11.123', FALSE),\n"
+                        + " ('data 3', 3, TIMESTAMP '2022-03-26 13:12:11.123', TRUE)";
+        tableEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Pulsar -------------------
+
+        final List<Row> result = collectRows(tableEnv.sqlQuery("SELECT * FROM pulsar"), 3);
+        // TODO add more validation logic
     }
 
     private static final class TestingSinkFunction implements SinkFunction<RowData> {

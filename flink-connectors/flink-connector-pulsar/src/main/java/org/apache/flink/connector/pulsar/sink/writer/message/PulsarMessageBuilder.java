@@ -61,8 +61,8 @@ public class PulsarMessageBuilder<T> {
     }
 
     /**
-     * Property {@link TypedMessageBuilder#keyBytes(byte[])}. This property would also be used in {@link
-     * KeyHashTopicRouter}.
+     * Property {@link TypedMessageBuilder#keyBytes(byte[])}. This property would also be used in
+     * {@link KeyHashTopicRouter}.
      */
     public PulsarMessageBuilder<T> keyBytes(byte[] keyBytes) {
         this.keyBytes = checkNotNull(keyBytes);

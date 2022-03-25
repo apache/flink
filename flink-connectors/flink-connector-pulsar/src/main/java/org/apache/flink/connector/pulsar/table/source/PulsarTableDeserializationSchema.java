@@ -35,9 +35,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/** A specific {@link PulsarDeserializationSchema} for {@link PulsarDynamicTableSource}. */
-public class PulsarDynamicTableDeserializationSchema
-        implements PulsarDeserializationSchema<RowData> {
+/**
+ * A specific {@link PulsarDeserializationSchema} for {@link PulsarTableSource}.
+ *
+ * <p>Both Flink's key decoding format and value decoding format are wrapped in this class. It * is
+ * also responsible for getting metadata fields from a physical pulsar message body, * and the final
+ * projection mapping from Pulsar message fields to Flink row.
+ *
+ * <p>TODO add more description
+ */
+public class PulsarTableDeserializationSchema implements PulsarDeserializationSchema<RowData> {
 
     private static final long serialVersionUID = -3298784447432136216L;
 
@@ -52,7 +59,7 @@ public class PulsarDynamicTableDeserializationSchema
 
     private final PulsarProjectProducedRowSupport projectionSupport;
 
-    public PulsarDynamicTableDeserializationSchema(
+    public PulsarTableDeserializationSchema(
             @Nullable DeserializationSchema<RowData> keyDeserialization,
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo,

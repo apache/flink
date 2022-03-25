@@ -34,14 +34,19 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// TODO this class can be renamed to PulsarConnectorMetadataSupport
-public class PulsarAppendMetadataSupport implements Serializable {
+/**
+ * Class for reading metadata fields from a Pulsar message and put in corresponding Flink row
+ * fields.
+ *
+ * <p>Contains list of readable metadata and provide util methods for metadata manipulation.
+ */
+public class PulsarReadableMetadata implements Serializable {
 
     private static final long serialVersionUID = -4409932324481235973L;
     private final List<String> metadataKeys;
     private final List<MetadataConverter> metadataConverters;
 
-    public PulsarAppendMetadataSupport(List<String> metadataKeys) {
+    public PulsarReadableMetadata(List<String> metadataKeys) {
         this.metadataKeys = metadataKeys;
         this.metadataConverters = initializeMetadataConverters();
     }
@@ -77,15 +82,25 @@ public class PulsarAppendMetadataSupport implements Serializable {
     interface MetadataConverter extends Serializable {
         Object read(Message<?> message);
     }
+
     // TODO need to take another look at these fields
+
+    /** Lists the metada that is readable from a Pulsar message. Used in SQL source connector. */
     public enum ReadableMetadata {
         TOPIC(
                 "topic",
                 DataTypes.STRING().notNull(),
                 message -> StringData.fromString(message.getTopicName())),
 
+        MESSAGE_SIZE("message_size", DataTypes.INT().notNull(), message -> message.size()),
+
+        PRODUCER_NAME(
+                "producer_name",
+                DataTypes.STRING().notNull(),
+                message -> StringData.fromString(message.getProducerName())),
+
         MESSAGE_ID(
-                "messageId",
+                "message_id",
                 DataTypes.BYTES().notNull(),
                 message -> message.getMessageId().toByteArray()),
 
@@ -97,7 +112,7 @@ public class PulsarAppendMetadataSupport implements Serializable {
                 message -> TimestampData.fromEpochMillis(message.getPublishTime())),
 
         EVENT_TIME(
-                "eventTime",
+                "event_time",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
                 message -> TimestampData.fromEpochMillis(message.getEventTime())),
 

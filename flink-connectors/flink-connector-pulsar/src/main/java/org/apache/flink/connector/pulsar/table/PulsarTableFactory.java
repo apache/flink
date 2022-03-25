@@ -26,10 +26,10 @@ import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.PulsarSinkOptions;
 import org.apache.flink.connector.pulsar.source.PulsarSourceOptions;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
-import org.apache.flink.connector.pulsar.table.sink.PulsarDynamicTableSink;
-import org.apache.flink.connector.pulsar.table.sink.impl.PulsarSerializationSchemaFactory;
-import org.apache.flink.connector.pulsar.table.source.PulsarDynamicTableSource;
-import org.apache.flink.connector.pulsar.table.source.impl.PulsarDeserializationSchemaFactory;
+import org.apache.flink.connector.pulsar.table.sink.PulsarTableSerializationSchemaFactory;
+import org.apache.flink.connector.pulsar.table.sink.PulsarTableSink;
+import org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchemaFactory;
+import org.apache.flink.connector.pulsar.table.source.PulsarTableSource;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -40,6 +40,8 @@ import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+
+import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.util.HashSet;
 import java.util.List;
@@ -53,23 +55,25 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.cre
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.createValueFormatProjection;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getKeyDecodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getKeyEncodingFormat;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getPulsarProperties;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getStartCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getSubscriptionType;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicListFromOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueDecodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueEncodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SCAN_STARTUP_MODE;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SOURCE_SUBSCRIPTION_TYPE;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPIC;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.getPulsarProperties;
-import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.getStartCursor;
+import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validatePrimaryKeyConstraints;
+import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils.validateTableSourceOptions;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
-/** Factory for creating configured instances of {@link PulsarDynamicTableFactory}. */
-public class PulsarDynamicTableFactory
-        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+/** Factory for creating configured instances of {@link PulsarTableFactory}. */
+public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "pulsar";
 
@@ -82,13 +86,21 @@ public class PulsarDynamicTableFactory
         helper.validateExcept(
                 PulsarSourceOptions.CONSUMER_CONFIG_PREFIX,
                 PulsarSinkOptions.PRODUCER_CONFIG_PREFIX);
-        validatePrimaryKey();
 
-        // TODO validate configs
+        validatePrimaryKeyConstraints(
+                context.getObjectIdentifier(),
+                context.getPrimaryKeyIndexes(),
+                context.getCatalogTable().getOptions(),
+                helper);
+
+        validateTableSourceOptions(tableOptions);
 
         // retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
         final Optional<StartCursor> startCursorOptional = getStartCursor(tableOptions);
+        final Optional<SubscriptionType> subscriptionTypeOptional =
+                getSubscriptionType(tableOptions);
+
         final Properties properties = getPulsarProperties(tableOptions);
 
         // retrieve formats, physical fields (not including computed or metadata fields),
@@ -103,8 +115,8 @@ public class PulsarDynamicTableFactory
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
 
-        final PulsarDeserializationSchemaFactory deserializationSchemaFactory =
-                new PulsarDeserializationSchemaFactory(
+        final PulsarTableDeserializationSchemaFactory deserializationSchemaFactory =
+                new PulsarTableDeserializationSchemaFactory(
                         physicalDataType,
                         keyDecodingFormat,
                         keyProjection,
@@ -115,15 +127,17 @@ public class PulsarDynamicTableFactory
         final StartCursor startCursor = startCursorOptional.orElse(StartCursor.earliest());
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormatForMetadataPushdown =
                 valueDecodingFormat;
-
+        final SubscriptionType subscriptionType =
+                subscriptionTypeOptional.orElse(SubscriptionType.Exclusive);
         // TODO factory not created yet
         // TODO decodingFormatForMetadataPushdown can be refactored?
-        return new PulsarDynamicTableSource(
+        return new PulsarTableSource(
                 deserializationSchemaFactory,
                 decodingFormatForMetadataPushdown,
                 topics,
                 properties,
-                startCursor);
+                startCursor,
+                subscriptionType);
     }
 
     @Override
@@ -135,7 +149,11 @@ public class PulsarDynamicTableFactory
         helper.validateExcept(
                 PulsarSourceOptions.CONSUMER_CONFIG_PREFIX,
                 PulsarSinkOptions.PRODUCER_CONFIG_PREFIX);
-        validatePrimaryKey();
+        validatePrimaryKeyConstraints(
+                context.getObjectIdentifier(),
+                context.getPrimaryKeyIndexes(),
+                context.getCatalogTable().getOptions(),
+                helper);
 
         // retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
@@ -150,13 +168,13 @@ public class PulsarDynamicTableFactory
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
 
-        final PulsarSerializationSchemaFactory serializationSchemaFactory = new PulsarSerializationSchemaFactory(
-                physicalDataType,
-                keyEncodingFormat,
-                keyProjection,
-                valueEncodingFormat,
-                valueProjection
-        );
+        final PulsarTableSerializationSchemaFactory serializationSchemaFactory =
+                new PulsarTableSerializationSchemaFactory(
+                        physicalDataType,
+                        keyEncodingFormat,
+                        keyProjection,
+                        valueEncodingFormat,
+                        valueProjection);
 
         // set default values
         final DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
@@ -164,7 +182,7 @@ public class PulsarDynamicTableFactory
         final ChangelogMode changelogMode = valueEncodingFormat.getChangelogMode();
         // validate configs
 
-        return new PulsarDynamicTableSink(
+        return new PulsarTableSink(
                 physicalDataType,
                 serializationSchemaFactory,
                 changelogMode,
@@ -193,16 +211,13 @@ public class PulsarDynamicTableFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCAN_STARTUP_MODE);
-        options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-        options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
+        options.add(SOURCE_SOURCE_SUBSCRIPTION_TYPE);
+        options.add(SOURCE_START_FROM_MESSAGE_ID);
+        options.add(SOURCE_START_FROM_PUBLISH_TIME);
         options.add(SINK_PARALLELISM);
         options.add(KEY_FORMAT);
         options.add(KEY_FIELDS);
         return options;
     }
-
-    private void validatePrimaryKey() {
-        // TODO implement me
-    }
+    // TODO investigate forward options
 }

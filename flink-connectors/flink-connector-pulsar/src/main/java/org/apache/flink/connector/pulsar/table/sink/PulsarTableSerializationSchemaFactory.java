@@ -11,18 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.connector.pulsar.table.sink.impl;
+
+package org.apache.flink.connector.pulsar.table.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
-import org.apache.flink.connector.pulsar.table.sink.PulsarDynamicTableSerializationSchema;
-import org.apache.flink.connector.pulsar.table.source.impl.PulsarAppendMetadataSupport;
-import org.apache.flink.connector.pulsar.table.source.impl.PulsarUpsertSupport;
-import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.connector.pulsar.table.sink.impl.PulsarWritableMetadata;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -33,10 +30,12 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
-import java.util.stream.Stream;
 
-public class PulsarSerializationSchemaFactory {
+/**
+ * Contains needed field mapping and encoding format information to construct a {@link
+ * org.apache.flink.connector.pulsar.table.sink.PulsarTableSerializationSchema} instance.
+ */
+public class PulsarTableSerializationSchemaFactory {
 
     protected final DataType physicalDataType;
 
@@ -51,7 +50,7 @@ public class PulsarSerializationSchemaFactory {
     /** Metadata that is appended at the end of a physical sink row. */
     protected List<String> writableMetadataKeys;
 
-    public PulsarSerializationSchemaFactory(
+    public PulsarTableSerializationSchemaFactory(
             DataType physicalDataType,
             EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             int[] keyProjection,
@@ -75,10 +74,6 @@ public class PulsarSerializationSchemaFactory {
         final SerializationSchema<RowData> valueSerialization =
                 createSerialization(context, valueEncodingFormat, valueProjection, null);
 
-//        final PulsarUpsertSupport upsertSupport = new PulsarUpsertSupport(false);
-//        final PulsarAppendMetadataSupport appendMetadataSupport =
-//                new PulsarAppendMetadataSupport(writableMetadataKeys);
-
         // TODO check Kafka implementation
         final List<LogicalType> physicalChildren = physicalDataType.getLogicalType().getChildren();
 
@@ -89,32 +84,15 @@ public class PulsarSerializationSchemaFactory {
 
         // determine the positions of metadata in the consumed row
         // TODO abstract this to a different
-        final int[] metadataPositions =
-                Stream.of(WritableMetadata.values())
-                        .mapToInt(
-                                m -> {
-                                    final int pos = writableMetadataKeys.indexOf(m.key);
-                                    if (pos < 0) {
-                                        return -1;
-                                    }
-                                    return physicalChildren.size() + pos;
-                                })
-                        .toArray();
+        final PulsarWritableMetadata writableMetadata =
+                new PulsarWritableMetadata(writableMetadataKeys, physicalChildren.size());
 
-        // check if metadata is used at all
-        final boolean hasMetadata = writableMetadataKeys.size() > 0;
-
-        // TODO retrieve message delay configuration
-        final long delayMilliseconds = 0;
-
-        return new PulsarDynamicTableSerializationSchema(
+        return new PulsarTableSerializationSchema(
                 keySerialization,
                 keyFieldGetters,
                 valueSerialization,
                 valueFieldGetters,
-                metadataPositions,
-                DataTypeUtils.projectRow(physicalDataType, valueProjection),
-                delayMilliseconds);
+                writableMetadata);
     }
 
     private @Nullable SerializationSchema<RowData> createSerialization(
@@ -125,8 +103,7 @@ public class PulsarSerializationSchemaFactory {
         if (format == null) {
             return null;
         }
-        DataType physicalFormatDataType =
-                DataTypeUtils.projectRow(this.physicalDataType, projection);
+        DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
         }
@@ -145,56 +122,5 @@ public class PulsarSerializationSchemaFactory {
 
     public void setWritableMetadataKeys(List<String> writableMetadataKeys) {
         this.writableMetadataKeys = writableMetadataKeys;
-    }
-
-
-    // TODO put here for now, need to exam the detail logic
-    enum WritableMetadata {
-
-        PROPERTIES(
-                "properties",
-                // key and value of the map are nullable to make handling easier in queries
-                DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable()).nullable(),
-                (row, pos) -> {
-                    if (row.isNullAt(pos)) {
-                        return null;
-                    }
-                    final MapData map = row.getMap(pos);
-                    final ArrayData keyArray = map.keyArray();
-                    final ArrayData valueArray = map.valueArray();
-
-                    final Properties properties = new Properties();
-                    for (int i = 0; i < keyArray.size(); i++) {
-                        if (!keyArray.isNullAt(i) && !valueArray.isNullAt(i)) {
-                            final String key = keyArray.getString(i).toString();
-                            final String value = valueArray.getString(i).toString();
-                            properties.put(key, value);
-                        }
-                    }
-                    return properties;
-                }
-        ),
-
-        EVENT_TIME(
-                "eventTime",
-                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-                (row, pos) -> {
-                    if (row.isNullAt(pos)) {
-                        return null;
-                    }
-                    return row.getTimestamp(pos, 3).getMillisecond();
-                });
-        final String key;
-
-        final DataType dataType;
-
-        final PulsarDynamicTableSerializationSchema.MetadataConverter converter;
-
-        WritableMetadata(String key, DataType dataType,
-                         PulsarDynamicTableSerializationSchema.MetadataConverter converter) {
-            this.key = key;
-            this.dataType = dataType;
-            this.converter = converter;
-        }
     }
 }

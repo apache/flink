@@ -24,6 +24,9 @@ import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
 
+/**
+ * A class used to support upsert Pulsar. It decides the row kind according to upsert configuration.
+ */
 public class PulsarUpsertSupport implements Serializable {
     private static final long serialVersionUID = -3792051667586401939L;
 

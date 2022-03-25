@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.connector.pulsar.table.source.impl;
+
+package org.apache.flink.connector.pulsar.table.source;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
-import org.apache.flink.connector.pulsar.table.source.PulsarDynamicTableDeserializationSchema;
+import org.apache.flink.connector.pulsar.table.source.impl.PulsarProjectProducedRowSupport;
+import org.apache.flink.connector.pulsar.table.source.impl.PulsarReadableMetadata;
+import org.apache.flink.connector.pulsar.table.source.impl.PulsarUpsertSupport;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -33,12 +36,16 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
-public class PulsarDeserializationSchemaFactory implements Serializable {
+/**
+ * Contains key, value projection and format information, and use these information to create a
+ * {@link org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchema} instance
+ * used by runtime {@link org.apache.flink.connector.pulsar.source.PulsarSource} instance.
+ */
+public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
     private static final long serialVersionUID = 6091562041940740434L;
 
@@ -57,7 +64,7 @@ public class PulsarDeserializationSchemaFactory implements Serializable {
 
     private List<String> connectorMetadataKeys;
 
-    public PulsarDeserializationSchemaFactory(
+    public PulsarTableDeserializationSchemaFactory(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             int[] keyProjection,
@@ -105,13 +112,13 @@ public class PulsarDeserializationSchemaFactory implements Serializable {
                 context.createTypeInformation(producedDataType);
 
         final PulsarUpsertSupport upsertSupport = new PulsarUpsertSupport(false);
-        final PulsarAppendMetadataSupport appendMetadataSupport =
-                new PulsarAppendMetadataSupport(connectorMetadataKeys);
+        final PulsarReadableMetadata readableMetadata =
+                new PulsarReadableMetadata(connectorMetadataKeys);
 
         // TODO can we make this part more clear?
         // adjust physical arity with value format's metadata
         final int physicalPlusFormatMetadataArity =
-                producedDataType.getChildren().size() - appendMetadataSupport.getMetadataArity();
+                producedDataType.getChildren().size() - readableMetadata.getMetadataArity();
         final int[] physicalPlusFormatMetadataProjection =
                 adjustValueProjectionByAppendConnectorMetadata(physicalPlusFormatMetadataArity);
         final PulsarProjectProducedRowSupport projectionSupport =
@@ -119,10 +126,10 @@ public class PulsarDeserializationSchemaFactory implements Serializable {
                         physicalPlusFormatMetadataArity,
                         keyProjection,
                         physicalPlusFormatMetadataProjection,
-                        appendMetadataSupport,
+                        readableMetadata,
                         upsertSupport);
         // TODO add the projection support here.
-        return new PulsarDynamicTableDeserializationSchema(
+        return new PulsarTableDeserializationSchema(
                 keyDeserialization, valueDeserialization, producedTypeInfo, projectionSupport);
     }
 

@@ -15,11 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.connector.pulsar.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -33,21 +36,72 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SOURCE_SUBSCRIPTION_TYPE;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPIC;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 
+/**
+ * A util class for getting fields from config options, getting formats and other useful
+ * information.
+ *
+ * <p>TODO add more description
+ */
 public class PulsarTableOptionUtils {
 
     public static List<String> getTopicListFromOptions(ReadableConfig tableOptions) {
         List<String> topics = tableOptions.getOptional(TOPIC).orElse(new ArrayList<>());
         return topics;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------------------------------------------
+
+    // TODO will the cast lose context ? Enum and Map type ?
+    // TODO by default it only supports string ConfigOptions
+    public static Properties getPulsarProperties(ReadableConfig tableOptions) {
+        final Properties pulsarProperties = new Properties();
+        final Map<String, String> configs = ((Configuration) tableOptions).toMap();
+        configs.keySet().stream()
+                .filter(key -> key.startsWith("pulsar"))
+                .forEach(key -> pulsarProperties.put(key, configs.get(key)));
+        return pulsarProperties;
+    }
+
+    public static Optional<StartCursor> getStartCursor(ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(SOURCE_START_FROM_MESSAGE_ID).isPresent()) {
+            return Optional.of(
+                    parseMessageIdStartCursor(tableOptions.get(SOURCE_START_FROM_MESSAGE_ID)));
+        } else if (tableOptions.getOptional(SOURCE_START_FROM_PUBLISH_TIME).isPresent()) {
+            return Optional.of(
+                    parsePublishTimeStartCursor(tableOptions.get(SOURCE_START_FROM_PUBLISH_TIME)));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    // TODO this can be simplified, and only 2 subcsription type is allowed
+    public static Optional<SubscriptionType> getSubscriptionType(ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(SOURCE_SOURCE_SUBSCRIPTION_TYPE).isPresent()) {
+            return Optional.of(tableOptions.get(SOURCE_SOURCE_SUBSCRIPTION_TYPE));
+        } else {
+            return Optional.empty();
+        }
     }
 
     public static DecodingFormat<DeserializationSchema<RowData>> getKeyDecodingFormat(
@@ -126,5 +180,34 @@ public class PulsarTableOptionUtils {
         return physicalFields
                 .filter(pos -> IntStream.of(keyProjection).noneMatch(k -> k == pos))
                 .toArray();
+    }
+
+    private static StartCursor parseMessageIdStartCursor(String config) {
+        if (Objects.equals(config, "earliest")) {
+            return StartCursor.earliest();
+        } else if (Objects.equals(config, "latest")) {
+            return StartCursor.latest();
+        } else {
+            return parseMessageIdString(config);
+        }
+    }
+
+    // TODO how to parse the messageId?
+    private static StartCursor parseMessageIdString(String config) {
+        String[] tokens = config.split(":", 3);
+        if (tokens.length != 3) {
+            throw new IllegalArgumentException(
+                    "MessageId format must be ledgerId:entryId:partitionId .");
+        }
+        Long ledgerId = Long.parseLong(tokens[0]);
+        Long entryId = Long.parseLong(tokens[1]);
+        Integer partitionId = Integer.parseInt(tokens[2]);
+
+        MessageIdImpl messageId = new MessageIdImpl(ledgerId, entryId, partitionId);
+        return StartCursor.fromMessageId(messageId);
+    }
+
+    private static StartCursor parsePublishTimeStartCursor(Long config) {
+        return StartCursor.fromMessageTime(config);
     }
 }

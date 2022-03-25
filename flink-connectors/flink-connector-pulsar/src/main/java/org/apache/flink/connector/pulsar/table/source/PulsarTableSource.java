@@ -23,8 +23,7 @@ import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
-import org.apache.flink.connector.pulsar.table.source.impl.PulsarAppendMetadataSupport;
-import org.apache.flink.connector.pulsar.table.source.impl.PulsarDeserializationSchemaFactory;
+import org.apache.flink.connector.pulsar.table.source.impl.PulsarReadableMetadata;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -37,11 +36,23 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadingMetadata {
+/**
+ * A {@link ScanTableSource} implementation for Pulsar SQL Connector. It uses a {@link
+ * SourceProvider} so it doesn't need to support {@link
+ * org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown} interface.
+ *
+ * <p>TODO add more description
+ */
+public class PulsarTableSource implements ScanTableSource, SupportsReadingMetadata {
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -55,7 +66,7 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
 
     private static final String FORMAT_METADATA_PREFIX = "value.";
 
-    protected final PulsarDeserializationSchemaFactory deserializationSchemaFactory;
+    protected final PulsarTableDeserializationSchemaFactory deserializationSchemaFactory;
 
     protected final DecodingFormat<DeserializationSchema<RowData>>
             decodingFormatForMetadataPushdown;
@@ -70,13 +81,16 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
 
     protected final StartCursor startCursor;
 
+    protected final SubscriptionType subscriptionType;
+
     // TODO all streaming config options should be supported in Table API as well.
-    public PulsarDynamicTableSource(
-            PulsarDeserializationSchemaFactory deserializationSchemaFactory,
+    public PulsarTableSource(
+            PulsarTableDeserializationSchemaFactory deserializationSchemaFactory,
             DecodingFormat<DeserializationSchema<RowData>> decodingFormatForMetadataPushdown,
             List<String> topics,
             Properties properties,
-            StartCursor startCursor) {
+            StartCursor startCursor,
+            SubscriptionType subscriptionType) {
         // Format attributes
         this.deserializationSchemaFactory = deserializationSchemaFactory;
         this.decodingFormatForMetadataPushdown =
@@ -87,6 +101,7 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
         this.topics = topics;
         this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
         this.startCursor = startCursor;
+        this.subscriptionType = subscriptionType;
     }
 
     @Override
@@ -107,6 +122,7 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
                         .setTopics(topics)
                         .setStartCursor(startCursor)
                         .setDeserializationSchema(deserializationSchema)
+                        .setSubscriptionType(subscriptionType)
                         .setSubscriptionName(subscriptionName)
                         .setProperties(properties)
                         .build();
@@ -128,7 +144,7 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
                 .forEach((key, value) -> allMetadataMap.put(FORMAT_METADATA_PREFIX + key, value));
 
         // add connector metadata
-        Stream.of(PulsarAppendMetadataSupport.ReadableMetadata.values())
+        Stream.of(PulsarReadableMetadata.ReadableMetadata.values())
                 .forEachOrdered(m -> allMetadataMap.putIfAbsent(m.key, m.dataType));
 
         return allMetadataMap;
@@ -168,34 +184,40 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
     }
 
     @Override
-    public DynamicTableSource copy() {
-        final PulsarDynamicTableSource copy =
-                new PulsarDynamicTableSource(
-                        deserializationSchemaFactory,
-                        decodingFormatForMetadataPushdown,
-                        topics,
-                        properties,
-                        startCursor);
-        copy.connectorMetadataKeys = connectorMetadataKeys;
-        return copy;
-    }
-
-    @Override
     public String asSummaryString() {
         return "Pulsar universal table source";
     }
 
     @Override
+    public DynamicTableSource copy() {
+        final PulsarTableSource copy =
+                new PulsarTableSource(
+                        deserializationSchemaFactory,
+                        decodingFormatForMetadataPushdown,
+                        topics,
+                        properties,
+                        startCursor,
+                        subscriptionType);
+        copy.connectorMetadataKeys = connectorMetadataKeys;
+        return copy;
+    }
+
+    @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        PulsarDynamicTableSource that = (PulsarDynamicTableSource) o;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        PulsarTableSource that = (PulsarTableSource) o;
         return Objects.equals(connectorMetadataKeys, that.connectorMetadataKeys)
                 && Objects.equals(
                         decodingFormatForMetadataPushdown, that.decodingFormatForMetadataPushdown)
                 && Objects.equals(topics, that.topics)
                 && Objects.equals(properties, that.properties)
-                && Objects.equals(startCursor, that.startCursor);
+                && Objects.equals(startCursor, that.startCursor)
+                && Objects.equals(subscriptionType, that.subscriptionType);
     }
 
     @Override
@@ -206,7 +228,8 @@ public class PulsarDynamicTableSource implements ScanTableSource, SupportsReadin
                         decodingFormatForMetadataPushdown,
                         topics,
                         properties,
-                        startCursor);
+                        startCursor,
+                        subscriptionType);
         return result;
     }
 }

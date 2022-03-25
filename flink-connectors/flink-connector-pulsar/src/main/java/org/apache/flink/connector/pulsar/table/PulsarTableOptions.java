@@ -20,23 +20,20 @@ package org.apache.flink.connector.pulsar.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
-import org.apache.flink.table.factories.FactoryUtil;
 
-import java.util.Arrays;
-import java.util.HashSet;
+import org.apache.pulsar.client.api.SubscriptionType;
+
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.Set;
 
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
 
-// TODO need to rewrite the entire class.
+/**
+ * Config options that is used to configure a Pulsar SQL Connector. These config options are
+ * specific to SQL Connectors only. Other runtime configurations can be found in {@link
+ * org.apache.flink.connector.pulsar.common.config.PulsarOptions}, {@link
+ * org.apache.flink.connector.pulsar.source.PulsarSourceOptions}, and {@link
+ * org.apache.flink.connector.pulsar.sink.PulsarSinkOptions}.
+ */
 public class PulsarTableOptions {
     // TODO these two will be kept
     public static final ConfigOption<List<String>> TOPIC =
@@ -48,25 +45,22 @@ public class PulsarTableOptions {
                             "Topic names from which the table is read. Either 'topic' or 'topic-pattern' must be set for source. "
                                     + "Option 'topic' is required for sink.");
 
-    // TODO these are the startCursor related options
-    public static final ConfigOption<String> SCAN_STARTUP_MODE =
-            ConfigOptions.key("scan.startup.mode")
-                    .stringType()
-                    .defaultValue("latest")
-                    .withDescription(
-                            "Optional startup mode for Pulsar consumer, valid enumerations are "
-                                    + "\"earliest\", \"latest\", \"external-subscription\",\n"
-                                    + "or \"specific-offsets\"");
+    // TODO these are the startCursor related options, add description for it.
+    public static final ConfigOption<SubscriptionType> SOURCE_SOURCE_SUBSCRIPTION_TYPE =
+            ConfigOptions.key("source.subscription-type")
+                    .enumType(SubscriptionType.class)
+                    .defaultValue(SubscriptionType.Exclusive)
+                    .withDescription("");
 
-    public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
-            ConfigOptions.key("scan.startup.specific-offsets")
+    public static final ConfigOption<String> SOURCE_START_FROM_MESSAGE_ID =
+            ConfigOptions.key("source.start.message-id")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Optional offsets used in case of \"specific-offsets\" startup mode");
 
-    public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
-            ConfigOptions.key("scan.startup.timestamp-millis")
+    public static final ConfigOption<Long> SOURCE_START_FROM_PUBLISH_TIME =
+            ConfigOptions.key("source.start.publish-time")
                     .longType()
                     .noDefaultValue()
                     .withDescription(
@@ -94,8 +88,6 @@ public class PulsarTableOptions {
                                     + "that configure the data type for the key format. By default, this list is "
                                     + "empty and thus a key is undefined.");
 
-    public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
-
     // --------------------------------------------------------------------------------------------
     // Option enumerations
     // --------------------------------------------------------------------------------------------
@@ -103,33 +95,4 @@ public class PulsarTableOptions {
     // Start up offset.
     public static final String SCAN_STARTUP_MODE_VALUE_EARLIEST = "earliest";
     public static final String SCAN_STARTUP_MODE_VALUE_LATEST = "latest";
-
-    private static final Set<String> SCAN_STARTUP_MODE_ENUMS =
-            new HashSet<>(
-                    Arrays.asList(
-                            SCAN_STARTUP_MODE_VALUE_EARLIEST, SCAN_STARTUP_MODE_VALUE_LATEST));
-
-    // --------------------------------------------------------------------------------------------
-    // Validation
-    // --------------------------------------------------------------------------------------------
-
-    // TODO will the cast lose context ? Enum and Map type ?
-    // TODO by default it only supports string ConfigOptions
-    public static Properties getPulsarProperties(ReadableConfig tableOptions) {
-        final Properties pulsarProperties = new Properties();
-        final Map<String, String> configs = ((Configuration) tableOptions).toMap();
-        configs.keySet().stream()
-                .filter(key -> key.startsWith("pulsar"))
-                .forEach(key -> pulsarProperties.put(key, configs.get(key)));
-        return pulsarProperties;
-    }
-
-    // TODO implement this
-    public static Optional<RangeGenerator> getRangeGenerator(ReadableConfig tableOptions) {
-        return Optional.empty();
-    }
-
-    public static Optional<StartCursor> getStartCursor(ReadableConfig tableOptions) {
-        return Optional.empty();
-    }
 }

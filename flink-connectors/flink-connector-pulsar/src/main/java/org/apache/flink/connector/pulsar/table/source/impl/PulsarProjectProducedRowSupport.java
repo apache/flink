@@ -30,7 +30,10 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.List;
 
-// TODO these classes needs to be serializable
+/**
+ * Contains the projection information needed to map a Pulsar message to proper key fields, value
+ * fields and metadata fields.
+ */
 public class PulsarProjectProducedRowSupport implements Serializable {
     private static final long serialVersionUID = -3399264407634977459L;
 
@@ -40,7 +43,7 @@ public class PulsarProjectProducedRowSupport implements Serializable {
 
     private final int[] valueProjection;
 
-    private final PulsarAppendMetadataSupport appendMetadataSupport;
+    private final PulsarReadableMetadata readableMetadata;
 
     private final PulsarUpsertSupport upsertSupport;
 
@@ -48,12 +51,12 @@ public class PulsarProjectProducedRowSupport implements Serializable {
             int physicalArity,
             int[] keyProjection,
             int[] valueProjection,
-            PulsarAppendMetadataSupport appendMetadataSupport,
+            PulsarReadableMetadata readableMetadata,
             PulsarUpsertSupport upsertSupport) {
         this.physicalArity = physicalArity;
         this.keyProjection = keyProjection;
         this.valueProjection = valueProjection;
-        this.appendMetadataSupport = appendMetadataSupport;
+        this.readableMetadata = readableMetadata;
         this.upsertSupport = upsertSupport;
     }
 
@@ -93,8 +96,7 @@ public class PulsarProjectProducedRowSupport implements Serializable {
         // TODO need to combine physicalArity and metadataArity
         // TODO metadata arity
         final GenericRowData producedRow =
-                new GenericRowData(
-                        rowKind, physicalArity + appendMetadataSupport.getMetadataArity());
+                new GenericRowData(rowKind, physicalArity + readableMetadata.getMetadataArity());
 
         // TODO project values
         if (physicalValueRow != null) {
@@ -109,7 +111,7 @@ public class PulsarProjectProducedRowSupport implements Serializable {
             producedRow.setField(keyProjection[keyPos], physicalKeyRow.getField(keyPos));
         }
 
-        appendMetadataSupport.appendProducedRowWithMetadata(producedRow, physicalArity, message);
+        readableMetadata.appendProducedRowWithMetadata(producedRow, physicalArity, message);
         collector.collect(producedRow);
     }
 

@@ -35,8 +35,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-
+/** Base class for Pulsar table integration test. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class PulsarTableTestBase {
 
