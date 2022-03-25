@@ -48,10 +48,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stateless Materialization Manager. */
 @Internal
-public class PeriodicMaterializationManager implements Closeable {
+public class PeriodicMaterializationManager<Metadata> implements Closeable {
 
     /** {@link MaterializationRunnable} provider and consumer, i.e. state backend. */
-    public interface MaterializationTarget {
+    public interface MaterializationTarget<Metadata> {
 
         /**
          * Initialize state materialization so that materialized data can be persisted durably and
@@ -63,7 +63,7 @@ public class PeriodicMaterializationManager implements Closeable {
          * @return a tuple of - future snapshot result from the underlying state backend - a {@link
          *     SequenceNumber} identifying the latest change in the changelog
          */
-        Optional<MaterializationRunnable> initMaterialization() throws Exception;
+        Optional<MaterializationRunnable<Metadata>> initMaterialization() throws Exception;
 
         /**
          * This method is not thread safe. It should be called either under a lock or through task
@@ -72,7 +72,7 @@ public class PeriodicMaterializationManager implements Closeable {
         void handleMaterializationResult(
                 SnapshotResult<KeyedStateHandle> materializedSnapshot,
                 long materializationID,
-                SequenceNumber upTo)
+                Metadata upTo)
                 throws Exception;
     }
 
@@ -99,7 +99,7 @@ public class PeriodicMaterializationManager implements Closeable {
     /** Number of consecutive materialization failures. */
     private final AtomicInteger numberOfConsecutiveFailures;
 
-    private final MaterializationTarget target;
+    private final MaterializationTarget<Metadata> target;
 
     private final ChangelogMaterializationMetricGroup metrics;
 
@@ -113,7 +113,7 @@ public class PeriodicMaterializationManager implements Closeable {
             ExecutorService asyncOperationsThreadPool,
             String subtaskName,
             AsyncExceptionHandler asyncExceptionHandler,
-            MaterializationTarget target,
+            MaterializationTarget<Metadata> target,
             ChangelogMaterializationMetricGroup metricGroup,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
@@ -166,7 +166,7 @@ public class PeriodicMaterializationManager implements Closeable {
         mailboxExecutor.execute(
                 () -> {
                     metrics.reportStartedMaterialization();
-                    Optional<MaterializationRunnable> materializationRunnableOptional;
+                    Optional<MaterializationRunnable<Metadata>> materializationRunnableOptional;
                     try {
                         materializationRunnableOptional = target.initMaterialization();
                     } catch (Exception ex) {
@@ -175,7 +175,8 @@ public class PeriodicMaterializationManager implements Closeable {
                     }
 
                     if (materializationRunnableOptional.isPresent()) {
-                        MaterializationRunnable runnable = materializationRunnableOptional.get();
+                        MaterializationRunnable<Metadata> runnable =
+                                materializationRunnableOptional.get();
                         asyncOperationsThreadPool.execute(
                                 () ->
                                         asyncMaterializationPhase(
@@ -199,7 +200,7 @@ public class PeriodicMaterializationManager implements Closeable {
     private void asyncMaterializationPhase(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture,
             long materializationID,
-            SequenceNumber upTo) {
+            Metadata upTo) {
 
         uploadSnapshot(materializedRunnableFuture)
                 .whenComplete(
@@ -322,21 +323,24 @@ public class PeriodicMaterializationManager implements Closeable {
     }
 
     /** A {@link Runnable} representing the materialization and the associated metadata. */
-    public static class MaterializationRunnable {
+    public static class MaterializationRunnable<Metadata> {
         private final RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable;
 
         private final long materializationID;
 
         /**
-         * The {@link SequenceNumber} up to which the state is materialized, exclusive. This
-         * indicates the non-materialized part of the current changelog.
+         * Metadata about this materialization.
+         *
+         * <p>In case of changelog, the {@link SequenceNumber} up to which the state is
+         * materialized, exclusive. This indicates the non-materialized part of the current
+         * changelog.
          */
-        private final SequenceNumber materializedTo;
+        private final Metadata materializedTo;
 
         public MaterializationRunnable(
                 RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable,
                 long materializationID,
-                SequenceNumber materializedTo) {
+                Metadata materializedTo) {
             this.materializationRunnable = materializationRunnable;
             this.materializedTo = materializedTo;
             this.materializationID = materializationID;
@@ -346,7 +350,7 @@ public class PeriodicMaterializationManager implements Closeable {
             return materializationRunnable;
         }
 
-        SequenceNumber getMaterializedTo() {
+        Metadata getMaterializedTo() {
             return materializedTo;
         }
 
