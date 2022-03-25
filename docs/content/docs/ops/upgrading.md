@@ -517,7 +517,7 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-left"></td>
         </tr>
     <tr>
-          <td class="text-center"><strong>1.14.x</strong></td>
+          <td class="text-center"><strong>1.15.x</strong></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
