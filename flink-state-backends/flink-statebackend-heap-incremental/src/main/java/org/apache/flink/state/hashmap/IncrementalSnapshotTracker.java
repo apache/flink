@@ -18,6 +18,8 @@
 package org.apache.flink.state.hashmap;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -38,6 +40,14 @@ interface IncrementalSnapshotTracker {
             long checkpointId,
             IncrementalSnapshot incrementalSnapshot,
             List<Runnable> confirmCallbacks);
+
+    /**
+     * The caller is responsible for the order of the calls, i.e. if materializations complete out
+     * of order, this method must still be called in order.
+     */
+    void trackFullSnapshot(
+            SnapshotResult<KeyedStateHandle> materializedSnapshot,
+            IncrementalSnapshot.Versions versions);
 
     /** The confirmed snapshot will become the new base (if it is the latest one). */
     void confirmSnapshot(long checkpointId);

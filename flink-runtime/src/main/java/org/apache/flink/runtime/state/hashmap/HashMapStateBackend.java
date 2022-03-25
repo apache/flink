@@ -136,7 +136,8 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
                         cancelStreamRegistry,
                         localRecoveryConfig,
                         priorityQueueSetFactory,
-                        latencyTrackingStateConfig)
+                        latencyTrackingStateConfig,
+                        operatorIdentifier)
                 .build();
     }
 
@@ -151,7 +152,8 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
             CloseableRegistry cancelStreamRegistry,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            LatencyTrackingStateConfig latencyTrackingStateConfig) {
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            String operatorIdentifier) {
         return new HeapKeyedStateBackendBuilder<>(
                 kvStateRegistry,
                 keySerializer,

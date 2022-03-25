@@ -67,6 +67,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
     private final HeapRestoreOperation.KeyGroupReaderFactory keyGroupReaderFactory;
     private final Function<ClassLoader, KeyedBackendSerializationProxy<K>>
             serializationProxyProvider;
+    private final CloseableRegistry cancelStreamRegistryForBackend;
 
     public HeapKeyedStateBackendBuilder(
             TaskKvStateRegistry kvStateRegistry,
@@ -110,7 +111,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                                 StateSnapshotWriter.DEFAULT),
                 CopyOnWriteStateTable::new,
                 StateSnapshotRestore::keyGroupReader,
-                KeyedBackendSerializationProxy::new);
+                KeyedBackendSerializationProxy::new,
+                new CloseableRegistry());
     }
 
     public HeapKeyedStateBackendBuilder(
@@ -131,7 +133,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             SnapshotStrategyFactory<K> snapshotStrategyFactory,
             StateTableFactory<K> stateTableFactory,
             HeapRestoreOperation.KeyGroupReaderFactory keyGroupReaderFactory,
-            Function<ClassLoader, KeyedBackendSerializationProxy<K>> serializationProxyProvider) {
+            Function<ClassLoader, KeyedBackendSerializationProxy<K>> serializationProxyProvider,
+            CloseableRegistry cancelStreamRegistryForBackend) {
         super(
                 kvStateRegistry,
                 keySerializer,
@@ -151,6 +154,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         this.stateTableFactory = stateTableFactory;
         this.keyGroupReaderFactory = keyGroupReaderFactory;
         this.serializationProxyProvider = serializationProxyProvider;
+        this.cancelStreamRegistryForBackend = cancelStreamRegistryForBackend;
     }
 
     @Override
@@ -160,7 +164,6 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         // Map of registered priority queue set states
         Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
                 new HashMap<>();
-        CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
         SnapshotStrategy<KeyedStateHandle, ?> snapshotStrategy =
                 snapshotStrategyFactory.initSnapshotStrategy(
                         registeredKVStates, registeredPQStates, keySerializerProvider);

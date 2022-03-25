@@ -18,6 +18,7 @@
 package org.apache.flink.state.hashmap;
 
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 
 import org.slf4j.Logger;
@@ -82,14 +83,38 @@ class IncrementalSnapshotTrackerImpl implements IncrementalSnapshotTracker {
     }
 
     @Override
+    public void trackFullSnapshot(
+            SnapshotResult<KeyedStateHandle> materializedSnapshot,
+            IncrementalSnapshot.Versions versions) {
+        long checkpointID =
+                Math.max(
+                        lastConfirmedCheckpointID,
+                        unconfirmedSnapshots.isEmpty()
+                                ? Long.MIN_VALUE
+                                : unconfirmedSnapshots.lastKey());
+        LOG.debug(
+                "received full snapshot - making a base checkpoint {} (last confirmed checkpoint ID: {})",
+                checkpointID,
+                lastConfirmedCheckpointID);
+        confirmed =
+                new IncrementalSnapshot(
+                        versions,
+                        stateHandleHelper.asIncremental(materializedSnapshot, checkpointID),
+                        checkpointID);
+        // todo: split confirm() into release() and asConfirmed()
+        unconfirmedSnapshots.values().forEach(snapshot -> snapshot.confirm(stateHandleHelper));
+        unconfirmedSnapshots.clear();
+    }
+
+    @Override
     public synchronized void confirmSnapshot(long checkpointId) {
         if (lastConfirmedCheckpointID >= checkpointId) {
             return;
         }
         UnconfirmedSnapshot unconfirmedSnapshot = unconfirmedSnapshots.remove(checkpointId);
         if (unconfirmedSnapshot == null) {
-            LOG.warn(
-                    "Confirmed checkpoint not found: {} (unconfirmed checkpoints: {})",
+            LOG.info(
+                    "Confirmed checkpoint not found: {} (materialized? unconfirmed checkpoints: {})",
                     checkpointId,
                     unconfirmedSnapshots.keySet());
             return;

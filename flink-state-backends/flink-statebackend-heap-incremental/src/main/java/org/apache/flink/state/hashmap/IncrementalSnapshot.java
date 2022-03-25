@@ -26,6 +26,15 @@ import static java.util.Collections.emptyMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 final class IncrementalSnapshot {
+
+    static class Versions {
+        private final Map<String, Map<Integer, Integer>> kvVersions;
+
+        Versions(Map<String, Map<Integer, Integer>> kvVersions) {
+            this.kvVersions = kvVersions;
+        }
+    }
+
     private final SnapshotResult<KeyedStateHandle> stateSnapshot;
     private final Map<String, Map<Integer, Integer>> kvVersions;
     private final long checkpointID;
@@ -35,6 +44,15 @@ final class IncrementalSnapshot {
             SnapshotResult<KeyedStateHandle> stateSnapshot,
             long checkpointID) {
         this.kvVersions = checkNotNull(kvVersions);
+        this.stateSnapshot = checkNotNull(stateSnapshot);
+        this.checkpointID = checkpointID;
+    }
+
+    public IncrementalSnapshot(
+            Versions kvVersions,
+            SnapshotResult<KeyedStateHandle> stateSnapshot,
+            long checkpointID) {
+        this.kvVersions = checkNotNull(kvVersions.kvVersions);
         this.stateSnapshot = checkNotNull(stateSnapshot);
         this.checkpointID = checkpointID;
     }

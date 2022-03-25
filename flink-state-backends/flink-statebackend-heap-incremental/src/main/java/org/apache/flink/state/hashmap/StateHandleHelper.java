@@ -219,4 +219,18 @@ class StateHandleHelper {
                 .findAny()
                 .orElse(UUID.randomUUID());
     }
+
+    SnapshotResult<KeyedStateHandle> asIncremental(
+            SnapshotResult<KeyedStateHandle> snapshotResult, long checkpointID) {
+        KeyedStateHandle state = snapshotResult.getJobManagerOwnedSnapshot();
+        Map<StateHandleID, StreamStateHandle> jmState = new HashMap<>();
+        if (state == null) {
+            return SnapshotResult.empty();
+        } else if (state instanceof IncrementalKeyedStateHandle) {
+            addIncrementalState(jmState, state);
+        } else {
+            addNonIncrementalState(jmState, state, checkpointID);
+        }
+        return toSnapshotResult(jmState, checkpointID, state.getStateSize());
+    }
 }
