@@ -1289,13 +1289,19 @@ class KeyedStream(DataStream):
                     if is_by and agg_type == KeyedStream.MinMaxEnum.MIN:
                         # Logic for min_by operator.
                         def reduce_func(v1, v2):
-                            return v2 if v2[self._pos] < v1[self._pos] else v1
+                            if isinstance(value_to_check, (tuple, list, Row)):
+                                return v2 if v2[self._pos] < v1[self._pos] else v1
+                            else:
+                                return v2 if v2 < v1 else v1
                         self._reduce_func = reduce_func
 
                     elif is_by and agg_type == KeyedStream.MinMaxEnum.MAX:
                         # Logic for max_by operator.
                         def reduce_func(v1, v2):
-                            return v2 if v2[self._pos] > v1[self._pos] else v1
+                            if isinstance(value_to_check, (tuple, list, Row)):
+                                return v2 if v2[self._pos] > v1[self._pos] else v1
+                            else:
+                                return v2 if v2 > v1 else v1
                         self._reduce_func = reduce_func
 
                     elif not is_by:
@@ -1377,6 +1383,53 @@ class KeyedStream(DataStream):
         :return: The transformed DataStream.
         """
         return self._basic_min_max(position_to_min, KeyedStream.MinMaxEnum.MIN, is_by=False)
+
+    def max(self, position_to_max: Union[int, str] = 0) -> 'DataStream':
+        """
+        Applies an aggregation that gives the current maximize of the data
+        stream at the given position by the given key. An independent aggregate
+        is kept per key.
+
+        :param position_to_max:
+            The field position in the data points to maximize. The type can be int (field position)
+            or str (field name).
+            This is applicable to Tuple types, List types, Row types, and basic types (which is
+            considered as having one field).
+        :return: The transformed DataStream.
+        """
+        return self._basic_min_max(position_to_max, KeyedStream.MinMaxEnum.MAX, is_by=False)
+
+    def min_by(self, position_to_min_by: Union[int, str] = 0) -> 'DataStream':
+        """
+        Applies an aggregation that gives the current element with the minimum value at the
+        given position by the given key. An independent aggregate is kept per key.
+        If more elements have the minimum value at the given position,
+        the operator returns the first one by default.
+
+        :param position_to_min_by:
+            The field position in the data points to minimize. The type can be int (field position)
+            or str (field name).
+            This is applicable to Tuple types, List types, Row types, and basic types (which is
+            considered as having one field).
+        :return: The transformed DataStream.
+        """
+        return self._basic_min_max(position_to_min_by, KeyedStream.MinMaxEnum.MIN, is_by=True)
+
+    def max_by(self, position_to_max_by: Union[int, str] = 0) -> 'DataStream':
+        """
+        Applies an aggregation that gives the current element with the maximize value at the
+        given position by the given key. An independent aggregate is kept per key.
+        If more elements have the maximize value at the given position,
+        the operator returns the first one by default.
+
+        :param position_to_max_by:
+            The field position in the data points to maximize. The type can be int (field position)
+            or str (field name).
+            This is applicable to Tuple types, List types, Row types, and basic types (which is
+            considered as having one field).
+        :return: The transformed DataStream.
+        """
+        return self._basic_min_max(position_to_max_by, KeyedStream.MinMaxEnum.MAX, is_by=True)
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
