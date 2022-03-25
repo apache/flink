@@ -1266,7 +1266,8 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
     def test_keyed_min(self):
         ds = self.env.from_collection(
             [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
-            type_info=Types.ROW_NAMED(["v1", "v2", "v3"], [Types.INT(), Types.STRING(), Types.INT()])
+            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
+                                      [Types.INT(), Types.STRING(), Types.INT()])
         )
 
         def flat_map_func(data):
