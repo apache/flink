@@ -110,7 +110,7 @@ public class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
                 TestableKeyedStateBackend<K>,
-                MaterializationTarget {
+                MaterializationTarget<SequenceNumber> {
     private static final Logger LOG = LoggerFactory.getLogger(ChangelogKeyedStateBackend.class);
 
     /**
@@ -627,7 +627,8 @@ public class ChangelogKeyedStateBackend<K>
      *     SequenceNumber} identifying the latest change in the changelog
      */
     @Override
-    public Optional<MaterializationRunnable> initMaterialization() throws Exception {
+    public Optional<MaterializationRunnable<SequenceNumber>> initMaterialization()
+            throws Exception {
         SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
@@ -644,8 +645,8 @@ public class ChangelogKeyedStateBackend<K>
             // checkpoint ID. A faked materialized Id is provided here.
             long materializationID = materializedId++;
 
-            MaterializationRunnable materializationRunnable =
-                    new MaterializationRunnable(
+            MaterializationRunnable<SequenceNumber> materializationRunnable =
+                    new MaterializationRunnable<>(
                             keyedStateBackend.snapshot(
                                     materializationID,
                                     System.currentTimeMillis(),
