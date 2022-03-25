@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -133,9 +134,16 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         PulsarMessage<?> message = serializationSchema.serialize(element, sinkContext);
 
         // Choose the right topic to send.
-        String key = message.getKey();
+
         List<String> availableTopics = metadataListener.availableTopics();
-        String topic = topicRouter.route(element, key, availableTopics, sinkContext);
+        String keyString;
+        // TODO if both keyBytes and key are set, use keyBytes. This is a temporary solution.
+        if (message.getKeyBytes() == null) {
+            keyString = message.getKey();
+        } else {
+            keyString = Base64.getEncoder().encodeToString(message.getKeyBytes());
+        }
+        String topic = topicRouter.route(element, keyString, availableTopics, sinkContext);
 
         // Create message builder for sending message.
         TypedMessageBuilder<?> builder = createMessageBuilder(topic, context, message);
@@ -204,6 +212,11 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         String key = message.getKey();
         if (!Strings.isNullOrEmpty(key)) {
             builder.key(key);
+        }
+
+        byte[] keyBytes = message.getKeyBytes();
+        if (keyBytes != null) {
+            builder.keyBytes(keyBytes);
         }
 
         long eventTime = message.getEventTime();
