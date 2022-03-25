@@ -30,6 +30,7 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
+import static org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /** Arrow Python {@link ScalarFunction} operator. */
@@ -67,7 +68,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     @Override
     public void open() throws Exception {
         super.open();
-        maxArrowBatchSize = Math.min(pythonConfig.getMaxArrowBatchSize(), maxBundleSize);
+        maxArrowBatchSize = Math.min(config.get(MAX_ARROW_BATCH_SIZE), maxBundleSize);
         arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;

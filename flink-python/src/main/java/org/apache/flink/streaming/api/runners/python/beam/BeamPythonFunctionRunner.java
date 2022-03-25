@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.PythonEnvironment;
@@ -94,6 +94,7 @@ import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
+import static org.apache.flink.python.PythonOptions.USE_MANAGED_MEMORY;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
@@ -205,7 +206,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     // ------------------------------------------------------------------------
 
     @Override
-    public void open(PythonConfig config) throws Exception {
+    public void open(ReadableConfig config) throws Exception {
         this.bundleStarted = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
         this.reusableResultTuple = new Tuple2<>();
@@ -231,7 +232,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-        if (memoryManager != null && config.isUsingManagedMemory()) {
+        if (memoryManager != null && config.get(USE_MANAGED_MEMORY)) {
             Preconditions.checkArgument(
                     managedMemoryFraction > 0 && managedMemoryFraction <= 1.0,
                     String.format(

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironment;
 import org.apache.flink.python.env.embedded.EmbeddedPythonEnvironmentManager;
@@ -36,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.env.AbstractPythonEnvironmentManager.PYTHON_WORKING_DIR;
 
 /**
@@ -48,12 +48,9 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
 
     private static final long serialVersionUID = 1L;
 
-    private static ReentrantLock lock = new ReentrantLock();
+    private static final ReentrantLock lock = new ReentrantLock();
 
-    private static Map<JobID, Tuple2<String, Integer>> workingDirectories = new HashMap<>();
-
-    /** The python config. */
-    protected transient PythonConfig pythonConfig;
+    private static final Map<JobID, Tuple2<String, Integer>> workingDirectories = new HashMap<>();
 
     /** Every operator will hold the only python interpreter. */
     protected transient PythonInterpreter interpreter;
@@ -67,7 +64,6 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
     @Override
     public void open() throws Exception {
         super.open();
-        pythonConfig = new PythonConfig(config);
         pythonEnvironmentManager = createPythonEnvironmentManager();
         pythonEnvironmentManager.open();
         EmbeddedPythonEnvironment environment =
@@ -105,7 +101,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
             }
         }
 
-        openPythonInterpreter(pythonConfig.getPythonExec(), env);
+        openPythonInterpreter(config.get(PYTHON_EXECUTABLE), env);
     }
 
     @Override
@@ -142,8 +138,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
     @Override
     protected EmbeddedPythonEnvironmentManager createPythonEnvironmentManager() {
         PythonDependencyInfo dependencyInfo =
-                PythonDependencyInfo.create(
-                        pythonConfig, getRuntimeContext().getDistributedCache());
+                PythonDependencyInfo.create(config, getRuntimeContext().getDistributedCache());
         return new EmbeddedPythonEnvironmentManager(
                 dependencyInfo,
                 getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),

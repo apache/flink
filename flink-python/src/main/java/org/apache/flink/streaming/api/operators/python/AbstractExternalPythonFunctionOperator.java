@@ -53,7 +53,7 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
     public void open() throws Exception {
         super.open();
         this.pythonFunctionRunner = createPythonFunctionRunner();
-        this.pythonFunctionRunner.open(pythonConfig);
+        this.pythonFunctionRunner.open(config);
         this.flushThreadPool = Executors.newSingleThreadExecutor();
     }
 
@@ -120,8 +120,7 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
     @Override
     protected ProcessPythonEnvironmentManager createPythonEnvironmentManager() {
         PythonDependencyInfo dependencyInfo =
-                PythonDependencyInfo.create(
-                        pythonConfig, getRuntimeContext().getDistributedCache());
+                PythonDependencyInfo.create(config, getRuntimeContext().getDistributedCache());
         PythonEnv pythonEnv = getPythonEnv();
         if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
             return new ProcessPythonEnvironmentManager(

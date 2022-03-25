@@ -74,7 +74,7 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/test_dir");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
+        Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_FILES, new HashMap<>());
         expectedConfiguration
                 .get(PYTHON_FILES)
@@ -106,7 +106,7 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/requirements.txt");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
+        Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
         expectedConfiguration
                 .get(PYTHON_REQUIREMENTS_FILE)
@@ -127,7 +127,7 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/cache");
         verifyCachedFiles(expectedCachedFiles);
 
-        expectedConfiguration = new Configuration(config);
+        expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
         expectedConfiguration
                 .get(PYTHON_REQUIREMENTS_FILE)
@@ -169,7 +169,7 @@ public class PythonDependencyUtilsTest {
                 "tmp_dir/py37.zip");
         verifyCachedFiles(expectedCachedFiles);
 
-        Configuration expectedConfiguration = new Configuration(config);
+        Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_ARCHIVES, new HashMap<>());
         expectedConfiguration
                 .get(PYTHON_ARCHIVES)

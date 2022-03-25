@@ -20,10 +20,13 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Description;
+
+import java.util.Map;
 
 /** Configuration options for the Python API. */
 @PublicEvolving
@@ -236,4 +239,9 @@ public class PythonOptions {
                                     + "The `thread` mode means that the Python user-defined functions will be executed in the same process of the Java operator. "
                                     + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
                                     + "It will fall back to `process` mode in these cases.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is an internal option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Map<String, String>> PYTHON_JOB_OPTIONS =
+            ConfigOptions.key("python.job-options").mapType().noDefaultValue();
 }

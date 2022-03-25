@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.data.RowData;
@@ -97,7 +97,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     }
 
     @Override
-    public void open(PythonConfig config) throws Exception {
+    public void open(ReadableConfig config) throws Exception {
         super.open(config);
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);

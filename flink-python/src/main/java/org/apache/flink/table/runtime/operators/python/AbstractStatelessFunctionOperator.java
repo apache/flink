@@ -35,6 +35,8 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.LinkedList;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_JOB_OPTIONS;
+
 /**
  * Base class for all stream operators to execute Python Stateless Functions.
  *
@@ -109,7 +111,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                jobOptions,
+                config.get(PYTHON_JOB_OPTIONS),
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()

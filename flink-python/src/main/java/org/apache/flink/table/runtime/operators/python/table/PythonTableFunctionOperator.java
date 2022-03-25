@@ -41,6 +41,8 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 
@@ -157,8 +159,8 @@ public class PythonTableFunctionOperator
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(tableFunction));
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         return builder.build();
     }
 

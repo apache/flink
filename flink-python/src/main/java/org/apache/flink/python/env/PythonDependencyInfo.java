@@ -20,8 +20,8 @@ package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.PythonOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.python.util.PythonDependencyUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,6 +32,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
+import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE;
 
 /** PythonDependencyInfo contains the information of third-party dependencies. */
 @Internal
@@ -85,7 +88,7 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                PythonOptions.PYTHON_EXECUTION_MODE.defaultValue());
+                PYTHON_EXECUTION_MODE.defaultValue());
     }
 
     public PythonDependencyInfo(
@@ -130,15 +133,18 @@ public final class PythonDependencyInfo {
     /**
      * Creates PythonDependencyInfo from GlobalJobParameters and DistributedCache.
      *
-     * @param pythonConfig The python config.
+     * @param config The config.
      * @param distributedCache The DistributedCache object of current task.
      * @return The PythonDependencyInfo object that contains whole information of python dependency.
      */
     public static PythonDependencyInfo create(
-            PythonConfig pythonConfig, DistributedCache distributedCache) {
+            ReadableConfig config, DistributedCache distributedCache) {
 
         Map<String, String> pythonFiles = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : pythonConfig.getPythonFilesInfo().entrySet()) {
+        for (Map.Entry<String, String> entry :
+                config.getOptional(PythonDependencyUtils.PYTHON_FILES)
+                        .orElse(new HashMap<>())
+                        .entrySet()) {
             File pythonFile = distributedCache.getFile(entry.getKey());
             String filePath = pythonFile.getAbsolutePath();
             pythonFiles.put(filePath, entry.getValue());
@@ -146,27 +152,34 @@ public final class PythonDependencyInfo {
 
         String requirementsFilePath = null;
         String requirementsCacheDir = null;
-        if (pythonConfig.getPythonRequirementsFileInfo().isPresent()) {
-            requirementsFilePath =
-                    distributedCache
-                            .getFile(pythonConfig.getPythonRequirementsFileInfo().get())
-                            .getAbsolutePath();
-            if (pythonConfig.getPythonRequirementsCacheDirInfo().isPresent()) {
+
+        String requirementsFileName =
+                config.getOptional(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                        .orElse(new HashMap<>())
+                        .get(PythonDependencyUtils.FILE);
+        if (requirementsFileName != null) {
+            requirementsFilePath = distributedCache.getFile(requirementsFileName).getAbsolutePath();
+            String requirementsFileCacheDir =
+                    config.getOptional(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                            .orElse(new HashMap<>())
+                            .get(PythonDependencyUtils.CACHE);
+            if (requirementsFileCacheDir != null) {
                 requirementsCacheDir =
-                        distributedCache
-                                .getFile(pythonConfig.getPythonRequirementsCacheDirInfo().get())
-                                .getAbsolutePath();
+                        distributedCache.getFile(requirementsFileCacheDir).getAbsolutePath();
             }
         }
 
         Map<String, String> archives = new HashMap<>();
-        for (Map.Entry<String, String> entry : pythonConfig.getPythonArchivesInfo().entrySet()) {
+        for (Map.Entry<String, String> entry :
+                config.getOptional(PythonDependencyUtils.PYTHON_ARCHIVES)
+                        .orElse(new HashMap<>())
+                        .entrySet()) {
             String archiveFilePath = distributedCache.getFile(entry.getKey()).getAbsolutePath();
             String targetPath = entry.getValue();
             archives.put(archiveFilePath, targetPath);
         }
 
-        String pythonExec = pythonConfig.getPythonExec();
+        String pythonExec = config.get(PYTHON_EXECUTABLE);
 
         return new PythonDependencyInfo(
                 pythonFiles,
@@ -174,6 +187,6 @@ public final class PythonDependencyInfo {
                 requirementsCacheDir,
                 archives,
                 pythonExec,
-                pythonConfig.getExecutionMode());
+                config.get(PYTHON_EXECUTION_MODE));
     }
 }
