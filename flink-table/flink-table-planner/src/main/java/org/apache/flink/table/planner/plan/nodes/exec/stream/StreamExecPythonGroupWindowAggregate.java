@@ -233,7 +233,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
         Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         boolean isGeneralPythonUDAF =
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));

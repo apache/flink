@@ -29,7 +29,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
@@ -48,14 +47,12 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer) {
         super(
                 taskName,
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 null,
                 null,

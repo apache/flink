@@ -40,7 +40,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
-import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
@@ -133,7 +132,6 @@ public class PythonTableFunctionOperatorTest
                     udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer());
         }
     }

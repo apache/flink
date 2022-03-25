@@ -74,7 +74,6 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                jobOptions,
                 getFlinkMetricContainer(),
                 null,
                 null,

@@ -1625,14 +1625,10 @@ class TableEnvironment(object):
     def _open(self):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         def startup_loopback_server():
-            from pyflink.common import Configuration
             from pyflink.fn_execution.beam.beam_worker_pool_service import \
                 BeamFnLoopbackWorkerPoolServicer
-
-            j_configuration = get_j_env_configuration(self._get_j_env())
-            config = Configuration(j_configuration=j_configuration)
-            config.set_string(
-                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+            self.get_config().set("python.loopback-server.address",
+                                  BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 

@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -36,10 +34,12 @@ import org.apache.flink.util.WrappingRuntimeException;
 
 import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 
+import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE;
+import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_TIME_MILLS;
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -49,19 +49,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private static final long serialVersionUID = 1L;
 
-    protected Configuration config;
+    protected final Configuration config;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
 
     /** Number of processed elements in the current bundle. */
     protected transient int elementCount;
-
-    /** The python config. */
-    protected transient PythonConfig pythonConfig;
-
-    /** The options used to configure the Python worker process. */
-    protected transient Map<String, String> jobOptions;
 
     /** Max duration of a bundle. */
     private transient long maxBundleTimeMills;
@@ -83,12 +77,10 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     @Override
     public void open() throws Exception {
         try {
-            this.pythonConfig = new PythonConfig(config);
-            this.jobOptions = config.toMap();
-            this.maxBundleSize = pythonConfig.getMaxBundleSize();
+            this.maxBundleSize = config.get(MAX_BUNDLE_SIZE);
             if (this.maxBundleSize <= 0) {
-                this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
-                LOG.error(
+                this.maxBundleSize = MAX_BUNDLE_SIZE.defaultValue();
+                LOG.warn(
                         "Invalid value for the maximum bundle size. Using default value of "
                                 + this.maxBundleSize
                                 + '.');
@@ -96,10 +88,10 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                 LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
             }
 
-            this.maxBundleTimeMills = pythonConfig.getMaxBundleTimeMills();
+            this.maxBundleTimeMills = config.get(MAX_BUNDLE_TIME_MILLS);
             if (this.maxBundleTimeMills <= 0L) {
-                this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
-                LOG.error(
+                this.maxBundleTimeMills = MAX_BUNDLE_TIME_MILLS.defaultValue();
+                LOG.warn(
                         "Invalid value for the maximum bundle time. Using default value of "
                                 + this.maxBundleTimeMills
                                 + '.');
@@ -256,11 +248,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return elementCount == 0;
     }
 
-    /** Reset the {@link Configuration} if needed. */
-    public void setConfiguration(Configuration config) {
-        this.config = config;
-    }
-
     /** Returns the {@link Configuration}. */
     public Configuration getConfiguration() {
         return config;
@@ -289,7 +276,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     }
 
     protected FlinkMetricContainer getFlinkMetricContainer() {
-        return this.pythonConfig.isMetricEnabled()
+        return this.config.get(PYTHON_METRIC_ENABLED)
                 ? new FlinkMetricContainer(getRuntimeContext().getMetricGroup())
                 : null;
     }

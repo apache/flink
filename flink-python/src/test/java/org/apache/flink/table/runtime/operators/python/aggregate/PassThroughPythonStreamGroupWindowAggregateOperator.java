@@ -201,7 +201,6 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 userDefinedFunctionOutputType,
                 STREAM_GROUP_WINDOW_AGGREGATE_URN,
                 getUserDefinedFunctionsProto(),
-                new HashMap<>(),
                 PythonTestUtils.createMockFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),

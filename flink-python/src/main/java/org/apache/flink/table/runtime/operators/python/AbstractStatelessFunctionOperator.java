@@ -109,7 +109,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                jobOptions,
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()

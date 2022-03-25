@@ -44,6 +44,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
+
 /** The Python {@link ScalarFunction} operator in embedded Python environment. */
 @Internal
 public class EmbeddedPythonScalarFunctionOperator
@@ -236,8 +239,8 @@ public class EmbeddedPythonScalarFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
             builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         return builder.build();
     }
 }

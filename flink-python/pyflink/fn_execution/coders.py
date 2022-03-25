@@ -79,12 +79,12 @@ class LengthPrefixBaseCoder(ABC):
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
         elif coder_info_descriptor_proto.HasField('arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
-            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
@@ -633,7 +633,7 @@ def from_proto(field_type):
     if field_type_name == type_name.TIMESTAMP:
         return TimestampCoder(field_type.timestamp_info.precision)
     if field_type_name == type_name.LOCAL_ZONED_TIMESTAMP:
-        timezone = pytz.timezone(os.environ['table.exec.timezone'])
+        timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.BASIC_ARRAY:
         return GenericArrayCoder(from_proto(field_type.collection_element_type))

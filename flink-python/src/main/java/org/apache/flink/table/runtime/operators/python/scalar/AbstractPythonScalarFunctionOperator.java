@@ -35,6 +35,9 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
+
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the
  * Python {@link ScalarFunction}s in separate Python execution environment.
@@ -121,8 +124,8 @@ public abstract class AbstractPythonScalarFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
             builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         return builder.build();
     }
 

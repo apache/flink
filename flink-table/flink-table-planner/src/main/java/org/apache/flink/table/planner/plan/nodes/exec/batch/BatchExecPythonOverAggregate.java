@@ -153,7 +153,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             }
         }
         Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,

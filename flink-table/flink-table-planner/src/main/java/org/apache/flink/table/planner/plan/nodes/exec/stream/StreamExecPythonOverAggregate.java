@@ -179,7 +179,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
         long precedingOffset = -1 * (long) boundValue;
         Configuration pythonConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
+                CommonPythonUtil.extractPythonConfiguration(planner.getExecEnv(), config);
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
