@@ -90,7 +90,8 @@ public class MetricOptions {
             key("interval")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
-                    .withDescription("The reporter interval to use for the reporter named <name>.");
+                    .withDescription(
+                            "The reporter interval to use for the reporter named <name>. Only applicable to push-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 2)
@@ -108,7 +109,7 @@ public class MetricOptions {
                     .mapType()
                     .defaultValue(Collections.emptyMap())
                     .withDescription(
-                            "The map of additional variables that should be included for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+                            "The map of additional variables that should be included for the reporter named <name>. Only applicable to tag-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 3)
@@ -117,7 +118,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue(".")
                     .withDescription(
-                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters.");
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 4)
@@ -230,7 +231,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a JobManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a JobManager. Only effective when a identifier-based reporter is configured.");
 
     /** The scope format string that is applied to all metrics scoped to a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM =
@@ -238,7 +239,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a TaskManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a TaskManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
@@ -246,7 +247,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
@@ -254,7 +255,7 @@ public class MetricOptions {
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.");
+                            "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to a task. */
     public static final ConfigOption<String> SCOPE_NAMING_TASK =
@@ -263,7 +264,7 @@ public class MetricOptions {
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to a task.");
+                            "Defines the scope format string that is applied to all metrics scoped to a task. Only effective when a identifier-based reporter is configured");
 
     /** The scope format string that is applied to all metrics scoped to an operator. */
     public static final ConfigOption<String> SCOPE_NAMING_OPERATOR =
@@ -272,7 +273,7 @@ public class MetricOptions {
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
                     .withDescription(
-                            "Defines the scope format string that is applied to all metrics scoped to an operator.");
+                            "Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured");
 
     public static final ConfigOption<Long> LATENCY_INTERVAL =
             key("metrics.latency.interval")
