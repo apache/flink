@@ -50,6 +50,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -175,6 +176,21 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
         afterCreatingConsumer(registeredSplit, pulsarConsumer);
 
         LOG.info("Register split {} consumer for current reader.", registeredSplit);
+    }
+
+    @Override
+    public void pauseOrResumeSplits(
+            Collection<PulsarPartitionSplit> splitsToPause,
+            Collection<PulsarPartitionSplit> splitsToResume) {
+        if (splitsToPause.size() > 1 || splitsToResume.size() > 1) {
+            throw new IllegalStateException("This pulsar split reader only support one split.");
+        }
+
+        if (!splitsToPause.isEmpty()) {
+            pulsarConsumer.pause();
+        } else if (!splitsToResume.isEmpty()) {
+            pulsarConsumer.resume();
+        }
     }
 
     @Override
