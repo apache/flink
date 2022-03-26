@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 public interface JobLeaderIdService {
 
     /**
-     * Start the service with the given job leader actions.
+     * Start the service with the given job leader id actions.
      *
      * @param initialJobLeaderIdActions to use for job leader id actions
      * @throws Exception which is thrown when clearing up old state
