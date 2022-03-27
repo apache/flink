@@ -119,8 +119,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.client.deployment.application.ApplicationConfiguration.APPLICATION_MAIN_CLASS;
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -449,22 +451,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         applicationConfiguration.applyToConfiguration(flinkConfiguration);
 
-        final List<String> pipelineJars =
-                flinkConfiguration
-                        .getOptional(PipelineOptions.JARS)
-                        .orElse(Collections.emptyList());
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName())
                 || PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
+            final List<String> pipelineJars =
+                    flinkConfiguration
+                            .getOptional(PipelineOptions.JARS)
+                            .orElse(Collections.emptyList());
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-        } else {
-            final List<String> pipelineJarsWithPythonJar = new ArrayList<>(pipelineJars);
-            pipelineJarsWithPythonJar.add(PackagedProgramUtils.getPythonJar(null).toString());
-            ConfigUtils.encodeCollectionToConfig(
-                    flinkConfiguration,
-                    PipelineOptions.JARS,
-                    pipelineJarsWithPythonJar,
-                    Object::toString);
         }
 
         try {
@@ -922,6 +916,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     shipArchives.stream().map(e -> new Path(e.toURI())).collect(Collectors.toSet()),
                     Path.CUR_DIR,
                     LocalResourceType.ARCHIVE);
+        }
+
+        // only for application mode
+        // Python jar file only needs to be shipped and should not be added to classpath.
+        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)
+                && PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
+            fileUploader.registerMultipleLocalResources(
+                    Collections.singletonList(
+                            new Path(PackagedProgramUtils.getPythonJar().toURI())),
+                    ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                    LocalResourceType.FILE);
         }
 
         // Upload and register user jars
@@ -1840,6 +1845,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container
         env.put(ENV_FLINK_LIB_DIR, Path.CUR_DIR + "/" + ConfigConstants.DEFAULT_FLINK_LIB_DIR);
+        // Set FLINK_OPT_DIR to `opt` folder under working dir in container
+        env.put(ENV_FLINK_OPT_DIR, Path.CUR_DIR + "/" + ConfigConstants.DEFAULT_FLINK_OPT_DIR);
         // set Flink on YARN internal configuration values
         env.put(YarnConfigKeys.FLINK_DIST_JAR, localFlinkJarStr);
         env.put(YarnConfigKeys.ENV_APP_ID, appIdStr);

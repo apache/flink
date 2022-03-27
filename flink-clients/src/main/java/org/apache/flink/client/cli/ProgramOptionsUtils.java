@@ -97,7 +97,7 @@ public enum ProgramOptionsUtils {
     private static ClassLoader getPythonClassLoader() {
         try {
             return new URLClassLoader(
-                    new URL[] {PackagedProgramUtils.getPythonJar(null)},
+                    new URL[] {PackagedProgramUtils.getPythonJar()},
                     Thread.currentThread().getContextClassLoader());
         } catch (RuntimeException e) {
             LOG.warn(

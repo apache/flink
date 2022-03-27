@@ -1737,6 +1737,11 @@ public final class ConfigConstants {
     /** The environment variable name which contains the location of the opt directory. */
     public static final String ENV_FLINK_OPT_DIR = "FLINK_OPT_DIR";
 
+    /**
+     * The default Flink opt directory if none has been specified via {@link #ENV_FLINK_OPT_DIR}.
+     */
+    public static final String DEFAULT_FLINK_OPT_DIR = "opt";
+
     /** The environment variable name which contains the location of the plugins folder. */
     public static final String ENV_FLINK_PLUGINS_DIR = "FLINK_PLUGINS_DIR";
 

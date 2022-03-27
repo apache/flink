@@ -24,7 +24,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.net.URL;
 import java.util.Optional;
 
 /**
@@ -54,10 +53,9 @@ public class FromJarEntryClassInformationProvider implements EntryClassInformati
      *
      * @return A {@code FromJarEntryClassInformationProvider} for a job implemented in Python
      */
-    public static FromJarEntryClassInformationProvider createFromPythonJar(
-            @Nullable Iterable<URL> userClasspath) {
+    public static FromJarEntryClassInformationProvider createFromPythonJar() {
         return new FromJarEntryClassInformationProvider(
-                new File(PackagedProgramUtils.getPythonJar(userClasspath).getPath()),
+                new File(PackagedProgramUtils.getPythonJar().getPath()),
                 PackagedProgramUtils.getPythonDriverClassName());
     }
 

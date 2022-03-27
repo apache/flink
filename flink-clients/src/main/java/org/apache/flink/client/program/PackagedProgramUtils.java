@@ -27,7 +27,6 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.io.FilenameUtils;
 
 import javax.annotation.Nullable;
 
@@ -202,17 +201,7 @@ public enum PackagedProgramUtils {
                 Arrays.asList("-py", "-pym", "--python", "--pyModule"));
     }
 
-    public static URL getPythonJar(@Nullable Iterable<URL> userClasspath) {
-        // try to find the flink-python jar in the user classpath
-        if (userClasspath != null) {
-            for (URL classPath : userClasspath) {
-                if (FilenameUtils.getName(classPath.getPath()).startsWith("flink-python")) {
-                    return classPath;
-                }
-            }
-        }
-
-        // try to find the flink-python jar under directory FLINK_HOME/opt
+    public static URL getPythonJar() {
         String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
         final List<Path> pythonJarPath = new ArrayList<>();
         try {
