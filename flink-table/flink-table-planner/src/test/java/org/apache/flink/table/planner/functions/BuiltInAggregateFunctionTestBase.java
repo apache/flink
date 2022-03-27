@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
-import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -78,8 +78,7 @@ public class BuiltInAggregateFunctionTestBase {
     public void testFunction() throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        // see https://issues.apache.org/jira/browse/FLINK-26092
-        tEnv.getConfig().set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+        tEnv.getConfig().set(StateBackendOptions.STATE_BACKEND, testSpec.backendName);
         final Table sourceTable = asTable(tEnv, testSpec.sourceRowType, testSpec.sourceRows);
 
         for (final TestItem testItem : testSpec.testItems) {
@@ -175,6 +174,7 @@ public class BuiltInAggregateFunctionTestBase {
 
         private DataType sourceRowType;
         private List<Row> sourceRows;
+        private String backendName;
 
         private TestSpec(BuiltInFunctionDefinition definition) {
             this.definition = Preconditions.checkNotNull(definition);
@@ -193,6 +193,15 @@ public class BuiltInAggregateFunctionTestBase {
             this.sourceRowType = sourceRowType;
             this.sourceRows = sourceRows;
             return this;
+        }
+
+        public TestSpec withStateBackend(String backendName) {
+            this.backendName = backendName;
+            return this;
+        }
+
+        public TestSpec copy() {
+            return new TestSpec(definition).withSource(sourceRowType, new ArrayList<>(sourceRows));
         }
 
         TestSpec testSqlResult(
@@ -238,6 +247,7 @@ public class BuiltInAggregateFunctionTestBase {
                 bob.append(description);
                 bob.append(")");
             }
+            bob.append(", backend: ").append(backendName);
 
             return bob.toString();
         }
