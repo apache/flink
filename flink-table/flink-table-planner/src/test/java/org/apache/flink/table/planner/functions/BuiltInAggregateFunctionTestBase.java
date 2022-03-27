@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.functions;
 
-import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
@@ -56,6 +57,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.state.StateBackendLoader.HASHMAP_STATE_BACKEND_NAME;
+import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.DataType.getFieldDataTypes;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -204,12 +207,16 @@ abstract class BuiltInAggregateFunctionTestBase {
             return this;
         }
 
-        private Executable createTestItemExecutable(TestItem testItem) {
+        private Executable createTestItemExecutable(TestItem testItem, String stateBackend) {
             return () -> {
+                Configuration conf = new Configuration();
+                conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
                 final TableEnvironment tEnv =
-                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-                // see https://issues.apache.org/jira/browse/FLINK-26092
-                tEnv.getConfig().set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
+                        TableEnvironment.create(
+                                EnvironmentSettings.newInstance()
+                                        .inStreamingMode()
+                                        .withConfiguration(conf)
+                                        .build());
                 final Table sourceTable = asTable(tEnv, sourceRowType, sourceRows);
 
                 testItem.execute(tEnv, sourceTable);
@@ -217,12 +224,22 @@ abstract class BuiltInAggregateFunctionTestBase {
         }
 
         Stream<BuiltInFunctionTestBase.TestCase> getTestCases() {
-            return testItems.stream()
-                    .map(
-                            testItem ->
-                                    new BuiltInFunctionTestBase.TestCase(
-                                            testItem.toString(),
-                                            createTestItemExecutable(testItem)));
+            return Stream.concat(
+                    testItems.stream()
+                            .map(
+                                    testItem ->
+                                            new BuiltInFunctionTestBase.TestCase(
+                                                    testItem.toString(),
+                                                    createTestItemExecutable(
+                                                            testItem, HASHMAP_STATE_BACKEND_NAME))),
+                    testItems.stream()
+                            .map(
+                                    testItem ->
+                                            new BuiltInFunctionTestBase.TestCase(
+                                                    testItem.toString(),
+                                                    createTestItemExecutable(
+                                                            testItem,
+                                                            ROCKSDB_STATE_BACKEND_NAME))));
         }
 
         @Override
