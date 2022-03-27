@@ -306,77 +306,75 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
 {{< top >}}
 
-## Enabling Changelog
+<a name="enabling-changelog"></a>
 
-{{< hint warning >}} This feature is in experimental status. {{< /hint >}}
+## 开启 Changelog
 
-{{< hint warning >}} Enabling Changelog may have a negative performance impact on your application (see below). {{< /hint >}}
+{{< hint warning >}} 该功能处于实验状态。 {{< /hint >}}
 
-### Introduction
+{{< hint warning >}} 开启 Changelog 可能会给您的应用带来性能损失。（见下文） {{< /hint >}}
 
-Changelog is a feature that aims to decrease checkpointing time and, therefore, end-to-end latency in exactly-once mode.
+<a name="introduction"></a>
 
-Most commonly, checkpoint duration is affected by:
+### 介绍
 
-1. Barrier travel time and alignment, addressed by
-   [Unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure#unaligned-checkpoints" >}})
-   and [Buffer debloating]({{< ref "docs/ops/state/checkpointing_under_backpressure#buffer-debloating" >}})
-2. Snapshot creation time (so-called synchronous phase), addressed by asynchronous snapshots (mentioned [above]({{<
-   ref "#the-embeddedrocksdbstatebackend">}}))
-4. Snapshot upload time (asynchronous phase)
+Changelog 是一项旨在减少 checkpointing 时间的功能，因此也可以减少 exactly-once 模式下的端到端延迟。
 
-Upload time can be decreased by [incremental checkpoints]({{< ref "#incremental-checkpoints" >}}).
-However, most incremental state backends perform some form of compaction periodically, which results in re-uploading the
-old state in addition to the new changes. In large deployments, the probability of at least one task uploading lots of
-data tends to be very high in every checkpoint.
+一般情况下 checkpoint 的持续时间受如下因素影响：
 
-With Changelog enabled, Flink uploads state changes continuously and forms a changelog. On checkpoint, only the relevant
-part of this changelog needs to be uploaded. The configured state backend is snapshotted in the
-background periodically. Upon successful upload, the changelog is truncated.
+1. Barrier 到达和对齐时间，可以通过 [Unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure#unaligned-checkpoints" >}}) 和 [Buffer debloating]({{< ref "docs/ops/state/checkpointing_under_backpressure#buffer-debloating" >}}) 解决。
 
-As a result, asynchronous phase duration is reduced, as well as synchronous phase - because no data needs to be flushed
-to disk. In particular, long-tail latency is improved.
+2. 快照制作时间（所谓同步阶段）, 可以通过异步快照解决（如[上文]({{<
+   ref "#the-embeddedrocksdbstatebackend">}})所述）。
 
-However, resource usage is higher:
+3. 快照上传时间（异步阶段）。
 
-- more files are created on DFS
-- more files can be left undeleted DFS (this will be addressed in the future versions in FLINK-25511 and FLINK-25512)
-- more IO bandwidth is used to upload state changes
-- more CPU used to serialize state changes
-- more memory used by Task Managers to buffer state changes
+可以用[增量 checkpoints]({{< ref "#incremental-checkpoints" >}}) 来减少上传时间。但是，大多数支持增量checkpoint的状态后端会定期执行合并类型的操作，这会导致除了新的变更之外还要重新上传旧状态。在大规模部署中，每次 checkpoint 中至少有一个 task 上传大量数据的可能性往往非常高。
 
-Recovery time is another thing to consider. Depending on the `state.backend.changelog.periodic-materialize.interval`
-setting, the changelog can become lengthy and replaying it may take more time. However, recovery time combined with
-checkpoint duration will likely still be lower than in non-changelog setups, providing lower end-to-end latency even in
-failover case. However, it's also possible that the effective recovery time will increase, depending on the actual ratio
-of the aforementioned times.
+开启 Changelog 功能之后，Flink 会不断上传状态变更并形成 changelog。创建 checkpoint 时，只有 changelog 中的相关部分需要上传。而配置的状态后端则会定期在后台进行快照，快照成功上传后，相关的changelog 将会被截断。
 
-For more details, see [FLIP-158](https://cwiki.apache.org/confluence/display/FLINK/FLIP-158%3A+Generalized+incremental+checkpoints).
+基于此，异步阶段的持续时间减少（另外因为不需要将数据刷新到磁盘，同步阶段持续时间也减少了），特别是长尾延迟得到了改善。
 
-### Installation
+但是，资源使用会变得更高：
 
-Changelog JARs are included into the standard Flink distribution.
+- 将会在 DFS 上创建更多文件
+- 将可能在 DFS 上残留更多文件（这将在 FLINK-25511 和 FLINK-25512 之后的新版本中被解决）
+- 将使用更多的 IO 带宽用来上传状态变更
+- 将使用更多 CPU 资源来序列化状态变更
+- Task Managers 将会使用更多内存来缓存状态变更
 
-Make sure to [add]({{< ref "docs/deployment/filesystems/overview" >}}) the necessary filesystem plugins.
+另一项需要考虑的事情是恢复时间。取决于 `state.backend.changelog.periodic-materialize.interval` 的设置，changelog 可能会变得冗长，因此重放会花费更多时间。即使这样，恢复时间加上 checkpoint 持续时间仍然可能低于不开启 changelog 功能的时间，从而在故障恢复的情况下也能提供更低的端到端延迟。当然，取决于上述时间的实际比例，有效恢复时间也有可能会增加。
 
-### Configuration
+有关更多详细信息，请参阅 [FLIP-158](https://cwiki.apache.org/confluence/display/FLINK/FLIP-158%3A+Generalized+incremental+checkpoints)。
 
-Here is an example configuration in YAML:
+<a name="installation"></a>
+
+### 安装
+
+标准的 Flink 发行版包含 Changelog 所需要的 JAR包。
+
+请确保[添加]({{< ref "docs/deployment/filesystems/overview" >}})所需的文件系统插件。
+
+<a name="configuration"></a>
+
+### 配置
+
+这是 YAML 中的示例配置：
 ```yaml
 state.backend.changelog.enabled: true
-state.backend.changelog.storage: filesystem # currently, only filesystem and memory (for tests) are supported
-dstl.dfs.base-path: s3://<bucket-name> # similar to state.checkpoints.dir
+state.backend.changelog.storage: filesystem # 当前只支持 filesystem 和 memory（仅供测试用）
+dstl.dfs.base-path: s3://<bucket-name> # 类似于 state.checkpoints.dir
 ```
 
-Please keep the following defaults (see [limitations](#limitations)):
+请将如下配置保持默认值 （参见[限制](#limitations)）:
 ```yaml
 execution.checkpointing.max-concurrent-checkpoints: 1
 state.backend.local-recovery: false
 ```
 
-Please refer to the [configuration section]({{< ref "docs/deployment/config#state-changelog-options" >}}) for other options.
+有关其他配置选项，请参阅[配置]({{< ref "docs/deployment/config#state-changelog-options" >}})部分。
 
-Changelog can also be enabled or disabled per job programmatically:
+也可以通过编程方式为每个作业开启或关闭 Changelog：
 {{< tabs  >}}
 {{< tab "Java" >}}
 ```java
@@ -398,36 +396,40 @@ env.enable_changelog_statebackend(true)
 {{< /tab >}}
 {{< /tabs >}}
 
-### Monitoring
+<a name="monitoring"></a>
 
-Available metrics are listed [here]({{< ref "docs/ops/metrics#changelog" >}}).
+### 监控
 
-If a task is backpressured by writing state changes, it will be shown as busy (red) in the UI.
+[此处]({{< ref "docs/ops/metrics#changelog" >}})列出了可用的指标。
 
-### Upgrading existing jobs
+如果 task 因写状态变更而被反压，他将在 UI 中被显示为忙碌（红色）。
 
-**Enabling Changelog**
+<a name="upgrading-existing-jobs"></a>
 
-Resuming only from savepoints in canonical format is supported:
-- given an existing non-changelog job
-- take a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) (canonical format is the default)
-- alter configuration (enable Changelog)
-- resume from the taken snapshot
+### 升级现有作业
 
-**Disabling Changelog**
+**开启 Changelog**
 
-Resuming only from [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}})
-is supported. Resuming from [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
-is planned in the future versions.
+仅支持从标准格式的 savepoint 恢复：
+- 给定一个没有开启 Changelog 的作业
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) （默认为标准格式）
+- 更改配置（开启 Changelog）
+- 从创建的 snapshot 恢复
 
-**State migration** (including changing TTL) is currently not supported
+**关闭 Changelog**
 
-### Limitations
- - At most one concurrent checkpoint
- - Local recovery not supported
- - As of Flink 1.15, only `filesystem` changelog implementation is available
- - State migration (including changing TTL) is currently not supported
-- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
+仅支持从 [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 恢复。从 [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}}) 恢复计划在未来版本中支持。
+
+当前不支持**状态迁移**（包括改变 TTL）。
+
+<a name="limitations"></a>
+
+### 限制
+- 最多同时创建一个 checkpoint
+- 本地恢复暂不支持
+- 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
+- 尚不支持状态迁移（包括修改 TTL）
+- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
 {{< top >}}
 
