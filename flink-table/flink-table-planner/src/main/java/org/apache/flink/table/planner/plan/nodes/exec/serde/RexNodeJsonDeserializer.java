@@ -383,6 +383,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         }
         // Try FUNC
         final String publicName = BuiltInSqlOperator.extractNameFromQualifiedName(internalName);
+        // FunctionIdentifier require the name should not be empty
         if (!publicName.isEmpty()) {
             final Optional<SqlOperator> latestOperator =
                     lookupOptionalSqlOperator(
@@ -540,16 +541,10 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                         syntax,
                         foundOperators,
                         SqlNameMatchers.liberal());
-        if (foundOperators.size() == 1) {
-            return Optional.of(foundOperators.get(0));
-        }
-        for (SqlOperator operator : foundOperators) {
-            // in case different operator has the same kind, check with both name and kind.
-            if (sqlKind != null && operator.kind == sqlKind) {
-                return Optional.of(operator);
-            }
-        }
-        return Optional.empty();
+        // in case different operator has the same kind, check with both name and kind.
+        return foundOperators.stream()
+                .filter(o -> sqlKind != null && o.getKind() == sqlKind)
+                .findFirst();
     }
 
     private static TableException missingSystemFunction(String systemName) {
