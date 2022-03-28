@@ -418,6 +418,19 @@ $ ./bin/flink run \
       --python examples/python/table/word_count.py
 ```
 
+- Run a PyFlink job using a [YARN cluster in Application Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#application-mode):
+```bash
+$ ./bin/flink run-application -t yarn-application \
+      -Djobmanager.memory.process.size=1024m \
+      -Dtaskmanager.memory.process.size=1024m \
+      -Dyarn.application.name="MyFlinkWordCount" \
+      -Dyarn.ship-files=/root/scripts \
+      -pyarch scripts/venv.zip \
+      -pyclientexec venv.zip/venv/bin/python3.8 \
+      -pyexec venv.zip/venv/bin/python3.8 \
+      -py scripts/word_count.py 
+```
+
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
 ```bash
 $ ./bin/flink run-application \
