@@ -22,11 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.util.FileUtils;
@@ -47,6 +49,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -357,6 +361,37 @@ public class CommonTestUtils {
                             : vertexStream.anyMatch(subtaskPredicate);
                 },
                 Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+    }
+
+    /** Wait for at least one successful checkpoint. */
+    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, Deadline timeout)
+            throws Exception, FlinkJobNotFoundException {
+        waitUntilCondition(
+                () ->
+                        Optional.ofNullable(
+                                        miniCluster
+                                                .getExecutionGraph(jobID)
+                                                .get()
+                                                .getCheckpointStatsSnapshot())
+                                .filter(st -> st.getCounts().getNumberOfCompletedCheckpoints() > 0)
+                                .isPresent(),
+                timeout);
+    }
+
+    /**
+     * @return the path as {@link java.net.URI} to the latest checkpoint.
+     * @throws FlinkJobNotFoundException if job not found
+     */
+    public static Optional<String> getLatestCompletedCheckpointPath(
+            JobID jobID, MiniCluster cluster)
+            throws InterruptedException, ExecutionException, FlinkJobNotFoundException {
+        return Optional.ofNullable(
+                        cluster.getExecutionGraph(jobID).get().getCheckpointStatsSnapshot())
+                .flatMap(
+                        stats ->
+                                Optional.ofNullable(
+                                        stats.getHistory().getLatestCompletedCheckpoint()))
+                .map(CompletedCheckpointStats::getExternalPath);
     }
 
     /** Utility class to read the output of a process stream and forward it into a StringWriter. */
