@@ -19,10 +19,8 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -53,14 +51,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
-
-    @Override
-    Configuration getConfiguration() {
-        return new Configuration()
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED);
-    }
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
