@@ -40,6 +40,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
 import java.util.Optional
+
 import scala.collection.JavaConverters._
 
 /**
@@ -294,18 +295,24 @@ object StreamTableEnvironmentImpl {
 
   def create(
       executionEnvironment: StreamExecutionEnvironment,
-      settings: EnvironmentSettings,
-      tableConfig: TableConfig)
+      settings: EnvironmentSettings)
     : StreamTableEnvironmentImpl = {
 
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
 
+    val executor = AbstractStreamTableEnvironmentImpl.lookupExecutor(
+      classLoader, executionEnvironment.getWrappedStreamExecutionEnvironment)
+
+    val tableConfig = TableConfig.getDefault
+    tableConfig.setRootConfiguration(executor.getConfiguration)
+    tableConfig.addConfiguration(settings.getConfiguration)
+
     val moduleManager = new ModuleManager
 
     val catalogManager = CatalogManager.newBuilder
       .classLoader(classLoader)
-      .config(tableConfig.getConfiguration)
+      .config(tableConfig)
       .defaultCatalog(
         settings.getBuiltInCatalogName,
         new GenericInMemoryCatalog(
@@ -316,11 +323,8 @@ object StreamTableEnvironmentImpl {
 
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
-    val executor = AbstractStreamTableEnvironmentImpl.lookupExecutor(
-      classLoader, settings.getExecutor, executionEnvironment.getWrappedStreamExecutionEnvironment)
-
-    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
-      moduleManager, catalogManager, functionCatalog)
+    val planner = PlannerFactoryUtil.createPlanner(
+      executor, tableConfig, moduleManager, catalogManager, functionCatalog)
 
     new StreamTableEnvironmentImpl(
       catalogManager,

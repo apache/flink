@@ -38,15 +38,15 @@ under the License.
 
 # Project Configuration
 
-Every Flink application depends on a set of Flink libraries. At a minimum, the application depends
-on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, Cassandra).
-When running Flink applications in the IDE, add a provided dependency to the [Flink runtime library](https://mvnrepository.com/artifact/org.apache.flink/flink-runtime).
-
 The guides in this section will show you how to configure your projects via popular build tools
 ([Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}})),
-add the necessary dependencies (i.e. [connectors and formats]({{< ref "docs/dev/configuration/connector" >}}), 
-[testing]({{< ref "docs/dev/configuration/testing" >}})), and cover some 
-[advanced]({{< ref "docs/dev/configuration/advanced" >}}) configuration topics. 
+add the necessary dependencies (i.e. [connectors and formats]({{< ref "docs/dev/configuration/connector" >}}),
+[testing]({{< ref "docs/dev/configuration/testing" >}})), and cover some
+[advanced]({{< ref "docs/dev/configuration/advanced" >}}) configuration topics.
+
+Every Flink application depends on a set of Flink libraries. At a minimum, the application depends
+on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, Cassandra) and 
+3rd party dependencies required to the user to develop custom functions to process the data.
 
 ## Getting started
 
@@ -130,7 +130,7 @@ configurations {
 dependencies {
     // --------------------------------------------------------------
     // Compile-time dependencies that should NOT be part of the
-    // shadow jar and are provided in the lib folder of Flink
+    // shadow (uber) jar and are provided in the lib folder of Flink
     // --------------------------------------------------------------
     implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
@@ -177,19 +177,46 @@ bash -c "$(curl https://flink.apache.org/q/gradle-quickstart.sh)" -- {{< version
 
 ## Which dependencies do you need?
 
-Depending on what you want to achieve, you are going to choose a combination of our available APIs, 
-which will require different dependencies. 
+To start working on a Flink job, you usually need the following dependencies:
 
-Here is a table of artifact/dependency names:
+* Flink APIs, in order to develop your job
+* [Connectors and formats]({{< ref "docs/dev/configuration/connector" >}}), in order to integrate your job with external systems
+* [Testing utilities]({{< ref "docs/dev/configuration/testing" >}}), in order to test your job
 
-| APIs you want to use              | Dependency you need to add    |
-|-----------------------------------|-------------------------------|
-| DataStream                        | flink-streaming-java          |  
-| DataStream with Scala             | flink-streaming-scala{{< scala_version >}}         |   
-| Table API                         | flink-table-api-java          |   
-| Table API with Scala              | flink-table-api-scala{{< scala_version >}}         |
-| Table API + DataStream            | flink-table-api-java-bridge   |
-| Table API + DataStream with Scala | flink-table-api-scala-bridge{{< scala_version >}}  |
+And in addition to these, you might want to add 3rd party dependencies that you need to develop custom functions.
 
-Check out the sections on [Datastream API]({{< ref "docs/dev/datastream/overview" >}}) and 
-[Table API & SQL]({{< ref "docs/dev/table/overview" >}}) to learn more.
+### Flink APIs
+
+Flink offers two major APIs: [Datastream API]({{< ref "docs/dev/datastream/overview" >}}) and [Table API & SQL]({{< ref "docs/dev/table/overview" >}}). 
+They can be used separately, or they can be mixed, depending on your use cases:
+
+| APIs you want to use                                                              | Dependency you need to add                          |
+|-----------------------------------------------------------------------------------|-----------------------------------------------------|
+| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |  
+| [DataStream with Scala]({{< ref "docs/dev/datastream/scala_api_extensions" >}})   | `flink-streaming-scala{{< scala_version >}}`        |   
+| [Table API]({{< ref "docs/dev/table/common" >}})                                  | `flink-table-api-java`                              |   
+| [Table API with Scala]({{< ref "docs/dev/table/common" >}})                       | `flink-table-api-scala{{< scala_version >}}`        |
+| [Table API + DataStream]({{< ref "docs/dev/table/data_stream_api" >}})            | `flink-table-api-java-bridge`                       |
+| [Table API + DataStream with Scala]({{< ref "docs/dev/table/data_stream_api" >}}) | `flink-table-api-scala-bridge{{< scala_version >}}` |
+
+Just include them in your build tool script/descriptor, and you can start developing your job!
+
+## Running and packaging
+
+If you want to run your job by simply executing the main class, you will need `flink-runtime` in your classpath.
+In case of Table API programs, you will also need `flink-table-runtime` and `flink-table-planner-loader`.
+
+As a rule of thumb, we **suggest** packaging the application code and all its required dependencies into one fat/uber JAR.
+This includes packaging connectors, formats, and third-party dependencies of your job.
+This rule **does not apply** to Java APIs, DataStream Scala APIs, and the aforementioned runtime modules, 
+which are already provided by Flink itself and **should not** be included in a job uber JAR.
+This job JAR can be submitted to an already running Flink cluster, or added to a Flink application
+container image easily without modifying the distribution.
+
+## What's next?
+
+* To start developing your job, check out [DataStream API]({{< ref "docs/dev/datastream/overview" >}}) and [Table API & SQL]({{< ref "docs/dev/table/overview" >}}).
+* For more details on how to package your job depending on the build tools, check out the following specific guides:
+  * [Maven]({{< ref "docs/dev/configuration/maven" >}})
+  * [Gradle]({{< ref "docs/dev/configuration/gradle" >}})
+* For more advanced topics about project configuration, check out the section on [advanced topics]({{< ref "docs/dev/configuration/advanced" >}}).

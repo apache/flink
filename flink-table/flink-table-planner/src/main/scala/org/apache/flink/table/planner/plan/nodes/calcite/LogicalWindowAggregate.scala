@@ -36,7 +36,7 @@ final class LogicalWindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties) {
 
   override def copy(
@@ -55,7 +55,7 @@ final class LogicalWindowAggregate(
       namedProperties)
   }
 
-  def copy(namedProperties: Seq[NamedWindowProperty]): LogicalWindowAggregate = {
+  def copy(namedProperties: util.List[NamedWindowProperty]): LogicalWindowAggregate = {
     new LogicalWindowAggregate(
       cluster,
       traitSet,
@@ -71,7 +71,7 @@ object LogicalWindowAggregate {
 
   def create(
       window: LogicalWindow,
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: util.List[NamedWindowProperty],
       agg: Aggregate): LogicalWindowAggregate = {
     require(agg.getGroupType == Group.SIMPLE)
     val cluster: RelOptCluster = agg.getCluster

@@ -420,7 +420,7 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
             key("table.exec.legacy-cast-behaviour")
                     .enumType(LegacyCastBehaviour.class)
-                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .defaultValue(LegacyCastBehaviour.DISABLED)
                     .withDescription(
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");

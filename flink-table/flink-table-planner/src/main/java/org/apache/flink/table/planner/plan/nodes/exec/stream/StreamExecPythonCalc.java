@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -34,6 +35,7 @@ import java.util.List;
 public class StreamExecPythonCalc extends CommonExecPythonCalc implements StreamExecNode<RowData> {
 
     public StreamExecPythonCalc(
+            ReadableConfig tableConfig,
             List<RexNode> projection,
             InputProperty inputProperty,
             RowType outputType,
@@ -41,6 +43,7 @@ public class StreamExecPythonCalc extends CommonExecPythonCalc implements Stream
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonCalc.class),
+                ExecNodeContext.newPersistedConfig(StreamExecPythonCalc.class, tableConfig),
                 projection,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -50,10 +53,11 @@ public class StreamExecPythonCalc extends CommonExecPythonCalc implements Stream
     public StreamExecPythonCalc(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<RexNode> projection,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, projection, inputProperties, outputType, description);
+        super(id, context, persistedConfig, projection, inputProperties, outputType, description);
     }
 }

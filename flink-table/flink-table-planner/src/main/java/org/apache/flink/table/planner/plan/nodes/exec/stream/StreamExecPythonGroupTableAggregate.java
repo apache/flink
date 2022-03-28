@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -41,6 +42,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -73,6 +75,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     private final boolean needRetraction;
 
     public StreamExecPythonGroupTableAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -84,6 +87,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupTableAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupTableAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -134,7 +139,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos,
                         dataViewSpecs,
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         generateUpdateBefore,
                         inputCountIndex);
 

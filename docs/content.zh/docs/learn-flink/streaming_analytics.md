@@ -1,6 +1,6 @@
 ---
 title: 流式分析
-weight: 3
+weight: 5
 type: docs
 ---
 <!--
@@ -104,7 +104,7 @@ watermarks 给了开发者流处理的一种选择，它们使开发人员在开
 动手练习中使用的出租车数据源已经为我们处理了这些详细信息。但是，在您自己的应用程序中，您将必须自己进行处理，这通常是通过实现一个类来实现的，该类从事件中提取时间戳，并根据需要生成 watermarks。最简单的方法是使用 `WatermarkStrategy`：
 
 ```java
-DataStream<Event> stream = ...
+DataStream<Event> stream = ...;
 
 WatermarkStrategy<Event> strategy = WatermarkStrategy
         .<Event>forBoundedOutOfOrderness(Duration.ofSeconds(20))
@@ -146,7 +146,7 @@ Flink 的窗口 API 还具有 _Triggers_ 和 _Evictors_ 的概念，_Triggers_ �
 stream.
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .reduce|aggregate|process(<window function>)
+    .reduce|aggregate|process(<window function>);
 ```
 
 您不是必须使用键控事件流（keyed stream），但是值得注意的是，如果不使用键控事件流，我们的程序就不能 _并行_ 处理。
@@ -154,7 +154,7 @@ stream.
 ```java
 stream.
     .windowAll(<window assigner>)
-    .reduce|aggregate|process(<window function>)
+    .reduce|aggregate|process(<window function>);
 ```
 
 <a name="window-assigners"></a>
@@ -210,7 +210,7 @@ Flink 有一些内置的窗口分配器，如下所示：
 #### ProcessWindowFunction 示例
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
@@ -264,7 +264,7 @@ public abstract class Context implements java.io.Serializable {
 #### 增量聚合示例
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
@@ -361,7 +361,7 @@ stream
     .window(<window assigner>)
     .reduce(<reduce function>)
     .windowAll(<same window assigner>)
-    .reduce(<same reduce function>)
+    .reduce(<same reduce function>);
 ```
 
 可能我们会猜测以 Flink 的能力，想要做到这样看起来是可行的（前提是你使用的是 ReduceFunction 或 AggregateFunction ），但不是。

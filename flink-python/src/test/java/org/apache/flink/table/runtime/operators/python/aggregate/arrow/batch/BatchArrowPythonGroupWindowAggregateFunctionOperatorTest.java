@@ -24,7 +24,6 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -346,19 +345,19 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
                 5000L,
                 new int[] {0, 1},
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdafInputProjection",
                         inputRowType,
                         udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "GroupKey",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),
                         groupingSet),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "GroupSet",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),

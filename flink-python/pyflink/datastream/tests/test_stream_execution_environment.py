@@ -403,7 +403,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         from pyflink.table.expressions import col
         add_three = udf(plus_three, result_type=DataTypes.BIGINT())
 
-        tab = t_env.from_data_stream(ds, 'a') \
+        tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
@@ -716,6 +716,18 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(MemorySize(j_memory_size=j_resource_profile_2.getTaskHeapMemory()),
                          MemorySize.of_mebi_bytes(200))
         self.assertFalse(j_resource_profile_3.isPresent())
+
+    def test_register_cached_file(self):
+        texts = ['machen', 'zeit', 'heerscharen', 'keiner', 'meine']
+        text_path = self.tempdir + '/text_file'
+        with open(text_path, 'a') as f:
+            for text in texts:
+                f.write(text)
+                f.write('\n')
+        self.env.register_cached_file(text_path, 'cache_test')
+        cached_files = self.env._j_stream_execution_environment.getCachedFiles()
+        self.assertEqual(cached_files.size(), 1)
+        self.assertEqual(cached_files[0].getField(0), 'cache_test')
 
     def tearDown(self) -> None:
         self.test_sink.clear()

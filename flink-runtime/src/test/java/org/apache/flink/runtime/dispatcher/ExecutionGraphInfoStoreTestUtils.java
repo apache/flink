@@ -31,7 +31,6 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -191,7 +190,6 @@ public class ExecutionGraphInfoStoreTestUtils {
                 createDispatcherResourceManagerComponents(
                         Configuration configuration,
                         RpcServiceFactory rpcServiceFactory,
-                        HighAvailabilityServices haServices,
                         BlobServer blobServer,
                         HeartbeatServices heartbeatServices,
                         MetricRegistry metricRegistry,
@@ -231,7 +229,7 @@ public class ExecutionGraphInfoStoreTestUtils {
                             ResourceID.generate(),
                             getIOExecutor(),
                             rpcServiceFactory.createRpcService(),
-                            haServices,
+                            getHaServices(),
                             blobServer,
                             heartbeatServices,
                             metricRegistry,

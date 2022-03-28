@@ -101,5 +101,6 @@ public class KinesisFirehoseSinkWriterTest {
                 .withMessageContaining(
                         "Unable to execute HTTP request: Connection refused: localhost/127.0.0.1:443");
         assertThat(ctx.metricGroup().getNumRecordsOutErrorsCounter().getCount()).isEqualTo(12);
+        assertThat(ctx.metricGroup().getNumRecordsSendErrorsCounter().getCount()).isEqualTo(12);
     }
 }

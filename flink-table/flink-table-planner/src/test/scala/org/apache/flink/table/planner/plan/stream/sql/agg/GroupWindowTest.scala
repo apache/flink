@@ -433,9 +433,9 @@ class GroupWindowTest extends TableTestBase {
 
   @Test
   def testWindowAggregateWithLateFire(): Unit = {
-    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
-    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, Boolean.box(true))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.tableConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val sql =
       """
         |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
@@ -447,9 +447,9 @@ class GroupWindowTest extends TableTestBase {
 
   @Test
   def testWindowAggregateWithAllowLateness(): Unit = {
-    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofHours(1))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, Boolean.box(true))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.tableConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofHours(1))
     val sql =
       """
         |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
@@ -461,9 +461,9 @@ class GroupWindowTest extends TableTestBase {
 
   @Test
   def testWindowAggregateWithInvalidAllowLateness(): Unit = {
-    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
-    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(1))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, Boolean.box(true))
+    util.tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.tableConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(1))
     val sql =
       """
         |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
@@ -478,7 +478,7 @@ class GroupWindowTest extends TableTestBase {
 
   @Test
   def testWindowAggregateWithAllowLatenessOnly(): Unit = {
-    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val sql =
       """
         |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt

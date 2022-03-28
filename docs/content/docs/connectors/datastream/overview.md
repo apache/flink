@@ -46,7 +46,6 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
- * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 

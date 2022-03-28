@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
@@ -105,15 +104,15 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(conf: TableConfig = new TableConfig): StreamTableTestUtil =
-    StreamTableTestUtil(this, conf = conf)
+  def streamTestUtil(tableConfig: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
+    StreamTableTestUtil(this, tableConfig = tableConfig)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(conf: TableConfig = new TableConfig): BatchTableTestUtil =
-    BatchTableTestUtil(this, conf = conf)
+  def batchTestUtil(tableConfig: TableConfig = TableConfig.getDefault): BatchTableTestUtil =
+    BatchTableTestUtil(this, tableConfig = tableConfig)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
 
@@ -1222,8 +1221,8 @@ abstract class JavaTableTestUtil(
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
-  extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
+    override val tableConfig: TableConfig = TableConfig.getDefault)
+  extends TableTestUtil(test, isStreamingMode = true, catalogManager, tableConfig) {
 
   /**
    * Register a table with specific row time field and offset.
@@ -1261,7 +1260,7 @@ case class StreamTableTestUtil(
   }
 
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConfiguration)
+    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -1285,8 +1284,7 @@ case class StreamTableTestUtil(
   def getStreamProgram(): FlinkChainedProgram[StreamOptimizeContext] = {
     val tableConfig = tableEnv.getConfig
     val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
-    calciteConfig.getStreamProgram.getOrElse(FlinkStreamProgram.buildProgram(
-      tableConfig.getConfiguration))
+    calciteConfig.getStreamProgram.getOrElse(FlinkStreamProgram.buildProgram(tableConfig))
   }
 
   def enableMiniBatch(): Unit = {
@@ -1342,11 +1340,11 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
-  extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
+    override val tableConfig: TableConfig = TableConfig.getDefault)
+  extends TableTestUtil(test, isStreamingMode = false, catalogManager, tableConfig) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -1370,8 +1368,7 @@ case class BatchTableTestUtil(
   def getBatchProgram(): FlinkChainedProgram[BatchOptimizeContext] = {
     val tableConfig = tableEnv.getConfig
     val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
-    calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(
-      tableConfig.getConfiguration))
+    calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(tableConfig))
   }
 
   def createCollectTableSink(
@@ -1526,10 +1523,17 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    tableConfig.addConfiguration(settings.toConfiguration)
-
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
+
+    val executorFactory = FactoryUtil.discoverFactory(
+      classLoader, classOf[ExecutorFactory], ExecutorFactory.DEFAULT_IDENTIFIER)
+
+    val executor = executorFactory.create(settings.getConfiguration)
+
+    tableConfig.setRootConfiguration(executor.getConfiguration)
+    tableConfig.addConfiguration(settings.getConfiguration)
+
 
     val moduleManager = new ModuleManager
 
@@ -1538,7 +1542,7 @@ object TestingTableEnvironment {
       case _ =>
         CatalogManager.newBuilder
           .classLoader(classLoader)
-          .config(tableConfig.getConfiguration)
+          .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
             new GenericInMemoryCatalog(
@@ -1547,14 +1551,10 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
+    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
 
-    val executorFactory =
-      FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], settings.getExecutor)
-    val executor = executorFactory.create(tableConfig.getConfiguration)
-
-    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
-      moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
+    val planner = PlannerFactoryUtil.createPlanner(
+      executor, tableConfig, moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,

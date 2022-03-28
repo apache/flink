@@ -67,8 +67,7 @@ class BatchPlanner(
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
-    if (getTableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)
@@ -154,7 +153,7 @@ class BatchPlanner(
 
   override def beforeTranslation(): Unit = {
     super.beforeTranslation()
-    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    val runtimeMode = getTableConfig.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +

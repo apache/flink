@@ -60,9 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MergeTableLikeUtil}. */
 public class MergeTableLikeUtilTest {
@@ -103,7 +101,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.physical("four", DataTypes.STRING()))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -224,7 +222,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -258,7 +256,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.metadata("four", DataTypes.INT(), true))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -335,7 +333,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -366,7 +364,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.metadata("two", DataTypes.BOOLEAN()))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -397,7 +395,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -428,7 +426,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.metadata("two", DataTypes.BOOLEAN(), true))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -514,7 +512,7 @@ public class MergeTableLikeUtilTest {
                         .add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -588,7 +586,7 @@ public class MergeTableLikeUtilTest {
                                 DataTypes.TIMESTAMP())
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -631,7 +629,7 @@ public class MergeTableLikeUtilTest {
                                 DataTypes.TIMESTAMP())
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -660,7 +658,7 @@ public class MergeTableLikeUtilTest {
                         .primaryKey("constraint-42", new String[] {"one", "two"})
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -688,7 +686,7 @@ public class MergeTableLikeUtilTest {
                         .primaryKey("PK_3531879", new String[] {"one", "two"})
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -742,7 +740,7 @@ public class MergeTableLikeUtilTest {
                         .primaryKey("PK_3531879", new String[] {"one", "two"})
                         .build();
 
-        assertThat(mergedSchema, equalTo(expectedSchema));
+        assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -754,7 +752,7 @@ public class MergeTableLikeUtilTest {
                         sourcePartitions,
                         Collections.emptyList());
 
-        assertThat(mergePartitions, equalTo(sourcePartitions));
+        assertThat(mergePartitions).isEqualTo(sourcePartitions);
     }
 
     @Test
@@ -766,7 +764,7 @@ public class MergeTableLikeUtilTest {
                         Collections.emptyList(),
                         derivedPartitions);
 
-        assertThat(mergePartitions, equalTo(derivedPartitions));
+        assertThat(mergePartitions).isEqualTo(derivedPartitions);
     }
 
     @Test
@@ -789,7 +787,7 @@ public class MergeTableLikeUtilTest {
                 util.mergePartitions(
                         MergingStrategy.EXCLUDING, sourcePartitions, derivedPartitions);
 
-        assertThat(mergedPartitions, equalTo(derivedPartitions));
+        assertThat(mergedPartitions).isEqualTo(derivedPartitions);
     }
 
     @Test
@@ -812,7 +810,7 @@ public class MergeTableLikeUtilTest {
         expectedOptions.put("format", "json");
         expectedOptions.put("format.ignore-errors", "true");
 
-        assertThat(mergedOptions, equalTo(expectedOptions));
+        assertThat(mergedOptions).isEqualTo(expectedOptions);
     }
 
     @Test
@@ -847,7 +845,7 @@ public class MergeTableLikeUtilTest {
         expectedOptions.put("format", "csv");
         expectedOptions.put("format.ignore-errors", "true");
 
-        assertThat(mergedOptions, equalTo(expectedOptions));
+        assertThat(mergedOptions).isEqualTo(expectedOptions);
     }
 
     @Test
@@ -868,7 +866,7 @@ public class MergeTableLikeUtilTest {
         expectedOptions.put("format", "json");
         expectedOptions.put("format.ignore-errors", "true");
 
-        assertThat(mergedOptions, equalTo(expectedOptions));
+        assertThat(mergedOptions).isEqualTo(expectedOptions);
     }
 
     @Test
@@ -876,11 +874,16 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(Collections.emptyList());
 
-        assertThat(mergingStrategies.get(FeatureOption.OPTIONS), is(MergingStrategy.OVERWRITING));
-        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.GENERATED), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS), is(MergingStrategy.INCLUDING));
+        assertThat(mergingStrategies.get(FeatureOption.OPTIONS))
+                .isEqualTo(MergingStrategy.OVERWRITING);
+        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.GENERATED))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS))
+                .isEqualTo(MergingStrategy.INCLUDING);
     }
 
     @Test
@@ -892,11 +895,16 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(inputOptions);
 
-        assertThat(mergingStrategies.get(FeatureOption.OPTIONS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.GENERATED), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS), is(MergingStrategy.INCLUDING));
+        assertThat(mergingStrategies.get(FeatureOption.OPTIONS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.GENERATED))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS))
+                .isEqualTo(MergingStrategy.INCLUDING);
     }
 
     @Test
@@ -908,11 +916,16 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(inputOptions);
 
-        assertThat(mergingStrategies.get(FeatureOption.OPTIONS), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.GENERATED), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS), is(MergingStrategy.EXCLUDING));
+        assertThat(mergingStrategies.get(FeatureOption.OPTIONS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.GENERATED))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
     }
 
     @Test
@@ -926,12 +939,18 @@ public class MergeTableLikeUtilTest {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(inputOptions);
 
-        assertThat(mergingStrategies.get(FeatureOption.OPTIONS), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS), is(MergingStrategy.INCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.GENERATED), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.METADATA), is(MergingStrategy.EXCLUDING));
-        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS), is(MergingStrategy.EXCLUDING));
+        assertThat(mergingStrategies.get(FeatureOption.OPTIONS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.PARTITIONS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS))
+                .isEqualTo(MergingStrategy.INCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.GENERATED))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.METADATA))
+                .isEqualTo(MergingStrategy.EXCLUDING);
+        assertThat(mergingStrategies.get(FeatureOption.WATERMARKS))
+                .isEqualTo(MergingStrategy.EXCLUDING);
     }
 
     private Map<FeatureOption, MergingStrategy> getDefaultMergingStrategies() {

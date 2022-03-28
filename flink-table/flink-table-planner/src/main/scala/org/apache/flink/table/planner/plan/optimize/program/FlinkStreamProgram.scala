@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
@@ -43,7 +43,7 @@ object FlinkStreamProgram {
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
 
-  def buildProgram(config: Configuration): FlinkChainedProgram[StreamOptimizeContext] = {
+  def buildProgram(tableConfig: ReadableConfig): FlinkChainedProgram[StreamOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[StreamOptimizeContext]()
 
     // rewrite sub-queries to joins
@@ -161,7 +161,7 @@ object FlinkStreamProgram {
         .build())
 
     // join reorder
-    if (config.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
       chainedProgram.addLast(
         JOIN_REORDER,
         FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]

@@ -24,9 +24,11 @@ import org.apache.flink.connector.file.sink.compactor.FileCompactor;
 import org.apache.flink.connector.file.sink.compactor.RecordWiseFileCompactor;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.IntDecoder;
+import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.Rule;
@@ -54,9 +56,14 @@ public class BatchCompactingFileSinkITCase extends BatchExecutionFileSinkITCase 
         return FileSink.forRowFormat(new Path(path), new IntegerFileSinkTestDataUtils.IntEncoder())
                 .withBucketAssigner(
                         new IntegerFileSinkTestDataUtils.ModuloBucketAssigner(NUM_BUCKETS))
-                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
+                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, false))
                 .enableCompact(createFileCompactStrategy(), createFileCompactor())
                 .build();
+    }
+
+    @Override
+    protected void configureSink(DataStreamSink<Integer> sink) {
+        sink.uid("sink");
     }
 
     private static FileCompactor createFileCompactor() {

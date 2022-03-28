@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
@@ -49,17 +50,17 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
-    val config = planner.getConfiguration
+    val tableConfig = planner.getTableConfig
     // build RelNodeBlock plan
-    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, config)
+    val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tableConfig)
     // infer trait properties for sink block
     sinkBlocks.foreach { sinkBlock =>
       // don't require update before by default
       sinkBlock.setUpdateBeforeRequired(false)
 
-      val miniBatchInterval: MiniBatchInterval = if (config.get(
+      val miniBatchInterval: MiniBatchInterval = if (tableConfig.get(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency = config.get(
+        val miniBatchLatency = tableConfig.get(
           ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
@@ -153,19 +154,19 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): RelNode = {
 
-    val config = planner.getTableConfig
-    val calciteConfig = TableConfigUtils.getCalciteConfig(config)
+    val tableConfig = planner.getTableConfig
+    val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
     val programs = calciteConfig.getStreamProgram
-      .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
+      .getOrElse(FlinkStreamProgram.buildProgram(tableConfig))
     Preconditions.checkNotNull(programs)
 
-    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = unwrapContext(relNode)
 
     programs.optimize(relNode, new StreamOptimizeContext() {
 
       override def isBatchMode: Boolean = false
 
-      override def getTableConfig: TableConfig = config
+      override def getTableConfig: TableConfig = tableConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 

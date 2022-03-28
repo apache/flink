@@ -2003,6 +2003,32 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/status",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobStatusInfo",
+      "properties" : {
+        "status" : {
+          "type" : "string",
+          "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/stop",
     "method" : "POST",
     "status-code" : "202 Accepted",

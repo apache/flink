@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.table.api.{ExplainDetail, _}
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
@@ -162,7 +162,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
   def testTwoLevelGroupByLocalGlobalOn(): Unit = {
       util.enableMiniBatch()
       util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-      util.tableEnv.getConfig.getConfiguration.setString(
+      util.tableEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
         AggregatePhaseStrategy.TWO_PHASE.toString)
     // two level unbounded groupBy
@@ -223,9 +223,9 @@ class ChangelogModeInferenceTest extends TableTestBase {
 
   @Test
   def testPropagateUpdateKindAmongRelNodeBlocks(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
+    util.tableEnv.getConfig.set(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
-      true)
+      Boolean.box(true))
     util.addTable(
       """
         |create table sink1 (

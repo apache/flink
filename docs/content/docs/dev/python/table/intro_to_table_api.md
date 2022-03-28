@@ -29,7 +29,7 @@ under the License.
 This document is a short introduction to the PyFlink Table API, which is used to help novice users quickly understand the basic usage of PyFlink Table API.
 For advanced usage, please refer to other documents in this user guide.
 
-Common Structure of Python Table API Program 
+Common Structure of Python Table API Program
 --------------------------------------------
 
 All Table API and SQL programs, both batch and streaming, follow the same pattern. The following code example shows the common structure of Table API and SQL programs.

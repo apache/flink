@@ -58,7 +58,7 @@ class TestEmitter implements ElasticsearchEmitter<Tuple2<Integer, String>> {
         indexer.add(createIndexRequest(element));
     }
 
-    public IndexRequest createIndexRequest(Tuple2<Integer, String> element) {
+    private IndexRequest createIndexRequest(Tuple2<Integer, String> element) {
         Map<String, Object> document = new HashMap<>();
         document.put(dataFieldName, element.f1);
         try {

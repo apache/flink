@@ -38,8 +38,6 @@ class ColumnFunctionsTest extends TableTestBase {
       'a, 'b, 'c, 'd, 'e, 'f)
 
     val tab1 = t.orderBy(withColumns(1, 2 to 3))
-    val tab2 = t.orderBy("withColumns(1, 2 to 3)")
-    verifyTableEquals(tab1, tab2)
     util.verifyExecPlan(tab1)
   }
 }

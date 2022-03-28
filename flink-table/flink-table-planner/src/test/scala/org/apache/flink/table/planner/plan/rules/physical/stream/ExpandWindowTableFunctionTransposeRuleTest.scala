@@ -83,8 +83,8 @@ class ExpandWindowTableFunctionTransposeRuleTest extends TableTestBase {
          |)
          |""".stripMargin)
 
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
   }
 
   @Test

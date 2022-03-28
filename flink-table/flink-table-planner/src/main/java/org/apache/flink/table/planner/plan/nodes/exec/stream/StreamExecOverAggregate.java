@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -44,6 +45,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
@@ -83,7 +85,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-over-aggregate",
         version = 1,
-        consumedOptions = {"table.exec.state.ttl"},
         producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -100,6 +101,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
     private final OverSpec overSpec;
 
     public StreamExecOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -107,6 +109,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(StreamExecOverAggregate.class, tableConfig),
                 overSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -117,11 +120,12 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
     public StreamExecOverAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
     }
@@ -184,7 +188,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 RowType.of(
                         fieldTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
 
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
         final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
         if (group.getLowerBound().isPreceding()
                 && group.getLowerBound().isUnbounded()
@@ -307,7 +311,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 // ROWS unbounded over process function
                 return new RowTimeRowsUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -316,7 +320,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 // RANGE unbounded over process function
                 return new RowTimeRangeUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -325,7 +329,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         } else {
             return new ProcTimeUnboundedPrecedingFunction<>(
                     config.getStateRetentionTime(),
-                    config.getMaxIdleStateRetentionTime(),
+                    TableConfigUtils.getMaxIdleStateRetentionTime(config),
                     genAggsHandler,
                     flattenAccTypes);
         }
@@ -393,7 +397,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 return new RowTimeRowsBoundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -407,7 +411,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 return new ProcTimeRowsBoundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,

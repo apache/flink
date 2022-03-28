@@ -29,6 +29,8 @@ import org.apache.flink.table.delegation.PlannerFactory;
 import java.util.Collections;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+
 /** Factory for the default {@link Planner}. */
 @Internal
 public final class DefaultPlannerFactory implements PlannerFactory {
@@ -51,7 +53,7 @@ public final class DefaultPlannerFactory implements PlannerFactory {
     @Override
     public Planner create(Context context) {
         final RuntimeExecutionMode runtimeExecutionMode =
-                context.getTableConfig().getConfiguration().get(ExecutionOptions.RUNTIME_MODE);
+                context.getTableConfig().get(ExecutionOptions.RUNTIME_MODE);
         switch (runtimeExecutionMode) {
             case STREAMING:
                 return new StreamPlanner(
@@ -70,8 +72,9 @@ public final class DefaultPlannerFactory implements PlannerFactory {
             default:
                 throw new TableException(
                         String.format(
-                                "Unknown runtime mode '%s'. This is a bug. Please consider filing an issue.",
-                                runtimeExecutionMode));
+                                "Unsupported mode '%s' for '%s'. Only an explicit BATCH or "
+                                        + "STREAMING mode is supported in Table API.",
+                                runtimeExecutionMode, RUNTIME_MODE.key()));
         }
     }
 }

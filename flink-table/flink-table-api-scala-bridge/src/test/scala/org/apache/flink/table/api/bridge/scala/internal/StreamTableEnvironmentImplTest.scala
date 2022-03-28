@@ -78,14 +78,14 @@ class StreamTableEnvironmentImplTest {
   private def getStreamTableEnvironment(
       env: StreamExecutionEnvironment,
       elements: DataStream[Int]) = {
-    val config = new TableConfig
+    val tableConfig = TableConfig.getDefault
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = new ModuleManager
     new StreamTableEnvironmentImpl(
       catalogManager,
       moduleManager,
-      new FunctionCatalog(config, catalogManager, moduleManager),
-      config,
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+      tableConfig,
       env,
       new TestPlanner(elements.javaStream.getTransformation),
       new ExecutorMock,

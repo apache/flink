@@ -20,7 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -30,9 +30,11 @@ import javax.annotation.Nullable;
 /** Mock implementations of {@link CatalogManager} for testing purposes. */
 public final class CatalogManagerMocks {
 
-    public static final String DEFAULT_CATALOG = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+    public static final String DEFAULT_CATALOG =
+            TableConfigOptions.TABLE_CATALOG_NAME.defaultValue();
 
-    public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+    public static final String DEFAULT_DATABASE =
+            TableConfigOptions.TABLE_DATABASE_NAME.defaultValue();
 
     public static CatalogManager createEmptyCatalogManager() {
         return createCatalogManager(null);

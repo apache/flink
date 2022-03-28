@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
@@ -74,11 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-global-group-aggregate",
         version = 1,
-        consumedOptions = {
-            "table.exec.state.ttl",
-            "table.exec.mini-batch.enabled",
-            "table.exec.mini-batch.size"
-        },
+        consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
         producedTransformations =
                 StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
@@ -120,6 +117,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     protected final Integer indexOfCountStar;
 
     public StreamExecGlobalGroupAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -133,6 +131,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGlobalGroupAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGlobalGroupAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 aggCallNeedRetractions,
@@ -149,6 +149,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     public StreamExecGlobalGroupAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
@@ -159,7 +160,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
@@ -291,7 +292,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         // then multi-put to state, so copyInputField is true.
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                         true);

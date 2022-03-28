@@ -29,9 +29,7 @@ under the License.
 本文档是对 PyFlink Table API 的简要介绍，用于帮助新手用户快速理解 PyFlink Table API 的基本用法。
 关于高级用法，请参阅用户指南中的其他文档。
 
-
-
-Python Table API 程序的基本结构 
+Python Table API 程序的基本结构
 --------------------------------------------
 
 所有的 Table API 和 SQL 程序，不管批模式，还是流模式，都遵循相同的结构。下面代码示例展示了 Table API 和 SQL 程序的基本结构。

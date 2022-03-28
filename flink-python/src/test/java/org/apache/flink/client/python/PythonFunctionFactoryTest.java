@@ -17,6 +17,7 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -69,8 +70,8 @@ public class PythonFunctionFactoryTest {
         }
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
         tableEnv = StreamTableEnvironment.create(sEnv);
-        tableEnv.getConfig().getConfiguration().set(PYTHON_FILES, pyFilePath.getAbsolutePath());
-        tableEnv.getConfig().getConfiguration().setString(TASK_OFF_HEAP_MEMORY.key(), "80mb");
+        tableEnv.getConfig().set(PYTHON_FILES, pyFilePath.getAbsolutePath());
+        tableEnv.getConfig().set(TASK_OFF_HEAP_MEMORY, MemorySize.parse("80mb"));
         sourceTable = tableEnv.fromDataStream(sEnv.fromElements("1", "2", "3")).as("str");
     }
 

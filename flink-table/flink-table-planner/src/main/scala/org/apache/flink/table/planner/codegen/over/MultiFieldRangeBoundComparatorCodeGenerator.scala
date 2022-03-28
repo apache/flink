@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.over
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GenerateUtils}
@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.RowType
   * RANGE allow the compound ORDER BY and the random type when the bound is current row.
   */
 class MultiFieldRangeBoundComparatorCodeGenerator(
-    tableConfig: TableConfig,
+    tableConfig: ReadableConfig,
     inputType: RowType,
     sortSpec: SortSpec,
     isLowerBound: Boolean = true) {
@@ -76,7 +76,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       """.stripMargin
 
     new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, code, ctx.references.toArray, ctx.tableConfig)
   }
 }
 

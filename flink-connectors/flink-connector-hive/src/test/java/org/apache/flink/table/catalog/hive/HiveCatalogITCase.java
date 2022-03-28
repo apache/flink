@@ -41,6 +41,7 @@ import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.types.AbstractDataType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -217,9 +218,7 @@ public class HiveCatalogITCase {
     public void testReadWriteCsv() throws Exception {
         // similar to CatalogTableITCase::testReadWriteCsvUsingDDL but uses HiveCatalog
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -303,9 +302,7 @@ public class HiveCatalogITCase {
             settings = EnvironmentSettings.inBatchMode();
         }
         TableEnvironment tableEnv = TableEnvironment.create(settings);
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -334,9 +331,7 @@ public class HiveCatalogITCase {
     @Test
     public void testTableWithPrimaryKey() {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         tableEnv.registerCatalog("catalog1", hiveCatalog);
         tableEnv.useCatalog("catalog1");
@@ -385,7 +380,7 @@ public class HiveCatalogITCase {
                 TableEnvironment.create(EnvironmentSettings.newInstance().inBatchMode().build());
         tEnv.registerCatalog("myhive", hiveCatalog);
         tEnv.useCatalog("myhive");
-        tEnv.getConfig().getConfiguration().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         String path = this.getClass().getResource("/csv/test.csv").getPath();
 
@@ -472,15 +467,14 @@ public class HiveCatalogITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
-        tableEnv.useCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG);
+        tableEnv.useCatalog(CatalogManagerMocks.DEFAULT_CATALOG);
         tableEnv.executeSql(
                 String.format(
                         "create table copy like `%s`.`default`.generic_table",
                         hiveCatalog.getName()));
-        Catalog builtInCat = tableEnv.getCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG).get();
+        Catalog builtInCat = tableEnv.getCatalog(CatalogManagerMocks.DEFAULT_CATALOG).get();
         CatalogBaseTable catalogTable =
-                builtInCat.getTable(
-                        new ObjectPath(EnvironmentSettings.DEFAULT_BUILTIN_DATABASE, "copy"));
+                builtInCat.getTable(new ObjectPath(CatalogManagerMocks.DEFAULT_DATABASE, "copy"));
         assertThat(catalogTable.getOptions()).hasSize(1);
         assertThat(catalogTable.getOptions())
                 .containsEntry(FactoryUtil.CONNECTOR.key(), "COLLECTION");

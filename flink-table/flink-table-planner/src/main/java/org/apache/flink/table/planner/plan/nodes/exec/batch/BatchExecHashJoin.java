@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -61,6 +62,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
     private final boolean tryDistinctBuildRow;
 
     public BatchExecHashJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             int estimatedLeftAvgRowSize,
             int estimatedRightAvgRowSize,
@@ -75,6 +77,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -112,22 +115,19 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
-                        config.getTableConfig(),
-                        joinSpec.getNonEquiCondition().orElse(null),
-                        leftType,
-                        rightType);
+                        config, joinSpec.getNonEquiCondition().orElse(null), leftType, rightType);
 
         // projection for equals
         GeneratedProjection leftProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         "HashJoinLeftProjection",
                         leftType,
                         keyType,
                         leftKeys);
         GeneratedProjection rightProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         "HashJoinRightProjection",
                         rightType,
                         keyType,
@@ -186,7 +186,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         if (LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls())) {
             operator =
                     LongHashJoinGenerator.gen(
-                            config.getTableConfig(),
+                            config,
                             hashJoinType,
                             keyType,
                             buildType,

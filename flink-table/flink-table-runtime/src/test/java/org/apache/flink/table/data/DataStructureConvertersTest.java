@@ -87,8 +87,8 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
 
 /** Tests for {@link DataStructureConverters}. */
 @RunWith(Parameterized.class)
@@ -396,9 +396,7 @@ public class DataStructureConvertersTest {
                         simulateSerialization(DataStructureConverters.getConverter(toDataType));
                 toConverter.open(DataStructureConvertersTest.class.getClassLoader());
 
-                assertArrayEquals(
-                        new Object[] {to.getValue()},
-                        new Object[] {toConverter.toExternalOrNull(internalValue)});
+                assertThat(toConverter.toExternalOrNull(internalValue)).isEqualTo(to.getValue());
             }
         }
     }

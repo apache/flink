@@ -18,18 +18,22 @@
 
 package org.apache.flink.table.planner.delegation
 
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.plan.{RelTrait, RelTraitDef}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.rel.logical.LogicalTableModify
+import org.apache.calcite.tools.FrameworkConfig
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
-import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
@@ -55,21 +59,14 @@ import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
 import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.{RelTrait, RelTraitDef}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.hint.RelHint
-import org.apache.calcite.rel.logical.LogicalTableModify
-import org.apache.calcite.tools.FrameworkConfig
-
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
-
 import _root_.scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -102,10 +99,6 @@ abstract class PlannerBase(
 
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
-
-  private val plannerConfiguration: ReadableConfig = new PlannerConfig(
-    tableConfig.getConfiguration,
-    executor.getConfiguration)
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
@@ -148,14 +141,7 @@ abstract class PlannerBase(
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
   /**
-   * Gives access to both API specific table configuration and executor configuration.
-   *
-   * This configuration should be the main source of truth in the planner module.
-   */
-  def getConfiguration: ReadableConfig = plannerConfiguration
-
-  /**
-   * @deprecated Do not use this method anymore. Use [[getConfiguration]] to access options.
+   * @deprecated Do not use this method anymore. Use [[getTableConfig]] to access options.
    *             Create transformations without it. A [[StreamExecutionEnvironment]] is a mixture
    *             of executor and stream graph generator/builder. In the long term, we would like
    *             to avoid the need for it in the planner module.
@@ -226,7 +212,7 @@ abstract class PlannerBase(
           getRelBuilder,
           input,
           collectModifyOperation,
-          getTableConfig.getConfiguration,
+          getTableConfig,
           getFlinkContext.getClassLoader
         )
 
@@ -397,12 +383,18 @@ abstract class PlannerBase(
         }
 
         if (!contextResolvedTable.isAnonymous &&
-          isLegacyConnectorOptions(objectIdentifier, resolvedTable.getOrigin, isTemporary)) {
+          TableFactoryUtil.isLegacyConnectorOptions(
+            catalogManager.getCatalog(objectIdentifier.getCatalogName).orElse(null),
+            tableConfig,
+            isStreamingMode,
+            objectIdentifier,
+            resolvedTable.getOrigin,
+            isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orNull,
             objectIdentifier,
             tableToFind.getOrigin,
-            getTableConfig.getConfiguration,
+            getTableConfig,
             isStreamingMode,
             isTemporary)
           Option(resolvedTable, tableSink)
@@ -424,46 +416,13 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             Collections.emptyMap(),
-            getTableConfig.getConfiguration,
+            getTableConfig,
             getFlinkContext.getClassLoader,
             isTemporary)
           Option(resolvedTable, tableSink)
         }
 
       case _ => None
-    }
-  }
-
-  /**
-   * Checks whether the [[CatalogTable]] uses legacy connector sink options.
-   */
-  private def isLegacyConnectorOptions(
-      objectIdentifier: ObjectIdentifier,
-      catalogTable: CatalogTable,
-      isTemporary: Boolean) = {
-    // normalize option keys
-    val properties = new DescriptorProperties(true)
-    properties.putProperties(catalogTable.getOptions)
-    if (properties.containsKey(ConnectorDescriptorValidator.CONNECTOR_TYPE)) {
-      true
-    } else {
-      val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
-      try {
-        // try to create legacy table source using the options,
-        // some legacy factories uses the new 'connector' key
-        TableFactoryUtil.findAndCreateTableSink(
-          catalog.orElse(null),
-          objectIdentifier,
-          catalogTable,
-          getTableConfig.getConfiguration,
-          isStreamingMode,
-          isTemporary)
-        // success, then we will use the legacy factories
-        true
-      } catch {
-        // fail, then we will use new factories
-        case _: Throwable => false
-      }
     }
   }
 
@@ -479,22 +438,19 @@ abstract class PlannerBase(
   }
 
   protected def beforeTranslation(): Unit = {
-    val configuration = tableConfig.getConfiguration
-
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
     val epochTime :JLong = System.currentTimeMillis()
-    configuration.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    tableConfig.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
     val localTime :JLong =  epochTime +
-      TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getOffset(epochTime)
-    configuration.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+      TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getOffset(epochTime)
+    tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
-    getExecEnv.configure(
-      configuration,
-      Thread.currentThread().getContextClassLoader)
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
+    getExecEnv.configure(tableConfig.getConfiguration, Thread.currentThread().getContextClassLoader)
 
     // Use config parallelism to override env parallelism.
-    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
+    val defaultParallelism = getTableConfig.get(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
     if (defaultParallelism > 0) {
       getExecEnv.getConfig.setParallelism(defaultParallelism)
@@ -548,6 +504,7 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 

@@ -20,13 +20,14 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -110,7 +111,8 @@ public class ManagedTableListener {
             return false;
         }
 
-        if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
+        if (table.getTableKind() != CatalogBaseTable.TableKind.TABLE
+                || !(table instanceof CatalogTable)) {
             // view is not managed table
             return false;
         }
@@ -123,8 +125,14 @@ public class ManagedTableListener {
             return false;
         }
 
-        if (!StringUtils.isNullOrWhitespaceOnly(
-                options.get(ConnectorDescriptorValidator.CONNECTOR_TYPE))) {
+        // check legacy connector, here we need to check the factory, other properties are dummy
+        if (TableFactoryUtil.isLegacyConnectorOptions(
+                catalog,
+                new Configuration(),
+                true,
+                ObjectIdentifier.of("dummy_catalog", "dummy_database", "dummy_table"),
+                (CatalogTable) table,
+                true)) {
             // legacy connector is not managed table
             return false;
         }

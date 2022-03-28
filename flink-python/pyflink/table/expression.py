@@ -264,17 +264,6 @@ def _get_java_expression(expr, to_expr: bool = False):
         return expr
 
 
-def _get_or_create_java_expression(expr: Union["Expression", str]):
-    if isinstance(expr, Expression):
-        return expr._j_expr
-    elif isinstance(expr, str):
-        from pyflink.table.expressions import col
-        return col(expr)._j_expr
-    else:
-        raise TypeError(
-            "Invalid argument: expected Expression or string, got {0}.".format(type(expr)))
-
-
 def _unary_op(op_name: str):
     def _(self) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)())

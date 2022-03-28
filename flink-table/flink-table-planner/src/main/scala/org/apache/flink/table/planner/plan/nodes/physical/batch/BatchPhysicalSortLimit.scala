@@ -21,8 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -100,13 +101,13 @@ class BatchPhysicalSortLimit(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecSortLimit(
+      unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       limitStart,
       limitEnd,
       isGlobal,
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

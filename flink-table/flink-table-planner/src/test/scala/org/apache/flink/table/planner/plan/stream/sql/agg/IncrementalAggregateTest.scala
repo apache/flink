@@ -37,8 +37,8 @@ class IncrementalAggregateTest(
   override def before(): Unit = {
     super.before()
     // enable incremental agg
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(true))
   }
 }
 

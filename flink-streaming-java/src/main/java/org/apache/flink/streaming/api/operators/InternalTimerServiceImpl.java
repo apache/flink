@@ -279,8 +279,8 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
         InternalTimer<K, N> timer;
 
         while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-            processingTimeTimersQueue.poll();
             keyContext.setCurrentKey(timer.getKey());
+            processingTimeTimersQueue.poll();
             triggerTarget.onProcessingTime(timer);
         }
 
@@ -297,8 +297,8 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
         InternalTimer<K, N> timer;
 
         while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-            eventTimeTimersQueue.poll();
             keyContext.setCurrentKey(timer.getKey());
+            eventTimeTimersQueue.poll();
             triggerTarget.onEventTime(timer);
         }
     }

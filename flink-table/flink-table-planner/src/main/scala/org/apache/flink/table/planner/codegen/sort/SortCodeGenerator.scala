@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.sort
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
@@ -40,7 +40,7 @@ import scala.collection.mutable
   * @param sortSpec     sort specification.
   */
 class SortCodeGenerator(
-    tableConfig: TableConfig,
+    tableConfig: ReadableConfig,
     val input: RowType,
     val sortSpec: SortSpec) {
 
@@ -183,7 +183,7 @@ class SortCodeGenerator(
       }
     """.stripMargin
 
-    new GeneratedNormalizedKeyComputer(className, code, tableConfig.getConfiguration)
+    new GeneratedNormalizedKeyComputer(className, code, tableConfig)
   }
 
   def generatePutNormalizedKeys(numKeyBytes: Int): mutable.ArrayBuffer[String] = {

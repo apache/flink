@@ -24,6 +24,7 @@ import pytest
 import pytz
 
 from pyflink.table import DataTypes, expressions as expr
+from pyflink.table.expressions import call
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
@@ -34,7 +35,7 @@ class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
         # test metric disabled.
-        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
+        self.t_env.get_config().set('python.metric.enabled', 'false')
         # test lambda function
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
 
@@ -65,8 +66,7 @@ class UserDefinedFunctionTests(object):
              DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        execution_mode = self.t_env.get_config().get_configuration().get_string(
-            "python.execution-mode", "process")
+        execution_mode = self.t_env.get_config().get("python.execution-mode", "process")
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3).select(
@@ -216,14 +216,13 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.select("plus(a, b)").execute_insert("Results").wait()
+        t.select(t.a + t.b).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2]", "+I[6]", "+I[3]"])
 
     def test_open(self):
-        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
-        execution_mode = self.t_env.get_config().get_configuration().get_string(
-            "python.execution-mode", None)
+        self.t_env.get_config().set('python.metric.enabled', 'true')
+        execution_mode = self.t_env.get_config().get("python.execution-mode", None)
 
         if execution_mode == "process":
             subtract = udf(SubtractWithMetrics(), result_type=DataTypes.BIGINT())
@@ -611,15 +610,15 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        t.select("bigint_func(a), bigint_func_none(b),"
-                 "tinyint_func(c), boolean_func(d),"
-                 "smallint_func(e),int_func(f),"
-                 "float_func(g),double_func(h),"
-                 "bytes_func(i),str_func(j),"
-                 "date_func(k),time_func(l),"
-                 "timestamp_func(m),array_func(n),"
-                 "map_func(o),decimal_func(p),"
-                 "decimal_cut_func(q)") \
+        t.select(call("bigint_func", t.a), call("bigint_func_none", t.b),
+                 call("tinyint_func", t.c), call("boolean_func", t.d),
+                 call("smallint_func", t.e), call("int_func", t.f),
+                 call("float_func", t.g), call("double_func", t.h),
+                 call("bytes_func", t.i), call("str_func", t.j),
+                 call("date_func", t.k), call("time_func", t.l),
+                 call("timestamp_func", t.m), call("array_func", t.n),
+                 call("map_func", t.o), call("decimal_func", t.p),
+                 call("decimal_cut_func", t.q)) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
@@ -797,20 +796,10 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
+class PyFlinkEmbeddedThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
-        super(PyFlinkEmbeddedMultiThreadTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "multi-thread")
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8")
-class PyFlinkEmbeddedSubInterpreterTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
-    def setUp(self):
-        super(PyFlinkEmbeddedSubInterpreterTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "sub-interpreter")
-
+        super(PyFlinkEmbeddedThreadTests, self).setUp()
+        self.t_env.get_config().set("python.execution-mode", "thread")
 
 # test specify the input_types
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())

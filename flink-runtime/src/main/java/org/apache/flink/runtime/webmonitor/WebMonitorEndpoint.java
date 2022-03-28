@@ -50,6 +50,7 @@ import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobExecutionResultHandler;
 import org.apache.flink.runtime.rest.handler.job.JobIdsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
+import org.apache.flink.runtime.rest.handler.job.JobStatusHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
@@ -120,6 +121,7 @@ import org.apache.flink.runtime.rest.messages.cluster.JobManagerStdoutFileHeader
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
@@ -292,6 +294,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         timeout,
                         responseHeaders,
                         JobIdsWithStatusesOverviewHeaders.getInstance());
+
+        JobStatusHandler jobStatusHandler =
+                new JobStatusHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobStatusInfoHeaders.getInstance());
 
         JobsOverviewHandler jobsOverviewHandler =
                 new JobsOverviewHandler(
@@ -653,6 +662,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         clusterConfigurationHandler));
         handlers.add(Tuple2.of(dashboardConfigHandler.getMessageHeaders(), dashboardConfigHandler));
         handlers.add(Tuple2.of(jobIdsHandler.getMessageHeaders(), jobIdsHandler));
+        handlers.add(Tuple2.of(jobStatusHandler.getMessageHeaders(), jobStatusHandler));
         handlers.add(Tuple2.of(jobsOverviewHandler.getMessageHeaders(), jobsOverviewHandler));
         handlers.add(Tuple2.of(jobConfigHandler.getMessageHeaders(), jobConfigHandler));
         handlers.add(

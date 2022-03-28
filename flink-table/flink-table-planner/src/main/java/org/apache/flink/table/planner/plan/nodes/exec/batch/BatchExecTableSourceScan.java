@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -42,10 +43,14 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
 
     public BatchExecTableSourceScan(
-            DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
+            ReadableConfig tableConfig,
+            DynamicTableSourceSpec tableSourceSpec,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(BatchExecTableSourceScan.class, tableConfig),
                 tableSourceSpec,
                 outputType,
                 description);

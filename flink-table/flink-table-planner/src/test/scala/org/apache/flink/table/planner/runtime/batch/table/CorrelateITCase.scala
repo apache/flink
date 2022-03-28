@@ -222,7 +222,8 @@ class CorrelateITCase extends BatchTestBase {
       'a.cast(DataTypes.TINYINT) as 'a,
       'a.cast(DataTypes.SMALLINT) as 'b,
       'b.cast(DataTypes.FLOAT) as 'c)
-        .joinLateral(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
+        .joinLateral(
+          tFunc('a.ifNull(0.toByte), 'b.ifNull(0.toShort), 'c.ifNull(0.toFloat)) as ('a2, 'b2, 'c2))
 
     val results = executeQuery(result)
     val expected = Seq(

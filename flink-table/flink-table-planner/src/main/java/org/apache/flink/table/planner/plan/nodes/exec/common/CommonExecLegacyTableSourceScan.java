@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -71,11 +72,12 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     public CommonExecLegacyTableSourceScan(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, persistedConfig, Collections.emptyList(), outputType, description);
         this.tableSource = tableSource;
         this.qualifiedName = qualifiedName;
     }

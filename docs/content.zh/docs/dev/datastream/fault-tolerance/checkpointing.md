@@ -61,6 +61,8 @@ Checkpoint 其他的属性包括：
 
   - *checkpoint 可容忍连续失败次数*：该属性定义可容忍多少次连续的 checkpoint 失败。超过这个阈值之后会触发作业错误 fail over。
     默认次数为“0”，这意味着不容忍 checkpoint 失败，作业将在第一次 checkpoint 失败时fail over。
+    可容忍的checkpoint失败仅适用于下列情形：Job Manager的IOException，TaskManager做checkpoint时异步部分的失败，
+    checkpoint超时等。TaskManager做checkpoint时同步部分的失败会直接触发作业fail over。其它的checkpoint失败（如一个checkpoint被另一个checkpoint包含）会被忽略掉。
     
   - *并发 checkpoint 的数目*: 默认情况下，在上一个 checkpoint 未完成（失败或者成功）的情况下，系统不会触发另一个 checkpoint。这确保了拓扑不会在 checkpoint 上花费太多时间，从而影响正常的处理流程。
     不过允许多个 checkpoint 并行进行是可行的，对于有确定的处理延迟（例如某方法所调用比较耗时的外部服务），但是仍然想进行频繁的 checkpoint 去最小化故障后重跑的 pipelines 来说，是有意义的。
@@ -90,7 +92,7 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
 env.getCheckpointConfig().setCheckpointTimeout(60000);
 
 // 允许两个连续的 checkpoint 错误
-env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
+env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2);
         
 // 同一时间只允许一个 checkpoint 进行
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);

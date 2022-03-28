@@ -9,10 +9,10 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>jobmanager.adaptive-batch-scheduler.data-volume-per-task</h5></td>
+            <td><h5>jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task</h5></td>
             <td style="word-wrap: break-word;">1 gb</td>
             <td>MemorySize</td>
-            <td>The size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+            <td>The average size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Note that since the parallelism of the vertices is adjusted to a power of 2, the actual average size will be 0.75~1.5 times this value. It is also important to note that when data skew occurs or the decided parallelism reaches the <code class="highlighter-rouge">jobmanager.adaptive-batch-scheduler.max-parallelism</code> (due to too much data), the data actually processed by some tasks may far exceed this value.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-batch-scheduler.default-source-parallelism</h5></td>
@@ -24,13 +24,13 @@
             <td><h5>jobmanager.adaptive-batch-scheduler.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Integer</td>
-            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded down to a power of 2 automatically.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-batch-scheduler.min-parallelism</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code>. Currently, this option should be configured as a power of 2, otherwise it will also be rounded up to a power of 2 automatically.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>

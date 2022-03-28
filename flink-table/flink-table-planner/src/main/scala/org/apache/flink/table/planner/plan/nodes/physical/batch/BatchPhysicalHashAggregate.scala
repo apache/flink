@@ -22,9 +22,10 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -109,8 +110,8 @@ class BatchPhysicalHashAggregate(
           true
         } else {
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
-          val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+          val tableConfig = unwrapTableConfig(this)
+          val partialKeyEnabled = tableConfig.get(
             BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
         }
@@ -148,6 +149,7 @@ class BatchPhysicalHashAggregate(
       InputProperty.hashDistribution(grouping)
     }
     new BatchExecHashAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
@@ -159,7 +161,6 @@ class BatchPhysicalHashAggregate(
         .damBehavior(InputProperty.DamBehavior.END_INPUT)
         .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

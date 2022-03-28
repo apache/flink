@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
@@ -754,7 +755,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         /** {@link PostgreSQLContainer} with XA enabled (by setting max_prepared_transactions). */
         private static final class PgXaDb extends PostgreSQLContainer<PgXaDb> {
-            private static final String IMAGE_NAME = "postgres:9.6.12";
+            private static final String IMAGE_NAME = DockerImageVersions.POSTGRES;
             private static final int SUPERUSER_RESERVED_CONNECTIONS = 1;
 
             @Override

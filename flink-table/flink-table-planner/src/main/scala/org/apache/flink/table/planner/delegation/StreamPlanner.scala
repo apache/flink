@@ -190,6 +190,7 @@ class StreamPlanner(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 
@@ -210,7 +211,7 @@ class StreamPlanner(
 
   override def beforeTranslation(): Unit = {
     super.beforeTranslation()
-    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    val runtimeMode = getTableConfig.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.STREAMING) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializerFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
@@ -70,13 +72,30 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
+    @JsonProperty(value = FIELD_NAME_CONFIGURATION, access = JsonProperty.Access.WRITE_ONLY)
+    private final ReadableConfig persistedConfig;
+
+    @JsonProperty(
+            value = FIELD_NAME_CONFIGURATION,
+            access = JsonProperty.Access.READ_ONLY,
+            index = 2)
+    // Custom filter to exclude node configuration if no consumed options are used
+    @JsonInclude(
+            value = JsonInclude.Include.CUSTOM,
+            valueFilter = ConfigurationJsonSerializerFilter.class)
+    public ReadableConfig getPersistedConfig() {
+        return persistedConfig;
+    }
+
     protected ExecNodeBase(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
         this.context = checkNotNull(context).withId(id);
+        this.persistedConfig = persistedConfig == null ? new Configuration() : persistedConfig;
         this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
@@ -129,9 +148,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                     translateToPlanInternal(
                             (PlannerBase) planner,
                             new ExecNodeConfig(
-                                    ((PlannerBase) planner).getConfiguration(),
-                                    ((PlannerBase) planner).getTableConfig(),
-                                    new Configuration()));
+                                    ((PlannerBase) planner).getTableConfig(), persistedConfig));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);

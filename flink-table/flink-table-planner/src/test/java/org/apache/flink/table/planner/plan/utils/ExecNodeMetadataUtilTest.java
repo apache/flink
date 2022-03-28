@@ -20,6 +20,9 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -42,7 +45,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.UNSUPPORTED_JSON_SERDE_CLASSES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -104,6 +109,26 @@ public class ExecNodeMetadataUtilTest {
                         new Condition<>(
                                 m -> m.minPlanVersion() == FlinkVersion.v1_15, "minStateVersion"));
 
+        Configuration config = new Configuration();
+        config.set(OPTION_1, 1);
+        config.set(OPTION_2, 2);
+        config.set(OPTION_3, 3);
+        config.set(OPTION_4, 4);
+        config.set(OPTION_5, 5);
+        config.set(OPTION_6, 6);
+
+        ReadableConfig persistedConfig =
+                ExecNodeMetadataUtil.newPersistedConfig(
+                        DummyNode.class,
+                        config,
+                        Stream.of(OPTION_1, OPTION_2, OPTION_3, OPTION_4, OPTION_5, OPTION_6));
+        assertThat(persistedConfig.get(OPTION_1)).isEqualTo(1);
+        assertThat(persistedConfig.get(OPTION_2)).isEqualTo(OPTION_2.defaultValue());
+        assertThat(persistedConfig.get(OPTION_3)).isEqualTo(3);
+        assertThat(persistedConfig.get(OPTION_4)).isEqualTo(4);
+        assertThat(persistedConfig.get(OPTION_5)).isEqualTo(5);
+        assertThat(persistedConfig.get(OPTION_6)).isEqualTo(OPTION_6.defaultValue());
+
         // Using multiple individual ExecNodeMetadata annotations
         ExecNodeMetadataUtil.addTestNode(DummyNodeMultipleAnnotations.class);
         assertThat(ExecNodeMetadataUtil.retrieveExecNode("dummy-node-multiple-annotations", 1))
@@ -120,6 +145,73 @@ public class ExecNodeMetadataUtilTest {
                 .has(
                         new Condition<>(
                                 m -> m.minPlanVersion() == FlinkVersion.v1_15, "minStateVersion"));
+
+        assertThatThrownBy(
+                        () ->
+                                ExecNodeContext.newPersistedConfig(
+                                        DummyNodeMultipleAnnotations.class, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "ExecNode: org.apache.flink.table.planner.plan.utils."
+                                + "ExecNodeMetadataUtilTest.DummyNodeMultipleAnnotations, "
+                                + "consumedOption: option111 not listed in [TableConfigOptions, "
+                                + "ExecutionConfigOptions].");
+    }
+
+    @Test
+    public void testDuplicateConsumedOptions() {
+        ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateConsumedOptions.class);
+        assertThatThrownBy(
+                        () ->
+                                ExecNodeMetadataUtil.newPersistedConfig(
+                                        DummyNodeDuplicateConsumedOptions.class,
+                                        new Configuration(),
+                                        Stream.of(OPTION_1, OPTION_2, OPTION_3)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "ExecNode: org.apache.flink.table.planner.plan.utils."
+                                + "ExecNodeMetadataUtilTest."
+                                + "DummyNodeDuplicateConsumedOptions, consumedOption: "
+                                + "option2 is listed multiple times in consumedOptions, "
+                                + "potentially also with fallback/deprecated key.");
+    }
+
+    @Test
+    public void testDuplicateDeprecatedKeysConsumedOptions() {
+        ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateDeprecatedKeysConsumedOptions.class);
+        assertThatThrownBy(
+                        () ->
+                                ExecNodeMetadataUtil.newPersistedConfig(
+                                        DummyNodeDuplicateDeprecatedKeysConsumedOptions.class,
+                                        new Configuration(),
+                                        Stream.of(OPTION_1, OPTION_2, OPTION_3)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "ExecNode: org.apache.flink.table.planner.plan.utils."
+                                + "ExecNodeMetadataUtilTest."
+                                + "DummyNodeDuplicateDeprecatedKeysConsumedOptions, "
+                                + "consumedOption: option3-deprecated is listed multiple times in "
+                                + "consumedOptions, potentially also with fallback/deprecated "
+                                + "key.");
+    }
+
+    @Test
+    public void testDuplicateFallbackKeysConsumedOptions() {
+        ExecNodeMetadataUtil.addTestNode(DummyNodeDuplicateFallbackKeysConsumedOptions.class);
+        assertThatThrownBy(
+                        () ->
+                                ExecNodeMetadataUtil.newPersistedConfig(
+                                        DummyNodeDuplicateFallbackKeysConsumedOptions.class,
+                                        new Configuration(),
+                                        Stream.of(OPTION_1, OPTION_2, OPTION_4)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "ExecNode: org.apache.flink.table.planner.plan.utils."
+                                + "ExecNodeMetadataUtilTest."
+                                + "DummyNodeDuplicateFallbackKeysConsumedOptions, "
+                                + "consumedOption: option4-fallback is listed multiple times in "
+                                + "consumedOptions, potentially also with fallback/deprecated "
+                                + "key.");
     }
 
     @Test
@@ -128,15 +220,16 @@ public class ExecNodeMetadataUtilTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
-                                + "ExecNodeMetadataUtilTest.DummyNodeNoAnnotation is not listed in the "
-                                + "unsupported classes since it is not annotated with: ExecNodeMetadata.");
+                                + "ExecNodeMetadataUtilTest.DummyNodeNoAnnotation is not "
+                                + "listed in the unsupported classes since it is not annotated "
+                                + "with: ExecNodeMetadata.");
 
         assertThatThrownBy(() -> ExecNodeContext.newContext(DummyNode.class))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage(
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
-                                + "ExecNodeMetadataUtilTest.DummyNode is not listed in the supported "
-                                + "classes and yet is annotated with: ExecNodeMetadata.");
+                                + "ExecNodeMetadataUtilTest.DummyNode is not listed in the "
+                                + "supported classes and yet is annotated with: ExecNodeMetadata.");
     }
 
     @Test
@@ -178,103 +271,89 @@ public class ExecNodeMetadataUtilTest {
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 1,
+                consumedOptions = {"option1", "option3-deprecated", "option5-deprecated"},
                 minPlanVersion = FlinkVersion.v1_13,
                 minStateVersion = FlinkVersion.v1_13),
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 2,
+                consumedOptions = {"option2", "option3-deprecated", "option5", "option6-fallback"},
                 minPlanVersion = FlinkVersion.v1_14,
                 minStateVersion = FlinkVersion.v1_14),
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 3,
+                consumedOptions = {"option1", "option3", "option4-fallback", "option5-deprecated"},
                 minPlanVersion = FlinkVersion.v1_15,
                 minStateVersion = FlinkVersion.v1_15)
     })
-    private static class DummyNode extends ExecNodeBase<RowData> {
+    private static class DummyNode extends AbstractDummyNode {
 
         @JsonCreator
         protected DummyNode(
                 ExecNodeContext context,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
-        }
-
-        @Override
-        protected Transformation<RowData> translateToPlanInternal(
-                PlannerBase planner, ExecNodeConfig config) {
-            return null;
+            super(context, persistedConfig, properties, outputType, description);
         }
     }
 
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 1,
+            consumedOptions = {"option1", "option2"},
             minPlanVersion = FlinkVersion.v1_13,
             minStateVersion = FlinkVersion.v1_13)
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 2,
+            consumedOptions = {"option11", "option22"},
             minPlanVersion = FlinkVersion.v1_14,
             minStateVersion = FlinkVersion.v1_14)
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 3,
+            consumedOptions = {"option111", "option222"},
             minPlanVersion = FlinkVersion.v1_15,
             minStateVersion = FlinkVersion.v1_15)
-    private static class DummyNodeMultipleAnnotations extends ExecNodeBase<RowData> {
+    private static class DummyNodeMultipleAnnotations extends AbstractDummyNode {
 
         @JsonCreator
         protected DummyNodeMultipleAnnotations(
                 ExecNodeContext context,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
-        }
-
-        @Override
-        protected Transformation<RowData> translateToPlanInternal(
-                PlannerBase planner, ExecNodeConfig config) {
-            return null;
+            super(context, persistedConfig, properties, outputType, description);
         }
     }
 
-    private static class DummyNodeNoJsonCreator extends ExecNodeBase<RowData> {
+    private static class DummyNodeNoJsonCreator extends AbstractDummyNode {
 
         protected DummyNodeNoJsonCreator(
                 ExecNodeContext context,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
-        }
-
-        @Override
-        protected Transformation<RowData> translateToPlanInternal(
-                PlannerBase planner, ExecNodeConfig config) {
-            return null;
+            super(context, persistedConfig, properties, outputType, description);
         }
     }
 
-    private static class DummyNodeNoAnnotation extends ExecNodeBase<RowData>
+    private static class DummyNodeNoAnnotation extends AbstractDummyNode
             implements StreamExecNode<RowData> {
 
         @JsonCreator
         protected DummyNodeNoAnnotation(
                 ExecNodeContext context,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
-        }
-
-        @Override
-        protected Transformation<RowData> translateToPlanInternal(
-                PlannerBase planner, ExecNodeConfig config) {
-            return null;
+            super(context, persistedConfig, properties, outputType, description);
         }
     }
 
@@ -295,15 +374,85 @@ public class ExecNodeMetadataUtilTest {
             version = 3,
             minPlanVersion = FlinkVersion.v1_15,
             minStateVersion = FlinkVersion.v1_15)
-    private static class DummyNodeBothAnnotations extends ExecNodeBase<RowData> {
+    private static class DummyNodeBothAnnotations extends AbstractDummyNode {
 
         @JsonCreator
         protected DummyNodeBothAnnotations(
                 ExecNodeContext context,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(context, persistedConfig, properties, outputType, description);
+        }
+    }
+
+    @ExecNodeMetadata(
+            name = "dummy-node-duplicate-consumedOptions",
+            version = 3,
+            consumedOptions = {"option1", "option2", "option3", "option2"},
+            minPlanVersion = FlinkVersion.v1_15,
+            minStateVersion = FlinkVersion.v1_15)
+    private static class DummyNodeDuplicateConsumedOptions extends AbstractDummyNode {
+
+        @JsonCreator
+        protected DummyNodeDuplicateConsumedOptions(
+                ExecNodeContext context,
+                ReadableConfig persistedConfig,
+                List<InputProperty> properties,
+                LogicalType outputType,
+                String description) {
+            super(context, persistedConfig, properties, outputType, description);
+        }
+    }
+
+    @ExecNodeMetadata(
+            name = "dummy-node-duplicate-deprecated-keys-consumedOptions",
+            version = 3,
+            consumedOptions = {"option1", "option2", "option3", "option3-deprecated"},
+            minPlanVersion = FlinkVersion.v1_15,
+            minStateVersion = FlinkVersion.v1_15)
+    private static class DummyNodeDuplicateDeprecatedKeysConsumedOptions extends AbstractDummyNode {
+
+        @JsonCreator
+        protected DummyNodeDuplicateDeprecatedKeysConsumedOptions(
+                ExecNodeContext context,
+                ReadableConfig persistedConfig,
+                List<InputProperty> properties,
+                LogicalType outputType,
+                String description) {
+            super(context, persistedConfig, properties, outputType, description);
+        }
+    }
+
+    @ExecNodeMetadata(
+            name = "dummy-node-duplicate-fallback-keys-consumedOptions",
+            version = 3,
+            consumedOptions = {"option1", "option2", "option4", "option4-fallback"},
+            minPlanVersion = FlinkVersion.v1_15,
+            minStateVersion = FlinkVersion.v1_15)
+    private static class DummyNodeDuplicateFallbackKeysConsumedOptions extends AbstractDummyNode {
+
+        @JsonCreator
+        protected DummyNodeDuplicateFallbackKeysConsumedOptions(
+                ExecNodeContext context,
+                ReadableConfig persistedConfig,
+                List<InputProperty> properties,
+                LogicalType outputType,
+                String description) {
+            super(context, persistedConfig, properties, outputType, description);
+        }
+    }
+
+    private static class AbstractDummyNode extends ExecNodeBase<RowData> {
+
+        protected AbstractDummyNode(
+                ExecNodeContext context,
+                ReadableConfig persistedConfig,
+                List<InputProperty> properties,
+                LogicalType outputType,
+                String description) {
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
@@ -312,4 +461,35 @@ public class ExecNodeMetadataUtilTest {
             return null;
         }
     }
+
+    private static final ConfigOption<Integer> OPTION_1 =
+            key("option1").intType().defaultValue(-1).withDescription("option1");
+    private static final ConfigOption<Integer> OPTION_2 =
+            key("option2").intType().defaultValue(-1).withDescription("option2");
+    private static final ConfigOption<Integer> OPTION_3 =
+            key("option3")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDeprecatedKeys("option3-deprecated")
+                    .withDescription("option3");
+    private static final ConfigOption<Integer> OPTION_4 =
+            key("option4")
+                    .intType()
+                    .defaultValue(-1)
+                    .withFallbackKeys("option4-fallback")
+                    .withDescription("option4");
+    private static final ConfigOption<Integer> OPTION_5 =
+            key("option5")
+                    .intType()
+                    .defaultValue(-1)
+                    .withFallbackKeys("option5-fallback")
+                    .withDeprecatedKeys("option5-deprecated")
+                    .withDescription("option5");
+    private static final ConfigOption<Integer> OPTION_6 =
+            key("option6")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDeprecatedKeys("option6-deprecated")
+                    .withFallbackKeys("option6-fallback")
+                    .withDescription("option6");
 }

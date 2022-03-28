@@ -184,7 +184,7 @@ public class PlannerContext {
                         context,
                         // Sets up the ViewExpander explicitly for FlinkRelBuilder.
                         createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext());
-        return new FlinkRelBuilder(chain, cluster, relOptSchema);
+        return FlinkRelBuilder.of(chain, cluster, relOptSchema);
     }
 
     /**

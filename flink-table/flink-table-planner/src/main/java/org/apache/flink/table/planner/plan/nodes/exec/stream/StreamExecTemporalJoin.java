@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
@@ -43,6 +44,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -69,7 +71,6 @@ import java.util.Optional;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-join",
         version = 1,
-        consumedOptions = "table.exec.state.ttl",
         producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -97,6 +98,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     private final int rightTimeAttributeIndex;
 
     public StreamExecTemporalJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             boolean isTemporalTableFunctionJoin,
             int leftTimeAttributeIndex,
@@ -108,6 +110,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecTemporalJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecTemporalJoin.class, tableConfig),
                 joinSpec,
                 isTemporalTableFunctionJoin,
                 leftTimeAttributeIndex,
@@ -121,6 +124,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     public StreamExecTemporalJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN) boolean isTemporalTableFunctionJoin,
             @JsonProperty(FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX) int leftTimeAttributeIndex,
@@ -128,7 +132,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         Preconditions.checkArgument(
                 rightTimeAttributeIndex == FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE
@@ -210,7 +214,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         // input must not be nullable, because the runtime join function will make sure
         // the code-generated function won't process null inputs
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
         final ExprCodeGenerator exprGenerator =
                 new ExprCodeGenerator(ctx, false)
                         .bindInput(
@@ -248,7 +252,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         boolean isLeftOuterJoin = joinSpec.getJoinType() == FlinkJoinType.LEFT;
         long minRetentionTime = config.getStateRetentionTime();
-        long maxRetentionTime = config.getMaxIdleStateRetentionTime();
+        long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
         if (rightTimeAttributeIndex >= 0) {
             return new TemporalRowTimeJoinOperator(
                     InternalTypeInfo.of(leftInputType),

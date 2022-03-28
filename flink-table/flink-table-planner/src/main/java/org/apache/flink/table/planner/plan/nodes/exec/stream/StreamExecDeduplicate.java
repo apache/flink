@@ -74,7 +74,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         name = "stream-exec-deduplicate",
         version = 1,
         consumedOptions = {
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size",
             "table.exec.deduplicate.insert-update-after-sensitive-enabled",
@@ -106,6 +105,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     private final boolean generateUpdateBefore;
 
     public StreamExecDeduplicate(
+            ReadableConfig tableConfig,
             int[] uniqueKeys,
             boolean isRowtime,
             boolean keepLastRow,
@@ -116,6 +116,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecDeduplicate.class),
+                ExecNodeContext.newPersistedConfig(StreamExecDeduplicate.class, tableConfig),
                 uniqueKeys,
                 isRowtime,
                 keepLastRow,
@@ -129,6 +130,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     public StreamExecDeduplicate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
             @JsonProperty(FIELD_NAME_IS_ROWTIME) boolean isRowtime,
             @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
@@ -136,7 +138,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.uniqueKeys = checkNotNull(uniqueKeys);
         this.isRowtime = isRowtime;

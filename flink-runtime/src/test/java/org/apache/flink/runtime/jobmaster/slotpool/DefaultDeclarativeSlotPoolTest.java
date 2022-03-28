@@ -653,6 +653,33 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                 is(toResourceRequirements(resourceRequirements)));
     }
 
+    @Test
+    public void testRegisterSlotsDoesNotAffectRequirements() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        final ResourceProfile slotProfile = RESOURCE_PROFILE_1;
+        final ResourceProfile requestedProfile = ResourceProfile.UNKNOWN;
+
+        slotPool.registerSlots(
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(slotProfile, 1)),
+                new LocalTaskManagerLocation(),
+                SlotPoolTestUtils.createTaskManagerGateway(null),
+                0L);
+
+        final AllocationID allocationId =
+                slotPool.getFreeSlotsInformation().iterator().next().getAllocationId();
+
+        assertThat(slotPool.getResourceRequirements(), is(empty()));
+
+        slotPool.increaseResourceRequirementsBy(ResourceCounter.withResource(requestedProfile, 1));
+        slotPool.reserveFreeSlot(allocationId, requestedProfile);
+        slotPool.freeReservedSlot(allocationId, null, 1L);
+        slotPool.decreaseResourceRequirementsBy(ResourceCounter.withResource(requestedProfile, 1));
+
+        assertThat(slotPool.getResourceRequirements(), is(empty()));
+    }
+
     @Nonnull
     private static ResourceCounter createResourceRequirements() {
         final Map<ResourceProfile, Integer> requirements = new HashMap<>();

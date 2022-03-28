@@ -51,6 +51,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -464,13 +465,14 @@ public class KubernetesStateHandleStore<T extends Serializable>
      * It returns the {@link RetrievableStateHandle} stored under the given state node if any.
      *
      * @param key Key to be removed from ConfigMap
-     * @return True if the state handle is removed successfully
+     * @return True if the state handle isn't listed anymore.
      * @throws Exception if removing the key or discarding the state failed
      */
     @Override
     public boolean releaseAndTryRemove(String key) throws Exception {
         checkNotNull(key, "Key in ConfigMap.");
         final AtomicReference<RetrievableStateHandle<T>> stateHandleRefer = new AtomicReference<>();
+        final AtomicBoolean stateHandleDoesNotExist = new AtomicBoolean(false);
         return updateConfigMap(
                         configMap -> {
                             final String content = configMap.getData().get(key);
@@ -496,6 +498,8 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                     Objects.requireNonNull(configMap.getData().remove(key));
                                 }
                                 return Optional.of(configMap);
+                            } else {
+                                stateHandleDoesNotExist.set(true);
                             }
                             return Optional.empty();
                         })
@@ -516,7 +520,8 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                     throw new CompletionException(e);
                                 }
                             }
-                            return CompletableFuture.completedFuture(updated);
+                            return CompletableFuture.completedFuture(
+                                    stateHandleDoesNotExist.get() || updated);
                         })
                 .get();
     }

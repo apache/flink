@@ -23,11 +23,14 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -130,6 +133,26 @@ public class ConfigUtils {
             result.add(mapper.apply(input));
         }
         return result;
+    }
+
+    public static Set<ConfigOption<?>> getAllConfigOptions(Class<?> configOptionsClass)
+            throws IllegalStateException {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        final Field[] fields = configOptionsClass.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.getType() == ConfigOption.class) {
+                try {
+                    options.add((ConfigOption<?>) field.get(configOptionsClass));
+                } catch (IllegalAccessException e) {
+                    throw new IllegalStateException(
+                            "The config option definition for field "
+                                    + field.getName()
+                                    + " is not accessible.",
+                            e);
+                }
+            }
+        }
+        return options;
     }
 
     private ConfigUtils() {}

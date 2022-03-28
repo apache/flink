@@ -39,12 +39,10 @@ import java.util.List;
 public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSupplier<RowData> {
     private static final long serialVersionUID = 1L;
 
-    private final Configuration configuration;
     private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
 
     public GeneratedWatermarkGeneratorSupplier(
-            Configuration configuration, GeneratedWatermarkGenerator generatedWatermarkGenerator) {
-        this.configuration = configuration;
+            GeneratedWatermarkGenerator generatedWatermarkGenerator) {
         this.generatedWatermarkGenerator = generatedWatermarkGenerator;
     }
 
@@ -60,12 +58,11 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
                 new GeneratedWatermarkGenerator(
                                 generatedWatermarkGenerator.getClassName(),
                                 generatedWatermarkGenerator.getCode(),
-                                references.toArray(),
-                                configuration)
+                                references.toArray())
                         .newInstance(Thread.currentThread().getContextClassLoader());
 
         try {
-            innerWatermarkGenerator.open(configuration);
+            innerWatermarkGenerator.open(new Configuration());
         } catch (Exception e) {
             throw new RuntimeException("Fail to instantiate generated watermark generator.", e);
         }

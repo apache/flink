@@ -29,7 +29,7 @@ public class ClearOperationParseStrategy extends AbstractRegexParseStrategy {
     static final ClearOperationParseStrategy INSTANCE = new ClearOperationParseStrategy();
 
     private ClearOperationParseStrategy() {
-        super(Pattern.compile("CLEAR;?", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("CLEAR\\s*;?", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override

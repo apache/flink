@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
@@ -35,7 +34,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
-import org.apache.calcite.util.{ControlFlowException, DateString, ImmutableBitSet, NlsString, Sarg, TimeString, TimestampString, Util}
+import org.apache.calcite.util._
 
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
@@ -395,17 +394,6 @@ object FlinkRexUtil {
       }
     }
     rex.accept(shuttle)
-  }
-
-  /** Expands the Sarg operands to literals. */
-  def expandSearchOperands(rexBuilder: RexBuilder, call: RexCall): JList[RexNode] = {
-    require(call.getKind == SqlKind.SEARCH)
-    val sargLiteral = call.getOperands.get(1).asInstanceOf[RexLiteral]
-    val sarg = sargLiteral.getValueAs(classOf[Sarg[_]])
-    require(sarg.isPoints)
-    val sargOperands = sarg.rangeSet.asRanges().map(range =>
-      rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
-    List(call.getOperands.head) ++ sargOperands
   }
 
   /**

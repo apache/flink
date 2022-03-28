@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -43,13 +44,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -92,6 +92,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
     private final OverSpec overSpec;
 
     public StreamExecPythonOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -99,21 +100,23 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonOverAggregate.class, tableConfig),
                 overSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }
 
-    @JsonCreator
     public StreamExecPythonOverAggregate(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             OverSpec overSpec,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
     }
@@ -187,7 +190,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         precedingOffset,
                         group.isRows(),
                         config.getStateRetentionTime(),
-                        config.getMaxIdleStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         pythonConfig,
                         config);
 
@@ -266,7 +269,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 .project(outputRowType);
         GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(config.getTableConfig()),
+                        CodeGeneratorContext.apply(config),
                         "UdafInputProjection",
                         inputRowType,
                         userDefinedFunctionInputType,

@@ -221,10 +221,10 @@ arithmetic:
     description: Returns a pseudorandom double value in the range [0.0, 1.0) with an initial seed integer. Two RAND functions will return identical sequences of numbers if they have the same initial seed.
   - sql: RAND_INTEGER(INT)
     table: randInteger(INT)
-    description: Returns a pseudorandom double value in the range [0.0, INT)
+    description: Returns a pseudorandom integer value in the range [0, INT)
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
-    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
+    description: Returns a pseudorandom integer value in the range [0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
   - sql: UUID()
     table: uuid()
     description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
@@ -380,8 +380,7 @@ temporal:
       An interval range might be DAY, MINUTE, DAY TO HOUR, or DAY TO SECOND for intervals of milliseconds; YEAR or YEAR TO MONTH for intervals of months.
 
       E.g., INTERVAL '10 00:00:00.004' DAY TO SECOND, INTERVAL '10' DAY, or INTERVAL '2-10' YEAR TO MONTH return intervals.
-  - sql: YEAR(date)
-    table: |
+  - table: |
       NUMERIC.year
       NUMERIC.years
     description: Creates an interval of months for NUMERIC years.

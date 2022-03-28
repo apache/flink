@@ -108,7 +108,7 @@ class CalcValidationTest extends TableTestBase {
   def testDropColumnsWithValueLiteral(): Unit = {
     val util = streamTestUtil()
     val tab = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    tab.dropColumns("'a'")
+    tab.dropColumns("a")
   }
 
   @Test(expected = classOf[ValidationException])

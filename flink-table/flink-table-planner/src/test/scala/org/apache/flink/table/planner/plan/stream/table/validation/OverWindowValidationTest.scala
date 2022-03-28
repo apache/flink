@@ -79,7 +79,7 @@ class OverWindowValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testPrecedingAndFollowingUsingIsLiteral(): Unit = {
     val result = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
+      .window(Over partitionBy $"c" orderBy $"rowtime" preceding 2 following $"xx" as $"w")
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
   }

@@ -64,8 +64,7 @@ import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving expressions with {@link ExpressionResolver} created with Expression DSL. See
@@ -262,7 +261,7 @@ public class ExpressionResolverTest {
     public void testResolvingExpressions() {
         List<ResolvedExpression> resolvedExpressions =
                 testSpec.getResolver().resolve(Arrays.asList(testSpec.expressions));
-        assertThat(resolvedExpressions, equalTo(testSpec.expectedExpressions));
+        assertThat(resolvedExpressions).isEqualTo(testSpec.expectedExpressions);
     }
 
     /** Test scalar function. */
@@ -351,7 +350,7 @@ public class ExpressionResolverTest {
 
         public ExpressionResolver getResolver() {
             return ExpressionResolver.resolverFor(
-                            new TableConfig(),
+                            TableConfig.getDefault(),
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),

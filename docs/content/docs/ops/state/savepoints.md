@@ -256,8 +256,8 @@ of checkpoints.
 
 {{< hint info >}}
 **Attention:**
-1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
-take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk-<x>`. Flink does not
+take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk-<x>`. The directory
 of the old job will not be deleted by Flink
 
 2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
@@ -270,7 +270,7 @@ Therefore, it is possible Flink leaves an empty savepoints directory if it was r
 
 **LEGACY**
 
-The legacy is mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
+The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
 is that Flink might immediately build an incremental checkpoint on top of the restored one. Therefore,
 subsequent checkpoints depend on the restored checkpoint. Overall, the ownership is not well-defined.

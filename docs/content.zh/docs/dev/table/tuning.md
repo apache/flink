@@ -59,7 +59,7 @@ Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployme
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 TableConfig configuration = tEnv.getConfig();
@@ -88,11 +88,11 @@ configuration.set("table.exec.mini-batch.size", "5000") // the maximum number of
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # enable mini-batch optimization
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s"); # use 5 seconds to buffer input records
-configuration.set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true") # enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s") # use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000") # the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -121,7 +121,7 @@ GROUP BY color
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 Configuration configuration = tEnv.getConfig().getConfiguration();
@@ -152,12 +152,12 @@ configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable t
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # local-global aggregation depends on mini-batch is enabled
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
-configuration.set_string("table.exec.mini-batch.size", "5000");
-configuration.set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true") # local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE") # enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -206,7 +206,7 @@ GROUP BY day
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 tEnv.getConfig()
   .set("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
@@ -226,8 +226,7 @@ tEnv.getConfig
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()
-  .set("table.optimizer.distinct-agg.split.enabled", "true"); # enable distinct agg split
+t_env.get_config().set("table.optimizer.distinct-agg.split.enabled", "true") # enable distinct agg split
 ```
 {{< /tab >}}
 {{< /tabs >}}

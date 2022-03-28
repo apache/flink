@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -91,6 +92,10 @@ public class JsonSerdeUtil {
     /**
      * Object mapper shared instance to serialize and deserialize the plan. Note that creating and
      * copying of object mappers is expensive and should be avoided.
+     *
+     * <p>This is not exposed to avoid bad usages, like adding new modules. If you need to read and
+     * write json persisted plans, use {@link #createObjectWriter(SerdeContext)} and {@link
+     * #createObjectReader(SerdeContext)}.
      */
     private static final ObjectMapper OBJECT_MAPPER_INSTANCE;
 
@@ -107,11 +112,6 @@ public class JsonSerdeUtil {
         OBJECT_MAPPER_INSTANCE.registerModule(new Jdk8Module().configureAbsentsAsNulls(true));
         OBJECT_MAPPER_INSTANCE.registerModule(new JavaTimeModule());
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
-    }
-
-    /** Get the {@link ObjectMapper} instance. */
-    public static ObjectMapper getObjectMapper() {
-        return OBJECT_MAPPER_INSTANCE;
     }
 
     public static ObjectReader createObjectReader(SerdeContext serdeContext) {
@@ -140,6 +140,7 @@ public class JsonSerdeUtil {
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
         module.addSerializer(new FlinkVersionJsonSerializer());
+        module.addSerializer(new ConfigurationJsonSerializer());
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         module.addSerializer(new LogicalTypeJsonSerializer());
         module.addSerializer(new DataTypeJsonSerializer());
@@ -162,6 +163,7 @@ public class JsonSerdeUtil {
     private static void registerDeserializers(SimpleModule module) {
         module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
         module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
+        module.addDeserializer(ReadableConfig.class, new ConfigurationJsonDeserializer());
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
         module.addDeserializer(RowType.class, (StdDeserializer) new LogicalTypeJsonDeserializer());

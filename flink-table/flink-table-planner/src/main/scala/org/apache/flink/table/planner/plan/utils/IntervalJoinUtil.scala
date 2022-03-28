@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen._
@@ -25,15 +26,16 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util
 
@@ -74,8 +76,7 @@ object IntervalJoinUtil {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder,
-      tableConfig.getConfiguration.getInteger(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT),
-      predicate)
+      tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT), predicate)
 
     // split the condition into time predicates and other predicates
     // We need two range predicates or an equality predicate for a properly bounded window join.
@@ -468,7 +469,7 @@ object IntervalJoinUtil {
       join.getCluster.getTypeFactory,
       null,
       join.getSystemFieldList)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = unwrapTableConfig(join)
     val (windowBounds, _) = extractWindowBoundsFromPredicate(
       join.getCondition,
       newLeft.getRowType.getFieldCount,
@@ -479,7 +480,7 @@ object IntervalJoinUtil {
   }
 
   def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = unwrapTableConfig(join)
     extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

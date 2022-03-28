@@ -81,6 +81,12 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testInNonConstantValues(): Unit = {
+    val sql = s"SELECT * FROM MyTable WHERE b IN (1, 3, CAST(a AS INT), 5, 6) AND c = 'xx'"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
   def testNotIn(): Unit = {
     val sql = s"SELECT * FROM MyTable WHERE b NOT IN (1, 3, 4, 5, 6) OR c = 'xx'"
     util.verifyExecPlan(sql)

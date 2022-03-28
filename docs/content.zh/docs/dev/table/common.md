@@ -53,7 +53,7 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
       .column("f0", DataTypes.STRING())
       .build())
     .option(DataGenOptions.ROWS_PER_SECOND, 100)
-    .build())
+    .build());
 
 // Create a sink table (using SQL DDL)
 tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
@@ -65,7 +65,7 @@ Table table2 = tableEnv.from("SourceTable");
 Table table3 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.executeInsert("SinkTable");
+TableResult tableResult = table2.insertInto("SinkTable").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -95,7 +95,7 @@ val table1 = tableEnv.from("SourceTable")
 val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable")
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table1.executeInsert("SinkTable")
+val tableResult = table1.insertInto("SinkTable").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -335,7 +335,7 @@ tableEnv.createTable("SourceTableA", sourceDescriptor);
 tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
 
 // Using SQL DDL
-tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)");
 ```
 
 <a name="expanding-table-identifiers"></a>
@@ -645,7 +645,9 @@ Table API 和 SQL 查询的混用非常简单因为它们都返回 `Table` 对�
 
 请参考文档 [Table Sources & Sinks]({{< ref "docs/dev/table/sourcesSinks" >}}) 以获取更多关于可用 Sink 的信息以及如何自定义 `DynamicTableSink`。
 
-方法 `Table.executeInsert(String tableName)` 将 `Table` 发送至已注册的 `TableSink`。该方法通过名称在 catalog 中查找 `TableSink` 并确认`Table` schema 和 `TableSink` schema 一致。
+方法 `Table.insertInto(String tableName)` 定义了一个完整的端到端管道将源表中的数据传输到一个被注册的输出表中。 
+该方法通过名称在 catalog 中查找输出表并确认 `Table` schema 和输出表 schema 一致。
+可以通过方法 `TablePipeline.explain()` 和 `TablePipeline.execute()` 分别来解释和执行一个数据流管道。
 
 下面的示例演示如何输出 `Table`：
 
@@ -671,10 +673,16 @@ tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("file
     .build());
 
 // compute a result Table using Table API operators and/or SQL queries
-Table result = ...
+Table result = ...;
+
+// Prepare the insert into pipeline
+TablePipeline pipeline = result.insertInto("CsvSinkTable");
+
+// Print explain details
+pipeline.printExplain();
 
 // emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable");
+pipeline.execute();
 
 ```
 {{< /tab >}}
@@ -701,8 +709,14 @@ tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("file
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
+// Prepare the insert into pipeline
+val pipeline = result.insertInto("CsvSinkTable")
+
+// Print explain details
+pipeline.printExplain()
+
 // emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable")
+pipeline.execute()
 
 ```
 {{< /tab >}}
@@ -752,9 +766,9 @@ result.execute_insert("CsvSinkTable")
 Table API 或者 SQL 查询在下列情况下会被翻译：
 
 * 当 `TableEnvironment.executeSql()` 被调用时。该方法是用来执行一个 SQL 语句，一旦该方法被调用， SQL 语句立即被翻译。
-* 当 `Table.executeInsert()` 被调用时。该方法是用来将一个表的内容插入到目标表中，一旦该方法被调用， TABLE API 程序立即被翻译。
+* 当 `TablePipeline.execute()` 被调用时。该方法是用来执行一个源表到输出表的数据流，一旦该方法被调用， TABLE API 程序立即被翻译。
 * 当 `Table.execute()` 被调用时。该方法是用来将一个表的内容收集到本地，一旦该方法被调用， TABLE API 程序立即被翻译。
-* 当 `StatementSet.execute()` 被调用时。`Table` （通过 `StatementSet.addInsert()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
+* 当 `StatementSet.execute()` 被调用时。`TablePipeline` （通过 `StatementSet.add()` 输出给某个 `Sink`）和 INSERT 语句 （通过调用 `StatementSet.addInsertSql()`）会先被缓存到 `StatementSet` 中，`StatementSet.execute()` 方法被调用时，所有的 sink 会被优化成一张有向无环图。
 * 当 `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 集成](#integration-with-datastream)）。转换完成后，它就成为一个普通的 DataStream 程序，并会在调用 `StreamExecutionEnvironment.execute()` 时被执行。
 
 {{< top >}}
@@ -910,10 +924,10 @@ tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
 StatementSet stmtSet = tEnv.createStatementSet();
 
 Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
-stmtSet.addInsert("MySink1", table1);
+stmtSet.add(table1.insertInto("MySink1"));
 
 Table table2 = table1.unionAll(tEnv.from("MySource2"));
-stmtSet.addInsert("MySink2", table2);
+stmtSet.add(table2.insertInto("MySink2"));
 
 String explanation = stmtSet.explain();
 System.out.println(explanation);
@@ -954,10 +968,10 @@ tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
 val stmtSet = tEnv.createStatementSet()
 
 val table1 = tEnv.from("MySource1").where($"word".like("F%"))
-stmtSet.addInsert("MySink1", table1)
+stmtSet.add(table1.insertInto("MySink1"))
 
 val table2 = table1.unionAll(tEnv.from("MySource2"))
-stmtSet.addInsert("MySink2", table2)
+stmtSet.add(table2.insertInto("MySink2"))
 
 val explanation = stmtSet.explain()
 println(explanation)

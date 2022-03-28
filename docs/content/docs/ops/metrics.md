@@ -1326,7 +1326,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="20"><strong>Task</strong></th>
+      <th rowspan="23"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1424,6 +1424,21 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>maxHardBackPressuredTimeMs</td>
       <td>Maximum recorded duration of a single consecutive period of the task being in the hard back pressure state in the last sampling period. Please check softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond for more information.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>mailboxMailsPerSecond</td>
+      <td>The number of actions processed from the task's mailbox per second which includes all actions, e.g., checkpointing, timer, or cancellation actions.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>mailboxLatencyMs</td>
+      <td>The latency is the time that actions spend waiting in the task's mailbox before being processed. The metric is a statistic of the latency in milliseconds that is measured approximately once every second and includes the last 60 measurements.</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mailboxQueueSize</td>
+      <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1616,7 +1631,15 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
-      <td>numRecordsOutErrors</td>
+      <td>numRecordsOutErrors (deprecated, please use numRecordsSendErrors)</td>
+      <td>Number of rejected record writes.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
       <td>Number of rejected record writes.</td>
       <td>Counter</td>
     </tr>

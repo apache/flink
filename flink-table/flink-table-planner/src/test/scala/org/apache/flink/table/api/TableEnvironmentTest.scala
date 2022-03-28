@@ -21,7 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.{Configuration, ExecutionOptions}
+import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -42,6 +42,7 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -142,11 +143,11 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExecutionExplainWithConfParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val tEnv = StreamTableEnvironment.create(execEnv, settings)
     val configuration = new Configuration()
-    configuration.setInteger("parallelism.default", 4)
-    tEnv.getConfig.addConfiguration(configuration)
+    configuration.set(CoreOptions.DEFAULT_PARALLELISM, Integer.valueOf(4))
+    val settings =
+      EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
     verifyTableEnvironmentExecutionExplain(tEnv)
   }
@@ -342,6 +343,46 @@ class TableEnvironmentTest {
     expectedException.expectMessage("ALTER TABLE COMPACT operation is not supported for " +
           "non-managed table `default_catalog`.`default_database`.`MyTable`")
     tableEnv.executeSql("alter table MyTable compact")
+  }
+
+  @Test
+  def testQueryViewWithHints(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    tableEnv.executeSql("CREATE TEMPORARY VIEW my_view AS SELECT a, c FROM MyTable")
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql("SELECT c FROM my_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`my_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW your_view AS " +
+        "SELECT c FROM my_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`my_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+
+    tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW your_view AS SELECT c FROM my_view ")
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql("SELECT * FROM your_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`your_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+
   }
 
   @Test

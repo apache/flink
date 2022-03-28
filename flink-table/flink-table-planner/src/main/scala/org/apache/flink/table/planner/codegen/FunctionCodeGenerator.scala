@@ -161,7 +161,7 @@ object FunctionCodeGenerator {
     """.stripMargin
 
     new GeneratedFunction(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
@@ -218,6 +218,6 @@ object FunctionCodeGenerator {
      """.stripMargin
 
     new GeneratedJoinCondition(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 }

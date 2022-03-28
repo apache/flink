@@ -31,15 +31,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.sql.Time
-import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.format.DateTimeFormatter
 import java.util.TimeZone
 
 import scala.collection.mutable
 
 /**
-  * Tests that check all non-deterministic functions can be executed.
-  */
+ * Tests that check all non-deterministic functions can be executed.
+ */
 class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
@@ -79,11 +79,11 @@ class NonDeterministicTests extends ExpressionTestBase {
   @Test
   def testTemporalFunctionsInBatchMode(): Unit = {
     val zoneId = ZoneId.of("Asia/Shanghai")
-    config.setLocalTimeZone(zoneId)
-    config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    tableConfig.setLocalTimeZone(zoneId)
+    tableConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
 
-    config.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, Long.box(1123L))
-    config.set(
+    tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, Long.box(1123L))
+    tableConfig.set(
       InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME,
       Long.box(1123L + TimeZone.getTimeZone(zoneId).getOffset(1123L)))
 
@@ -110,7 +110,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
-    config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    tableConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
 
     val round1 = evaluateFunctionResult(temporalFunctions)
@@ -134,8 +134,8 @@ class NonDeterministicTests extends ExpressionTestBase {
     testTemporalTimestamp(ZoneId.of("Asia/Shanghai"))
   }
 
-  private def testTemporalTimestamp(zoneId: ZoneId) :Unit = {
-    config.setLocalTimeZone(zoneId)
+  private def testTemporalTimestamp(zoneId: ZoneId): Unit = {
+    tableConfig.setLocalTimeZone(zoneId)
     val localDateTime = LocalDateTime.now(zoneId)
 
     val formattedLocalTime = localDateTime
@@ -184,11 +184,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testUUID(): Unit = {
-    testAllApis(
-      uuid().charLength(),
-      "uuid().charLength",
-      "CHARACTER_LENGTH(UUID())",
-      "36")
+    testAllApis(uuid().charLength(), "CHARACTER_LENGTH(UUID())", "36")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -212,7 +208,7 @@ object TimeDiffFun extends ScalarFunction {
     // the t1 may be '00:00:01.001' and the t2 may be '23:59:59.999'
     // we simply assume the two times were produced less than 1 minute
     if (t1.getTime < t2.getTime && millsInDay - Math.abs(t1.getTime - t2.getTime) < 60000) {
-        t1.getTime + millsInDay - t2.getTime
+      t1.getTime + millsInDay - t2.getTime
     }
     else {
       t1.getTime - t2.getTime

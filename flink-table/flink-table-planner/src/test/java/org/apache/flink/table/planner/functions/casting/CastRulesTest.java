@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -94,7 +95,7 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
 import static org.apache.flink.table.test.TableAssertions.assertThatGenericDataOfType;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class runs unit tests of {@link CastRule} implementations. For IT test cases, check out the
@@ -1258,8 +1259,8 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
                                 ARRAY(INT().nullable()),
-                                new GenericArrayData(new Object[] {1, null, 2}),
-                                new GenericArrayData(new Object[] {1L, null, 2L})),
+                                new GenericArrayData(new Integer[] {1, null, 2}),
+                                new GenericArrayData(new Long[] {1L, null, 2L})),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
                         .fromCase(
                                 ARRAY(INT().notNull()),
@@ -1273,7 +1274,42 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                NullPointerException.class),
+                                NullPointerException.class)
+                        .fromCase(
+                                ARRAY(ARRAY(INT().nullable())),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        }),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Long[] {1L, 2L}),
+                                            new GenericArrayData(new Long[] {3L})
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(DECIMAL(10, 2).notNull())))
+                        .fromCase(
+                                ARRAY(ARRAY(INT().notNull())),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        }),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(
+                                                    new Object[] {
+                                                        DecimalData.fromBigDecimal(
+                                                                BigDecimal.ONE, 10, 2),
+                                                        DecimalData.fromBigDecimal(
+                                                                new BigDecimal(2), 10, 2)
+                                                    }),
+                                            new GenericArrayData(
+                                                    new Object[] {
+                                                        DecimalData.fromBigDecimal(
+                                                                new BigDecimal(3), 10, 2)
+                                                    })
+                                        })),
                 CastTestSpecBuilder.testCastTo(MAP(DOUBLE().notNull(), DOUBLE().notNull()))
                         .fromCase(
                                 MAP(INT().nullable(), INT().nullable()),
@@ -1567,7 +1603,8 @@ class CastRulesTest {
                 Class<? extends Throwable> exception) {
             this.inputTypes.add(dataType);
             this.assertionExecutors.add(
-                    executor -> assertThrows(exception, () -> executor.cast(src)));
+                    executor ->
+                            assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
             return this;

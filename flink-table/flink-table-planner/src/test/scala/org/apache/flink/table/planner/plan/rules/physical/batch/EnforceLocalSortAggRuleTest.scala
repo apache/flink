@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.CalciteConfig
@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
+
 import org.junit.{Before, Test}
 
 
@@ -42,7 +43,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     super.setup()
     util.addFunction("weightedAvg", new WeightedAvg)
 
-    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
@@ -55,9 +56,9 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
       .replaceBatchProgram(program).build()
     util.tableEnv.getConfig.setPlannerConfig(calciteConfig)
     // only enabled SortAgg
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
   }
 
@@ -84,10 +85,10 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
   */
 class BatchExecSortAggRuleForOnePhase extends BatchPhysicalSortAggRule {
   override protected def isTwoPhaseAggWorkable(
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
+      aggFunctions: Array[UserDefinedFunction], tableConfig: ReadableConfig): Boolean = false
 
   override protected def isOnePhaseAggWorkable(agg: Aggregate,
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = true
+      aggFunctions: Array[UserDefinedFunction], tableConfig: ReadableConfig): Boolean = true
 }
 
 object BatchExecSortAggRuleForOnePhase {

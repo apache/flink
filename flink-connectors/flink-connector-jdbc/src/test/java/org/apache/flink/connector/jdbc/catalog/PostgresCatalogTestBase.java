@@ -21,13 +21,17 @@ package org.apache.flink.connector.jdbc.catalog;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.util.DockerImageVersions;
 
-import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
-import com.opentable.db.postgres.junit.SingleInstancePostgresRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -37,9 +41,12 @@ import java.sql.Statement;
 /** Test base for {@link PostgresCatalog}. */
 public class PostgresCatalogTestBase {
 
+    public static final Logger LOG = LoggerFactory.getLogger(PostgresCatalogTestBase.class);
+
     @Rule public ExpectedException exception = ExpectedException.none();
 
-    @ClassRule public static SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance();
+    protected static final DockerImageName POSTGRES_IMAGE =
+            DockerImageName.parse(DockerImageVersions.POSTGRES);
 
     protected static final String TEST_CATALOG_NAME = "mypg";
     protected static final String TEST_USERNAME = "postgres";
@@ -59,12 +66,19 @@ public class PostgresCatalogTestBase {
     protected static String baseUrl;
     protected static PostgresCatalog catalog;
 
+    @ClassRule
+    public static final PostgreSQLContainer<?> POSTGRES_CONTAINER =
+            new PostgreSQLContainer<>(POSTGRES_IMAGE)
+                    .withUsername(TEST_USERNAME)
+                    .withPassword(TEST_PWD)
+                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+
     @BeforeClass
     public static void init() throws SQLException {
         // jdbc:postgresql://localhost:50807/postgres?user=postgres
-        String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
+        String jdbcUrl = POSTGRES_CONTAINER.getJdbcUrl();
         // jdbc:postgresql://localhost:50807/
-        baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/"));
+        baseUrl = jdbcUrl.substring(0, jdbcUrl.lastIndexOf("/"));
 
         catalog =
                 new PostgresCatalog(
@@ -75,7 +89,6 @@ public class PostgresCatalogTestBase {
                         baseUrl);
 
         // create test database and schema
-        createDatabase(TEST_DB);
         createSchema(TEST_DB, TEST_SCHEMA);
 
         // create test tables

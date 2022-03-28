@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -37,6 +38,7 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         implements BatchExecNode<RowData> {
 
     public BatchExecWindowTableFunction(
+            ReadableConfig tableConfig,
             TimeAttributeWindowingStrategy windowingStrategy,
             InputProperty inputProperty,
             RowType outputType,
@@ -44,6 +46,7 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecWindowTableFunction.class),
+                ExecNodeContext.newPersistedConfig(BatchExecWindowTableFunction.class, tableConfig),
                 windowingStrategy,
                 Collections.singletonList(inputProperty),
                 outputType,

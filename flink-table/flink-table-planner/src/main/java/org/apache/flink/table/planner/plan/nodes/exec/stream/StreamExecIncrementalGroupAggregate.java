@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
@@ -62,11 +63,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-incremental-group-aggregate",
         version = 1,
-        consumedOptions = {
-            "table.exec.state.ttl",
-            "table.exec.mini-batch.enabled",
-            "table.exec.mini-batch.size"
-        },
+        consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
         producedTransformations =
                 StreamExecIncrementalGroupAggregate.INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
@@ -110,6 +107,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
     private final boolean partialAggNeedRetraction;
 
     public StreamExecIncrementalGroupAggregate(
+            ReadableConfig tableConfig,
             int[] partialAggGrouping,
             int[] finalAggGrouping,
             AggregateCall[] partialOriginalAggCalls,
@@ -122,6 +120,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecIncrementalGroupAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecIncrementalGroupAggregate.class, tableConfig),
                 partialAggGrouping,
                 finalAggGrouping,
                 partialOriginalAggCalls,
@@ -137,6 +137,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
     public StreamExecIncrementalGroupAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_PARTIAL_AGG_GROUPING) int[] partialAggGrouping,
             @JsonProperty(FIELD_NAME_FINAL_AGG_GROUPING) int[] finalAggGrouping,
             @JsonProperty(FIELD_NAME_PARTIAL_ORIGINAL_AGG_CALLS)
@@ -148,7 +149,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.partialAggGrouping = checkNotNull(partialAggGrouping);
         this.finalAggGrouping = checkNotNull(finalAggGrouping);
         this.partialOriginalAggCalls = checkNotNull(partialOriginalAggCalls);
@@ -248,7 +249,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(partialLocalAggInputType.getChildren()),
                         inputFieldCopy);

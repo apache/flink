@@ -243,7 +243,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         self.env.set_parallelism(2)
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("akka.ask.timeout", "20 s")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
         self.test_sink = DataStreamTestSinkFunction()
 
@@ -433,7 +433,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             self.env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
-        new_table = table.select("a + 1, b + 'flink', c")
+        new_table = table.select(table.a + 1, table.b + 'flink', table.c)
         ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
                                                                           Types.STRING(),
                                                                           Types.STRING()]))
@@ -450,7 +450,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             self.env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
-        new_table = table.group_by("c").select("a.sum, c as b")
+        new_table = table.group_by(table.c).select(table.a.sum, table.c.alias("b"))
         ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
                                                                            Types.STRING()]))
         test_sink = DataStreamTestSinkFunction()

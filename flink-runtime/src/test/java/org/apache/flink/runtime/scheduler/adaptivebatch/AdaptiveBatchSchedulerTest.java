@@ -174,7 +174,7 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
                         new AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder(
                                         jobGraph, mainThreadExecutor)
                                 .setJobMasterConfiguration(configuration);
-        schedulerBuilder.setJobVertexParallelismDecider((ignored) -> 10);
+        schedulerBuilder.setVertexParallelismDecider((ignored) -> 10);
 
         return schedulerBuilder.build();
     }

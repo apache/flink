@@ -680,6 +680,8 @@ data_stream.broadcast()
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="task-chaining-and-resource-groups"></a>
+
 ## 算子链和资源组
 
 将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外， Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
@@ -769,7 +771,7 @@ Flink里的算子和作业节点会有一个名字和一个描述。名字和描
 {{< tabs namedescription>}}
 {{< tab "Java" >}}
 ```java
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

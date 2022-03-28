@@ -62,7 +62,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, new TableConfig)
+    .create(settings, catalogManager = None, TableConfig.getDefault)
   val tEnv: TableEnvironment = testingTableEnv
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val env: StreamExecutionEnvironment = planner.getExecEnv
@@ -424,7 +424,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def registerRange(name: String, start: Long, end: Long): Unit = {
     BatchTableEnvUtil.registerBoundedStreamInternal(
-      tEnv, name, newRangeSource(start, end), Some[Array[String]](Array[String]("id")), None, None)
+      tEnv, name, newRangeSource(start, end), Some(Array($"id")), None, None)
   }
 
   def newRangeSource(start: Long, end: Long): DataStream[RowData] = {

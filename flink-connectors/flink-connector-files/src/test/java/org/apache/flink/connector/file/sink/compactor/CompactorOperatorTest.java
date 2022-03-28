@@ -308,16 +308,11 @@ public class CompactorOperatorTest extends AbstractCompactTestBase {
                                     new CommittableWithLineage<>(
                                             committable("0", "7", 8), 3L, 0))));
 
-            Assert.assertTrue(handler.isPassingThroughCommittable());
-            Assert.assertFalse(handler.isPassingThroughAll());
-
             harness.processElement(
                     new StreamRecord<>(Either.Left(new CommittableSummary<>(0, 1, 4L, 0, 0, 0))));
 
             harness.processElement(
                     new StreamRecord<>(Either.Left(new CommittableSummary<>(0, 1, 5L, 3, 3, 0))));
-
-            Assert.assertTrue(handler.isPassingThroughAll());
 
             // 1 summary + (1 compacted committable + 1 compacted cleanup) * 6 + 1 hidden + 1 normal
             // + 1 summary + 1 cleanup + 1 summary

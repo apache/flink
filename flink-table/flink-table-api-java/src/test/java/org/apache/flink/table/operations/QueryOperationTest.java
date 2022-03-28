@@ -34,7 +34,7 @@ import org.junit.Test;
 import java.util.Collections;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for describing {@link Operation}s. */
 public class QueryOperationTest {
@@ -69,13 +69,13 @@ public class QueryOperationTest {
                         true,
                         schema);
 
-        assertEquals(
-                "Union: (all: [true])\n"
-                        + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])\n"
-                        + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])",
-                unionQueryOperation.asSummaryString());
+        assertThat(unionQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Union: (all: [true])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
     }
 
     @Test
@@ -109,12 +109,12 @@ public class QueryOperationTest {
 
         DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
 
-        assertEquals(
-                "Distinct:\n"
-                        + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
-                        + " window: [SessionWindow(field: [a], gap: [10])])\n"
-                        + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])",
-                distinctQueryOperation.asSummaryString());
+        assertThat(distinctQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Distinct:\n"
+                                + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
+                                + " window: [SessionWindow(field: [a], gap: [10])])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
     }
 
     @Test
@@ -129,13 +129,13 @@ public class QueryOperationTest {
 
         String indentedInput = OperationUtils.indent(input);
 
-        assertEquals(
-                "\n"
-                        + "    firstLevel\n"
-                        + "        secondLevel0\n"
-                        + "            thirdLevel0\n"
-                        + "        secondLevel1\n"
-                        + "            thirdLevel1",
-                indentedInput);
+        assertThat(indentedInput)
+                .isEqualTo(
+                        "\n"
+                                + "    firstLevel\n"
+                                + "        secondLevel0\n"
+                                + "            thirdLevel0\n"
+                                + "        secondLevel1\n"
+                                + "            thirdLevel1");
     }
 }

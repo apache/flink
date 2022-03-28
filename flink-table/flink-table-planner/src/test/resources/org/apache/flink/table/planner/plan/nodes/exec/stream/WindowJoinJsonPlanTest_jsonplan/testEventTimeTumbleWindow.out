@@ -170,6 +170,9 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-local-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -305,6 +308,9 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-global-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -650,6 +656,9 @@
   }, {
     "id" : 12,
     "type" : "stream-exec-local-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -785,6 +794,9 @@
   }, {
     "id" : 14,
     "type" : "stream-exec-global-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -963,6 +975,9 @@
   }, {
     "id" : 17,
     "type" : "stream-exec-window-join_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "joinSpec" : {
       "joinType" : "INNER",
       "leftKeys" : [ 0 ],
@@ -1064,6 +1079,12 @@
   }, {
     "id" : 19,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

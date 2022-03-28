@@ -134,7 +134,7 @@ a class that extracts the timestamps from the events, and generates watermarks o
 easiest way to do this is by using a `WatermarkStrategy`:
 
 ```java
-DataStream<Event> stream = ...
+DataStream<Event> stream = ...;
 
 WatermarkStrategy<Event> strategy = WatermarkStrategy
         .<Event>forBoundedOutOfOrderness(Duration.ofSeconds(20))
@@ -244,7 +244,7 @@ end-of-window-timestamp, max_value)`.
 #### ProcessWindowFunction Example
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
@@ -296,7 +296,7 @@ per-key information for all windows of that key. This might be useful, for examp
 #### Incremental Aggregation Example
 
 ```java
-DataStream<SensorReading> input = ...
+DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)

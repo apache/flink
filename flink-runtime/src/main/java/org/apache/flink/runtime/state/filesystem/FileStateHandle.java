@@ -81,8 +81,26 @@ public class FileStateHandle implements StreamStateHandle {
      */
     @Override
     public void discardState() throws Exception {
-        FileSystem fs = getFileSystem();
-        fs.delete(filePath, false);
+        final FileSystem fs = getFileSystem();
+
+        IOException actualException = null;
+        boolean success = true;
+        try {
+            success = fs.delete(filePath, false);
+        } catch (IOException e) {
+            actualException = e;
+        }
+
+        if (!success || actualException != null) {
+            if (fs.exists(filePath)) {
+                throw Optional.ofNullable(actualException)
+                        .orElse(
+                                new IOException(
+                                        "Unknown error caused the file '"
+                                                + filePath
+                                                + "' to not be deleted."));
+            }
+        }
     }
 
     /**

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan._
@@ -173,6 +174,7 @@ class BatchPhysicalSortMergeJoin(
       FlinkTypeFactory.toLogicalRowType(right.getRowType))
 
     new BatchExecSortMergeJoin(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       joinSpec.getLeftKeys,
       joinSpec.getRightKeys,
@@ -188,8 +190,7 @@ class BatchPhysicalSortMergeJoin(
         .damBehavior(InputProperty.DamBehavior.END_INPUT)
         .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {

@@ -32,11 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableSchema}. */
 public class TableSchemaTest {
@@ -74,27 +70,25 @@ public class TableSchemaTest {
                         + " |-- f3: BIGINT AS f0 + 1\n"
                         + " |-- f4: BIGINT METADATA FROM 'other.key' VIRTUAL\n"
                         + " |-- WATERMARK FOR f1.q2: TIMESTAMP(3) AS localtimestamp\n";
-        assertEquals(expected, schema.toString());
+        assertThat(schema.toString()).isEqualTo(expected);
 
         // test getFieldNames and getFieldDataType
-        assertEquals(Optional.of("f2"), schema.getFieldName(2));
-        assertEquals(Optional.of(DataTypes.BIGINT()), schema.getFieldDataType(3));
-        assertEquals(
-                Optional.of(TableColumn.computed("f3", DataTypes.BIGINT(), "f0 + 1")),
-                schema.getTableColumn(3));
-        assertEquals(Optional.of(DataTypes.STRING()), schema.getFieldDataType("f2"));
-        assertEquals(
-                Optional.of(DataTypes.STRING()),
-                schema.getFieldDataType("f1").map(r -> r.getChildren().get(0)));
-        assertFalse(schema.getFieldName(5).isPresent());
-        assertFalse(schema.getFieldType(-1).isPresent());
-        assertFalse(schema.getFieldType("c").isPresent());
-        assertFalse(schema.getFieldDataType("f1.q1").isPresent());
-        assertFalse(schema.getFieldDataType("f1.q3").isPresent());
+        assertThat(schema.getFieldName(2)).isEqualTo(Optional.of("f2"));
+        assertThat(schema.getFieldDataType(3)).isEqualTo(Optional.of(DataTypes.BIGINT()));
+        assertThat(schema.getTableColumn(3))
+                .isEqualTo(Optional.of(TableColumn.computed("f3", DataTypes.BIGINT(), "f0 + 1")));
+        assertThat(schema.getFieldDataType("f2")).isEqualTo(Optional.of(DataTypes.STRING()));
+        assertThat(schema.getFieldDataType("f1").map(r -> r.getChildren().get(0)))
+                .isEqualTo(Optional.of(DataTypes.STRING()));
+        assertThat(schema.getFieldName(5)).isNotPresent();
+        assertThat(schema.getFieldType(-1)).isNotPresent();
+        assertThat(schema.getFieldType("c")).isNotPresent();
+        assertThat(schema.getFieldDataType("f1.q1")).isNotPresent();
+        assertThat(schema.getFieldDataType("f1.q3")).isNotPresent();
 
         // test copy() and equals()
-        assertEquals(schema, schema.copy());
-        assertEquals(schema.hashCode(), schema.copy().hashCode());
+        assertThat(schema.copy()).isEqualTo(schema);
+        assertThat(schema.copy().hashCode()).isEqualTo(schema.hashCode());
     }
 
     @Test
@@ -116,7 +110,7 @@ public class TableSchemaTest {
                         + " |-- f0: TIMESTAMP(6)\n"
                         + " |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP_LTZ(3)>\n"
                         + " |-- WATERMARK FOR f1.q2: TIMESTAMP_LTZ(3) AS now()\n";
-        assertEquals(expected, tableSchema.toString());
+        assertThat(tableSchema.toString()).isEqualTo(expected);
     }
 
     @Test
@@ -139,7 +133,7 @@ public class TableSchemaTest {
                                 DataTypes.FIELD("f5", DataTypes.BIGINT()))
                         .notNull();
 
-        assertThat(schema.toPersistedRowDataType(), equalTo(expectedDataType));
+        assertThat(schema.toPersistedRowDataType()).isEqualTo(expectedDataType);
     }
 
     @Test
@@ -160,7 +154,7 @@ public class TableSchemaTest {
                                 DataTypes.FIELD("f3", DataTypes.STRING()))
                         .notNull();
 
-        assertThat(schema.toPhysicalRowDataType(), equalTo(expectedDataType));
+        assertThat(schema.toPhysicalRowDataType()).isEqualTo(expectedDataType);
     }
 
     @Test
@@ -185,7 +179,7 @@ public class TableSchemaTest {
                                 DataTypes.FIELD("f5", DataTypes.BIGINT()))
                         .notNull();
 
-        assertThat(schema.toRowDataType(), equalTo(expectedDataType));
+        assertThat(schema.toRowDataType()).isEqualTo(expectedDataType);
     }
 
     @Test
@@ -212,13 +206,14 @@ public class TableSchemaTest {
                     builder.watermark(t.f0, WATERMARK_EXPRESSION, WATERMARK_DATATYPE);
                     if (t.f2.equals("PASS")) {
                         TableSchema schema = builder.build();
-                        assertEquals(1, schema.getWatermarkSpecs().size());
-                        assertEquals(t.f0, schema.getWatermarkSpecs().get(0).getRowtimeAttribute());
+                        assertThat(schema.getWatermarkSpecs()).hasSize(1);
+                        assertThat(schema.getWatermarkSpecs().get(0).getRowtimeAttribute())
+                                .isEqualTo(t.f0);
                     } else {
                         try {
                             builder.build();
                         } catch (Exception e) {
-                            assertTrue(e.getMessage().contains(t.f2));
+                            assertThat(e.getMessage()).contains(t.f2);
                         }
                     }
                 });
@@ -244,8 +239,8 @@ public class TableSchemaTest {
                         .watermark("f1.q3.t1", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
                         .build();
 
-        assertEquals(1, schema.getWatermarkSpecs().size());
-        assertEquals("f1.q3.t1", schema.getWatermarkSpecs().get(0).getRowtimeAttribute());
+        assertThat(schema.getWatermarkSpecs()).hasSize(1);
+        assertThat(schema.getWatermarkSpecs().get(0).getRowtimeAttribute()).isEqualTo("f1.q3.t1");
     }
 
     @Test
@@ -302,12 +297,12 @@ public class TableSchemaTest {
                                     .watermark("f0", "f0 - INTERVAL '5' SECOND", t.f0);
                     if (t.f1.equals("PASS")) {
                         TableSchema schema = builder.build();
-                        assertEquals(1, schema.getWatermarkSpecs().size());
+                        assertThat(schema.getWatermarkSpecs()).hasSize(1);
                     } else {
                         try {
                             builder.build();
                         } catch (Exception e) {
-                            assertTrue(e.getMessage().contains(t.f1));
+                            assertThat(e.getMessage()).contains(t.f1);
                         }
                     }
                 });
@@ -326,14 +321,13 @@ public class TableSchemaTest {
                         .primaryKey("pk", new String[] {"f0", "f2"})
                         .build();
 
-        assertThat(
-                schema.toString(),
-                equalTo(
+        assertThat(schema.toString())
+                .isEqualTo(
                         "root\n"
                                 + " |-- f0: BIGINT NOT NULL\n"
                                 + " |-- f1: STRING NOT NULL\n"
                                 + " |-- f2: DOUBLE NOT NULL\n"
-                                + " |-- CONSTRAINT pk PRIMARY KEY (f0, f2)\n"));
+                                + " |-- CONSTRAINT pk PRIMARY KEY (f0, f2)\n");
     }
 
     @Test
@@ -348,7 +342,7 @@ public class TableSchemaTest {
 
         UniqueConstraint expectedKey = UniqueConstraint.primaryKey("pk", Arrays.asList("f0", "f2"));
 
-        assertThat(schema.getPrimaryKey().get(), equalTo(expectedKey));
+        assertThat(schema.getPrimaryKey().get()).isEqualTo(expectedKey);
     }
 
     @Test
@@ -363,7 +357,7 @@ public class TableSchemaTest {
 
         UniqueConstraint expectedKey = UniqueConstraint.primaryKey("pk", Arrays.asList("f0", "f2"));
 
-        assertThat(schema.getPrimaryKey().get(), equalTo(expectedKey));
+        assertThat(schema.getPrimaryKey().get()).isEqualTo(expectedKey);
     }
 
     @Test

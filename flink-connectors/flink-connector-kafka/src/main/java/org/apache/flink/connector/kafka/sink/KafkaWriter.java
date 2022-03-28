@@ -95,7 +95,9 @@ class KafkaWriter<IN>
     private final boolean disabledMetrics;
     private final Counter numRecordsSendCounter;
     private final Counter numBytesSendCounter;
-    private final Counter numRecordsOutErrorsCounter;
+    // deprecated, use numRecordsSendErrorsCounter instead.
+    @Deprecated private final Counter numRecordsOutErrorsCounter;
+    private final Counter numRecordsSendErrorsCounter;
     private final ProcessingTimeService timeService;
 
     // Number of outgoing bytes at the latest metric sync
@@ -156,6 +158,7 @@ class KafkaWriter<IN>
         this.numBytesSendCounter = metricGroup.getNumBytesSendCounter();
         this.numRecordsSendCounter = metricGroup.getNumRecordsSendCounter();
         this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
+        this.numRecordsSendErrorsCounter = metricGroup.getNumRecordsSendErrorsCounter();
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -414,6 +417,7 @@ class KafkaWriter<IN>
                 mailboxExecutor.execute(
                         () -> {
                             numRecordsOutErrorsCounter.inc();
+                            numRecordsSendErrorsCounter.inc();
                             throwException(metadata, exception, producer);
                         },
                         "Failed to send data to Kafka");

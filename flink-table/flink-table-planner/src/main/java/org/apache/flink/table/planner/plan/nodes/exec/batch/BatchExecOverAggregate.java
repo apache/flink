@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -75,6 +76,7 @@ import java.util.List;
 public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
     public BatchExecOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -82,6 +84,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecOverAggregate.class, tableConfig),
                 overSpec,
                 inputProperty,
                 outputType,
@@ -103,7 +106,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         final int[] partitionFields = overSpec.getPartition().getFieldIndices();
         final GeneratedRecordComparator genComparator =
                 ComparatorCodeGenerator.gen(
-                        config.getTableConfig(),
+                        config,
                         "SortComparator",
                         inputType,
                         SortUtil.getAscendingSortSpec(partitionFields));
@@ -136,7 +139,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 sortSpec.getFieldIndices());
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 planner.getRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
@@ -207,7 +210,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
                     AggsHandlerCodeGenerator generator =
                             new AggsHandlerCodeGenerator(
-                                    new CodeGeneratorContext(config.getTableConfig()),
+                                    new CodeGeneratorContext(config),
                                     relBuilder,
                                     JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                     false); // copyInputField
@@ -273,7 +276,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 sortSpec.getFieldIndices());
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
@@ -397,7 +400,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             int sortKey = sortSpec.getFieldIndices()[0];
             return new RangeBoundComparatorCodeGenerator(
                             relBuilder,
-                            config.getTableConfig(),
+                            config,
                             inputType,
                             bound,
                             sortKey,
@@ -408,7 +411,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         } else {
             // if the bound is current row, then window support comparing based on multi fields.
             return new MultiFieldRangeBoundComparatorCodeGenerator(
-                            config.getTableConfig(), inputType, sortSpec, isLowerBound)
+                            config, inputType, sortSpec, isLowerBound)
                     .generateBoundComparator("MultiFieldRangeBoundComparator");
         }
     }

@@ -256,9 +256,9 @@ public class HiveRunnerITCase {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
         try {
-            tableEnv.executeSql("create table db1.src1 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.src2 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.dest (x decimal(10,2))");
+            tableEnv.executeSql("create table db1.src1 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.src2 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.dest (x decimal(12,2))");
             // populate src1 from Hive
             // TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
             hiveShell.execute(
@@ -539,9 +539,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql("create table db1.src (x smallint,y int) stored as orc");
             hiveShell.execute("insert into table db1.src values (1,100),(2,200)");
 
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
 
             tableEnv.executeSql("alter table db1.src change x x int");
             assertEquals(

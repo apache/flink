@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -33,6 +34,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithNonPartition;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -122,6 +124,23 @@ class TopicMetadataListenerTest extends PulsarTestSuiteBase {
         topics = listener.availableTopics();
         desiredTopics = topicPartitions(topic, 16);
         assertThat(topics).isEqualTo(desiredTopics);
+    }
+
+    @Test
+    void fetchNonPartitionTopic() {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 0);
+        List<String> nonPartitionTopic =
+                Collections.singletonList(topicNameWithNonPartition(topic));
+
+        TopicMetadataListener listener = new TopicMetadataListener(nonPartitionTopic);
+        long interval = Duration.ofMinutes(15).toMillis();
+        SinkConfiguration configuration = sinkConfiguration(interval);
+        TestProcessingTimeService timeService = new TestProcessingTimeService();
+
+        listener.open(configuration, timeService);
+        List<String> topics = listener.availableTopics();
+        assertEquals(topics, nonPartitionTopic);
     }
 
     private List<String> topicPartitions(String topic, int partitionSize) {

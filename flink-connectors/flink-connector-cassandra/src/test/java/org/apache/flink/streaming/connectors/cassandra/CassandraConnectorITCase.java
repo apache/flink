@@ -55,13 +55,13 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.annotations.Table;
 import net.bytebuddy.ByteBuddy;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -141,6 +141,12 @@ public class CassandraConnectorITCase
                                 new QueryOptions()
                                         .setConsistencyLevel(consistencyLevel)
                                         .setSerialConsistencyLevel(ConsistencyLevel.LOCAL_SERIAL))
+                        .withSocketOptions(
+                                new SocketOptions()
+                                        // multiply default timeout by 3
+                                        .setConnectTimeoutMillis(15000)
+                                        // double default timeout
+                                        .setReadTimeoutMillis(24000))
                         .withoutJMXReporting()
                         .withoutMetrics()
                         .build();
@@ -158,9 +164,6 @@ public class CassandraConnectorITCase
             "CREATE KEYSPACE "
                     + KEYSPACE
                     + " WITH replication= {'class':'SimpleStrategy', 'replication_factor':1};";
-    private static final String DROP_KEYSPACE_QUERY = "DROP KEYSPACE IF EXISTS " + KEYSPACE + " ;";
-    private static final String DROP_TABLE_QUERY =
-            "DROP TABLE IF EXISTS " + KEYSPACE + "." + TABLE_NAME_VARIABLE + " ;";
     private static final String CREATE_TABLE_QUERY =
             "CREATE TABLE "
                     + KEYSPACE
@@ -379,24 +382,13 @@ public class CassandraConnectorITCase
                 }
             }
         }
-        session.execute(DROP_KEYSPACE_QUERY);
         session.execute(CREATE_KEYSPACE_QUERY);
-        session.execute(
-                CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
     }
 
     @Before
     public void createTable() {
         tableID = random.nextInt(Integer.MAX_VALUE);
         session.execute(injectTableName(CREATE_TABLE_QUERY));
-    }
-
-    @After
-    public void dropTables() {
-        // need to drop tables in case of retrials. Need to drop all the tables
-        // that are created in test because this method is executed with every test
-        session.execute(DROP_KEYSPACE_QUERY);
-        session.execute(CREATE_KEYSPACE_QUERY);
     }
 
     @AfterClass
@@ -715,9 +707,7 @@ public class CassandraConnectorITCase
     private static int retrialsCount = 0;
 
     @Test
-    public void testRetrialAndDropTables() {
-        // should not fail with table exists upon retrial
-        // as @After method that truncate the keyspace is called upon retrials.
+    public void testRetrial() {
         annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
         if (retrialsCount < 2) {
             retrialsCount++;

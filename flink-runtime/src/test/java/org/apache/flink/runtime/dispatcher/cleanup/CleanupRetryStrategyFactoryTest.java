@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.RetryStrategy;
@@ -64,7 +65,7 @@ class CleanupRetryStrategyFactoryTest {
                 new Configuration(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     private static Configuration createConfigurationWithRetryStrategy(String configValue) {
@@ -115,8 +116,11 @@ class CleanupRetryStrategyFactoryTest {
     public void testFixedDelayStrategyWithCustomMaxAttempts() {
         final Configuration config =
                 createConfigurationWithRetryStrategy(CleanupOptions.FIXED_DELAY_LABEL);
-        final int customMaxAttempts =
-                CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS.defaultValue() + 2;
+        final int customMaxAttempts = 1;
+        Preconditions.checkArgument(
+                customMaxAttempts
+                        != CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS.defaultValue(),
+                "The custom value should be different from the default value to make it possible that the overwritten value is selected.");
         config.set(CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS, customMaxAttempts);
 
         testFixedDelayStrategyCreation(
@@ -158,7 +162,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -176,7 +180,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 customMinDelay,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -193,7 +197,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 customMaxDelay,
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -203,12 +207,17 @@ class CleanupRetryStrategyFactoryTest {
         // 13 is the minimum we can use for this test; otherwise, assertMaxDelay would fail due to a
         // Precondition in ExponentialBackoffRetryStrategy
         final int customMaxAttempts = 13;
+        Preconditions.checkArgument(
+                customMaxAttempts
+                        != CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS
+                                .defaultValue(),
+                "The custom value should be different from the default value to make it possible that the overwritten value is selected.");
         config.set(
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS, customMaxAttempts);
 
         testExponentialBackoffDelayRetryStrategyCreation(
                 config,
-                CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_DELAY.defaultValue(),
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
                 customMaxAttempts);
     }

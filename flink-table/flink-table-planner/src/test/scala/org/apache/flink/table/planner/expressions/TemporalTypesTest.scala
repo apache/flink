@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableConfigUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -213,7 +213,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testTimestampLtzCastInUTC(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("UTC"))
+    tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     //DATE -> TIMESTAMP_LTZ
     testSqlApi(
@@ -238,7 +238,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testTimestampLtzCastInShanghai(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     // DATE -> TIMESTAMP_LTZ
     testSqlApi(
@@ -744,7 +744,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testDateFormat(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("UTC"))
+    tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     testSqlApi(
       "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
@@ -765,7 +765,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testDateFormatShanghai(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     testSqlApi(
       "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
@@ -787,7 +787,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testDateFormatLosAngeles(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
+    tableConfig.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
 
     testSqlApi(
       "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
@@ -843,7 +843,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testTemporalShanghai(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     testSqlApi(timestampLtz("2018-03-14 19:01:02.123"), "2018-03-14 19:01:02.123")
     testSqlApi(timestampLtz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
@@ -1021,7 +1021,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     // due to conventions for local time zone changes such as Daylight Saving Time (DST),
     // it is possible for UNIX_TIMESTAMP() to map two values that are distinct in a non-UTC
     // time zone to the same Unix timestamp value
-    config.setLocalTimeZone(ZoneId.of("MET")) // Europe/Amsterdam
+    tableConfig.setLocalTimeZone(ZoneId.of("MET")) // Europe/Amsterdam
 
     testSqlApi("UNIX_TIMESTAMP('2005-03-27 03:00:00')", "1111885200")
     testSqlApi("UNIX_TIMESTAMP('2005-03-27 02:00:00')", "1111885200")
@@ -1031,7 +1031,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testHourUnitRangoonTimeZone(): Unit = {
     // Asia/Rangoon UTC Offset 6.5
-    config.setLocalTimeZone(ZoneId.of("Asia/Rangoon"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Rangoon"))
 
     val t1 = timestampLtz("2018-03-20 06:10:31")
     val t2 = timestampLtz("2018-03-20 06:00:00")
@@ -1136,7 +1136,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testFromUnixTimeInTokyo(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
     val fmt = "yy-MM-dd HH-mm-ss"
     testSqlApi(
       "from_unixtime(f21)",
@@ -1171,7 +1171,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testUnixTimestampInTokyo(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
     testSqlApi(
       "UNIX_TIMESTAMP('2015-07-24 10:00:00')",
       "1437699600")
@@ -1357,7 +1357,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testToTimestampLtzShanghai(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+    tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     // INT -> TIMESTAMP_LTZ
     testAllApis(
@@ -1413,7 +1413,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testToTimestampLtzUTC(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("UTC"))
+    tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
     testAllApis(
       toTimestampLtz(100, 0),
       "TO_TIMESTAMP_LTZ(100, 0)",
@@ -1437,7 +1437,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testBoundaryForToTimestampLtz(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("UTC"))
+    tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     // INT
     testAllApis(
@@ -1735,9 +1735,9 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(21, 44L)
     testData.setField(22, 3)
     testData.setField(23, localDateTime("1970-01-01 00:00:00.123456789")
-      .atZone(config.getLocalTimeZone).toInstant)
+      .atZone(TableConfigUtils.getLocalTimeZone(tableConfig)).toInstant)
     testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789")
-      .atZone(config.getLocalTimeZone).toInstant)
+      .atZone(TableConfigUtils.getLocalTimeZone(tableConfig)).toInstant)
     testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
     testData setField(26, new Integer(124).byteValue())
     testData

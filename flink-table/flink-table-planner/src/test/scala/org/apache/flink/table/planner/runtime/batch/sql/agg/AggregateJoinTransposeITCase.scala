@@ -43,7 +43,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
   @Before
   override def before(): Unit = {
     super.before()
-    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
       .getOrElse(throw new TableException(s"${FlinkBatchProgram.LOGICAL} does not exist"))

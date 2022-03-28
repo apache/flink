@@ -22,11 +22,9 @@ import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
 
-import org.junit.runners.Parameterized;
-
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -39,11 +37,11 @@ import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 
 /** Tests for built-in JSON aggregation functions. */
-public class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
+class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() throws Exception {
-        return Arrays.asList(
+    @Override
+    public Stream<TestSpec> getTestCaseSpecs() {
+        return Stream.of(
                 // JSON_OBJECTAGG
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
                         .withDescription("Basic Aggregation")

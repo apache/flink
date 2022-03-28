@@ -23,12 +23,13 @@ import org.apache.flink.table.catalog.exceptions.PartitionNotExistException
 import org.apache.flink.table.catalog.{Catalog, CatalogPartitionSpec, ObjectIdentifier}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
-import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
+import org.apache.flink.table.planner.utils.{CatalogTableStatisticsConverter, TableConfigUtils}
 import org.apache.flink.table.sources.PartitionableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
@@ -70,8 +71,8 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
-    val config = context.getTableConfig
+    val context = unwrapContext(call)
+    val tableConfig = context.getTableConfig
     val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val tableIdentifier = tableSourceTable.tableIdentifier
     val catalogOption = toScala(context.getCatalogManager.getCatalog(
@@ -132,7 +133,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
         partitionPredicate
       )
       PartitionPruner.prunePartitions(
-        config,
+        tableConfig,
         partitionFieldNames,
         partitionFieldTypes,
         allPartitions,
@@ -150,7 +151,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
               inputFields,
               context.getFunctionCatalog,
               context.getCatalogManager,
-              TimeZone.getTimeZone(config.getLocalTimeZone))
+              TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)))
             def toExpressions: Option[Seq[Expression]] = {
               val expressions = new mutable.ArrayBuffer[Expression]()
               for (predicate <- partitionPredicates) {

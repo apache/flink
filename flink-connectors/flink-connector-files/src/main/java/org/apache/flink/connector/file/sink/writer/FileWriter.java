@@ -92,7 +92,7 @@ public class FileWriter<IN>
 
     private final OutputFileConfig outputFileConfig;
 
-    private final Counter recordsOutCounter;
+    private final Counter numRecordsSendCounter;
 
     private boolean endOfInput;
 
@@ -128,8 +128,7 @@ public class FileWriter<IN>
         this.activeBuckets = new HashMap<>();
         this.bucketerContext = new BucketerContext();
 
-        this.recordsOutCounter =
-                checkNotNull(metricGroup).getIOMetricGroup().getNumRecordsOutCounter();
+        this.numRecordsSendCounter = checkNotNull(metricGroup).getNumRecordsSendCounter();
         this.processingTimeService = checkNotNull(processingTimeService);
         checkArgument(
                 bucketCheckInterval > 0,
@@ -196,7 +195,7 @@ public class FileWriter<IN>
         final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
         final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
         bucket.write(element, processingTimeService.getCurrentProcessingTime());
-        recordsOutCounter.inc();
+        numRecordsSendCounter.inc();
     }
 
     @Override

@@ -171,7 +171,8 @@ public interface FlinkKubeClient extends AutoCloseable {
      * org.apache.flink.kubernetes.highavailability.KubernetesHaServices} to clean up all data.
      *
      * @param labels labels to filter the resources. e.g. type: high-availability
-     * @return Return the delete future.
+     * @return Return the delete future that only completes successfully, if the resources that are
+     *     subject to deletion are actually gone.
      */
     CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels);
 

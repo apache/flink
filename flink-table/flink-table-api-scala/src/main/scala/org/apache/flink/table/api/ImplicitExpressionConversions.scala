@@ -158,17 +158,13 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit class TableFunctionCall[T: TypeInformation](val t: TableFunction[T]) {
+  implicit class TableFunctionCall(val t: TableFunction[_]) {
 
     /**
       * Calls a table function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
-        .getReturnTypeOfTableFunction(t, implicitly[TypeInformation[T]])
-      unresolvedCall(
-        new TableFunctionDefinition(t.getClass.getName, t, resultTypeInfo),
-        params.map(ApiExpressionUtils.objectToExpression): _*)
+      unresolvedCall(t, params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
 

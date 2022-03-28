@@ -93,19 +93,10 @@ class DependencyTests(object):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class EmbeddedMultiThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def setUp(self):
-        super(EmbeddedMultiThreadDependencyTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "multi-thread")
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8")
-class EmbeddedSubInterpreterDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
-    def setUp(self):
-        super(EmbeddedSubInterpreterDependencyTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "sub-interpreter")
+        super(EmbeddedThreadDependencyTests, self).setUp()
+        self.t_env.get_config().set("python.execution-mode", "thread")
 
 
 class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):

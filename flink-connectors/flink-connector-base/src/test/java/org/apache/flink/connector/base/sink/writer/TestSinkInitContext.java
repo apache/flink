@@ -146,10 +146,10 @@ public class TestSinkInitContext implements Sink.InitContext {
     }
 
     public Counter getNumRecordsOutCounter() {
-        return metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+        return metricGroup.getNumRecordsSendCounter();
     }
 
     public Counter getNumBytesOutCounter() {
-        return metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+        return metricGroup.getNumBytesSendCounter();
     }
 }

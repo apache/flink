@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -39,6 +40,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
@@ -98,6 +100,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     private final RowType localAggInputRowType;
 
     public StreamExecGlobalWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
@@ -109,6 +112,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGlobalWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGlobalWindowAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 windowing,
@@ -123,6 +128,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     public StreamExecGlobalWindowAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
@@ -132,7 +138,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE) RowType localAggInputRowType,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
@@ -151,7 +157,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        windowing.getTimeAttributeType(), config.getLocalTimeZone());
+                        windowing.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList localAggInfoList =
@@ -256,7 +263,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             ZoneId shifTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                                 true) // copyInputField

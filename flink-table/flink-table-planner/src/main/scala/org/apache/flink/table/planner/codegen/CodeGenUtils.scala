@@ -209,13 +209,27 @@ object CodeGenUtils {
     case _: JShort => s"((short)$value)"
     case _: JInt => value.toString
     case _: JLong => value.toString + "L"
-    case _: JFloat => value.toString + "f"
-    case _: JDouble => value.toString + "d"
+    case _: JFloat => value match {
+      case JFloat.NEGATIVE_INFINITY => "java.lang.Float.NEGATIVE_INFINITY"
+      case JFloat.POSITIVE_INFINITY => "java.lang.Float.POSITIVE_INFINITY"
+      case _ => value.toString + "f"
+    }
+    case _: JDouble => value match {
+      case JDouble.NEGATIVE_INFINITY => "java.lang.Double.NEGATIVE_INFINITY"
+      case JDouble.POSITIVE_INFINITY => "java.lang.Double.POSITIVE_INFINITY"
+      case _ => value.toString + "d"
+    }
     case sd: StringData =>
       qualifyMethod(BINARY_STRING_DATA_FROM_STRING) + "(\"" +
         EncodingUtils.escapeJava(sd.toString) + "\")"
     case td: TimestampData =>
       s"$TIMESTAMP_DATA.fromEpochMillis(${td.getMillisecond}L, ${td.getNanoOfMillisecond})"
+    case decimalData: DecimalData =>
+      s"""$DECIMAL_UTIL.castFrom(
+         |"${decimalData.toString}",
+         |${decimalData.precision()},
+         |${decimalData.scale()})"""
+        .stripMargin
     case _ => throw new IllegalArgumentException("Illegal literal type: " + value.getClass)
   }
 
@@ -477,40 +491,27 @@ object CodeGenUtils {
         case Some(writer) =>
           // use writer to set field
           val writeField = binaryWriterWriteField(ctx, indexTerm, fieldTerm, writer, fieldType)
-          if (ctx.nullCheck) {
-            s"""
-               |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryWriterWriteNull(indexTerm, writer, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
-             """.stripMargin
-          } else {
-            s"""
-               |${fieldExpr.code}
-               |$writeField;
-             """.stripMargin
-          }
+          s"""
+             |${fieldExpr.code}
+             |if (${fieldExpr.nullTerm}) {
+             |  ${binaryWriterWriteNull(indexTerm, writer, fieldType)};
+             |} else {
+             |  $writeField;
+             |}
+           """.stripMargin
 
         case None =>
           // directly set field to BinaryRowData, this depends on all the fields are fixed length
           val writeField = binaryRowFieldSetAccess(indexTerm, rowTerm, fieldType, fieldTerm)
-          if (ctx.nullCheck) {
-            s"""
-               |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryRowSetNull(indexTerm, rowTerm, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
-             """.stripMargin
-          } else {
-            s"""
-               |${fieldExpr.code}
-               |$writeField;
-             """.stripMargin
-          }
+
+          s"""
+             |${fieldExpr.code}
+             |if (${fieldExpr.nullTerm}) {
+             |  ${binaryRowSetNull(indexTerm, rowTerm, fieldType)};
+             |} else {
+             |  $writeField;
+             |}
+           """.stripMargin
       }
     } else if (rowClass == classOf[GenericRowData] || rowClass == classOf[BoxedWrapperRowData]) {
       val writeField = if (rowClass == classOf[GenericRowData]) {
@@ -524,7 +525,7 @@ object CodeGenUtils {
         s"$rowTerm.setNullAt($indexTerm)"
       }
 
-      if (ctx.nullCheck) {
+      if (fieldType.isNullable) {
         s"""
            |${fieldExpr.code}
            |if (${fieldExpr.nullTerm}) {

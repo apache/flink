@@ -77,6 +77,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -111,6 +112,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
 
     private static final long UNDEFINED_WRITE_BATCH_SIZE = -1;
+
+    private static final double UNDEFINED_OVERLAP_FRACTION_THRESHOLD = -1;
 
     // ------------------------------------------------------------------------
 
@@ -167,6 +170,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      */
     private long writeBatchSize;
 
+    /**
+     * The threshold of the overlap fraction between the handle's key-group range and target
+     * key-group range.
+     */
+    private double overlapFractionThreshold;
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code EmbeddedRocksDBStateBackend} for storing local state. */
@@ -194,6 +202,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.defaultMetricOptions = new RocksDBNativeMetricOptions();
         this.memoryConfiguration = new RocksDBMemoryConfiguration();
         this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
+        this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
     }
 
     /**
@@ -280,6 +289,15 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
+
+        // configure overlap fraction threshold
+        overlapFractionThreshold =
+                original.overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                        ? config.get(RESTORE_OVERLAP_FRACTION_THRESHOLD)
+                        : original.overlapFractionThreshold;
+        checkArgument(
+                overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
+                "Overlap fraction threshold of restoring should be between 0 and 1");
     }
 
     // ------------------------------------------------------------------------
@@ -479,7 +497,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
-                        .setWriteBatchSize(getWriteBatchSize());
+                        .setWriteBatchSize(getWriteBatchSize())
+                        .setOverlapFractionThreshold(overlapFractionThreshold);
         return builder.build();
     }
 

@@ -31,7 +31,7 @@ public class ResetOperationParseStrategy extends AbstractRegexParseStrategy {
     static final ResetOperationParseStrategy INSTANCE = new ResetOperationParseStrategy();
 
     private ResetOperationParseStrategy() {
-        super(Pattern.compile("RESET(\\s+(?<key>[^'\\s]+)\\s*)?;?", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("RESET(\\s+(?<key>[^'\\s]+)\\s*)?\\s*;?", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override

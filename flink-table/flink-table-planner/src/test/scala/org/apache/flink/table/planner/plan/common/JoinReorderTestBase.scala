@@ -70,8 +70,8 @@ abstract class JoinReorderTestBase extends TableTestBase {
         "b5" -> new ColumnStats(200L, 0L, 8.0, 8, null, null)
       ))).build())
 
-    util.getTableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+    util.getTableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, Boolean.box(true))
   }
 
   @Test
@@ -266,8 +266,8 @@ abstract class JoinReorderTestBase extends TableTestBase {
         "b8" -> builderB.build()
       ))).build())
 
-    util.getTableEnv.getConfig.getConfiguration.setLong(
-      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, 10000L)
+    util.getTableEnv.getConfig.set(
+      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
     val sql =
       s"""
          |SELECT * FROM T6

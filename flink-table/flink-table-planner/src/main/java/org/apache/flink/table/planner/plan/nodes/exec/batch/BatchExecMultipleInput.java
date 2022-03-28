@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
@@ -78,6 +79,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     private final List<ExecEdge> originalEdges;
 
     public BatchExecMultipleInput(
+            ReadableConfig tableConfig,
             List<InputProperty> inputProperties,
             ExecNode<?> rootNode,
             List<ExecEdge> originalEdges,
@@ -85,6 +87,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecMultipleInput.class),
+                ExecNodeContext.newPersistedConfig(BatchExecMultipleInput.class, tableConfig),
                 inputProperties,
                 rootNode.getOutputType(),
                 description);
