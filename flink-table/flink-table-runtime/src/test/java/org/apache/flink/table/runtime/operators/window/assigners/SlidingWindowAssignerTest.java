@@ -23,20 +23,17 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SlidingWindowAssigner}. */
 public class SlidingWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testWindowAssignment() {
@@ -149,16 +146,20 @@ public class SlidingWindowAssignerTest {
 
     @Test
     public void testInvalidParameters() {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("slide > 0 and size > 0");
-        SlidingWindowAssigner.of(Duration.ofSeconds(-2), Duration.ofSeconds(1));
+        assertThatThrownBy(
+                        () ->
+                                SlidingWindowAssigner.of(
+                                        Duration.ofSeconds(-2), Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("slide > 0 and size > 0");
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("slide > 0 and size > 0");
-        SlidingWindowAssigner.of(Duration.ofSeconds(2), Duration.ofSeconds(-1));
+        assertThatThrownBy(
+                        () ->
+                                SlidingWindowAssigner.of(
+                                        Duration.ofSeconds(2), Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("slide > 0 and size > 0");
 
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("slide > 0 and size > 0");
         SlidingWindowAssigner.of(Duration.ofSeconds(20), Duration.ofSeconds(10))
                 .withOffset(Duration.ofSeconds(-1));
     }

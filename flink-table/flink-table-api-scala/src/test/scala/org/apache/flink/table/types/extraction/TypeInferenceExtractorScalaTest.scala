@@ -32,15 +32,11 @@ import org.junit.runners.Parameterized.Parameters
 
 import java.util.Optional
 
-import scala.annotation.meta.getter
 import scala.annotation.varargs
 
 /** Scala tests for [[TypeInferenceExtractor]]. */
 @RunWith(classOf[Parameterized])
 class TypeInferenceExtractorScalaTest(testSpec: TestSpec) {
-
-  @(Rule @getter)
-  var thrown: ExpectedException = ExpectedException.none
 
   @Test
   def testArgumentNames(): Unit = {

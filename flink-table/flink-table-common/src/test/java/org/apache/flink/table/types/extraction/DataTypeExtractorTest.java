@@ -45,9 +45,7 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
 import org.hamcrest.Matcher;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -66,9 +64,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataTypeExtractor}. */
 @RunWith(Parameterized.class)
@@ -476,15 +476,17 @@ public class DataTypeExtractorTest {
 
     @Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testExtraction() {
         if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectCause(errorMatcher(testSpec));
+            assertThatThrownBy(() -> runExtraction(testSpec))
+                    .isInstanceOf(ValidationException.class)
+                    .satisfies(
+                            anyCauseMatches(
+                                    ValidationException.class, testSpec.expectedErrorMessage));
+        } else {
+            runExtraction(testSpec);
         }
-        runExtraction(testSpec);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
@@ -38,10 +39,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
-import org.hamcrest.Matcher;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -56,8 +54,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TypeInferenceExtractor}. */
 @RunWith(Parameterized.class)
@@ -440,8 +438,6 @@ public class TypeInferenceExtractorTest {
 
     @Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testArgumentNames() {
         if (testSpec.expectedArgumentNames != null) {
@@ -500,8 +496,12 @@ public class TypeInferenceExtractorTest {
     @Test
     public void testErrorMessage() {
         if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectCause(errorMatcher(testSpec));
+            assertThatThrownBy(() -> testSpec.typeInferenceExtraction.get())
+                    .isInstanceOf(ValidationException.class)
+                    .satisfies(
+                            FlinkAssertions.anyCauseMatches(
+                                    ValidationException.class, testSpec.expectedErrorMessage));
+        } else {
             testSpec.typeInferenceExtraction.get();
         }
     }
@@ -548,13 +548,8 @@ public class TypeInferenceExtractorTest {
         }
 
         static TestSpec forAggregateFunction(Class<? extends AggregateFunction<?, ?>> function) {
-            return forAggregateFunction(null, function);
-        }
-
-        static TestSpec forAggregateFunction(
-                String description, Class<? extends AggregateFunction<?, ?>> function) {
             return new TestSpec(
-                    description == null ? function.getSimpleName() : description,
+                    function.getSimpleName(),
                     () ->
                             TypeInferenceExtractor.forAggregateFunction(
                                     new DataTypeFactoryMock(), function));
@@ -575,13 +570,8 @@ public class TypeInferenceExtractorTest {
 
         static TestSpec forTableAggregateFunction(
                 Class<? extends TableAggregateFunction<?, ?>> function) {
-            return forTableAggregateFunction(null, function);
-        }
-
-        static TestSpec forTableAggregateFunction(
-                String description, Class<? extends TableAggregateFunction<?, ?>> function) {
             return new TestSpec(
-                    description == null ? function.getSimpleName() : description,
+                    function.getSimpleName(),
                     () ->
                             TypeInferenceExtractor.forTableAggregateFunction(
                                     new DataTypeFactoryMock(), function));
@@ -617,10 +607,6 @@ public class TypeInferenceExtractorTest {
         public String toString() {
             return description;
         }
-    }
-
-    static Matcher<Throwable> errorMatcher(TestSpec testSpec) {
-        return containsCause(new ValidationException(testSpec.expectedErrorMessage));
     }
 
     // --------------------------------------------------------------------------------------------

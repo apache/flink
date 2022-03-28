@@ -50,9 +50,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -119,8 +117,6 @@ public class LocalExecutorITCase extends TestLogger {
         config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
         return config;
     }
-
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     @Test
     public void testCompleteStatement() {

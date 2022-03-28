@@ -22,15 +22,13 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for TableSchemaUtils. */
 public class TableSchemaUtilsTest {
-    @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
     public void testBuilderWithGivenSchema() {
@@ -70,8 +68,8 @@ public class TableSchemaUtilsTest {
         assertThat(newSchema).isEqualTo(expectedSchema);
 
         // Drop non-exist constraint.
-        exceptionRule.expect(ValidationException.class);
-        exceptionRule.expectMessage("Constraint ct2 to drop does not exist");
-        TableSchemaUtils.dropConstraint(originalSchema, "ct2");
+        assertThatThrownBy(() -> TableSchemaUtils.dropConstraint(originalSchema, "ct2"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Constraint ct2 to drop does not exist");
     }
 }
