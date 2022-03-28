@@ -778,7 +778,10 @@ class TableSinkTest extends TableTestBase {
       s"""
          |CREATE TABLE zm_test (
          |  `a` BIGINT,
-         |  `m` MAP<STRING,BIGINT>
+         |  `m1` MAP<STRING, BIGINT>,
+         |  `m2` MAP<STRING NOT NULL, BIGINT>,
+         |  `m3` MAP<STRING, BIGINT NOT NULL>,
+         |  `m4` MAP<STRING NOT NULL, BIGINT NOT NULL>
          |) WITH (
          |  'connector' = 'values',
          |  'sink-insert-only' = 'true'

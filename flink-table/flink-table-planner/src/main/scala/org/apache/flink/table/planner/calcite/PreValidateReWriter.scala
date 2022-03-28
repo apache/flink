@@ -394,11 +394,13 @@ object PreValidateReWriter {
     } else {
       // See FLINK-26460 for more details
       val sqlDataTypeSpec =
-        if (currentType.getSqlTypeName == SqlTypeName.NULL
-          && desiredType.getSqlTypeName == SqlTypeName.MAP) {
+        if (SqlTypeUtil.isNull(currentType) && SqlTypeUtil.isMap(desiredType)) {
+          val keyType = desiredType.getKeyType
+          val valueType = desiredType.getValueType
           new SqlDataTypeSpec(
-            new SqlMapTypeNameSpec(SqlTypeUtil.convertTypeToSpec(desiredType.getKeyType),
-              SqlTypeUtil.convertTypeToSpec(desiredType.getValueType),
+            new SqlMapTypeNameSpec(
+              SqlTypeUtil.convertTypeToSpec(keyType).withNullable(keyType.isNullable),
+              SqlTypeUtil.convertTypeToSpec(valueType).withNullable(valueType.isNullable),
               SqlParserPos.ZERO),
             SqlParserPos.ZERO)
         } else {

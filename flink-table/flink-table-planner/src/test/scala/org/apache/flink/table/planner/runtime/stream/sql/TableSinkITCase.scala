@@ -162,7 +162,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         |CREATE TABLE zm_test (
         |  `person` String,
         |  `votes` BIGINT,
-        |  `m` MAP<STRING,BIGINT>
+        |  `m1` MAP<STRING, BIGINT>,
+        |  `m2` MAP<STRING NOT NULL, BIGINT>,
+        |  `m3` MAP<STRING, BIGINT NOT NULL>,
+        |  `m4` MAP<STRING NOT NULL, BIGINT NOT NULL>
         |) WITH (
         |  'connector' = 'values',
         |  'sink-insert-only' = 'true'
@@ -181,10 +184,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val result = TestValuesTableFactory.getResults("zm_test")
     val expected = List(
-      "+I[jason, 1, null]",
-      "+I[jason, 1, null]",
-      "+I[jason, 1, null]",
-      "+I[jason, 1, null]")
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]",
+      "+I[jason, 1, null, null, null, null]")
     assertEquals(expected.sorted, result.sorted)
   }
 }
