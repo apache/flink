@@ -872,6 +872,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- The derby we use suffers some security vulnerabilities. Explicitly set it to test scope here. -->
 		<dependency>
 			<groupId>org.apache.derby</groupId>
