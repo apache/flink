@@ -421,7 +421,7 @@ env.enable_changelog_statebackend(true)
 
 ### Monitoring
 
-Available metrics are listed [here]({{< ref "docs/ops/metrics#changelog" >}}).
+Available metrics are listed [here]({{< ref "docs/ops/metrics#state-changelog" >}}).
 
 If a task is backpressured by writing state changes, it will be shown as busy (red) in the UI.
 
