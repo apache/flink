@@ -77,13 +77,7 @@ metrics.reporter.my_other_reporter.port: 10000
 ### JMX
 #### (org.apache.flink.metrics.jmx.JMXReporter)
 
-<<<<<<< HEAD
-Parameters:
-=======
-JMX 发送器默认可直接使用，无需引入其他依赖。
-
 参数：
->>>>>>> a7bad35a1f8 ([FLINK-25705][docs]Translate "Metric Reporters" page of "Deployment" in to Chinese)
 
 - `port` -（可选的）JMX 监听的端口。
   如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
@@ -133,13 +127,7 @@ metrics.reporter.grph.interval: 60 SECONDS
 ### InfluxDB
 #### (org.apache.flink.metrics.influxdb.InfluxdbReporter)
 
-<<<<<<< HEAD
-Parameters:
-=======
-使用 InfluxDB 发送器需要将 `/opt/flink-metrics-influxdb-{{< version >}}.jar` 拷贝到 `plugins/influxdb` 目录下。
-
 参数：
->>>>>>> a7bad35a1f8 ([FLINK-25705][docs]Translate "Metric Reporters" page of "Deployment" in to Chinese)
 
 {{< generated/influxdb_reporter_configuration >}}
 
