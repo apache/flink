@@ -202,6 +202,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
         return new Object[] {serializer, data};
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static Object[] testRowDataSerializerWithKryo() {
         RawValueDataSerializer<WrappedString> rawValueSerializer =
                 new RawValueDataSerializer<>(
@@ -212,7 +213,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
                         new TypeSerializer[] {rawValueSerializer});
 
         GenericRowData row = new GenericRowData(1);
-        row.setField(0, RawValueData.fromObject(new WrappedString("a")));
+        row.setField(0, RawValueData.fromObject(new WrappedString()));
 
         return new Object[] {serializer, new GenericRowData[] {row}};
     }
@@ -361,12 +362,5 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
     }
 
     /** Class used for concurrent testing with KryoSerializer. */
-    private static class WrappedString {
-
-        private final String content;
-
-        WrappedString(String content) {
-            this.content = content;
-        }
-    }
+    private static class WrappedString {}
 }
