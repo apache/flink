@@ -140,7 +140,7 @@ public class LocalExecutorITCase extends TestLogger {
         assertThat(executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29))
                 .isEqualTo(expectedClause);
 
-        final List<String> expectedField = Arrays.asList("IntegerField1");
+        final List<String> expectedField = Collections.singletonList("IntegerField1");
         assertThat(
                         executor.completeStatement(
                                 sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37))
