@@ -63,7 +63,7 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
-import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointException;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -338,7 +338,7 @@ public class SavepointITCase extends TestLogger {
             assertThrowable(
                     savepointException,
                     throwable ->
-                            throwable instanceof StopWithSavepointException
+                            throwable instanceof StopWithSavepointStoppingException
                                     && throwable
                                             .getMessage()
                                             .startsWith("A savepoint has been created at: "));
@@ -1022,8 +1022,9 @@ public class SavepointITCase extends TestLogger {
                                 .getMessage()
                                 .contains("Stop with savepoint operation could not be completed");
                     } else {
-                        Optional<StopWithSavepointException> actualFlinkException =
-                                findThrowable(actualException, StopWithSavepointException.class);
+                        Optional<StopWithSavepointStoppingException> actualFlinkException =
+                                findThrowable(
+                                        actualException, StopWithSavepointStoppingException.class);
                         return actualFlinkException
                                 .map(
                                         e ->

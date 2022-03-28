@@ -166,8 +166,8 @@ public class StopWithSavepointTerminationHandlerImpl
      */
     private void terminateExceptionallyWithGlobalFailover(
             Iterable<ExecutionState> unfinishedExecutionStates, String savepointPath) {
-        StopWithSavepointException inconsistentFinalStateException =
-                new StopWithSavepointException(savepointPath, jobId);
+        StopWithSavepointStoppingException inconsistentFinalStateException =
+                new StopWithSavepointStoppingException(savepointPath, jobId);
 
         log.warn(
                 "Inconsistent execution state after stopping with savepoint. At least one"

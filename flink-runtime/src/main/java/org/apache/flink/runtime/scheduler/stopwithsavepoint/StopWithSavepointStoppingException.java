@@ -31,10 +31,10 @@ import org.apache.flink.util.FlinkException;
  */
 @Experimental
 @ThrowableAnnotation(ThrowableType.NonRecoverableError)
-public class StopWithSavepointException extends FlinkException {
+public class StopWithSavepointStoppingException extends FlinkException {
     private final String savepointPath;
 
-    public StopWithSavepointException(String savepointPath, JobID jobID) {
+    public StopWithSavepointStoppingException(String savepointPath, JobID jobID) {
         super(
                 String.format(
                         "A savepoint has been created at: %s, but the corresponding job %s failed "

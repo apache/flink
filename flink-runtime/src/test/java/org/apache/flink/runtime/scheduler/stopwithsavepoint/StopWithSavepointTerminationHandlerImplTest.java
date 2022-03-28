@@ -162,8 +162,8 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
             testInstance.getSavepointPath().get();
             fail("An ExecutionException is expected.");
         } catch (Throwable e) {
-            final Optional<StopWithSavepointException> actualFlinkException =
-                    ExceptionUtils.findThrowable(e, StopWithSavepointException.class);
+            final Optional<StopWithSavepointStoppingException> actualFlinkException =
+                    ExceptionUtils.findThrowable(e, StopWithSavepointStoppingException.class);
             assertTrue(
                     "A FlinkException should have been thrown.", actualFlinkException.isPresent());
         }
