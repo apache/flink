@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.table.source;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
-import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.table.source.impl.PulsarReadableMetadata;
@@ -50,16 +49,9 @@ import java.util.stream.Stream;
  * SourceProvider} so it doesn't need to support {@link
  * org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown} interface.
  *
- * <p>TODO add more description
+ * <p>{@link PulsarTableSource}
  */
 public class PulsarTableSource implements ScanTableSource, SupportsReadingMetadata {
-
-    // --------------------------------------------------------------------------------------------
-    // Mutable attributes
-    // --------------------------------------------------------------------------------------------
-
-    protected List<String> connectorMetadataKeys;
-
     // --------------------------------------------------------------------------------------------
     // Format attributes
     // --------------------------------------------------------------------------------------------
@@ -68,11 +60,14 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
     protected final PulsarTableDeserializationSchemaFactory deserializationSchemaFactory;
 
-    protected final DecodingFormat<DeserializationSchema<RowData>>
-            decodingFormatForMetadataPushdown;
+    /**
+     * Usually it is the same as the valueDecodingFormat, but use a different naming to show that it
+     * is used to list all the format metadata keys.
+     */
+    protected final DecodingFormat<DeserializationSchema<RowData>> decodingFormatForReadingMetadata;
 
     // --------------------------------------------------------------------------------------------
-    // Pulsar-specific attributes
+    // PulsarSource needed attributes
     // --------------------------------------------------------------------------------------------
 
     protected final List<String> topics;
@@ -83,21 +78,20 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
     protected final SubscriptionType subscriptionType;
 
-    // TODO all streaming config options should be supported in Table API as well.
     public PulsarTableSource(
             PulsarTableDeserializationSchemaFactory deserializationSchemaFactory,
-            DecodingFormat<DeserializationSchema<RowData>> decodingFormatForMetadataPushdown,
+            DecodingFormat<DeserializationSchema<RowData>> decodingFormatForReadingMetadata,
             List<String> topics,
             Properties properties,
             StartCursor startCursor,
             SubscriptionType subscriptionType) {
         // Format attributes
         this.deserializationSchemaFactory = deserializationSchemaFactory;
-        this.decodingFormatForMetadataPushdown =
+        this.decodingFormatForReadingMetadata =
                 Preconditions.checkNotNull(
-                        decodingFormatForMetadataPushdown,
+                        decodingFormatForReadingMetadata,
                         "Value decoding format must not be null.");
-        // Mutable attributes
+        // DataStream connector attributes
         this.topics = topics;
         this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
         this.startCursor = startCursor;
@@ -106,19 +100,17 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
     @Override
     public ChangelogMode getChangelogMode() {
-        return decodingFormatForMetadataPushdown.getChangelogMode();
+        return decodingFormatForReadingMetadata.getChangelogMode();
     }
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-
         PulsarDeserializationSchema<RowData> deserializationSchema =
                 deserializationSchemaFactory.createPulsarDeserialization(context);
-
-        // values not exposed to users
+        // TODO should this be added as a configurable option
         final String subscriptionName = "default-subscription";
         PulsarSource<RowData> source =
-                createDefaultPulsarSourceBuilder()
+                PulsarSource.builder()
                         .setTopics(topics)
                         .setStartCursor(startCursor)
                         .setDeserializationSchema(deserializationSchema)
@@ -126,23 +118,23 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
                         .setSubscriptionName(subscriptionName)
                         .setProperties(properties)
                         .build();
-        // TODO the boundedness should be supported
         return SourceProvider.of(source);
     }
 
+    /**
+     * According to convention, the order of the final row must be PHYSICAL + FORMAT METADATA +
+     * CONNECTOR METADATA where the format metadata has the highest precedence.
+     *
+     * @return
+     */
     @Override
     public Map<String, DataType> listReadableMetadata() {
         final Map<String, DataType> allMetadataMap = new LinkedHashMap<>();
 
-        // according to convention, the order of the final row must be
-        // PHYSICAL + FORMAT METADATA + CONNECTOR METADATA
-        // where the format metadata has highest precedence
-
         // add value format metadata with prefix
-        decodingFormatForMetadataPushdown
+        decodingFormatForReadingMetadata
                 .listReadableMetadata()
                 .forEach((key, value) -> allMetadataMap.put(FORMAT_METADATA_PREFIX + key, value));
-
         // add connector metadata
         Stream.of(PulsarReadableMetadata.ReadableMetadata.values())
                 .forEachOrdered(m -> allMetadataMap.putIfAbsent(m.key, m.dataType));
@@ -163,29 +155,23 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
 
         // push down format metadata
         final Map<String, DataType> formatMetadata =
-                decodingFormatForMetadataPushdown.listReadableMetadata();
+                decodingFormatForReadingMetadata.listReadableMetadata();
         if (formatMetadata.size() > 0) {
             final List<String> requestedFormatMetadataKeys =
                     formatMetadataKeys.stream()
                             .map(k -> k.substring(FORMAT_METADATA_PREFIX.length()))
                             .collect(Collectors.toList());
-            decodingFormatForMetadataPushdown.applyReadableMetadata(requestedFormatMetadataKeys);
+            decodingFormatForReadingMetadata.applyReadableMetadata(requestedFormatMetadataKeys);
         }
 
-        // TODO it will be updated here as well
+        // update the factory attributes.
         deserializationSchemaFactory.setConnectorMetadataKeys(connectorMetadataKeys);
         deserializationSchemaFactory.setProducedDataType(producedDataType);
     }
 
-    private PulsarSourceBuilder<RowData> createDefaultPulsarSourceBuilder() {
-        PulsarSourceBuilder<RowData> builder = PulsarSource.builder();
-        builder.setSubscriptionType(SubscriptionType.Exclusive);
-        return builder;
-    }
-
     @Override
     public String asSummaryString() {
-        return "Pulsar universal table source";
+        return "Pulsar table source";
     }
 
     @Override
@@ -193,12 +179,11 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         final PulsarTableSource copy =
                 new PulsarTableSource(
                         deserializationSchemaFactory,
-                        decodingFormatForMetadataPushdown,
+                        decodingFormatForReadingMetadata,
                         topics,
                         properties,
                         startCursor,
                         subscriptionType);
-        copy.connectorMetadataKeys = connectorMetadataKeys;
         return copy;
     }
 
@@ -207,29 +192,28 @@ public class PulsarTableSource implements ScanTableSource, SupportsReadingMetada
         if (this == o) {
             return true;
         }
+
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
         PulsarTableSource that = (PulsarTableSource) o;
-        return Objects.equals(connectorMetadataKeys, that.connectorMetadataKeys)
+        return Objects.equals(deserializationSchemaFactory, that.deserializationSchemaFactory)
                 && Objects.equals(
-                        decodingFormatForMetadataPushdown, that.decodingFormatForMetadataPushdown)
+                        decodingFormatForReadingMetadata, that.decodingFormatForReadingMetadata)
                 && Objects.equals(topics, that.topics)
                 && Objects.equals(properties, that.properties)
                 && Objects.equals(startCursor, that.startCursor)
-                && Objects.equals(subscriptionType, that.subscriptionType);
+                && subscriptionType == that.subscriptionType;
     }
 
     @Override
     public int hashCode() {
-        int result =
-                Objects.hash(
-                        connectorMetadataKeys,
-                        decodingFormatForMetadataPushdown,
-                        topics,
-                        properties,
-                        startCursor,
-                        subscriptionType);
-        return result;
+        return Objects.hash(
+                deserializationSchemaFactory,
+                decodingFormatForReadingMetadata,
+                topics,
+                properties,
+                startCursor,
+                subscriptionType);
     }
 }

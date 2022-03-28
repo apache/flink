@@ -18,10 +18,18 @@
 
 package org.apache.flink.connector.pulsar.table;
 
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PLUGIN_CLASS_NAME;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_PROXY_PROTOCOL;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Test config options for Pulsar SQL connector. */
@@ -51,12 +59,36 @@ public class PulsarTableConfigTest extends PulsarTableTestBase {
         runSql(testConfigString);
     }
 
+    // TODO not verified yet, can it create the enum ?
+    @Test
+    void pulsarSourceOptionsSubscriptionInitialPosition() {
+        Map<String, String> testConfigs = new HashMap<>();
+        testConfigs.put(PULSAR_SUBSCRIPTION_INITIAL_POSITION.key(), "Earliest");
+        runSql(createTestConfig(testConfigs));
+    }
+
+    @Test
+    void pulsarOptionsAuthParamMap() {
+        Map<String, String> testConfigs = new HashMap<>();
+        testConfigs.put(PULSAR_AUTH_PARAM_MAP.key(), "key1:value1,key2:value2");
+        testConfigs.put(PULSAR_AUTH_PLUGIN_CLASS_NAME.key(), AuthenticationToken.class.getName());
+        runSql(createTestConfig(testConfigs));
+    }
+
     @Test
     void invalidSourceTimestampStartCursor() {
         String testConfigString = " 'source.start.message-id' = '0:0:' ";
         runSql(testConfigString);
     }
 
+    private String createTestConfig(Map<String, String> configMap) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> entry : configMap.entrySet()) {
+            sb.append(String.format(" '%s' = '%s' ,\n", entry.getKey(), entry.getValue()));
+        }
+        String configStr = sb.toString();
+        return configStr.substring(0, configStr.length() - 2);
+    }
 
     private void runSql(String testConfigString) {
         final String topic = "config_test_topic" + randomAlphanumeric(3);
@@ -71,10 +103,10 @@ public class PulsarTableConfigTest extends PulsarTableTestBase {
                                 + ") WITH (\n"
                                 + "  'connector' = 'pulsar',\n"
                                 + "  'topic' = '%s',\n"
-                                + "  'pulsar.client.serviceUrl' = '%s',\n"
-                                + "  'pulsar.admin.adminUrl' = '%s',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
                                 + "  'format' = 'json',\n"
-                                + "  %s\n"
+                                + "  %s"
                                 + ")",
                         randomTableName,
                         topic,

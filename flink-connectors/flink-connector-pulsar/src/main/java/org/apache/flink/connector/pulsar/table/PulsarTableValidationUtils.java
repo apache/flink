@@ -60,7 +60,6 @@ public class PulsarTableValidationUtils {
         validateStartCursorConfigs(tableOptions);
     }
 
-    // TODO can use the validator implementation
     private static void validateStartCursorConfigs(ReadableConfig tableOptions) {
         if (tableOptions.getOptional(SOURCE_START_FROM_MESSAGE_ID).isPresent()
                 && tableOptions.getOptional(SOURCE_START_FROM_PUBLISH_TIME).isPresent()) {

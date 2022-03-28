@@ -59,50 +59,20 @@ import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
  * A util class for getting fields from config options, getting formats and other useful
  * information.
  *
- * <p>TODO add more description
+ * <p>It contains the following functionalities.
+ *
+ * <ul>
+ *   <li>Get Topics from configurations.
+ *   <li>Get StartCursor from configurations.
+ *   <li>Get SubscriptionType from configurations.
+ *   <li>Create key and value encoding/decoding format.
+ *   <li>Create key and value projection.
+ * </ul>
  */
 public class PulsarTableOptionUtils {
-
-    public static List<String> getTopicListFromOptions(ReadableConfig tableOptions) {
-        List<String> topics = tableOptions.getOptional(TOPIC).orElse(new ArrayList<>());
-        return topics;
-    }
-
     // --------------------------------------------------------------------------------------------
-    // Validation
+    // Decoding / Encoding and Projection
     // --------------------------------------------------------------------------------------------
-
-    // TODO will the cast lose context ? Enum and Map type ?
-    // TODO by default it only supports string ConfigOptions
-    public static Properties getPulsarProperties(ReadableConfig tableOptions) {
-        final Properties pulsarProperties = new Properties();
-        final Map<String, String> configs = ((Configuration) tableOptions).toMap();
-        configs.keySet().stream()
-                .filter(key -> key.startsWith("pulsar"))
-                .forEach(key -> pulsarProperties.put(key, configs.get(key)));
-        return pulsarProperties;
-    }
-
-    public static Optional<StartCursor> getStartCursor(ReadableConfig tableOptions) {
-        if (tableOptions.getOptional(SOURCE_START_FROM_MESSAGE_ID).isPresent()) {
-            return Optional.of(
-                    parseMessageIdStartCursor(tableOptions.get(SOURCE_START_FROM_MESSAGE_ID)));
-        } else if (tableOptions.getOptional(SOURCE_START_FROM_PUBLISH_TIME).isPresent()) {
-            return Optional.of(
-                    parsePublishTimeStartCursor(tableOptions.get(SOURCE_START_FROM_PUBLISH_TIME)));
-        } else {
-            return Optional.empty();
-        }
-    }
-
-    // TODO this can be simplified, and only 2 subcsription type is allowed
-    public static Optional<SubscriptionType> getSubscriptionType(ReadableConfig tableOptions) {
-        if (tableOptions.getOptional(SOURCE_SOURCE_SUBSCRIPTION_TYPE).isPresent()) {
-            return Optional.of(tableOptions.get(SOURCE_SOURCE_SUBSCRIPTION_TYPE));
-        } else {
-            return Optional.empty();
-        }
-    }
 
     public static DecodingFormat<DeserializationSchema<RowData>> getKeyDecodingFormat(
             FactoryUtil.TableFactoryHelper helper) {
@@ -182,6 +152,47 @@ public class PulsarTableOptionUtils {
                 .toArray();
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Convert config options
+    // --------------------------------------------------------------------------------------------
+
+    public static List<String> getTopicListFromOptions(ReadableConfig tableOptions) {
+        List<String> topics = tableOptions.getOptional(TOPIC).orElse(new ArrayList<>());
+        return topics;
+    }
+
+    // TODO will the cast lose context ? Enum and Map type ?
+    // TODO by default it only supports string ConfigOptions
+    public static Properties getPulsarProperties(ReadableConfig tableOptions) {
+        final Properties pulsarProperties = new Properties();
+        final Map<String, String> configs = ((Configuration) tableOptions).toMap();
+        configs.keySet().stream()
+                .filter(key -> key.startsWith("pulsar"))
+                .forEach(key -> pulsarProperties.put(key, configs.get(key)));
+        return pulsarProperties;
+    }
+
+    public static Optional<StartCursor> getStartCursor(ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(SOURCE_START_FROM_MESSAGE_ID).isPresent()) {
+            return Optional.of(
+                    parseMessageIdStartCursor(tableOptions.get(SOURCE_START_FROM_MESSAGE_ID)));
+        } else if (tableOptions.getOptional(SOURCE_START_FROM_PUBLISH_TIME).isPresent()) {
+            return Optional.of(
+                    parsePublishTimeStartCursor(tableOptions.get(SOURCE_START_FROM_PUBLISH_TIME)));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    // TODO this can be simplified, and only 2 subcsription type is allowed
+    public static Optional<SubscriptionType> getSubscriptionType(ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(SOURCE_SOURCE_SUBSCRIPTION_TYPE).isPresent()) {
+            return Optional.of(tableOptions.get(SOURCE_SOURCE_SUBSCRIPTION_TYPE));
+        } else {
+            return Optional.empty();
+        }
+    }
+
     private static StartCursor parseMessageIdStartCursor(String config) {
         if (Objects.equals(config, "earliest")) {
             return StartCursor.earliest();
@@ -199,9 +210,9 @@ public class PulsarTableOptionUtils {
             throw new IllegalArgumentException(
                     "MessageId format must be ledgerId:entryId:partitionId .");
         }
-        Long ledgerId = Long.parseLong(tokens[0]);
-        Long entryId = Long.parseLong(tokens[1]);
-        Integer partitionId = Integer.parseInt(tokens[2]);
+        long ledgerId = Long.parseLong(tokens[0]);
+        long entryId = Long.parseLong(tokens[1]);
+        int partitionId = Integer.parseInt(tokens[2]);
 
         MessageIdImpl messageId = new MessageIdImpl(ledgerId, entryId, partitionId);
         return StartCursor.fromMessageId(messageId);

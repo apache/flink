@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  * Contains the projection information needed to map a Pulsar message to proper key fields, value
- * fields and metadata fields.
+ * fields and metadata fields. TODO: understand the complete logic here.
  */
 public class PulsarProjectProducedRowSupport implements Serializable {
     private static final long serialVersionUID = -3399264407634977459L;
@@ -66,13 +66,11 @@ public class PulsarProjectProducedRowSupport implements Serializable {
             List<RowData> valueRowDataList,
             Collector<RowData> collector) {
         // no key defined
-        // TODO further refactor needed, assert on keyRowDataList null/empty
-        // TODO does the order here matter?
         if (hasNoKeyProjection()) {
             valueRowDataList.forEach(
                     valueRow -> emitRow(null, (GenericRowData) valueRow, collector, message));
         } else {
-            // TODO what does it mean to emit a value for each key ?
+            // TODO Why do we need to emit a value for each key ?
             // otherwise emit a value for each key
             valueRowDataList.forEach(
                     valueRow ->
@@ -93,19 +91,18 @@ public class PulsarProjectProducedRowSupport implements Serializable {
             Message<?> message) {
 
         final RowKind rowKind = upsertSupport.decideRowKind(physicalValueRow);
-        // TODO need to combine physicalArity and metadataArity
-        // TODO metadata arity
-        final GenericRowData producedRow =
-                new GenericRowData(rowKind, physicalArity + readableMetadata.getMetadataArity());
 
-        // TODO project values
+        final GenericRowData producedRow =
+                new GenericRowData(
+                        rowKind, physicalArity + readableMetadata.getConnectorMetadataArity());
+
         if (physicalValueRow != null) {
             for (int valuePos = 0; valuePos < valueProjection.length; valuePos++) {
                 producedRow.setField(
                         valueProjection[valuePos], physicalValueRow.getField(valuePos));
             }
         }
-        // TODO put both key and value fields in the produced row
+
         for (int keyPos = 0; keyPos < keyProjection.length; keyPos++) {
             assert physicalKeyRow != null;
             producedRow.setField(keyProjection[keyPos], physicalKeyRow.getField(keyPos));

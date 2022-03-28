@@ -66,9 +66,8 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 + ") with (\n"
                                 + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
-                                + "  'pulsar.client.serviceUrl' = '%s',\n"
-                                + "  'pulsar.admin.adminUrl' = '%s',\n"
-                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
                                 + "  %s\n"
                                 + ")",
                         PulsarTableFactory.IDENTIFIER,
@@ -151,9 +150,8 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 + ") WITH (\n"
                                 + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
-                                + "  'pulsar.client.serviceUrl' = '%s',\n"
-                                + "  'pulsar.admin.adminUrl' = '%s',\n"
-                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
                                 + "  'format' = '%s',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'key.fields' = 'user_id; event_id'\n"
@@ -209,9 +207,8 @@ public class PulsarTableITCase extends PulsarTableTestBase {
                                 + ") WITH (\n"
                                 + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
-                                + "  'pulsar.client.serviceUrl' = '%s',\n"
-                                + "  'pulsar.admin.adminUrl' = '%s',\n"
-                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'service-url' = '%s',\n"
+                                + "  'admin-url' = '%s',\n"
                                 + "  'format' = '%s'\n"
                                 + ")",
                         PulsarTableFactory.IDENTIFIER,

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.sink.PulsarSinkOptions;
 import org.apache.flink.connector.pulsar.source.PulsarSourceOptions;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
@@ -43,11 +44,12 @@ import org.apache.flink.table.types.DataType;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
@@ -61,8 +63,10 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.get
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getTopicListFromOptions;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueDecodingFormat;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptionUtils.getValueEncodingFormat;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.ADMIN_URL;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SERVICE_URL;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_SOURCE_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_MESSAGE_ID;
 import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.SOURCE_START_FROM_PUBLISH_TIME;
@@ -72,7 +76,12 @@ import static org.apache.flink.connector.pulsar.table.PulsarTableValidationUtils
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
-/** Factory for creating configured instances of {@link PulsarTableFactory}. */
+/**
+ * Factory for creating {@link DynamicTableSource} and {@link DynamicTableSink}.
+ *
+ * <p>The main role of this class is to retrieve config options and validate options from config and
+ * the table schema. It also sets default values if a config option is not present.
+ */
 public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "pulsar";
@@ -82,10 +91,15 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
 
-        // validate configs are not conflict; each options is consumed; no unwanted configs
+        // Validate configs are not conflict; each options is consumed; no unwanted configs
+        // PulsarOptions, PulsarSourceOptions and PulsarSinkOptions is not part of the validation.
         helper.validateExcept(
+                PulsarOptions.CLIENT_CONFIG_PREFIX,
+                PulsarOptions.ADMIN_CONFIG_PREFIX,
+                PulsarSourceOptions.SOURCE_CONFIG_PREFIX,
                 PulsarSourceOptions.CONSUMER_CONFIG_PREFIX,
-                PulsarSinkOptions.PRODUCER_CONFIG_PREFIX);
+                PulsarSinkOptions.PRODUCER_CONFIG_PREFIX,
+                PulsarSinkOptions.SINK_CONFIG_PREFIX);
 
         validatePrimaryKeyConstraints(
                 context.getObjectIdentifier(),
@@ -95,16 +109,17 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
 
         validateTableSourceOptions(tableOptions);
 
-        // retrieve configs
+        // Retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
         final Optional<StartCursor> startCursorOptional = getStartCursor(tableOptions);
         final Optional<SubscriptionType> subscriptionTypeOptional =
                 getSubscriptionType(tableOptions);
 
         final Properties properties = getPulsarProperties(tableOptions);
-
-        // retrieve formats, physical fields (not including computed or metadata fields),
-        // and projections
+        properties.setProperty(PULSAR_ADMIN_URL.key(), tableOptions.get(ADMIN_URL));
+        properties.setProperty(PULSAR_SERVICE_URL.key(), tableOptions.get(SERVICE_URL));
+        // Retrieve formats, physical fields (not including computed or metadata fields),
+        // and projections and create a schema factory based on such information.
         final DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat =
                 getKeyDecodingFormat(helper);
         final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
@@ -123,14 +138,13 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         valueDecodingFormat,
                         valueProjection);
 
-        // set default values
+        // Set default values.
         final StartCursor startCursor = startCursorOptional.orElse(StartCursor.earliest());
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormatForMetadataPushdown =
                 valueDecodingFormat;
         final SubscriptionType subscriptionType =
                 subscriptionTypeOptional.orElse(SubscriptionType.Exclusive);
-        // TODO factory not created yet
-        // TODO decodingFormatForMetadataPushdown can be refactored?
+
         return new PulsarTableSource(
                 deserializationSchemaFactory,
                 decodingFormatForMetadataPushdown,
@@ -145,25 +159,35 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
 
-        // validate configs are not conflict; each options is consumed; no unwanted configs
+        // Validate configs are not conflict; each options is consumed; no unwanted configs
+        // Validate configs are not conflict; each options is consumed; no unwanted configs
+        // PulsarOptions, PulsarSourceOptions and PulsarSinkOptions is not part of the validation.
         helper.validateExcept(
+                PulsarOptions.CLIENT_CONFIG_PREFIX,
+                PulsarOptions.ADMIN_CONFIG_PREFIX,
+                PulsarSourceOptions.SOURCE_CONFIG_PREFIX,
                 PulsarSourceOptions.CONSUMER_CONFIG_PREFIX,
-                PulsarSinkOptions.PRODUCER_CONFIG_PREFIX);
+                PulsarSinkOptions.PRODUCER_CONFIG_PREFIX,
+                PulsarSinkOptions.SINK_CONFIG_PREFIX);
+
         validatePrimaryKeyConstraints(
                 context.getObjectIdentifier(),
                 context.getPrimaryKeyIndexes(),
                 context.getCatalogTable().getOptions(),
                 helper);
 
-        // retrieve configs
+        // Retrieve configs
         final List<String> topics = getTopicListFromOptions(tableOptions);
         final Properties properties = getPulsarProperties(tableOptions);
+        properties.setProperty(PULSAR_ADMIN_URL.key(), tableOptions.get(ADMIN_URL));
+        properties.setProperty(PULSAR_SERVICE_URL.key(), tableOptions.get(SERVICE_URL));
+
         final EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
                 getKeyEncodingFormat(helper);
         final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
                 getValueEncodingFormat(helper);
 
-        // retrieve physical DataType (not including computed or metadata fields)
+        // Retrieve physical DataType (not including computed or metadata fields)
         final DataType physicalDataType = context.getPhysicalRowDataType();
         final int[] keyProjection = createKeyFormatProjection(tableOptions, physicalDataType);
         final int[] valueProjection = createValueFormatProjection(tableOptions, physicalDataType);
@@ -176,11 +200,10 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                         valueEncodingFormat,
                         valueProjection);
 
-        // set default values
+        // Set default values.
         final DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
-        final int parallism = 1;
+        final int parallelism = 1;
         final ChangelogMode changelogMode = valueEncodingFormat.getChangelogMode();
-        // validate configs
 
         return new PulsarTableSink(
                 physicalDataType,
@@ -189,7 +212,7 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
                 topics,
                 properties,
                 deliveryGuarantee,
-                parallism);
+                parallelism);
     }
 
     @Override
@@ -197,27 +220,37 @@ public class PulsarTableFactory implements DynamicTableSourceFactory, DynamicTab
         return IDENTIFIER;
     }
 
-    // TODO concrete options will be decided after the required options is finished
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(TOPIC);
-        options.add(PULSAR_ADMIN_URL);
-        options.add(PULSAR_SERVICE_URL);
-        options.add(FORMAT);
-        return options;
+        return Stream.of(TOPIC, ADMIN_URL, SERVICE_URL, FORMAT).collect(Collectors.toSet());
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SOURCE_SOURCE_SUBSCRIPTION_TYPE);
-        options.add(SOURCE_START_FROM_MESSAGE_ID);
-        options.add(SOURCE_START_FROM_PUBLISH_TIME);
-        options.add(SINK_PARALLELISM);
-        options.add(KEY_FORMAT);
-        options.add(KEY_FIELDS);
-        return options;
+        return Stream.of(
+                        SOURCE_SOURCE_SUBSCRIPTION_TYPE,
+                        SOURCE_START_FROM_MESSAGE_ID,
+                        SOURCE_START_FROM_PUBLISH_TIME,
+                        SINK_PARALLELISM,
+                        KEY_FORMAT,
+                        KEY_FIELDS)
+                .collect(Collectors.toSet());
     }
-    // TODO investigate forward options
+
+    /**
+     * Format and Delivery guarantee related options are not forward options.
+     *
+     * @return
+     */
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        TOPIC,
+                        ADMIN_URL,
+                        SERVICE_URL,
+                        SOURCE_SOURCE_SUBSCRIPTION_TYPE,
+                        SOURCE_START_FROM_MESSAGE_ID,
+                        SOURCE_START_FROM_PUBLISH_TIME)
+                .collect(Collectors.toSet());
+    }
 }

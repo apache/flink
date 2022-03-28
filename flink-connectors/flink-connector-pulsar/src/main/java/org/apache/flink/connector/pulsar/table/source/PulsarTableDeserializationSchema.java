@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.table.source;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.table.source.impl.PulsarProjectProducedRowSupport;
 import org.apache.flink.table.data.RowData;
@@ -38,24 +39,23 @@ import java.util.List;
 /**
  * A specific {@link PulsarDeserializationSchema} for {@link PulsarTableSource}.
  *
- * <p>Both Flink's key decoding format and value decoding format are wrapped in this class. It * is
- * also responsible for getting metadata fields from a physical pulsar message body, * and the final
+ * <p>Both Flink's key decoding format and value decoding format are wrapped in this class. It is
+ * responsible for getting metadata fields from a physical pulsar message body, and the final
  * projection mapping from Pulsar message fields to Flink row.
  *
- * <p>TODO add more description
+ * <p>After retrieving key and value bytes and convert them into a list of {@link RowData}, it then
+ * delegates metadata appending, key and value {@link RowData} combining to a {@link
+ * PulsarProjectProducedRowSupport} instance.
  */
 public class PulsarTableDeserializationSchema implements PulsarDeserializationSchema<RowData> {
 
     private static final long serialVersionUID = -3298784447432136216L;
 
-    // TODO what does this do ?
     private final TypeInformation<RowData> producedTypeInfo;
 
-    // TODO upsert support can be abstracted to another class
+    @Nullable private final DeserializationSchema<RowData> keyDeserialization;
 
-    @Nullable private final DeserializationSchema<RowData> messageKeyDeserialization;
-
-    private final DeserializationSchema<RowData> messageBodyDeserialization;
+    private final DeserializationSchema<RowData> valueDeserialization;
 
     private final PulsarProjectProducedRowSupport projectionSupport;
 
@@ -64,44 +64,34 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
             DeserializationSchema<RowData> valueDeserialization,
             TypeInformation<RowData> producedTypeInfo,
             PulsarProjectProducedRowSupport projectionSupport) {
-
-        // TODO do we need to deserialization to be thread safe ? I don't think so.
-        // TODO rename these variables to use full name
-        this.messageKeyDeserialization = keyDeserialization;
-        this.messageBodyDeserialization = valueDeserialization;
+        this.keyDeserialization = keyDeserialization;
+        this.valueDeserialization = valueDeserialization;
         this.projectionSupport = projectionSupport;
         this.producedTypeInfo = producedTypeInfo;
     }
 
     @Override
-    public void open(DeserializationSchema.InitializationContext context) throws Exception {
-        if (messageKeyDeserialization != null) {
-            messageKeyDeserialization.open(context);
+    public void open(
+            DeserializationSchema.InitializationContext context, SourceConfiguration configuration)
+            throws Exception {
+        if (keyDeserialization != null) {
+            keyDeserialization.open(context);
         }
-        messageBodyDeserialization.open(context);
+        valueDeserialization.open(context);
     }
 
-    // TODO here the message schema should always be bytes.
     @Override
     public void deserialize(Message<?> message, Collector<RowData> collector) throws IOException {
-        // shortcut in case no output projection is required,
-        // also not for a cartesian product with the keys
-        // TODO we don't need the shortcut ?
-        // always get the value row data
+        // Get the value row data
         List<RowData> valueRowData = new ArrayList<>();
-        messageBodyDeserialization.deserialize(
-                message.getData(), new ListCollector<>(valueRowData));
+        valueDeserialization.deserialize(message.getData(), new ListCollector<>(valueRowData));
 
-        // buffer key(s)
+        // Get the key row data
         List<RowData> keyRowData = new ArrayList<>();
-        // TODO when will this be null ?
-        if (messageKeyDeserialization != null) {
-            // TODO why it has to be from the keyBytes ?
-            messageKeyDeserialization.deserialize(
-                    message.getKeyBytes(), new ListCollector<>(keyRowData));
+        if (keyDeserialization != null) {
+            keyDeserialization.deserialize(message.getKeyBytes(), new ListCollector<>(keyRowData));
         }
 
-        // TODO keyRowData could be empty
         projectionSupport.projectToProducedRowAndCollect(
                 message, keyRowData, valueRowData, collector);
     }
@@ -111,7 +101,6 @@ public class PulsarTableDeserializationSchema implements PulsarDeserializationSc
         return producedTypeInfo;
     }
 
-    // TODO should always use bytes schema
     @Override
     public Schema<?> schema() {
         return Schema.BYTES;

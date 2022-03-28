@@ -41,9 +41,26 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * Contains key, value projection and format information, and use these information to create a
+ * Contains key, value projection and format information, and use such information to create a
  * {@link org.apache.flink.connector.pulsar.table.source.PulsarTableDeserializationSchema} instance
  * used by runtime {@link org.apache.flink.connector.pulsar.source.PulsarSource} instance.
+ *
+ * <p>A Flink row fields has a strict order: Physical Fields (Key + value) + Format Metadata Fields
+ * Connector Metadata Fields. Physical Fields are fields come directly from Pulsar message body;
+ * Format Metadata Fields are from the extra information from the decoding format. Connector
+ * metadata fields are the ones most Pulsar messages have, such as publish time, message size and
+ * producer name.
+ *
+ * <p>In general, Physical fields + Format Metadata fields are contained in the RowData decoded
+ * using valueDecodingFormat. Only Connector Metadata fields needs to be appended to the decoded
+ * RowData. The tricky part is to put format metadata and connector metadata in the right location.
+ * This requires an explicit adjustment process.
+ *
+ * <p>For example, suppose Physical Fields (Key + value) + Format Metadata Fields + Connector
+ * Metadata Fields. has arity of 11, key projection is [0, 6], and physical value projection is [1,
+ * 2, 3, 4, 5], Then after the adjustment, key projection should be [0, 6], physical value
+ * projection should be [1, 2, 3, 4, 5] and format metadata projection should be [7], connector
+ * metadata projection should be [8, 9, 10].
  */
 public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
@@ -59,7 +76,9 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
     private final int[] valueProjection;
 
-    // TODO mutable datatypes
+    // --------------------------------------------------------------------------------------------
+    // Mutable attributes. Will be updated after the applyReadableMetadata()
+    // --------------------------------------------------------------------------------------------
     private DataType producedDataType;
 
     private List<String> connectorMetadataKeys;
@@ -77,7 +96,7 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
         this.keyProjection = keyProjection;
         this.valueDecodingFormat = valueDecodingFormat;
         this.valueProjection = valueProjection;
-        // Mutable Data
+
         this.producedDataType = physicalDataType;
         this.connectorMetadataKeys = Collections.emptyList();
     }
@@ -90,8 +109,7 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
         if (format == null) {
             return null;
         }
-        // TODO what does this dataType do ? Get the logical SQL dataType
-        // TODO equals to the produced data type
+
         DataType physicalFormatDataType = Projection.of(projection).project(this.physicalDataType);
         if (prefix != null) {
             physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
@@ -101,8 +119,6 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
 
     public PulsarDeserializationSchema<RowData> createPulsarDeserialization(
             ScanTableSource.ScanContext context) {
-
-        // TODO currerently we do not support the keyDeserialization yet.
         final DeserializationSchema<RowData> keyDeserialization =
                 createDeserialization(context, keyDecodingFormat, keyProjection, "");
         final DeserializationSchema<RowData> valueDeserialization =
@@ -115,25 +131,25 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
         final PulsarReadableMetadata readableMetadata =
                 new PulsarReadableMetadata(connectorMetadataKeys);
 
-        // TODO can we make this part more clear?
-        // adjust physical arity with value format's metadata
+        // Get Physical Fields (key + value) + Format Metadata arity
         final int physicalPlusFormatMetadataArity =
-                producedDataType.getChildren().size() - readableMetadata.getMetadataArity();
-        final int[] physicalPlusFormatMetadataProjection =
+                DataType.getFieldDataTypes(producedDataType).size()
+                        - readableMetadata.getConnectorMetadataArity();
+        final int[] physicalValuePlusFormatMetadataProjection =
                 adjustValueProjectionByAppendConnectorMetadata(physicalPlusFormatMetadataArity);
+
         final PulsarProjectProducedRowSupport projectionSupport =
                 new PulsarProjectProducedRowSupport(
                         physicalPlusFormatMetadataArity,
                         keyProjection,
-                        physicalPlusFormatMetadataProjection,
+                        physicalValuePlusFormatMetadataProjection,
                         readableMetadata,
                         upsertSupport);
-        // TODO add the projection support here.
+
         return new PulsarTableDeserializationSchema(
                 keyDeserialization, valueDeserialization, producedTypeInfo, projectionSupport);
     }
 
-    // TODO what is the multithread implications here
     public void setProducedDataType(DataType producedDataType) {
         this.producedDataType = producedDataType;
     }
@@ -143,15 +159,15 @@ public class PulsarTableDeserializationSchemaFactory implements Serializable {
     }
 
     private int[] adjustValueProjectionByAppendConnectorMetadata(
-            int physicalPlusFormatMetadataArity) {
-        // adjust value format projection to include value format's metadata columns at the end
-        final int[] physicalPlusFormatMetadataProjection =
+            int physicalValuePlusFormatMetadataArity) {
+        // Concat the Physical Fields (value only) with Format metadata projection.
+        final int[] physicalValuePlusFormatMetadataProjection =
                 IntStream.concat(
                                 IntStream.of(valueProjection),
                                 IntStream.range(
                                         keyProjection.length + valueProjection.length,
-                                        physicalPlusFormatMetadataArity))
+                                        physicalValuePlusFormatMetadataArity))
                         .toArray();
-        return physicalPlusFormatMetadataProjection;
+        return physicalValuePlusFormatMetadataProjection;
     }
 }

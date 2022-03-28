@@ -43,17 +43,18 @@ import java.util.stream.Stream;
 public class PulsarReadableMetadata implements Serializable {
 
     private static final long serialVersionUID = -4409932324481235973L;
-    private final List<String> metadataKeys;
+
+    private final List<String> connectorMetadataKeys;
+
     private final List<MetadataConverter> metadataConverters;
 
-    public PulsarReadableMetadata(List<String> metadataKeys) {
-        this.metadataKeys = metadataKeys;
+    public PulsarReadableMetadata(List<String> connectorMetadataKeys) {
+        this.connectorMetadataKeys = connectorMetadataKeys;
         this.metadataConverters = initializeMetadataConverters();
     }
 
-    // TODO need to take another look at the exceptions
     private List<MetadataConverter> initializeMetadataConverters() {
-        return metadataKeys.stream()
+        return connectorMetadataKeys.stream()
                 .map(
                         k ->
                                 Stream.of(ReadableMetadata.values())
@@ -72,7 +73,7 @@ public class PulsarReadableMetadata implements Serializable {
         }
     }
 
-    public int getMetadataArity() {
+    public int getConnectorMetadataArity() {
         return metadataConverters.size();
     }
 
@@ -82,8 +83,6 @@ public class PulsarReadableMetadata implements Serializable {
     interface MetadataConverter extends Serializable {
         Object read(Message<?> message);
     }
-
-    // TODO need to take another look at these fields
 
     /** Lists the metada that is readable from a Pulsar message. Used in SQL source connector. */
     public enum ReadableMetadata {
@@ -107,7 +106,7 @@ public class PulsarReadableMetadata implements Serializable {
         SEQUENCE_ID("sequenceId", DataTypes.BIGINT().notNull(), Message::getSequenceId),
 
         PUBLISH_TIME(
-                "publishTime",
+                "publish_time",
                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull(),
                 message -> TimestampData.fromEpochMillis(message.getPublishTime())),
 
