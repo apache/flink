@@ -20,11 +20,13 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -103,11 +105,23 @@ public class TestUtils {
         }
     }
 
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#getLatestCompletedCheckpointPath(JobID,
+     *     MiniCluster)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
     public static File getMostRecentCompletedCheckpoint(File checkpointDir) throws IOException {
         return getMostRecentCompletedCheckpointMaybe(checkpointDir)
                 .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
     }
 
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#getLatestCompletedCheckpointPath(JobID,
+     *     MiniCluster)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
     public static Optional<File> getMostRecentCompletedCheckpointMaybe(File checkpointDir)
             throws IOException {
         return Files.find(checkpointDir.toPath(), 2, TestUtils::isCompletedCheckpoint)
@@ -143,6 +157,12 @@ public class TestUtils {
         }
     }
 
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#waitForCheckpoint(JobID, MiniCluster,
+     *     Deadline)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
     public static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
             throws InterruptedException, IOException {
         while (true) {
