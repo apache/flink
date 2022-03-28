@@ -23,9 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableSchema}. */
 public class TableSchemaTest {
@@ -41,8 +40,6 @@ public class TableSchemaTest {
     private static final String WATERMARK_EXPRESSION_TS_LTZ = "now()";
     private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
     private static final DataType WATERMARK_TS_LTZ_DATATYPE = DataTypes.TIMESTAMP_LTZ(3);
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testTableSchema() {
@@ -210,11 +207,9 @@ public class TableSchemaTest {
                         assertThat(schema.getWatermarkSpecs().get(0).getRowtimeAttribute())
                                 .isEqualTo(t.f0);
                     } else {
-                        try {
-                            builder.build();
-                        } catch (Exception e) {
-                            assertThat(e.getMessage()).contains(t.f2);
-                        }
+                        assertThatThrownBy(builder::build)
+                                .isInstanceOf(ValidationException.class)
+                                .hasMessageContaining(t.f2);
                     }
                 });
     }
@@ -245,33 +240,41 @@ public class TableSchemaTest {
 
     @Test
     public void testWatermarkOnNonExistedField() {
-        thrown.expectMessage("Rowtime attribute 'f1.q0' is not defined in schema");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT())
-                .field(
-                        "f1",
-                        DataTypes.ROW(
-                                DataTypes.FIELD("q1", DataTypes.STRING()),
-                                DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3))))
-                .watermark("f1.q0", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT())
+                                        .field(
+                                                "f1",
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("q1", DataTypes.STRING()),
+                                                        DataTypes.FIELD(
+                                                                "q2", DataTypes.TIMESTAMP(3))))
+                                        .watermark(
+                                                "f1.q0", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Rowtime attribute 'f1.q0' is not defined in schema.");
     }
 
     @Test
     public void testMultipleWatermarks() {
-        thrown.expectMessage("Multiple watermark definition is not supported yet.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.TIMESTAMP())
-                .field(
-                        "f1",
-                        DataTypes.ROW(
-                                DataTypes.FIELD("q1", DataTypes.STRING()),
-                                DataTypes.FIELD("q2", DataTypes.TIMESTAMP(3))))
-                .watermark("f1.q2", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
-                .watermark("f0", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.TIMESTAMP())
+                                        .field(
+                                                "f1",
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("q1", DataTypes.STRING()),
+                                                        DataTypes.FIELD(
+                                                                "q2", DataTypes.TIMESTAMP(3))))
+                                        .watermark(
+                                                "f1.q2", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
+                                        .watermark("f0", WATERMARK_EXPRESSION, WATERMARK_DATATYPE)
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Multiple watermark definition is not supported yet.");
     }
 
     @Test
@@ -299,11 +302,9 @@ public class TableSchemaTest {
                         TableSchema schema = builder.build();
                         assertThat(schema.getWatermarkSpecs()).hasSize(1);
                     } else {
-                        try {
-                            builder.build();
-                        } catch (Exception e) {
-                            assertThat(e.getMessage()).contains(t.f1);
-                        }
+                        assertThatThrownBy(builder::build)
+                                .isInstanceOf(ValidationException.class)
+                                .hasMessageContaining(t.f1);
                     }
                 });
     }
@@ -362,69 +363,74 @@ public class TableSchemaTest {
 
     @Test
     public void testPrimaryKeyNoColumn() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f2' does not exist.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT().notNull())
-                .primaryKey("pk", new String[] {"f0", "f2"})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT().notNull())
+                                        .primaryKey("pk", new String[] {"f0", "f2"})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Could not create a PRIMARY KEY 'pk'. Column 'f2' does not exist.");
     }
 
     @Test
     public void testPrimaryKeyNullableColumn() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Could not create a PRIMARY KEY 'pk'. Column 'f0' is nullable.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT())
-                .primaryKey("pk", new String[] {"f0"})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT())
+                                        .primaryKey("pk", new String[] {"f0"})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Could not create a PRIMARY KEY 'pk'. Column 'f0' is nullable.");
     }
 
     @Test
     public void testPrimaryKeyGeneratedColumn() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Could not create a PRIMARY KEY 'pk'. Column 'f0' is not a physical column.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT().notNull(), "123")
-                .primaryKey("pk", new String[] {"f0", "f2"})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT().notNull(), "123")
+                                        .primaryKey("pk", new String[] {"f0", "f2"})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not create a PRIMARY KEY 'pk'. Column 'f0' is not a physical column.");
     }
 
     @Test
     public void testPrimaryKeyNameMustNotBeNull() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("PRIMARY KEY's name can not be null or empty.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT())
-                .primaryKey(null, new String[] {"f0", "f2"})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT())
+                                        .primaryKey(null, new String[] {"f0", "f2"})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("PRIMARY KEY's name can not be null or empty.");
     }
 
     @Test
     public void testPrimaryKeyNameMustNotBeEmpty() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("PRIMARY KEY's name can not be null or empty.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT())
-                .primaryKey("", new String[] {"f0", "f2"})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT())
+                                        .primaryKey("", new String[] {"f0", "f2"})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("PRIMARY KEY's name can not be null or empty.");
     }
 
     @Test
     public void testPrimaryKeyNoColumns() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "PRIMARY KEY constraint must be defined for at least a single column.");
-
-        TableSchema.builder()
-                .field("f0", DataTypes.BIGINT())
-                .primaryKey("pk", new String[] {})
-                .build();
+        assertThatThrownBy(
+                        () ->
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.BIGINT())
+                                        .primaryKey("pk", new String[] {})
+                                        .build())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("PRIMARY KEY constraint must be defined for at least a single column.");
     }
 }

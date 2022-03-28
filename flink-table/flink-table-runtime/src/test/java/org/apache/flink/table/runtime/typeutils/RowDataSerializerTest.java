@@ -41,9 +41,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -53,12 +51,11 @@ import java.util.Objects;
 
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link RowDataSerializer}. */
 @RunWith(Parameterized.class)
 public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     private final RowDataSerializer serializer;
     private final RowData[] testData;
@@ -347,16 +344,21 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 
     @Test
     public void testWrongCopy() {
-        thrown.expect(IllegalArgumentException.class);
-        serializer.copy(new GenericRowData(serializer.getArity() + 1));
+        assertThatThrownBy(() -> serializer.copy(new GenericRowData(serializer.getArity() + 1)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testWrongCopyReuse() {
-        thrown.expect(IllegalArgumentException.class);
         for (RowData row : testData) {
-            checkDeepEquals(
-                    row, serializer.copy(row, new GenericRowData(row.getArity() + 1)), false);
+            assertThatThrownBy(
+                            () ->
+                                    checkDeepEquals(
+                                            row,
+                                            serializer.copy(
+                                                    row, new GenericRowData(row.getArity() + 1)),
+                                            false))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 

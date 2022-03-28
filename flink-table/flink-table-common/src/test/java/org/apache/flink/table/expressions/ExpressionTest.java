@@ -23,9 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +48,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.table.expressions.Expression} and its sub-classes. */
 public class ExpressionTest {
@@ -65,8 +64,6 @@ public class ExpressionTest {
     private static final Expression TREE_WITH_SAME_VALUE = createExpressionTree(12);
 
     private static final String TREE_WITH_NULL_STRING = "and(true, equals(field, dummy(null)))";
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testExpressionString() {
@@ -134,18 +131,17 @@ public class ExpressionTest {
 
     @Test
     public void testInvalidValueLiteral() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("does not support a value literal of class 'java.lang.Integer'");
-
-        new ValueLiteralExpression(12, DataTypes.TINYINT().notNull());
+        assertThatThrownBy(() -> new ValueLiteralExpression(12, DataTypes.TINYINT().notNull()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "does not support a value literal of class 'java.lang.Integer'");
     }
 
     @Test
     public void testInvalidValueLiteralExtraction() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Cannot derive a data type");
-
-        new ValueLiteralExpression(this);
+        assertThatThrownBy(() -> new ValueLiteralExpression(this))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot derive a data type");
     }
 
     @Test

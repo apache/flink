@@ -23,9 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,14 +39,13 @@ import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpression;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for converting an object to a {@link Expression} via {@link
  * ApiExpressionUtils#objectToExpression(Object)}.
  */
 public class ObjectToExpressionTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testListConversion() {
@@ -96,29 +93,32 @@ public class ObjectToExpressionTest {
 
     @Test
     public void testRowWithDeleteKindConversion() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Unsupported kind 'DELETE' of a row [-D[1]]. "
-                        + "Only rows with 'INSERT' kind are supported when converting to an expression.");
-        objectToExpression(Row.ofKind(RowKind.DELETE, 1));
+        assertThatThrownBy(() -> objectToExpression(Row.ofKind(RowKind.DELETE, 1)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Unsupported kind 'DELETE' of a row [-D[1]]. "
+                                + "Only rows with 'INSERT' kind are supported when converting "
+                                + "to an expression.");
     }
 
     @Test
     public void testRowWithUpdateBeforeKindConversion() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Unsupported kind 'UPDATE_BEFORE' of a row [-U[1]]. "
-                        + "Only rows with 'INSERT' kind are supported when converting to an expression.");
-        objectToExpression(Row.ofKind(RowKind.UPDATE_BEFORE, 1));
+        assertThatThrownBy(() -> objectToExpression(Row.ofKind(RowKind.UPDATE_BEFORE, 1)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Unsupported kind 'UPDATE_BEFORE' of a row [-U[1]]. "
+                                + "Only rows with 'INSERT' kind are supported when converting "
+                                + "to an expression.");
     }
 
     @Test
     public void testRowWithUpdateAfterKindConversion() {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "Unsupported kind 'UPDATE_AFTER' of a row [+U[1]]. "
-                        + "Only rows with 'INSERT' kind are supported when converting to an expression.");
-        objectToExpression(Row.ofKind(RowKind.UPDATE_AFTER, 1));
+        assertThatThrownBy(() -> objectToExpression(Row.ofKind(RowKind.UPDATE_AFTER, 1)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Unsupported kind 'UPDATE_AFTER' of a row [+U[1]]. "
+                                + "Only rows with 'INSERT' kind are supported when converting "
+                                + "to an expression.");
     }
 
     private static void assertThatEquals(Expression actual, Expression expected) {

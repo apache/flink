@@ -36,9 +36,7 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -59,6 +57,7 @@ import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OperationTreeBuilder#values}. */
 @RunWith(Parameterized.class)
@@ -407,14 +406,24 @@ public class ValuesOperationTreeBuilderTest {
 
     @Parameterized.Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testValues() {
-
         if (testSpec.exceptionMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(testSpec.exceptionMessage);
+            if (testSpec.expectedRowType != null) {
+                assertThatThrownBy(
+                                () ->
+                                        testSpec.getTreeBuilder()
+                                                .values(
+                                                        testSpec.expectedRowType,
+                                                        testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            } else {
+                assertThatThrownBy(() -> testSpec.getTreeBuilder().values(testSpec.expressions))
+                        .isInstanceOf(ValidationException.class)
+                        .hasMessage(testSpec.exceptionMessage);
+            }
+            return;
         }
 
         ValuesQueryOperation operation;

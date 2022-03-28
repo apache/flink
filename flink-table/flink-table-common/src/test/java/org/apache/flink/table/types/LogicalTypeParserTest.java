@@ -59,9 +59,7 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -75,6 +73,7 @@ import java.util.List;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link LogicalTypeParser}. */
 @RunWith(Parameterized.class)
@@ -263,8 +262,6 @@ public class LogicalTypeParserTest {
 
     @Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testParsing() {
         if (testSpec.expectedType != null) {
@@ -288,10 +285,9 @@ public class LogicalTypeParserTest {
     @Test
     public void testErrorMessage() {
         if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(testSpec.expectedErrorMessage);
-
-            LogicalTypeParser.parse(testSpec.typeString);
+            assertThatThrownBy(() -> LogicalTypeParser.parse(testSpec.typeString))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining(testSpec.expectedErrorMessage);
         }
     }
 
