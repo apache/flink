@@ -718,7 +718,11 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
         }
 
         // we iterate the chain up to 'until entry'
-        while (current != untilEntry) {
+        // the entry was already found in this chain, so it's guaranteed to be not null
+        // however, because the entry under `current' can be updated in concurrently
+        // we check for equality and not for identity
+        while (!current.key.equals(untilEntry.key)
+                || !current.namespace.equals(untilEntry.namespace)) {
 
             // advance current
             current = current.next;
