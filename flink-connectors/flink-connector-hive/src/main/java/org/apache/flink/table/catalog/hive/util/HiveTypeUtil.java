@@ -160,6 +160,9 @@ public class HiveTypeUtil {
             case VARCHAR:
                 return DataTypes.VARCHAR(((VarcharTypeInfo) hiveType).getLength());
             case STRING:
+            case VOID:
+                // There's no corresponding data type to Hive's void in Flink, so convert into to
+                // Flink's string type
                 return DataTypes.STRING();
             case BOOLEAN:
                 return DataTypes.BOOLEAN();
