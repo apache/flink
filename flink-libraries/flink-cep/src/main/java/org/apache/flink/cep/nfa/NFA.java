@@ -120,6 +120,10 @@ public class NFA<T> {
         return Collections.unmodifiableMap(tmp);
     }
 
+    public long getWindowTime() {
+        return windowTime;
+    }
+
     @VisibleForTesting
     public Collection<State<T>> getStates() {
         return states.values();
@@ -332,6 +336,10 @@ public class NFA<T> {
             // if stop state reached in this path
             boolean shouldDiscardPath = false;
             for (final ComputationState newComputationState : newComputationStates) {
+
+                if (isStartState(computationState) && newComputationState.getStartTimestamp() > 0) {
+                    nfaState.setNewStartPartiailMatch();
+                }
 
                 if (isFinalState(newComputationState)) {
                     potentialMatches.add(newComputationState);
