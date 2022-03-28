@@ -400,7 +400,7 @@ env.enable_changelog_statebackend(true)
 
 ### 监控
 
-[此处]({{< ref "docs/ops/metrics#changelog" >}})列出了可用的指标。
+[此处]({{< ref "docs/ops/metrics#state-changelog" >}})列出了可用的指标。
 
 如果 task 因写状态变更而被反压，他将在 UI 中被显示为忙碌（红色）。
 
