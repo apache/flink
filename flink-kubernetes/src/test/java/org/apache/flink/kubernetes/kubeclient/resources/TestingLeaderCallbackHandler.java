@@ -22,8 +22,6 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /** Testing implementation for {@link KubernetesLeaderElector.LeaderCallbackHandler}. */
 public class TestingLeaderCallbackHandler extends KubernetesLeaderElector.LeaderCallbackHandler {
@@ -61,29 +59,22 @@ public class TestingLeaderCallbackHandler extends KubernetesLeaderElector.Leader
         return isLeader;
     }
 
-    public static String waitUntilNewLeaderAppears(long timeout) throws Exception {
-        final AtomicReference<String> leaderRef = new AtomicReference<>();
+    public static String waitUntilNewLeaderAppears() throws Exception {
+        return sharedQueue.take();
+    }
+
+    public void waitForNewLeader() throws Exception {
+        poll(leaderQueue);
+    }
+
+    public void waitForRevokeLeader() throws Exception {
+        poll(revokeQueue);
+    }
+
+    private void poll(BlockingQueue<String> queue) throws Exception {
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    final String lockIdentity = sharedQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    leaderRef.set(lockIdentity);
-                    return lockIdentity != null;
-                });
-        return leaderRef.get();
-    }
-
-    public void waitForNewLeader(long timeout) throws Exception {
-        poll(leaderQueue, timeout);
-    }
-
-    public void waitForRevokeLeader(long timeout) throws Exception {
-        poll(revokeQueue, timeout);
-    }
-
-    private void poll(BlockingQueue<String> queue, long timeout) throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    final String lockIdentity = queue.poll(timeout, TimeUnit.MILLISECONDS);
+                    final String lockIdentity = queue.take();
                     return this.lockIdentity.equals(lockIdentity);
                 });
     }

@@ -73,8 +73,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(TestLoggerExtension.class)
 public class ApplicationDispatcherBootstrapITCase {
 
-    private static final Duration TIMEOUT = Duration.ofMinutes(10);
-
     private static Supplier<DispatcherResourceManagerComponentFactory>
             createApplicationModeDispatcherResourceManagerComponentFactorySupplier(
                     Configuration configuration, PackagedProgram program) {

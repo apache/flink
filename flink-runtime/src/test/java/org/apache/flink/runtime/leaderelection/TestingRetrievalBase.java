@@ -48,9 +48,7 @@ public class TestingRetrievalBase {
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     leader = leaderEventQueue.take();
-                    return leader != null
-                            && !leader.isEmpty()
-                            && !leader.getLeaderAddress().equals(oldAddress);
+                    return !leader.isEmpty() && !leader.getLeaderAddress().equals(oldAddress);
                 });
 
         oldAddress = leader.getLeaderAddress();
@@ -64,7 +62,7 @@ public class TestingRetrievalBase {
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     leader = leaderEventQueue.take();
-                    return leader != null && leader.isEmpty();
+                    return leader.isEmpty();
                 });
 
         oldAddress = null;

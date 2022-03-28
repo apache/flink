@@ -45,7 +45,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
@@ -57,7 +56,6 @@ import static org.junit.Assert.assertThat;
 /** Integration tests for the {@link TaskExecutor}. */
 public class TaskExecutorITCase extends TestLogger {
 
-    private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
     private static final int NUM_TMS = 2;
     private static final int SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;

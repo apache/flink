@@ -44,7 +44,7 @@ public class TestingLeaderBase {
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     final LeaderInformation leader = leaderEventQueue.take();
-                    return leader != null && !leader.isEmpty();
+                    return !leader.isEmpty();
                 });
 
         isLeader = true;
@@ -56,7 +56,7 @@ public class TestingLeaderBase {
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     final LeaderInformation leader = leaderEventQueue.take();
-                    return leader != null && leader.isEmpty();
+                    return leader.isEmpty();
                 });
 
         isLeader = false;
