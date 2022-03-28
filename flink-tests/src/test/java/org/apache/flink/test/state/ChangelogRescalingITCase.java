@@ -20,6 +20,7 @@ package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -31,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
@@ -55,10 +57,10 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -80,14 +82,13 @@ import static org.apache.flink.configuration.StateChangelogOptions.PERIODIC_MATE
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
 import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_MODE;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_UNALIGNED;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.EXTERNALIZED_CHECKPOINT;
-import static org.apache.flink.test.util.TestUtils.getMostRecentCompletedCheckpoint;
-import static org.apache.flink.test.util.TestUtils.getMostRecentCompletedCheckpointMaybe;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -149,19 +150,16 @@ public class ChangelogRescalingITCase extends TestLogger {
     @Test
     public void test() throws Exception {
         // before rescale
-        File cpDir1 = temporaryFolder.newFolder();
-        JobID jobID1 = submit(configureJob(parallelism1, cpDir1), graph -> {});
+        JobID jobID1 = submit(configureJob(parallelism1, temporaryFolder.newFolder()), graph -> {});
 
         Thread.sleep(ACCUMULATE_TIME_MILLIS);
-        File cpLocation = checkpointAndCancel(jobID1, cpDir1);
+        String cpLocation = checkpointAndCancel(jobID1);
 
         // rescale and checkpoint to verify
         JobID jobID2 =
                 submit(
                         configureJob(parallelism2, temporaryFolder.newFolder()),
-                        graph ->
-                                graph.setSavepointRestoreSettings(
-                                        forPath(cpLocation.toURI().toString())));
+                        graph -> graph.setSavepointRestoreSettings(forPath(cpLocation)));
         waitForAllTaskRunning(cluster.getMiniCluster(), jobID2, true);
         cluster.getClusterClient().cancel(jobID2).get();
     }
@@ -328,15 +326,15 @@ public class ChangelogRescalingITCase extends TestLogger {
         }
     }
 
-    private File checkpointAndCancel(JobID jobID, File cpDir)
-            throws IOException, InterruptedException, ExecutionException {
-        while (!getMostRecentCompletedCheckpointMaybe(cpDir).isPresent()) {
-            checkStatus(jobID);
-            Thread.sleep(50);
-        }
+    private String checkpointAndCancel(JobID jobID) throws Exception {
+        waitForCheckpoint(jobID, cluster.getMiniCluster(), Deadline.fromNow(Duration.ofMinutes(5)));
         cluster.getClusterClient().cancel(jobID).get();
         checkStatus(jobID);
-        return getMostRecentCompletedCheckpoint(cpDir);
+        return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())
+                .<NoSuchElementException>orElseThrow(
+                        () -> {
+                            throw new NoSuchElementException("No checkpoint was created yet");
+                        });
     }
 
     private void checkStatus(JobID jobID) throws InterruptedException, ExecutionException {
