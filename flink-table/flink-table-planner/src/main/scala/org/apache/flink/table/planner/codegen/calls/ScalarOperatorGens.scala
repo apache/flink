@@ -1318,10 +1318,11 @@ object ScalarOperatorGens {
       elements: Seq[GeneratedExpression],
       greatest: Boolean = true)
   : GeneratedExpression = {
-    val Seq(result, cur, nullTerm) = newNames("result", "cur", "nullTerm")
+    val Seq(result, tmpResult, cur, nullTerm) = newNames("result", "tmpResult", "cur", "nullTerm")
     val widerType = toScala(findCommonType(elements.map(element => element.resultType)))
       .orElse(throw new CodeGenException(s"Unable to find common type for $elements."))
-    val resultTypeTerm = boxedTypeTermForType(widerType.get)
+    val boxedResultTypeTerm = boxedTypeTermForType(widerType.get)
+    val primitiveResultTypeTerm = primitiveTypeTermForType(widerType.get)
 
     def castIfNumeric(t: GeneratedExpression): String = {
       if (isNumeric(widerType.get)) {
@@ -1335,13 +1336,13 @@ object ScalarOperatorGens {
       s"""
          | ${element.code}
          | if (!$nullTerm) {
-         |   $resultTypeTerm $cur = ${castIfNumeric(element)};
+         |   $boxedResultTypeTerm $cur = ${castIfNumeric(element)};
          |   if (${element.nullTerm}) {
          |     $nullTerm = true;
          |   } else {
-         |     int compareResult = $result.compareTo($cur);
+         |     int compareResult = $tmpResult.compareTo($cur);
          |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
-         |       $result = $cur;
+         |       $tmpResult = $cur;
          |     }
          |   }
          | }
@@ -1350,11 +1351,12 @@ object ScalarOperatorGens {
 
     val code =
       s"""
-         | $resultTypeTerm $result = ${castIfNumeric(elements.head)};
+         | $boxedResultTypeTerm $tmpResult = ${castIfNumeric(elements.head)};
+         | $primitiveResultTypeTerm $result = ${primitiveDefaultValue(widerType.get)};
          | boolean $nullTerm = false;
          | $elementsCode
-         | if ($nullTerm) {
-         |   $result = null;
+         | if (!$nullTerm) {
+         |   $result = $tmpResult;
          | }
        """.stripMargin
     GeneratedExpression(result, nullTerm, code, resultType)
