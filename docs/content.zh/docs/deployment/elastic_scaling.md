@@ -164,7 +164,7 @@ Adaptive Batch Scheduler 是一种可以自动推导每个算子并行度的批�
 
 #### 启用 Adaptive Batch Scheduler
 为了启用 Adaptive Batch Scheduler, 你需要：
-- 配置 `jobmanager.scheduler: AdpaptiveBatch`
+- 配置 `jobmanager.scheduler: AdaptiveBatch`
 - 由于 ["只支持所有数据交换都为 BLOCKING 模式的作业"](#局限性-2), 需要将 [`execution.batch-shuffle-mode`]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode) 配置为 `ALL-EXCHANGES-BLOCKING`(默认值) 。
 
 除此之外，使用 Adaptive Batch Scheduler 时，以下相关配置也可以调整:
