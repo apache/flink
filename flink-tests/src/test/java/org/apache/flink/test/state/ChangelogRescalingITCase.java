@@ -20,7 +20,6 @@ package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -327,8 +326,7 @@ public class ChangelogRescalingITCase extends TestLogger {
     }
 
     private String checkpointAndCancel(JobID jobID) throws Exception {
-        waitForCheckpoint(
-                jobID, cluster.getMiniCluster(), Deadline.fromNow(Duration.ofMinutes(5)), 1);
+        waitForCheckpoint(jobID, cluster.getMiniCluster(), 1);
         cluster.getClusterClient().cancel(jobID).get();
         checkStatus(jobID);
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())

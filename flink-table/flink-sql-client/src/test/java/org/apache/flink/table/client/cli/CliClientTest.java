@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -64,7 +63,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -327,8 +325,7 @@ public class CliClientTest extends TestLogger {
 
             client.getTerminal().raise(Terminal.Signal.INT);
             CommonTestUtils.waitUntilCondition(
-                    () -> outputStream.toString().contains("'key' = 'value'"),
-                    Deadline.fromNow(Duration.ofMillis(10000)));
+                    () -> outputStream.toString().contains("'key' = 'value'"));
         }
     }
 

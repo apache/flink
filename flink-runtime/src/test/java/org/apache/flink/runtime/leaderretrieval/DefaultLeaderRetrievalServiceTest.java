@@ -28,19 +28,16 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.Test;
 
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
 public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
     private static final String TEST_URL = "akka//user/jobmanager";
-    private static final long timeout = 50L;
 
     @Test
     public void testNotifyLeaderAddress() throws Exception {
@@ -51,7 +48,7 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             final LeaderInformation newLeader =
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            testingListener.waitForNewLeader(timeout);
+                            testingListener.waitForNewLeader();
                             assertThat(
                                     testingListener.getLeaderSessionID(),
                                     is(newLeader.getLeaderSessionID()));
@@ -71,10 +68,10 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             final LeaderInformation newLeader =
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            testingListener.waitForNewLeader(timeout);
+                            testingListener.waitForNewLeader();
 
                             testingLeaderRetrievalDriver.onUpdate(LeaderInformation.empty());
-                            testingListener.waitForEmptyLeaderInformation(timeout);
+                            testingListener.waitForEmptyLeaderInformation();
                             assertThat(testingListener.getLeaderSessionID(), is(nullValue()));
                             assertThat(testingListener.getAddress(), is(nullValue()));
                         });
@@ -92,7 +89,7 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
                             testingLeaderRetrievalDriver.onFatalError(testException);
 
-                            testingListener.waitForError(timeout);
+                            testingListener.waitForError();
                             assertThat(
                                     testingListener.getError(),
                                     FlinkMatchers.containsCause(testException));
@@ -112,13 +109,6 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             leaderRetrievalService.stop();
                             testingLeaderRetrievalDriver.onFatalError(testException);
 
-                            try {
-                                testingListener.waitForError(timeout);
-                                fail(
-                                        "We expect to have a timeout here because there's no error should be passed to listener.");
-                            } catch (TimeoutException ex) {
-                                // noop
-                            }
                             assertThat(testingListener.getError(), is(nullValue()));
                         });
             }

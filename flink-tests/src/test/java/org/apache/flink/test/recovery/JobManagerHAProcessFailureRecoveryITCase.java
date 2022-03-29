@@ -309,7 +309,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
             leaderRetrievalService.start(leaderListener);
 
             // Initial submission
-            leaderListener.waitForNewLeader(deadline.timeLeft().toMillis());
+            leaderListener.waitForNewLeader();
 
             String leaderAddress = leaderListener.getAddress();
             UUID leaderId = leaderListener.getLeaderSessionID();

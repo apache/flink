@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -59,7 +58,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -72,8 +70,6 @@ import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetrieve
 /** An integration test which recovers from checkpoint after regaining the leadership. */
 @ExtendWith(TestLoggerExtension.class)
 public class JobDispatcherITCase {
-
-    private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
     private Supplier<DispatcherResourceManagerComponentFactory>
             createJobModeDispatcherResourceManagerComponentFactorySupplier(
@@ -95,7 +91,6 @@ public class JobDispatcherITCase {
     @Test
     public void testRecoverFromCheckpointAfterLosingAndRegainingLeadership(@TempDir Path tmpPath)
             throws Exception {
-        final Deadline deadline = Deadline.fromNow(TIMEOUT);
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         final TestingMiniClusterConfiguration clusterConfiguration =
@@ -134,7 +129,7 @@ public class JobDispatcherITCase {
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
-            awaitJobStatus(cluster, jobID, JobStatus.RUNNING, deadline);
+            awaitJobStatus(cluster, jobID, JobStatus.RUNNING);
 
             CommonTestUtils.waitUntilCondition(
                     () ->
@@ -142,8 +137,7 @@ public class JobDispatcherITCase {
                                             .get()
                                             .getCheckpointStatsSnapshot()
                                             .getLatestRestoredCheckpoint()
-                                    != null,
-                    deadline);
+                                    != null);
         }
     }
 
@@ -174,8 +168,7 @@ public class JobDispatcherITCase {
         return jobGraph.getJobID();
     }
 
-    private static void awaitJobStatus(
-            MiniCluster cluster, JobID jobId, JobStatus status, Deadline deadline)
+    private static void awaitJobStatus(MiniCluster cluster, JobID jobId, JobStatus status)
             throws Exception {
         CommonTestUtils.waitUntilCondition(
                 () -> {
@@ -189,8 +182,7 @@ public class JobDispatcherITCase {
                         }
                         throw e;
                     }
-                },
-                deadline);
+                });
     }
 
     /**

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -59,7 +58,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
@@ -348,11 +346,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         NotifyingInfiniteTupleSource.countDownLatch.await();
 
         //         complete at least two checkpoints so that the initial checkpoint can be subsumed
-        waitForCheckpoint(
-                initialJobGraph.getJobID(),
-                cluster.getMiniCluster(),
-                Deadline.fromNow(Duration.ofMinutes(5)),
-                2);
+        waitForCheckpoint(initialJobGraph.getJobID(), cluster.getMiniCluster(), 2);
         cluster.getClusterClient().cancel(initialJobGraph.getJobID()).get();
         waitUntilJobCanceled(initialJobGraph.getJobID(), cluster.getClusterClient());
         return CommonTestUtils.getLatestCompletedCheckpointPath(

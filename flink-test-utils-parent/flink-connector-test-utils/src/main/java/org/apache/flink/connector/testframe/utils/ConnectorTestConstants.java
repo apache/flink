@@ -26,6 +26,5 @@ public class ConnectorTestConstants {
     public static final long SLOT_REQUEST_TIMEOUT_MS = 10_000L;
     public static final long HEARTBEAT_TIMEOUT_MS = 5_000L;
     public static final long HEARTBEAT_INTERVAL_MS = 1000L;
-    public static final Duration DEFAULT_JOB_STATUS_CHANGE_TIMEOUT = Duration.ofSeconds(30L);
     public static final Duration DEFAULT_COLLECT_DATA_TIMEOUT = Duration.ofSeconds(120L);
 }

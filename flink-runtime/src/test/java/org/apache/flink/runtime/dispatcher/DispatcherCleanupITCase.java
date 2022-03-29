@@ -19,7 +19,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -51,7 +50,6 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.CoreMatchers;
@@ -61,7 +59,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -201,9 +198,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasJobResultEntry(jobId),
-                Deadline.fromNow(Duration.ofMinutes(5)),
-                "The JobResultStore should have this job marked as clean.");
+                () -> haServices.getJobResultStore().hasJobResultEntry(jobId));
     }
 
     @Test
@@ -233,10 +228,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         toTerminate.add(dispatcher);
 
-        CommonTestUtils.waitUntilCondition(
-                () -> jobManagerRunnerEntry.get() != null,
-                Deadline.fromNow(Duration.ofSeconds(10)),
-                "JobManagerRunner wasn't loaded in time.");
+        CommonTestUtils.waitUntilCondition(() -> jobManagerRunnerEntry.get() != null);
 
         assertThat(
                 "The JobResultStore should have this job still marked as dirty.",
@@ -255,9 +247,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId),
-                Deadline.fromNow(Duration.ofSeconds(60)),
-                "The JobResultStore should have this job marked as clean now.");
+                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId));
     }
 
     @Test
@@ -349,8 +339,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         leaderElectionService.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().getDirtyResults().isEmpty(),
-                Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)));
+                () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
 
         assertThat(
                 "The JobGraph is not stored in the JobGraphStore.",
