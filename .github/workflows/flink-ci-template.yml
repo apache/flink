@@ -47,6 +47,29 @@ env:
   CHECKOUT_DIR: ${{ github.workspace }}/flink-checkout
 
 jobs:
+  qa:
+    name: "Basic QA"
+    runs-on: ubuntu-latest
+    container:
+      image: chesnay/flink-ci:java_8_11_xenial
+      options: --init
+
+    steps:
+    - name: "Set JDK version"
+      run: |
+        echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
+        echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+
+    - name: "Flink Checkout"
+      uses: actions/checkout@v2
+    - name: "Codestyle"
+      run: |
+        ${{ inputs.environment }} ./tools/ci/validate.sh "checkstyle:check spotless:check -T2" || exit $?
+
+    - name: "License Headers"
+      run: |
+        ${{ inputs.environment }} ./tools/ci/validate.sh "org.apache.rat:apache-rat-plugin:check -N" || exit $?
+
   compile:
     name: "Compile"
     runs-on: ubuntu-latest
