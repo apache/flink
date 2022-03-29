@@ -31,6 +31,8 @@ jobs:
       glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   docs-404-check:
     runs-on: ubuntu-latest
+    container:
+      image: chesnay/flink-ci:java_8_11_xenial
     steps:
       - name: "Checks out Flink"
         uses: actions/checkout@v2
