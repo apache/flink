@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 
@@ -45,7 +44,7 @@ public class LookupKeySerdeTest {
                 new LookupJoinUtil.LookupKey[] {
                     new LookupJoinUtil.ConstantLookupKey(
                             new BigIntType(),
-                            new RexBuilder(FlinkTypeFactory.INSTANCE()).makeLiteral("a")),
+                            new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
                     new LookupJoinUtil.FieldRefLookupKey(3)
                 };
         for (LookupJoinUtil.LookupKey lookupKey : lookupKeys) {

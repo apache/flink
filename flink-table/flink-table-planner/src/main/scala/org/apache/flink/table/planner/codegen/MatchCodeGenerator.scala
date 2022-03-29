@@ -26,8 +26,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateNullLiteral, generateRowtimeAccess}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateNullLiteral, generateRowtimeAccess}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator

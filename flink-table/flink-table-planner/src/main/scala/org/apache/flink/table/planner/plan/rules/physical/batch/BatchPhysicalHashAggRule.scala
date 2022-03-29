@@ -23,16 +23,13 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashAggregate
-import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.planner.utils.ShortcutUtils
-import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTypeFactory}
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 
 import scala.collection.JavaConversions._
@@ -91,7 +88,7 @@ class BatchPhysicalHashAggRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
-      ShortcutUtils.unwrapTypeFactory(agg),
+      unwrapTypeFactory(agg),
       FlinkTypeFactory.toLogicalRowType(inputRowType),
       aggCallsWithoutAuxGroupCalls)
 

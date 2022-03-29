@@ -31,14 +31,14 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, Variabl
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.util.Util
 
 import java.math.{BigDecimal => JBigDecimal}

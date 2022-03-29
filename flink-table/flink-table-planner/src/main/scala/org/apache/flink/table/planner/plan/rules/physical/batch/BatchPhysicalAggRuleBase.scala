@@ -34,9 +34,9 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
 import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._

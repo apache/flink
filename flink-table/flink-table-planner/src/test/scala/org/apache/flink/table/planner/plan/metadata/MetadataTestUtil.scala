@@ -20,23 +20,23 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, Column, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
+import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.sql.{SqlCall, SqlNode}
 
 import java.util

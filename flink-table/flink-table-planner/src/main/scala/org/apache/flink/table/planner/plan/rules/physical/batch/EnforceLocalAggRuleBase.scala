@@ -22,12 +22,9 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate, BatchPhysicalSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate, BatchPhysicalSortAggregate}
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
@@ -78,7 +75,7 @@ abstract class EnforceLocalAggRuleBase(
     val aggCallToAggFunction = completeAgg.getAggCallToAggFunction
 
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
-      ShortcutUtils.unwrapTypeFactory(input),
+      unwrapTypeFactory(input),
       FlinkTypeFactory.toLogicalRowType(inputRowType),
       aggCalls)
 

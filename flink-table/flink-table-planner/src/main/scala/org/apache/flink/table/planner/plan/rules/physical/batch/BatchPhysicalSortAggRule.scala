@@ -23,14 +23,13 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortAggregate
-import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel._
 
 import scala.collection.JavaConversions._
@@ -82,7 +81,7 @@ class BatchPhysicalSortAggRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
-      ShortcutUtils.unwrapTypeFactory(input),
+      unwrapTypeFactory(input),
       FlinkTypeFactory.toLogicalRowType(inputRowType),
       aggCallsWithoutAuxGroupCalls)
     val groupSet = agg.getGroupSet.toArray
