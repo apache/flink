@@ -21,8 +21,8 @@ jobs:
   ci:
     uses: ./.github/workflows/flink-ci-template.yml
     with:
-      environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"'
-      jdk-version: 8
+      environment: 'PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"'
+      jdk-version: 11
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
