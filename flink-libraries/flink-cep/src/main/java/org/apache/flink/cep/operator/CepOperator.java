@@ -238,9 +238,6 @@ public class CepOperator<IN, KEY, OUT>
                 long timestamp = getProcessingTimeService().getCurrentProcessingTime();
                 advanceTime(nfaState, timestamp);
                 processEvent(nfaState, element.getValue(), timestamp);
-                if (nfa.getWindowTime() > 0 && nfaState.isNewStartPartialMatch()) {
-                    registerTimer(timestamp + nfa.getWindowTime());
-                }
                 updateNFA(nfaState);
             } else {
                 long currentTime = timerService.currentProcessingTime();
@@ -274,8 +271,7 @@ public class CepOperator<IN, KEY, OUT>
 
     private void registerTimer(long timestamp) {
         if (isProcessingTime) {
-            timerService.registerProcessingTimeTimer(
-                    VoidNamespace.INSTANCE, timestamp);
+            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timestamp);
         } else {
             timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
         }
@@ -409,6 +405,9 @@ public class CepOperator<IN, KEY, OUT>
                             timestamp,
                             afterMatchSkipStrategy,
                             cepTimerService);
+            if (nfa.getWindowTime() > 0 && nfaState.isNewStartPartialMatch()) {
+                registerTimer(timestamp + nfa.getWindowTime());
+            }
             processMatchedSequences(patterns, timestamp);
         }
     }
