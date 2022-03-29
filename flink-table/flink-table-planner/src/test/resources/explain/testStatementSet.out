@@ -1,22 +1,22 @@
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
+LogicalSink(table=[default_catalog.default_database.MySink1], fields=[first])
 +- LogicalProject(first=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[last])
+LogicalSink(table=[default_catalog.default_database.MySink2], fields=[last])
 +- LogicalProject(last=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first, id, score, last)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
+Sink(table=[default_catalog.default_database.MySink1], fields=[first])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[first], metadata=[]]], fields=[first])
 
-LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[last])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+Sink(table=[default_catalog.default_database.MySink2], fields=[last])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[last], metadata=[]]], fields=[last])
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[first])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: first)]]], fields=[first])
+Sink(table=[default_catalog.default_database.MySink1], fields=[first])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[first], metadata=[]]], fields=[first])
 
-LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[last])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CsvTableSource(read fields: last)]]], fields=[last])
+Sink(table=[default_catalog.default_database.MySink2], fields=[last])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[last], metadata=[]]], fields=[last])

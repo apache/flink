@@ -24,7 +24,7 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-batch-sql-test/target/BatchSQLTestProgram.jar
 
-OUTPUT_FILE_PATH="${TEST_DATA_DIR}/out/result/results.csv"
+OUTPUT_FILE_PATH="${TEST_DATA_DIR}/out/result"
 
 function sqlJobQuery() {
     local tumbleWindowSizeSeconds=10
@@ -72,11 +72,14 @@ set_config_key "taskmanager.numberOfTaskSlots" "1"
 start_cluster
 
 # The task has total 2 x (1 + 1 + 1 + 1) + 1 = 9 slots
-$FLINK_DIR/bin/flink run -p 2 $TEST_PROGRAM_JAR -outputPath "file://${OUTPUT_FILE_PATH}" -sqlStatement \
+$FLINK_DIR/bin/flink run -p 2 $TEST_PROGRAM_JAR -outputPath "${OUTPUT_FILE_PATH}" -sqlStatement \
     "INSERT INTO sinkTable $(sqlJobQuery)"
 
+# Concat result
+cat ${OUTPUT_FILE_PATH}/* | sort > ${OUTPUT_FILE_PATH}/result.csv
+
 # check result:
-#1980,1970-01-01 00:00:00.0
-#1980,1970-01-01 00:00:20.0
-#1980,1970-01-01 00:00:40.0
-check_result_hash "BatchSQL" "${OUTPUT_FILE_PATH}" "c7ccd2c3a25c3e06616806cf6aecaa66"
+#1980,"1970-01-01 00:00:00"
+#1980,"1970-01-01 00:00:20"
+#1980,"1970-01-01 00:00:40"
+check_result_hash "BatchSQL" "${OUTPUT_FILE_PATH}/result.csv" "f4d69894b075e4bf30b3c7a1190bee70"

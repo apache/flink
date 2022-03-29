@@ -19,17 +19,17 @@
 package org.apache.flink.sql.tests;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.IteratorInputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -62,13 +62,17 @@ public class BatchSQLTestProgram {
                 .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
-        ((TableEnvironmentInternal) tEnv)
-                .registerTableSinkInternal(
-                        "sinkTable",
-                        new CsvTableSink(outputPath)
-                                .configure(
-                                        new String[] {"f0", "f1"},
-                                        new TypeInformation[] {Types.INT, Types.SQL_TIMESTAMP}));
+        tEnv.createTemporaryTable(
+                "sinkTable",
+                TableDescriptor.forConnector("filesystem")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .option(FileSystemConnectorOptions.PATH, outputPath)
+                        .format("csv")
+                        .build());
 
         TableResult result = tEnv.executeSql(sqlStatement);
         // wait job finish

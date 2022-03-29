@@ -35,4 +35,3 @@ org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTimeFactory
 org.apache.flink.table.planner.utils.TestStreamTableSourceFactory
 org.apache.flink.table.planner.utils.TestFileInputFormatTableSourceFactory
 org.apache.flink.table.planner.utils.TestTableSourceWithTimeFactory
-org.apache.flink.connector.file.table.LegacyTableFactory

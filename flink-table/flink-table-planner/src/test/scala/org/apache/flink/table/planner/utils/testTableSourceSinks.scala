@@ -26,12 +26,12 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api
-import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema}
+import org.apache.flink.table.api.{DataTypes, Schema, TableDescriptor, TableEnvironment, TableSchema}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
-import org.apache.flink.table.descriptors._
+import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSinkFactory, TableSourceFactory}
@@ -42,7 +42,7 @@ import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{CsvAppendTableSinkFactory, CsvBatchTableSinkFactory, StreamTableSink, TableSink}
+import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
@@ -50,8 +50,9 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
+import org.apache.flink.util.FileUtils
 
-import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
+import _root_.java.io.File
 import _root_.java.util
 import _root_.java.util.Collections
 import _root_.java.util.function.BiConsumer
@@ -59,8 +60,13 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 
+import java.nio.file.Path
+
 object TestTableSourceSinks {
-  def createPersonCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
+  def createPersonCsvTemporaryTable(
+      tEnv: TableEnvironment,
+      tempDir: Path,
+      tableName: String): Unit = {
     tEnv.executeSql(s"""
                        |CREATE TEMPORARY TABLE $tableName (
                        |  first STRING,
@@ -68,90 +74,83 @@ object TestTableSourceSinks {
                        |  score DOUBLE,
                        |  last STRING
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getPersonCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = '#',
-                       |  'format.line-delimiter' = '$$',
-                       |  'format.ignore-first-line' = 'true',
-                       |  'format.comment-prefix' = '%'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '${getPersonCsvPath(tempDir)}',
+                       |  'format' = 'testcsv'
                        |)
                        |""".stripMargin)
   }
 
-  def createOrdersCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
+  def createOrdersCsvTemporaryTable(
+      tEnv: TableEnvironment,
+      tempDir: Path,
+      tableName: String): Unit = {
     tEnv.executeSql(s"""
                        |CREATE TEMPORARY TABLE $tableName (
                        |  amount BIGINT,
                        |  currency STRING,
                        |  ts BIGINT
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getOrdersCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = ',',
-                       |  'format.line-delimiter' = '$$'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '${getOrdersCsvPath(tempDir)}',
+                       |  'format' = 'testcsv'
                        |)
                        |""".stripMargin)
   }
 
-  def createRatesCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
+  def createRatesCsvTemporaryTable(
+      tEnv: TableEnvironment,
+      tempDir: Path,
+      tableName: String): Unit = {
     tEnv.executeSql(s"""
                        |CREATE TEMPORARY TABLE $tableName (
                        |  currency STRING,
                        |  rate BIGINT
                        |) WITH (
-                       |  'connector.type' = 'filesystem',
-                       |  'connector.path' = '$getRatesCsvPath',
-                       |  'format.type' = 'csv',
-                       |  'format.field-delimiter' = ',',
-                       |  'format.line-delimiter' = '$$'
+                       |  'connector' = 'filesystem',
+                       |  'path' = '${getRatesCsvPath(tempDir)}',
+                       |  'format' = 'testcsv'
                        |)
                        |""".stripMargin)
   }
 
   def createCsvTemporarySinkTable(
       tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String,
-      numFiles: Int = 1): String = {
-    val tempFile = File.createTempFile("csv-test", null)
-    tempFile.deleteOnExit()
-    val path = tempFile.getAbsolutePath
+      schema: Schema,
+      tempDir: Path,
+      tableName: String): String = {
+    val tableDir = tempDir.resolve(tableName).toAbsolutePath
+    tableDir.toFile.mkdirs()
+    val path = tableDir.toString
 
-    val sinkOptions = collection.mutable.Map(
-      "connector.type" -> "filesystem",
-      "connector.path" -> path,
-      "format.type" -> "csv",
-      "format.write-mode" -> "OVERWRITE",
-      "format.num-files" -> numFiles.toString
-    )
-    sinkOptions.putAll(new Schema().schema(schema).toProperties)
-
-    val sink = new CsvBatchTableSinkFactory().createStreamTableSink(sinkOptions);
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
+    tEnv.createTable(
+      tableName,
+      TableDescriptor
+        .forConnector("filesystem")
+        .schema(schema)
+        .option("path", path)
+        .format("testcsv")
+        .build())
 
     path
   }
 
-  lazy val getPersonCsvPath = {
+  def getPersonCsvPath(tempDir: Path): String = {
     val csvRecords = Seq(
-      "First#Id#Score#Last",
-      "Mike#1#12.3#Smith",
-      "Bob#2#45.6#Taylor",
-      "Sam#3#7.89#Miller",
-      "Peter#4#0.12#Smith",
-      "% Just a comment",
-      "Liz#5#34.5#Williams",
-      "Sally#6#6.78#Miller",
-      "Alice#7#90.1#Smith",
-      "Kelly#8#2.34#Williams"
+      "Mike,1,12.3,Smith",
+      "Bob,2,45.6,Taylor",
+      "Sam,3,7.89,Miller",
+      "Peter,4,0.12,Smith",
+      "Liz,5,34.5,Williams",
+      "Sally,6,6.78,Miller",
+      "Alice,7,90.1,Smith",
+      "Kelly,8,2.34,Williams"
     )
 
-    writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
+    writeToTempFile(tempDir, csvRecords.mkString("\n"), "csv-test")
   }
 
-  lazy val getOrdersCsvPath = {
+  def getOrdersCsvPath(tempDir: Path): String = {
     val csvRecords = Seq(
       "2,Euro,2",
       "1,US Dollar,3",
@@ -160,30 +159,26 @@ object TestTableSourceSinks {
       "5,US Dollar,6"
     )
 
-    writeToTempFile(csvRecords.mkString("$"), "csv-order-test", "tmp")
+    writeToTempFile(tempDir, csvRecords.mkString("\n"), "csv-order-test")
   }
 
-  lazy val getRatesCsvPath = {
+  def getRatesCsvPath(tempDir: Path): String = {
     val csvRecords = Seq(
       "US Dollar,102",
       "Yen,1",
       "Euro,119",
       "RMB,702"
     )
-    writeToTempFile(csvRecords.mkString("$"), "csv-rate-test", "tmp")
-
+    writeToTempFile(tempDir, csvRecords.mkString("\n"), "csv-rate-test")
   }
 
   private def writeToTempFile(
+      tempDir: Path,
       contents: String,
       filePrefix: String,
-      fileSuffix: String,
-      charset: String = "UTF-8"): String = {
-    val tempFile = File.createTempFile(filePrefix, fileSuffix)
-    tempFile.deleteOnExit()
-    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), charset)
-    tmpWriter.write(contents)
-    tmpWriter.close()
+      fileSuffix: String = "tmp"): String = {
+    val tempFile = File.createTempFile(filePrefix, fileSuffix, tempDir.toFile)
+    FileUtils.writeFileUtf8(tempFile, contents)
     tempFile.getAbsolutePath
   }
 }
@@ -245,7 +240,7 @@ class TestTableSourceWithTimeFactory[T] extends StreamTableSourceFactory[T] {
     dp.putProperties(properties)
 
     val isBounded = dp.getOptionalBoolean("is-bounded").orElse(false)
-    val tableSchema = dp.getTableSchema(Schema.SCHEMA)
+    val tableSchema = dp.getTableSchema(SCHEMA)
     val serializedData = dp.getOptionalString("data").orElse(null)
     val data = if (serializedData != null) {
       EncodingUtils.decodeStringToObject(serializedData, classOf[List[T]])
@@ -468,7 +463,7 @@ class TestLegacyProjectableTableSourceFactory extends StreamTableSourceFactory[R
     val descriptorProps = new DescriptorProperties()
     descriptorProps.putProperties(properties)
     val isBounded = descriptorProps.getBoolean("is-bounded")
-    val tableSchema = descriptorProps.getTableSchema(Schema.SCHEMA)
+    val tableSchema = descriptorProps.getTableSchema(SCHEMA)
     val rowTypeInfo = getPhysicalSchema(tableSchema).toRowType
     new TestLegacyProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
   }
@@ -698,7 +693,7 @@ class TestLegacyFilterableTableSourceFactory extends StreamTableSourceFactory[Ro
     val descriptorProps = new DescriptorProperties()
     descriptorProps.putProperties(properties)
     val isBounded = descriptorProps.getOptionalBoolean("is-bounded").orElse(false)
-    val schema = descriptorProps.getTableSchema(Schema.SCHEMA)
+    val schema = descriptorProps.getTableSchema(SCHEMA)
     val serializedRows = descriptorProps.getOptionalString("data").orElse(null)
     val numElementToSkip: Int =
       descriptorProps.getOptionalInt("source.num-element-to-skip").orElse(-1)
@@ -766,7 +761,7 @@ class TestInputFormatTableSourceFactory[T] extends StreamTableSourceFactory[T] {
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[T] = {
     val descriptorProps = new DescriptorProperties()
     descriptorProps.putProperties(properties)
-    val schema = descriptorProps.getTableSchema(Schema.SCHEMA)
+    val schema = descriptorProps.getTableSchema(SCHEMA)
     val serializedRows = descriptorProps.getOptionalString("data").orElse(null)
     val values = if (serializedRows != null) {
       EncodingUtils.decodeStringToObject(serializedRows, classOf[List[T]])
@@ -813,7 +808,7 @@ class TestDataTypeTableSourceFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(Schema.SCHEMA))
+    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA))
     val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
     val data = if (serializedRows != null) {
       EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
@@ -888,7 +883,7 @@ class TestDataTypeTableSourceWithTimeFactory extends TableSourceFactory[Row] {
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(Schema.SCHEMA))
+    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA))
 
     val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
     val data = if (serializedRows != null) {
@@ -953,7 +948,7 @@ class TestStreamTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA)
+    val tableSchema = descriptorProperties.getTableSchema(SCHEMA)
     val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
     val values = if (serializedRows != null) {
       EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
@@ -1006,7 +1001,7 @@ class TestFileInputFormatTableSourceFactory extends StreamTableSourceFactory[Row
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
     val descriptorProperties = new DescriptorProperties
     descriptorProperties.putProperties(properties)
-    val tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA)
+    val tableSchema = descriptorProperties.getTableSchema(SCHEMA)
 
     val serializedPaths = descriptorProperties.getOptionalString("path").orElse(null)
     val paths = if (serializedPaths != null) {
@@ -1333,13 +1328,13 @@ object TestOptionsTableFactory {
   def createPropertiesSource(props: JMap[String, String]): OptionsTableSource = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
-    val schema = properties.getTableSchema(Schema.SCHEMA)
+    val schema = properties.getTableSchema(SCHEMA)
     val propsToShow = new util.HashMap[String, String]()
     val isBounded = properties.getBoolean(IS_BOUNDED)
     props.forEach(new BiConsumer[String, String] {
       override def accept(k: String, v: String): Unit = {
         if (
-          !k.startsWith(Schema.SCHEMA)
+          !k.startsWith(SCHEMA)
           && !k.equalsIgnoreCase(CONNECTOR)
           && !k.equalsIgnoreCase(IS_BOUNDED)
         ) {
@@ -1354,12 +1349,12 @@ object TestOptionsTableFactory {
   def createPropertiesSink(props: JMap[String, String]): OptionsTableSink = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
-    val schema = properties.getTableSchema(Schema.SCHEMA)
+    val schema = properties.getTableSchema(SCHEMA)
     val propsToShow = new util.HashMap[String, String]()
     props.forEach(new BiConsumer[String, String] {
       override def accept(k: String, v: String): Unit = {
         if (
-          !k.startsWith(Schema.SCHEMA)
+          !k.startsWith(SCHEMA)
           && !k.equalsIgnoreCase(CONNECTOR)
           && !k.equalsIgnoreCase(IS_BOUNDED)
         ) {
