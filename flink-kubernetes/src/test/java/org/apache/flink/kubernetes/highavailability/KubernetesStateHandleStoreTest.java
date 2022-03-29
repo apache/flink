@@ -445,7 +445,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -851,7 +851,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);

@@ -1196,8 +1196,7 @@ public class SavepointITCase extends TestLogger {
                                         detailsInfo ->
                                                 allVerticesRunning(
                                                         detailsInfo.getJobVerticesPerState()))
-                                .get(),
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                                .get());
     }
 
     private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {

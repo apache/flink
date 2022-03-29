@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
@@ -66,7 +65,6 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -333,7 +331,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         //
                         // Assert the number of TaskManager slots are set
                         //
-                        waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+                        waitForTaskManagerRegistration(host, port);
                         assertNumberOfSlotsPerTask(host, port, 3);
 
                         final Map<String, String> flinkConfig = getFlinkConfig(host, port);
@@ -388,18 +386,16 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         jobRunner.join();
     }
 
-    private static void waitForTaskManagerRegistration(
-            final String host, final int port, final Duration waitDuration) throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
+    private static void waitForTaskManagerRegistration(final String host, final int port)
+            throws Exception {
+        CommonTestUtils.waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0);
     }
 
     private static void assertNumberOfSlotsPerTask(
             final String host, final int port, final int slotsNumber) throws Exception {
         try {
             CommonTestUtils.waitUntilCondition(
-                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber,
-                    Deadline.fromNow(Duration.ofSeconds(30)));
+                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber);
         } catch (final TimeoutException e) {
             final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(host, port);
             fail(

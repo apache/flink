@@ -18,7 +18,6 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -39,7 +38,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -145,11 +143,7 @@ public class ChangelogCompatibilityITCase {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
         submit(jobGraph, client);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
-            waitForCheckpoint(
-                    jobGraph.getJobID(),
-                    miniClusterResource.getMiniCluster(),
-                    Deadline.fromNow(Duration.ofMinutes(5)),
-                    1);
+            waitForCheckpoint(jobGraph.getJobID(), miniClusterResource.getMiniCluster(), 1);
             client.cancel(jobGraph.getJobID()).get();
             // obtain the latest checkpoint *after* cancellation - that one won't be subsumed
             return CommonTestUtils.getLatestCompletedCheckpointPath(

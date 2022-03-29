@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
@@ -45,7 +44,6 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -243,9 +241,7 @@ public class CliTableauResultViewTest {
 
         // wait until we trying to get batch result
         CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1,
-                Deadline.now().plus(Duration.ofSeconds(5)),
-                50L);
+                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1, 50L);
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);
@@ -442,9 +438,7 @@ public class CliTableauResultViewTest {
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(
-                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1,
-                Deadline.now().plus(Duration.ofSeconds(5)),
-                50L);
+                () -> mockExecutor.getNumRetrieveResultChancesCalls() > 1, 50L);
 
         // send signal to cancel
         terminal.raise(Terminal.Signal.INT);

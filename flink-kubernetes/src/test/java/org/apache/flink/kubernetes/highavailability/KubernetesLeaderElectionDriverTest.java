@@ -70,7 +70,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             // Revoke leadership
                             getLeaderCallback().notLeader();
 
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             assertThat(electionEventHandler.isLeader(), is(false));
                             assertThat(
                                     electionEventHandler.getConfirmedLeaderInformation(),
@@ -94,7 +94,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                 runTest(
                         () -> {
                             leaderElectionDriver.hasLeadership();
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
                             assertThat(electionEventHandler.getError(), is(notNullValue()));
@@ -137,7 +137,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                         () -> {
                             leaderElectionDriver.writeLeaderInformation(
                                     LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
 
                             final String errorMsg =
                                     "Could not write leader information since ConfigMap "
@@ -205,7 +205,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             callbackHandler.onDeleted(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " is deleted externally";
                             assertThat(electionEventHandler.getError(), is(notNullValue()));
@@ -230,7 +230,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             callbackHandler.onError(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "Error while watching the ConfigMap " + LEADER_CONFIGMAP_NAME;
                             assertThat(electionEventHandler.getError(), is(notNullValue()));

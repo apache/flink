@@ -51,8 +51,6 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
-    private static final long TIMEOUT = 120L * 1000L;
-
     private static final String KEY = "state-handle-test";
 
     @Test
@@ -94,8 +92,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
             }
 
             // Wait for the leader
-            final String lockIdentity =
-                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears(TIMEOUT);
+            final String lockIdentity = TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
             Long expectedState = null;
 
             for (int i = 0; i < leaderNum; i++) {

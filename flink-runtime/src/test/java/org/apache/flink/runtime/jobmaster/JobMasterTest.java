@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -115,7 +114,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matchers;
@@ -778,7 +776,6 @@ public class JobMasterTest extends TestLogger {
                         jobMasterGateway.heartbeatFromResourceManager(rmResourceId);
                         return disconnectedJobManagerFuture.isDone();
                     },
-                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)),
                     50L);
 
             // heartbeat timeout should trigger disconnect JobManager from ResourceManager
@@ -1177,8 +1174,6 @@ public class JobMasterTest extends TestLogger {
 
     private void waitUntilAllExecutionsAreScheduledOrDeployed(
             final JobMasterGateway jobMasterGateway) throws Exception {
-        final Duration duration = Duration.ofMillis(testingTimeout.toMilliseconds());
-        final Deadline deadline = Deadline.fromNow(duration);
 
         CommonTestUtils.waitUntilCondition(
                 () -> {
@@ -1190,8 +1185,7 @@ public class JobMasterTest extends TestLogger {
                                                     execution.getState() == ExecutionState.SCHEDULED
                                                             || execution.getState()
                                                                     == ExecutionState.DEPLOYING);
-                },
-                deadline);
+                });
     }
 
     private static AccessExecution getFirstExecution(
@@ -1946,8 +1940,7 @@ public class JobMasterTest extends TestLogger {
             CommonTestUtils.waitUntilCondition(
                     () ->
                             jobMasterGateway.requestJobStatus(testingTimeout).get()
-                                    == JobStatus.RUNNING,
-                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+                                    == JobStatus.RUNNING);
 
             jobMasterGateway.disconnectTaskManager(
                     unresolvedTaskManagerLocation.getResourceID(),
@@ -1956,8 +1949,7 @@ public class JobMasterTest extends TestLogger {
             CommonTestUtils.waitUntilCondition(
                     () ->
                             jobMasterGateway.requestJobStatus(testingTimeout).get()
-                                    == JobStatus.RESTARTING,
-                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+                                    == JobStatus.RESTARTING);
 
             assertThat(
                     registerSlotsAtJobMaster(

@@ -129,7 +129,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         // Use the leader callback to manually grant leadership
         void leaderCallbackGrantLeadership() throws Exception {
             kubernetesTestFixture.leaderCallbackGrantLeadership();
-            electionEventHandler.waitForLeader(TIMEOUT);
+            electionEventHandler.waitForLeader();
         }
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>

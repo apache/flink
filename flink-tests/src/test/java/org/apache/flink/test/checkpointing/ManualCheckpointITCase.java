@@ -24,7 +24,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.configuration.Configuration;
@@ -46,7 +45,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -91,10 +89,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         final JobID jobID = jobClient.getJobID();
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
 
-        CommonTestUtils.waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.RUNNING),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+        CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.RUNNING));
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobID, false);
 
         // wait for the checkpoint to be taken
@@ -126,14 +121,10 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         final JobID jobID = jobClient.getJobID();
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
 
-        CommonTestUtils.waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.RUNNING),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+        CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.RUNNING));
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobID, false);
         CommonTestUtils.waitUntilCondition(
                 () -> queryCompletedCheckpoints(miniCluster, jobID) > 0L,
-                Deadline.fromNow(Duration.ofSeconds(30)),
                 checkpointingInterval / 2);
 
         final long numberOfPeriodicCheckpoints = queryCompletedCheckpoints(miniCluster, jobID);
