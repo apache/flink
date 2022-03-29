@@ -49,6 +49,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -110,11 +111,13 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         }
     }
 
+    @Ignore("It doesn't work for unaligned checkpoint(FLINK-26882).")
     @Test
     public void testCheckpointRescalingInKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(false);
     }
 
+    @Ignore("It doesn't work for unaligned checkpoint(FLINK-26882).")
     @Test
     public void testCheckpointRescalingOutKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(true);
