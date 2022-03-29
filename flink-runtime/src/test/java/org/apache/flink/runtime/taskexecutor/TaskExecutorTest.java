@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ConfigConstants;
@@ -489,7 +488,6 @@ public class TaskExecutorTest extends TestLogger {
                                     taskExecutorGateway.heartbeatFromResourceManager(rmResourceId);
                                     return taskExecutorDisconnectFuture.isDone();
                                 },
-                                Deadline.fromNow(TimeUtils.toDuration(timeout)),
                                 50L));
     }
 

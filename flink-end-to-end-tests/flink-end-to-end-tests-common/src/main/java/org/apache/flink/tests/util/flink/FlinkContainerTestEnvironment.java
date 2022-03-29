@@ -18,7 +18,6 @@
 
 package org.apache.flink.tests.util.flink;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.testframe.environment.ClusterControllable;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
@@ -35,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -149,8 +147,7 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
                                     flinkContainers
                                             .getRestClusterClient()
                                             .getJobDetails(jobClient.getJobID())
-                                            .get(),
-                            Deadline.fromNow(Duration.ofMinutes(5)));
+                                            .get());
                     afterFailAction.run();
                 });
     }

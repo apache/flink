@@ -25,8 +25,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Duration;
-
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -34,7 +32,6 @@ import static org.junit.Assert.assertThat;
 public class SettableLeaderRetrievalServiceTest extends TestLogger {
 
     private SettableLeaderRetrievalService settableLeaderRetrievalService;
-    private static final Duration TIMEOUT = Duration.ofHours(1);
 
     @Before
     public void setUp() {
@@ -50,7 +47,7 @@ public class SettableLeaderRetrievalServiceTest extends TestLogger {
         final TestingListener listener = new TestingListener();
         settableLeaderRetrievalService.start(listener);
 
-        listener.waitForNewLeader(TIMEOUT.toMillis());
+        listener.waitForNewLeader();
         assertThat(listener.getAddress(), equalTo(localhost));
         assertThat(
                 listener.getLeaderSessionID(), equalTo(HighAvailabilityServices.DEFAULT_LEADER_ID));
@@ -65,7 +62,7 @@ public class SettableLeaderRetrievalServiceTest extends TestLogger {
         settableLeaderRetrievalService.notifyListener(
                 localhost, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
-        listener.waitForNewLeader(TIMEOUT.toMillis());
+        listener.waitForNewLeader();
         assertThat(listener.getAddress(), equalTo(localhost));
         assertThat(
                 listener.getLeaderSessionID(), equalTo(HighAvailabilityServices.DEFAULT_LEADER_ID));

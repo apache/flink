@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -87,7 +86,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.assertj.core.api.Assertions;
@@ -854,7 +852,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .getState();
                         return status == JobStatus.SUSPENDED;
                     },
-                    Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)),
                     5L);
         } finally {
             // Unblock the termination of the second job

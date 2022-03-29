@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -71,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -87,8 +85,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
             LoggerFactory.getLogger(ZooKeeperDefaultDispatcherRunnerTest.class);
 
     private static final Time TESTING_TIMEOUT = Time.seconds(10L);
-
-    private static final Duration VERIFICATION_TIMEOUT = Duration.ofSeconds(10L);
 
     @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
@@ -225,9 +221,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
 
                 CommonTestUtils.waitUntilCondition(
-                        () -> submittedJobGraphStore.getJobIds().isEmpty(),
-                        Deadline.fromNow(VERIFICATION_TIMEOUT),
-                        20L);
+                        () -> submittedJobGraphStore.getJobIds().isEmpty(), 20L);
             }
         }
 

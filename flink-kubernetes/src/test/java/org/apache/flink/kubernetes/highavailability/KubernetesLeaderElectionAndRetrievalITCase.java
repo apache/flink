@@ -56,8 +56,6 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
             "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
-    private static final long TIMEOUT = 120L * 1000L;
-
     @Test
     public void testLeaderElectionAndRetrieval() throws Exception {
         final String configMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
@@ -101,14 +99,14 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                             KubernetesUtils::getLeaderInformationFromConfigMap,
                             retrievalEventHandler::handleError);
 
-            electionEventHandler.waitForLeader(TIMEOUT);
+            electionEventHandler.waitForLeader();
             // Check the new leader is confirmed
             final LeaderInformation confirmedLeaderInformation =
                     electionEventHandler.getConfirmedLeaderInformation();
             assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
 
             // Check the leader retrieval driver should be notified the leader address
-            retrievalEventHandler.waitForNewLeader(TIMEOUT);
+            retrievalEventHandler.waitForNewLeader();
             assertThat(
                     retrievalEventHandler.getLeaderSessionID(),
                     is(confirmedLeaderInformation.getLeaderSessionID()));

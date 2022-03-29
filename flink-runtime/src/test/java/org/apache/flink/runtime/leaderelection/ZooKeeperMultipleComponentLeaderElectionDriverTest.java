@@ -112,7 +112,7 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                             leaderElectionDriver.publishLeaderInformation(
                                     componentId, leaderInformation);
 
-                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            leaderRetrievalListener.waitForNewLeader();
 
                             assertThat(leaderRetrievalListener.getLeader())
                                     .isEqualTo(leaderInformation);
@@ -146,12 +146,12 @@ class ZooKeeperMultipleComponentLeaderElectionDriverTest {
                                     componentId,
                                     LeaderInformation.known(UUID.randomUUID(), "foobar"));
 
-                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            leaderRetrievalListener.waitForNewLeader();
 
                             leaderElectionDriver.publishLeaderInformation(
                                     componentId, LeaderInformation.empty());
 
-                            leaderRetrievalListener.waitForEmptyLeaderInformation(10_000L);
+                            leaderRetrievalListener.waitForEmptyLeaderInformation();
 
                             assertThat(leaderRetrievalListener.getLeader())
                                     .isEqualTo(LeaderInformation.empty());

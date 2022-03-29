@@ -18,16 +18,13 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
@@ -41,47 +38,32 @@ public class TestingLeaderBase {
     private boolean isLeader = false;
     private Throwable error;
 
-    public void waitForLeader(long timeout) throws Exception {
+    public void waitForLeader() throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg = "Contender was not elected as the leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    final LeaderInformation leader =
-                            leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return leader != null && !leader.isEmpty();
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+                    final LeaderInformation leader = leaderEventQueue.take();
+                    return !leader.isEmpty();
+                });
 
         isLeader = true;
     }
 
-    public void waitForRevokeLeader(long timeout) throws Exception {
+    public void waitForRevokeLeader() throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg = "Contender was not revoked within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    final LeaderInformation leader =
-                            leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return leader != null && leader.isEmpty();
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+                    final LeaderInformation leader = leaderEventQueue.take();
+                    return leader.isEmpty();
+                });
 
         isLeader = false;
     }
 
-    public void waitForError(long timeout) throws Exception {
-        final String errorMsg = "Contender did not see an exception with " + timeout + "ms";
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return error != null;
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+    public void waitForError() throws Exception {
+        error = errorQueue.take();
     }
 
     public void handleError(Throwable ex) {
@@ -95,7 +77,7 @@ public class TestingLeaderBase {
      */
     @Nullable
     public Throwable getError() {
-        return this.error;
+        return error == null ? errorQueue.poll() : error;
     }
 
     public boolean isLeader() {

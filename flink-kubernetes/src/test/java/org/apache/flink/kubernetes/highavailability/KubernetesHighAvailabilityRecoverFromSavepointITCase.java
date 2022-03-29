@@ -25,7 +25,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.client.program.ClusterClient;
@@ -59,7 +58,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -110,7 +108,6 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         // Wait until all tasks running and getting a successful savepoint
         CommonTestUtils.waitUntilCondition(
                 () -> triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath) != null,
-                Deadline.fromNow(TestingUtils.infiniteDuration()),
                 1000);
 
         // Trigger savepoint 2
@@ -121,7 +118,6 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         clusterClient.cancel(jobGraph.getJobID());
         CommonTestUtils.waitUntilCondition(
                 () -> clusterClient.getJobStatus(jobGraph.getJobID()).get() == JobStatus.CANCELED,
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
                 1000);
 
         // Start a new job with savepoint 2

@@ -118,7 +118,7 @@ public class KubernetesMultipleComponentLeaderElectionDriverTest {
 
                             notifyLeaderRetrievalWatchOnModifiedConfigMap();
 
-                            leaderRetrievalListener.waitForNewLeader(10_000L);
+                            leaderRetrievalListener.waitForNewLeader();
                             assertThat(leaderRetrievalListener.getLeader())
                                     .isEqualTo(leaderInformation);
                         });
