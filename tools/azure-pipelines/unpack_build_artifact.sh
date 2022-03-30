@@ -40,15 +40,15 @@ tar -xzf ${FLINK_ARTIFACT_DIR} ${TARGET_FOLDER_PARAMETER}
 
 echo "Adjusting timestamps"
 # adjust timestamps of proto file to avoid re-generation
-find . -type f -name '*.proto' | xargs touch
+find . -type f -name '*.proto' | xargs --no-run-if-empty touch
 # wait a bit for better odds of different timestamps
 sleep 5
 
 # adjust timestamps to prevent recompilation
-find . -type f -name '*.java' | xargs touch
-find . -type f -name '*.scala' | xargs touch
+find . -type f -name '*.java' | xargs --no-run-if-empty touch
+find . -type f -name '*.scala' | xargs --no-run-if-empty touch
 # wait a bit for better odds of different timestamps
 sleep 5
-find . -type f -name '*.class' | xargs touch
-find . -type f -name '*.timestamp' | xargs touch
+find . -type f -name '*.class' | xargs --no-run-if-empty touch
+find . -type f -name '*.timestamp' | xargs --no-run-if-empty touch
 
