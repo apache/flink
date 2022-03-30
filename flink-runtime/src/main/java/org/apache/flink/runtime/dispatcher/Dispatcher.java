@@ -475,8 +475,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         exception,
                         null,
                         System.currentTimeMillis());
-        archiveExecutionGraph(new ExecutionGraphInfo(archivedExecutionGraph));
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(archivedExecutionGraph);
+        writeToExecutionGraphInfoStore(executionGraphInfo);
+        return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
     /**
@@ -1064,14 +1065,38 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     terminalJobStatus);
         }
 
-        archiveExecutionGraph(executionGraphInfo);
+        writeToExecutionGraphInfoStore(executionGraphInfo);
 
         if (!terminalJobStatus.isGloballyTerminalState()) {
             return CompletableFuture.completedFuture(CleanupJobState.LOCAL);
         }
 
+        // do not create an archive for suspended jobs, as this would eventually lead to
+        // multiple archive attempts which we currently do not support
+        CompletableFuture<Acknowledge> archiveFuture =
+                archiveExecutionGraphToHistoryServer(executionGraphInfo);
+
+        return archiveFuture
+                .thenCompose(
+                        ignored ->
+                                registerGloballyTerminatedJobInJobResultStore(executionGraphInfo))
+                .thenApply(ignored -> CleanupJobState.GLOBAL);
+    }
+
+    private CompletableFuture<Void> registerGloballyTerminatedJobInJobResultStore(
+            ExecutionGraphInfo executionGraphInfo) {
         final CompletableFuture<Void> writeFuture = new CompletableFuture<>();
         final JobID jobId = executionGraphInfo.getJobId();
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
+
+        final JobStatus terminalJobStatus = archivedExecutionGraph.getState();
+        Preconditions.checkArgument(
+                terminalJobStatus.isGloballyTerminalState(),
+                "Job %s is in state %s which is not globally terminal.",
+                jobId,
+                terminalJobStatus);
 
         ioExecutor.execute(
                 () -> {
@@ -1083,9 +1108,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         } else if (!jobResultStore.hasDirtyJobResultEntry(jobId)) {
                             jobResultStore.createDirtyResult(
                                     new JobResultEntry(
-                                            JobResult.createFrom(
-                                                    executionGraphInfo
-                                                            .getArchivedExecutionGraph())));
+                                            JobResult.createFrom(archivedExecutionGraph)));
                             log.info(
                                     "Job {} has been registered for cleanup in the JobResultStore after reaching a terminal state.",
                                     jobId);
@@ -1107,12 +1130,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                                                 executionGraphInfo.getJobId()),
                                         error));
                     }
-                    return CleanupJobState.GLOBAL;
+                    return null;
                 },
                 getMainThreadExecutor());
     }
 
-    private void archiveExecutionGraph(ExecutionGraphInfo executionGraphInfo) {
+    private void writeToExecutionGraphInfoStore(ExecutionGraphInfo executionGraphInfo) {
         try {
             executionGraphInfoStore.put(executionGraphInfo);
         } catch (IOException e) {
@@ -1122,24 +1145,25 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                     executionGraphInfo.getArchivedExecutionGraph().getJobID(),
                     e);
         }
+    }
 
-        // do not create an archive for suspended jobs, as this would eventually lead to multiple
-        // archive attempts which we currently do not support
-        if (executionGraphInfo.getArchivedExecutionGraph().getState().isGloballyTerminalState()) {
-            final CompletableFuture<Acknowledge> executionGraphFuture =
-                    historyServerArchivist.archiveExecutionGraph(executionGraphInfo);
+    private CompletableFuture<Acknowledge> archiveExecutionGraphToHistoryServer(
+            ExecutionGraphInfo executionGraphInfo) {
 
-            executionGraphFuture.whenComplete(
-                    (Acknowledge ignored, Throwable throwable) -> {
-                        if (throwable != null) {
-                            log.info(
-                                    "Could not archive completed job {}({}) to the history server.",
-                                    executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                                    executionGraphInfo.getArchivedExecutionGraph().getJobID(),
-                                    throwable);
-                        }
-                    });
-        }
+        return historyServerArchivist
+                .archiveExecutionGraph(executionGraphInfo)
+                .handleAsync(
+                        (Acknowledge ignored, Throwable throwable) -> {
+                            if (throwable != null) {
+                                log.info(
+                                        "Could not archive completed job {}({}) to the history server.",
+                                        executionGraphInfo.getArchivedExecutionGraph().getJobName(),
+                                        executionGraphInfo.getArchivedExecutionGraph().getJobID(),
+                                        throwable);
+                            }
+                            return Acknowledge.get();
+                        },
+                        getMainThreadExecutor());
     }
 
     private void jobMasterFailed(JobID jobId, Throwable cause) {
