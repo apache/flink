@@ -310,7 +310,7 @@ public class CommonTestUtils {
     }
 
     /** Wait for at least one successful checkpoint. */
-    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, Deadline timeout)
+    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster)
             throws Exception, FlinkJobNotFoundException {
         waitUntilCondition(
                 () ->
@@ -320,8 +320,7 @@ public class CommonTestUtils {
                                                 .get()
                                                 .getCheckpointStatsSnapshot())
                                 .filter(st -> st.getCounts().getNumberOfCompletedCheckpoints() > 0)
-                                .isPresent(),
-                timeout);
+                                .isPresent());
     }
 
     /**
