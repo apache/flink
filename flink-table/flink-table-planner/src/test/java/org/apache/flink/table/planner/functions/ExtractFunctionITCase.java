@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.time.LocalDateTime;
@@ -25,6 +26,8 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 
 /** Test {@link BuiltInFunctionDefinitions#EXTRACT} and its return type. */
 class ExtractFunctionITCase extends BuiltInFunctionTestBase {
@@ -51,30 +54,126 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlResult("EXTRACT(MILLISECOND FROM f0)", 123L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(MILLISECOND FROM f1)", 987L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(MILLISECOND FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(SECOND FROM f0)", 33L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(SECOND FROM f1)", 59L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(SECOND FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MINUTE FROM f0)", 22L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MINUTE FROM f1)", 56L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MINUTE FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(HOUR FROM f0)", 11L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(HOUR FROM f1)", 1L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(HOUR FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DAY FROM f0)", 31L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DAY FROM f1)", 29L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DAY FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(WEEK FROM f0)", 5L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(WEEK FROM f1)", 9L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(WEEK FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MONTH FROM f0)", 1L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MONTH FROM f1)", 2L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MONTH FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(QUARTER FROM f0)", 1L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(QUARTER FROM f1)", 1L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(QUARTER FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(YEAR FROM f0)", 2000L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(YEAR FROM f1)", 2020L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(YEAR FROM f2)", null, BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.SECOND, $("f0")),
+                                "EXTRACT(SECOND FROM f0)",
+                                33L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.SECOND, $("f1")),
+                                "EXTRACT(SECOND FROM f1)",
+                                59L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.SECOND, $("f2")),
+                                "EXTRACT(SECOND FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MINUTE, $("f0")),
+                                "EXTRACT(MINUTE FROM f0)",
+                                22L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MINUTE, $("f1")),
+                                "EXTRACT(MINUTE FROM f1)",
+                                56L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MINUTE, $("f2")),
+                                "EXTRACT(MINUTE FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.HOUR, $("f0")),
+                                "EXTRACT(HOUR FROM f0)",
+                                11L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.HOUR, $("f1")),
+                                "EXTRACT(HOUR FROM f1)",
+                                1L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.HOUR, $("f2")),
+                                "EXTRACT(HOUR FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DAY, $("f0")),
+                                "EXTRACT(DAY FROM f0)",
+                                31L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DAY, $("f1")),
+                                "EXTRACT(DAY FROM f1)",
+                                29L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DAY, $("f2")),
+                                "EXTRACT(DAY FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.WEEK, $("f0")),
+                                "EXTRACT(WEEK FROM f0)",
+                                5L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.WEEK, $("f1")),
+                                "EXTRACT(WEEK FROM f1)",
+                                9L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.WEEK, $("f2")),
+                                "EXTRACT(WEEK FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MONTH, $("f0")),
+                                "EXTRACT(MONTH FROM f0)",
+                                1L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MONTH, $("f1")),
+                                "EXTRACT(MONTH FROM f1)",
+                                2L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MONTH, $("f2")),
+                                "EXTRACT(MONTH FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.QUARTER, $("f0")),
+                                "EXTRACT(QUARTER FROM f0)",
+                                1L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.QUARTER, $("f1")),
+                                "EXTRACT(QUARTER FROM f1)",
+                                1L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.QUARTER, $("f2")),
+                                "EXTRACT(QUARTER FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.YEAR, $("f0")),
+                                "EXTRACT(YEAR FROM f0)",
+                                2000L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.YEAR, $("f1")),
+                                "EXTRACT(YEAR FROM f1)",
+                                2020L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.YEAR, $("f2")),
+                                "EXTRACT(YEAR FROM f2)",
+                                null,
+                                BIGINT().nullable())
                         .testSqlResult("EXTRACT(DECADE FROM f0)", 200L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(DECADE FROM f1)", 202L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(DECADE FROM f2)", null, BIGINT().nullable())
@@ -89,6 +188,9 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlResult("EXTRACT(ISODOW FROM f2)", null, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISOYEAR FROM f0)", 2000L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISOYEAR FROM f1)", 2020L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(ISOYEAR FROM f2)", null, BIGINT().nullable()));
+                        .testSqlResult("EXTRACT(ISOYEAR FROM f2)", null, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(EPOCH FROM f0)", 949317753L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(EPOCH FROM f1)", 1582941419L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(EPOCH FROM f2)", null, BIGINT().nullable()));
     }
 }
