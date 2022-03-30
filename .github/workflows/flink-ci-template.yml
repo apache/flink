@@ -39,12 +39,13 @@ on:
         required: false
 
 env:
-  FLINK_ARTIFACT_DIR: ${{ github.workspace }}/
+  FLINK_ARTIFACT_DIR: /root/
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz
-  DOCKER_IMAGES_CACHE_FOLDER: ${{ github.workspace }}/.docker-cache
+  DOCKER_IMAGES_CACHE_FOLDER: /root/.docker-cache
   # The checkout directory needs to be changed for the Composite Github action usages below as
   # well, if this env variable is modified
-  CHECKOUT_DIR: ${{ github.workspace }}/flink-checkout
+  CHECKOUT_MOUNT_DIR: ${{ github.workspace }}/flink-checkout
+  CHECKOUT_DIR: /root/flink
 
 jobs:
   qa:
@@ -94,7 +95,13 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
-          path: ${{ env.CHECKOUT_DIR }}
+          path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Copy"
+        working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
+        run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          mv ./* ${{ env.CHECKOUT_DIR }}/
 
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -149,7 +156,13 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
-          path: ${{ env.CHECKOUT_DIR }}
+          path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Copy"
+        working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
+        run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          mv ./* ${{ env.CHECKOUT_DIR }}/
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -163,7 +176,8 @@ jobs:
 
       - name: "Unpack build artifact"
         working-directory: ${{ env.CHECKOUT_DIR }}
-        run: ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}/${{ env.FLINK_ARTIFACT_FILENAME }} -t ${{ env.CHECKOUT_DIR }}
+        run: |
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
 
       - name: "Try loading Docker images from Cache"
         id: docker-cache
@@ -224,12 +238,12 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
-          path: ${{ env.CHECKOUT_DIR }}
+          path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
       - name: "Check if it's a docs-only PR (i.e. e2e tests can be skipped)"
         id: docs-only-pr-check
-        working-directory: ${{ env.CHECKOUT_DIR }}
+        working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
         run: |
           source ./tools/azure-pipelines/build_properties.sh
           if is_docs_only_pullrequest; then
@@ -250,8 +264,8 @@ jobs:
     if: ${{ needs.e2e-prereq-check.outputs.skip-e2e != 'true' }}
     timeout-minutes: 310
     env:
-      E2E_CACHE_FOLDER: ${{ github.workspace }}/.e2e-cache
-      E2E_TARBALL_CACHE: ${{ github.workspace }}/.e2e-tarbal-cache
+      E2E_CACHE_FOLDER: /root/.e2e-cache
+      E2E_TARBALL_CACHE: /root/.e2e-tarbal-cache
     strategy:
       fail-fast: false
       matrix:
@@ -266,7 +280,13 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
-          path: ${{ env.CHECKOUT_DIR }}
+          path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Copy"
+        working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
+        run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          mv ./* ${{ env.CHECKOUT_DIR }}/
 
       - name: "Download build artifacts from compile job"
         uses: actions/download-artifact@v2
