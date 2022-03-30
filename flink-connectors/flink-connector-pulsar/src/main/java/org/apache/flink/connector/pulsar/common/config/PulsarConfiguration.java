@@ -76,7 +76,7 @@ public abstract class PulsarConfiguration extends UnmodifiableConfiguration {
         return properties;
     }
 
-    /** Get an option value from the given config, convert it into the a new value instance. */
+    /** Get an option value from the given config, convert it into a new value instance. */
     public <F, T> T get(ConfigOption<F> option, Function<F, T> convertor) {
         F value = get(option);
         if (value != null) {
