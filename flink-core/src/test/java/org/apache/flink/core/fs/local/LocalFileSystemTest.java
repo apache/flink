@@ -31,6 +31,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -236,6 +237,7 @@ public class LocalFileSystemTest extends TestLogger {
     }
 
     @Test
+    @Ignore("fails in docker with root")
     public void testRenameFileWithNoAccess() throws IOException {
         final FileSystem fs = FileSystem.getLocalFileSystem();
 
