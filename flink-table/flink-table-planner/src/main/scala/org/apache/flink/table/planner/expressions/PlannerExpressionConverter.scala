@@ -300,6 +300,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   private def getSymbol(symbol: TableSymbol): PlannerSymbol = symbol match {
+    case TimeIntervalUnit.MILLENNIUM => PlannerTimeIntervalUnit.MILLENNIUM
+    case TimeIntervalUnit.CENTURY => PlannerTimeIntervalUnit.CENTURY
+    case TimeIntervalUnit.DECADE => PlannerTimeIntervalUnit.DECADE
     case TimeIntervalUnit.YEAR => PlannerTimeIntervalUnit.YEAR
     case TimeIntervalUnit.YEAR_TO_MONTH => PlannerTimeIntervalUnit.YEAR_TO_MONTH
     case TimeIntervalUnit.QUARTER => PlannerTimeIntervalUnit.QUARTER
@@ -315,6 +318,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     case TimeIntervalUnit.HOUR_TO_SECOND => PlannerTimeIntervalUnit.HOUR_TO_SECOND
     case TimeIntervalUnit.MINUTE => PlannerTimeIntervalUnit.MINUTE
     case TimeIntervalUnit.MINUTE_TO_SECOND => PlannerTimeIntervalUnit.MINUTE_TO_SECOND
+    case TimeIntervalUnit.MILLISECOND => PlannerTimeIntervalUnit.MILLISECOND
+    case TimeIntervalUnit.MICROSECOND => PlannerTimeIntervalUnit.MICROSECOND
+    case TimeIntervalUnit.NANOSECOND => PlannerTimeIntervalUnit.NANOSECOND
+    case TimeIntervalUnit.EPOCH => PlannerTimeIntervalUnit.EPOCH
     case TimePointUnit.YEAR => PlannerTimePointUnit.YEAR
     case TimePointUnit.MONTH => PlannerTimePointUnit.MONTH
     case TimePointUnit.DAY => PlannerTimePointUnit.DAY

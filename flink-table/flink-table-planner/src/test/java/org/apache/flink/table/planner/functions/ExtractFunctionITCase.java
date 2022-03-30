@@ -43,17 +43,51 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP().nullable(),
                                 TIMESTAMP().nullable(),
                                 TIMESTAMP().nullable())
-                        .testSqlResult(
-                                "EXTRACT(NANOSECOND FROM f0)", 123456000L, BIGINT().nullable())
-                        .testSqlResult(
-                                "EXTRACT(NANOSECOND FROM f1)", 987654000L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(NANOSECOND FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MICROSECOND FROM f0)", 123456L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MICROSECOND FROM f1)", 987654L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MICROSECOND FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLISECOND FROM f0)", 123L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLISECOND FROM f1)", 987L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLISECOND FROM f2)", null, BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.NANOSECOND, $("f0")),
+                                "EXTRACT(NANOSECOND FROM f0)",
+                                123456000L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.NANOSECOND, $("f1")),
+                                "EXTRACT(NANOSECOND FROM f1)",
+                                987654000L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.NANOSECOND, $("f2")),
+                                "EXTRACT(NANOSECOND FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MICROSECOND, $("f0")),
+                                "EXTRACT(MICROSECOND FROM f0)",
+                                123456L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MICROSECOND, $("f1")),
+                                "EXTRACT(MICROSECOND FROM f1)",
+                                987654L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MICROSECOND, $("f2")),
+                                "EXTRACT(MICROSECOND FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLISECOND, $("f0")),
+                                "EXTRACT(MILLISECOND FROM f0)",
+                                123L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLISECOND, $("f1")),
+                                "EXTRACT(MILLISECOND FROM f1)",
+                                987L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLISECOND, $("f2")),
+                                "EXTRACT(MILLISECOND FROM f2)",
+                                null,
+                                BIGINT().nullable())
                         .testResult(
                                 call("EXTRACT", TimeIntervalUnit.SECOND, $("f0")),
                                 "EXTRACT(SECOND FROM f0)",
@@ -174,23 +208,77 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 "EXTRACT(YEAR FROM f2)",
                                 null,
                                 BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DECADE FROM f0)", 200L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DECADE FROM f1)", 202L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(DECADE FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(CENTURY FROM f0)", 20L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(CENTURY FROM f1)", 21L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(CENTURY FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLENNIUM FROM f0)", 2L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLENNIUM FROM f1)", 3L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(MILLENNIUM FROM f2)", null, BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DECADE, $("f0")),
+                                "EXTRACT(DECADE FROM f0)",
+                                200L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DECADE, $("f1")),
+                                "EXTRACT(DECADE FROM f1)",
+                                202L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.DECADE, $("f2")),
+                                "EXTRACT(DECADE FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.CENTURY, $("f0")),
+                                "EXTRACT(CENTURY FROM f0)",
+                                20L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.CENTURY, $("f1")),
+                                "EXTRACT(CENTURY FROM f1)",
+                                21L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.CENTURY, $("f2")),
+                                "EXTRACT(CENTURY FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLENNIUM, $("f0")),
+                                "EXTRACT(MILLENNIUM FROM f0)",
+                                2L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLENNIUM, $("f1")),
+                                "EXTRACT(MILLENNIUM FROM f1)",
+                                3L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.MILLENNIUM, $("f2")),
+                                "EXTRACT(MILLENNIUM FROM f2)",
+                                null,
+                                BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOW FROM f0)", 2L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOW FROM f1)", 7L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOW FROM f2)", null, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISODOW FROM f0)", 1L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISODOW FROM f1)", 6L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISODOW FROM f2)", null, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOY FROM f0)", 31L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOY FROM f1)", 60L, BIGINT().nullable())
+                        .testSqlResult("EXTRACT(DOY FROM f2)", null, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISOYEAR FROM f0)", 2000L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISOYEAR FROM f1)", 2020L, BIGINT().nullable())
                         .testSqlResult("EXTRACT(ISOYEAR FROM f2)", null, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(EPOCH FROM f0)", 949317753L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(EPOCH FROM f1)", 1582941419L, BIGINT().nullable())
-                        .testSqlResult("EXTRACT(EPOCH FROM f2)", null, BIGINT().nullable()));
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.EPOCH, $("f0")),
+                                "EXTRACT(EPOCH FROM f0)",
+                                949317753L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.EPOCH, $("f1")),
+                                "EXTRACT(EPOCH FROM f1)",
+                                1582941419L,
+                                BIGINT().nullable())
+                        .testResult(
+                                call("EXTRACT", TimeIntervalUnit.EPOCH, $("f2")),
+                                "EXTRACT(EPOCH FROM f2)",
+                                null,
+                                BIGINT().nullable()));
     }
 }

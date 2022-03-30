@@ -43,11 +43,15 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
     }
 
     timeIntervalUnit match {
-      case SymbolPlannerExpression(PlannerTimeIntervalUnit.YEAR)
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.MILLENNIUM)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.CENTURY)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.DECADE)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.YEAR)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.QUARTER)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.MONTH)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.WEEK)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.DAY)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.EPOCH)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE
@@ -60,6 +64,9 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
       case SymbolPlannerExpression(PlannerTimeIntervalUnit.HOUR)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.MINUTE)
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.SECOND)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MILLISECOND)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.MICROSECOND)
+           | SymbolPlannerExpression(PlannerTimeIntervalUnit.NANOSECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_TIME

@@ -75,6 +75,9 @@ object PlannerTimeIntervalUnit extends PlannerSymbols {
 
   type PlannerTimeIntervalUnit = PlannerSymbolValue
 
+  val MILLENNIUM = Value(TimeUnitRange.MILLENNIUM)
+  val CENTURY = Value(TimeUnitRange.CENTURY)
+  val DECADE = Value(TimeUnitRange.DECADE)
   val YEAR = Value(TimeUnitRange.YEAR)
   val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
   val QUARTER = Value(TimeUnitRange.QUARTER)
@@ -90,6 +93,10 @@ object PlannerTimeIntervalUnit extends PlannerSymbols {
   val MINUTE = Value(TimeUnitRange.MINUTE)
   val MINUTE_TO_SECOND = Value(TimeUnitRange.MINUTE_TO_SECOND)
   val SECOND = Value(TimeUnitRange.SECOND)
+  val MILLISECOND = Value(TimeUnitRange.MILLISECOND)
+  val MICROSECOND = Value(TimeUnitRange.MICROSECOND)
+  val NANOSECOND = Value(TimeUnitRange.NANOSECOND)
+  val EPOCH = Value(TimeUnitRange.EPOCH)
 
 }
 

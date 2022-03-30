@@ -1801,6 +1801,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testExtract(): Unit = {
+    testAllApis('f16.extract(TimeIntervalUnit.MILLENNIUM), "EXTRACT(MILLENNIUM FROM f16)", "2")
+
+    testAllApis('f16.extract(TimeIntervalUnit.CENTURY), "EXTRACT(CENTURY FROM f16)", "20")
+
+    testAllApis('f16.extract(TimeIntervalUnit.DECADE), "EXTRACT(DECADE FROM f16)", "199")
+
     testAllApis('f16.extract(TimeIntervalUnit.YEAR), "EXTRACT(YEAR FROM f16)", "1996")
 
     testAllApis('f16.extract(TimeIntervalUnit.QUARTER), "EXTRACT(QUARTER FROM f16)", "4")
@@ -1834,6 +1840,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis('f18.extract(TimeIntervalUnit.SECOND), "EXTRACT(SECOND FROM f18)", "44")
 
     testAllApis('f17.extract(TimeIntervalUnit.SECOND), "EXTRACT(SECOND FROM f17)", "44")
+
+    testAllApis('f18.extract(TimeIntervalUnit.MILLISECOND), "EXTRACT(MILLISECOND FROM f18)", "333")
+
+    testAllApis('f17.extract(TimeIntervalUnit.MILLISECOND), "EXTRACT(MILLISECOND FROM f17)", "0")
+
+    testAllApis('f18.extract(TimeIntervalUnit.MICROSECOND),
+      "EXTRACT(MICROSECOND FROM f18)", "333000")
+
+    testAllApis('f18.extract(TimeIntervalUnit.NANOSECOND),
+      "EXTRACT(NANOSECOND FROM f18)", "333000000")
 
     testAllApis('f19.extract(TimeIntervalUnit.DAY), "EXTRACT(DAY FROM f19)", "16979")
 

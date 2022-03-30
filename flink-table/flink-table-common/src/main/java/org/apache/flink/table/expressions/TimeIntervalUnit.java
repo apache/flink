@@ -23,6 +23,9 @@ import org.apache.flink.annotation.PublicEvolving;
 /** Units for working with time intervals. */
 @PublicEvolving
 public enum TimeIntervalUnit implements TableSymbol {
+    MILLENNIUM,
+    CENTURY,
+    DECADE,
     YEAR,
     YEAR_TO_MONTH,
     QUARTER,
@@ -37,5 +40,9 @@ public enum TimeIntervalUnit implements TableSymbol {
     HOUR_TO_MINUTE,
     HOUR_TO_SECOND,
     MINUTE,
-    MINUTE_TO_SECOND
+    MINUTE_TO_SECOND,
+    MILLISECOND,
+    MICROSECOND,
+    NANOSECOND,
+    EPOCH
 }
