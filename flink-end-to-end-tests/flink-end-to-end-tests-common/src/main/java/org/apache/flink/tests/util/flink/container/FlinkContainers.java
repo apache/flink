@@ -21,9 +21,7 @@ package org.apache.flink.tests.util.flink.container;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
@@ -34,8 +32,6 @@ import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.Extension;
@@ -44,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.MountableFile;
 
 import javax.annotation.Nullable;
@@ -55,13 +50,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -120,12 +112,11 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     // Default timeout of operations
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
-    private final GenericContainer<?> jobManager;
-    private final List<GenericContainer<?>> taskManagers;
-    private final GenericContainer<?> haService;
+    private final JobManagerContainer jobManager;
+    private final List<TaskManagerContainer> taskManagers;
+    @Nullable private final ZookeeperContainer zookeeper;
     private final Configuration conf;
 
-    @Nullable private RestClusterClient<StandaloneClusterId> restClusterClient;
     private boolean isStarted = false;
 
     /** Creates a builder for {@link FlinkContainers}. */
@@ -134,29 +125,23 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     }
 
     FlinkContainers(
-            GenericContainer<?> jobManager,
-            List<GenericContainer<?>> taskManagers,
-            @Nullable GenericContainer<?> haService,
+            JobManagerContainer jobManager,
+            List<TaskManagerContainer> taskManagers,
+            @Nullable ZookeeperContainer zookeeper,
             Configuration conf) {
         this.jobManager = jobManager;
         this.taskManagers = taskManagers;
-        this.haService = haService;
+        this.zookeeper = zookeeper;
         this.conf = conf;
     }
 
     /** Starts all containers. */
     public void start() throws Exception {
-        if (haService != null) {
-            LOG.debug("Starting HA service container");
-            this.haService.start();
+        if (zookeeper != null) {
+            zookeeper.start();
         }
-        LOG.debug("Starting JobManager container");
-        this.jobManager.start();
-        waitUntilJobManagerRESTReachable(jobManager);
-        LOG.debug("Starting TaskManager containers");
-        this.taskManagers.parallelStream().forEach(GenericContainer::start);
-        LOG.debug("Creating REST cluster client");
-        this.restClusterClient = createClusterClient();
+        jobManager.start();
+        taskManagers.parallelStream().forEach(TaskManagerContainer::start);
         waitUntilAllTaskManagerConnected();
         isStarted = true;
     }
@@ -164,14 +149,10 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     /** Stops all containers. */
     public void stop() {
         isStarted = false;
-        if (restClusterClient != null) {
-            restClusterClient.close();
-        }
-        this.taskManagers.forEach(GenericContainer::stop);
-        deleteJobManagerTemporaryFiles();
-        this.jobManager.stop();
-        if (this.haService != null) {
-            this.haService.stop();
+        taskManagers.forEach(TaskManagerContainer::stop);
+        jobManager.stop();
+        if (zookeeper != null) {
+            zookeeper.stop();
         }
     }
 
@@ -181,8 +162,8 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     }
 
     /** Gets JobManager container. */
-    public GenericContainer<?> getJobManager() {
-        return this.jobManager;
+    public GenericContainer<JobManagerContainer> getJobManager() {
+        return jobManager;
     }
 
     /** Gets JobManager's hostname on the host machine. */
@@ -196,8 +177,8 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     }
 
     /** Gets REST client connected to JobManager. */
-    public @Nullable RestClusterClient<StandaloneClusterId> getRestClusterClient() {
-        return this.restClusterClient;
+    public RestClusterClient<StandaloneClusterId> getRestClusterClient() {
+        return jobManager.getRestClusterClient();
     }
 
     /**
@@ -207,17 +188,13 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
      * another random port. Please make sure to get the REST cluster client again after this method
      * is invoked.
      */
-    public void restartJobManager(RunnableWithException afterFailAction) throws Exception {
-        if (this.haService == null) {
+    public void restartJobManager(@SuppressWarnings("unused") RunnableWithException afterFailAction)
+            throws Exception {
+        if (this.zookeeper == null) {
             LOG.warn(
                     "Restarting JobManager without HA service. This might drop all your running jobs");
         }
-        jobManager.stop();
-        afterFailAction.run();
-        jobManager.start();
-        // Recreate client because JobManager REST port might have been changed in new container
-        waitUntilJobManagerRESTReachable(jobManager);
-        this.restClusterClient = createClusterClient();
+        jobManager.restart();
         waitUntilAllTaskManagerConnected();
     }
 
@@ -267,6 +244,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
      *
      * @param job job to submit
      */
+    @SuppressWarnings("UnusedReturnValue")
     public JobID submitJob(JobSubmission job) throws IOException, InterruptedException {
         final List<String> commands = new ArrayList<>();
         commands.add("flink/bin/flink");
@@ -292,7 +270,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
                 MountableFile.forHostPath(jobJar.toAbsolutePath()), containerPath);
         commands.addAll(job.getArguments());
 
-        LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
+        LOG.info("Running {}.", String.join(" ", commands));
 
         // Execute command in JobManager
         Container.ExecResult execResult =
@@ -324,43 +302,18 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
 
     // ----------------------------- Helper functions --------------------------------
 
-    private RestClusterClient<StandaloneClusterId> createClusterClient() throws Exception {
-        checkState(
-                jobManager.isRunning(), "JobManager should be running for creating a REST client");
-        // Close potentially existing REST cluster client
-        if (restClusterClient != null) {
-            restClusterClient.close();
-        }
-        final Configuration clientConfiguration = new Configuration();
-        clientConfiguration.set(RestOptions.ADDRESS, getJobManagerHost());
-        clientConfiguration.set(
-                RestOptions.PORT, jobManager.getMappedPort(conf.get(RestOptions.PORT)));
-        return new RestClusterClient<>(clientConfiguration, StandaloneClusterId.getInstance());
-    }
-
-    private void waitUntilJobManagerRESTReachable(GenericContainer<?> jobManager) {
-        LOG.debug("Waiting for JobManager's REST interface getting ready");
-        new HttpWaitStrategy()
-                .forPort(conf.get(RestOptions.PORT))
-                // Specify URL here because using root path will be redirected to Flink Web UI,
-                // which might not be built by using "-Pskip-webui-build"
-                .forPath(ClusterOverviewHeaders.URL)
-                .forStatusCode(200)
-                .withReadTimeout(DEFAULT_TIMEOUT)
-                .waitUntilReady(jobManager);
-    }
-
     private void waitUntilAllTaskManagerConnected() throws InterruptedException, TimeoutException {
         LOG.debug("Waiting for all TaskManagers connecting to JobManager");
         checkNotNull(
-                restClusterClient,
+                jobManager.getRestClusterClient(),
                 "REST cluster client should not be null when checking TaskManager status");
         CommonTestUtils.waitUtil(
                 () -> {
                     final ClusterOverviewWithVersion clusterOverview;
                     try {
                         clusterOverview =
-                                this.restClusterClient
+                                jobManager
+                                        .getRestClusterClient()
                                         .sendRequest(
                                                 ClusterOverviewHeaders.getInstance(),
                                                 EmptyMessageParameters.getInstance(),
@@ -373,44 +326,5 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
                 },
                 DEFAULT_TIMEOUT,
                 "TaskManagers are not ready within 30 seconds");
-    }
-
-    private void deleteJobManagerTemporaryFiles() {
-        final String checkpointDir = conf.get(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
-        final String haDir = conf.get(HighAvailabilityOptions.HA_STORAGE_PATH);
-        final Collection<String> usedPaths =
-                Lists.newArrayList(checkpointDir, haDir).stream()
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-        if (usedPaths.isEmpty()) {
-            return;
-        }
-        final StringBuilder deletionBaseCommand = new StringBuilder("rm -rf");
-        usedPaths.forEach(p -> deletionBaseCommand.append(formatFilePathForDeletion(p)));
-        final String[] command = {"bash", "-c", deletionBaseCommand.toString()};
-        final Container.ExecResult result;
-        try {
-            result = jobManager.execInContainer(command);
-            if (result.getExitCode() != 0) {
-                throw new IllegalStateException(
-                        String.format(
-                                "Command \"%s\" returned non-zero exit code %d. \nSTDOUT: %s\nSTDERR: %s",
-                                String.join(" ", command),
-                                result.getExitCode(),
-                                result.getStdout(),
-                                result.getStderr()));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "Failed to delete temporary files generated by the flink cluster.", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(
-                    "Failed to delete temporary files generated by the flink cluster.", e);
-        }
-    }
-
-    private String formatFilePathForDeletion(String path) {
-        return " " + Paths.get(path).toString().split("file:")[1] + "/*";
     }
 }

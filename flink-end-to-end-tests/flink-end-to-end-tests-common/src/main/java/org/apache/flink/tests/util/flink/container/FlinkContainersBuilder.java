@@ -152,7 +152,7 @@ public class FlinkContainersBuilder {
     /** Builds {@link FlinkContainers}. */
     public FlinkContainers build() {
         // Setup Zookeeper HA
-        GenericContainer<?> zookeeper = null;
+        ZookeeperContainer zookeeper = null;
         if (enableZookeeperHA) {
             enableZookeeperHAConfigurations();
             zookeeper = buildZookeeperContainer();
@@ -178,10 +178,10 @@ public class FlinkContainersBuilder {
         }
 
         // Build JobManager
-        final GenericContainer<?> jobManager = buildJobManagerContainer(imageBuildingTempDir);
+        final JobManagerContainer jobManager = buildJobManagerContainer(imageBuildingTempDir);
 
         // Build TaskManagers
-        final List<GenericContainer<?>> taskManagers =
+        final List<TaskManagerContainer> taskManagers =
                 buildTaskManagerContainers(imageBuildingTempDir);
 
         // Mount HA storage to JobManager
@@ -197,7 +197,7 @@ public class FlinkContainersBuilder {
 
     // --------------------------- Helper Functions -------------------------------------
 
-    private GenericContainer<?> buildJobManagerContainer(Path tempDirectory) {
+    private JobManagerContainer buildJobManagerContainer(Path tempDirectory) {
         // Configure JobManager
         final Configuration jobManagerConf = new Configuration();
         jobManagerConf.addAll(this.conf);
@@ -215,12 +215,14 @@ public class FlinkContainersBuilder {
             throw new RuntimeException("Failed to build JobManager image", e);
         }
         return configureContainer(
-                        new GenericContainer<>(jobManagerImage), JOB_MANAGER_HOSTNAME, "JobManager")
+                        new JobManagerContainer(jobManagerImage, jobManagerConf),
+                        JOB_MANAGER_HOSTNAME,
+                        "JobManager")
                 .withExposedPorts(jobManagerConf.get(RestOptions.PORT));
     }
 
-    private List<GenericContainer<?>> buildTaskManagerContainers(Path tempDirectory) {
-        List<GenericContainer<?>> taskManagers = new ArrayList<>();
+    private List<TaskManagerContainer> buildTaskManagerContainers(Path tempDirectory) {
+        List<TaskManagerContainer> taskManagers = new ArrayList<>();
         for (int i = 0; i < numTaskManagers; i++) {
             // Configure TaskManager
             final Configuration taskManagerConf = new Configuration();
@@ -242,22 +244,23 @@ public class FlinkContainersBuilder {
             }
             taskManagers.add(
                     configureContainer(
-                            new GenericContainer<>(taskManagerImage),
+                            new TaskManagerContainer(taskManagerImage, taskManagerHostName),
                             taskManagerHostName,
                             "TaskManager-" + i));
         }
         return taskManagers;
     }
 
-    private GenericContainer<?> buildZookeeperContainer() {
+    private ZookeeperContainer buildZookeeperContainer() {
         return configureContainer(
-                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.5.9")),
-                ZOOKEEPER_HOSTNAME,
-                "Zookeeper");
+                        new ZookeeperContainer(DockerImageName.parse("zookeeper").withTag("3.5.9")),
+                        ZOOKEEPER_HOSTNAME,
+                        "Zookeeper")
+                .withExposedPorts(ZookeeperContainer.ZOOKEEPER_PORT);
     }
 
-    private GenericContainer<?> configureContainer(
-            GenericContainer<?> container, String networkAlias, String logPrefix) {
+    private <C extends GenericContainer<?>> C configureContainer(
+            C container, String networkAlias, String logPrefix) {
         // Set dependent containers
         for (GenericContainer<?> dependentContainer : dependentContainers) {
             container.dependsOn(dependentContainer);
@@ -278,7 +281,9 @@ public class FlinkContainersBuilder {
         // Set HA related configurations
         checkNotNull(this.conf, "Configuration should not be null for setting HA service");
         conf.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        conf.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, ZOOKEEPER_HOSTNAME + ":" + "2181");
+        conf.set(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                ZOOKEEPER_HOSTNAME + ":" + ZookeeperContainer.ZOOKEEPER_PORT);
         conf.set(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT, "/flink");
         conf.set(HighAvailabilityOptions.HA_CLUSTER_ID, "flink-container-" + UUID.randomUUID());
         conf.set(HighAvailabilityOptions.HA_STORAGE_PATH, HA_STORAGE_PATH.toUri().toString());
