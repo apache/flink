@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -106,7 +107,10 @@ public final class PulsarSourceConfigUtils {
         configuration.useOption(
                 PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS,
                 builder::maxTotalReceiverQueueSizeAcrossPartitions);
-        configuration.useOption(PULSAR_CONSUMER_NAME, builder::consumerName);
+        configuration.useOption(
+                PULSAR_CONSUMER_NAME,
+                consumerName -> String.format(consumerName, UUID.randomUUID()),
+                builder::consumerName);
         configuration.useOption(PULSAR_READ_COMPACTED, builder::readCompacted);
         configuration.useOption(PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
         configuration.useOption(

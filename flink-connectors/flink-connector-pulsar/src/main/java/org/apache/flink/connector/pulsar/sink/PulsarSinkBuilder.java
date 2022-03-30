@@ -315,6 +315,11 @@ public class PulsarSinkBuilder<IN> {
         if (!configBuilder.contains(PULSAR_PRODUCER_NAME)) {
             LOG.warn(
                     "We recommend set a readable producer name through setProducerName(String) in production mode.");
+        } else {
+            String producerName = configBuilder.get(PULSAR_PRODUCER_NAME);
+            if (!producerName.contains("%s")) {
+                configBuilder.override(PULSAR_PRODUCER_NAME, producerName + " - %s");
+            }
         }
 
         checkNotNull(serializationSchema, "serializationSchema must be set.");
