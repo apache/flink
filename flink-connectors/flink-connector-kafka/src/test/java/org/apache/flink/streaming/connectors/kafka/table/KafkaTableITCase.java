@@ -884,6 +884,70 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         deleteTestTopic(topic);
     }
 
+    @Test
+    public void testKafkaSinkWithRoundRobinPartitioner() throws Exception {
+        final String topic = "round_robin_topic_" + format;
+        createTestTopic(topic, 3, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `name` STRING,\n"
+                                + "  `timestamp` TIMESTAMP(3),\n"
+                                + "  `partition` BIGINT METADATA FROM 'partition' VIRTUAL\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'kafka',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'sink.partitioner' = 'round-robin',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        topic, bootstraps, groupId, format);
+
+        tEnv.executeSql(createTable);
+
+        // make every partition have more than one record
+        String initialValues =
+                "INSERT INTO kafka\n"
+                        + "VALUES\n"
+                        + " ('name-0', TIMESTAMP '2020-03-08 13:12:11.123'),\n"
+                        + " ('name-1', TIMESTAMP '2020-03-09 13:12:11.123'),\n"
+                        + " ('name-2', TIMESTAMP '2020-03-10 13:12:11.123'),\n"
+                        + " ('name-3', TIMESTAMP '2020-03-11 13:12:11.123'),\n"
+                        + " ('name-4', TIMESTAMP '2020-03-12 13:12:11.123'),\n"
+                        + " ('name-5', TIMESTAMP '2020-03-13 13:12:11.123')";
+        tEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        final List<String> result =
+                collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 6).stream()
+                        .map(row -> row.toString())
+                        .sorted()
+                        .collect(Collectors.toList());
+
+        final List<String> expected =
+                Arrays.asList(
+                        "+I[name-0, 2020-03-08T13:12:11.123, 0]",
+                        "+I[name-1, 2020-03-09T13:12:11.123, 1]",
+                        "+I[name-2, 2020-03-10T13:12:11.123, 2]",
+                        "+I[name-3, 2020-03-11T13:12:11.123, 0]",
+                        "+I[name-4, 2020-03-12T13:12:11.123, 1]",
+                        "+I[name-5, 2020-03-13T13:12:11.123, 2]");
+
+        assertEquals(expected, result);
+
+        // ------------- cleanup -------------------
+
+        deleteTestTopic(topic);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
