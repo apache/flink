@@ -53,15 +53,15 @@ public final class TopicNameUtils {
     }
 
     /** Get a non-partitioned topic name that does not belong to any partitioned topic. */
-    public static String topicNameWithNonPartition(String topic) {
+    public static String topicNameWithoutPartition(String topic) {
         return TopicName.get(topic).toString();
     }
 
-    public static boolean isPartitioned(String topic) {
+    public static boolean isPartition(String topic) {
         return TopicName.get(topic).isPartitioned();
     }
 
-    /** Merge the same topics into one topics. */
+    /** Merge the same topics into one topic. */
     public static List<String> distinctTopics(List<String> topics) {
         Set<String> fullTopics = new HashSet<>();
         Map<String, List<Integer>> partitionedTopics = new HashMap<>();
