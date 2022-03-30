@@ -27,6 +27,7 @@ STAGE_TESTS="tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 STAGE_FINEGRAINED_RESOURCE_MANAGEMENT="finegrained_resource_management"
+STAGE_SINGLE_TEST="single-test"
 
 MODULES_CORE="\
 flink-annotations,\

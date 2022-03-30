@@ -68,7 +68,7 @@ stages:
   # CI / PR triggered stage:
   - stage: ci
     displayName: "CI build (custom builders)"
-    condition: not(eq(variables['MODE'], 'release'))
+    condition: not(or(eq(variables['MODE'], 'release'), eq(variables['MODE'], 'single-test')))
     jobs:
       - template: tools/azure-pipelines/jobs-template.yml
         parameters: # see template file for a definition of the parameters.
@@ -89,6 +89,20 @@ stages:
             inputs:
               version: '1.18.1'
           - script: ./tools/ci/docs.sh
+  - stage: ci_single_test
+    displayName: "CI run requested tests"
+    condition: eq(variables['MODE'], 'single-test')
+    jobs:
+      - template: tools/azure-pipelines/single-test-template.yml
+        parameters: # see template file for a definition of the parameters.
+          stage_name: ci_build
+          test_pool_definition:
+            vmImage: 'ubuntu-20.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
+          container: flink-build-container
+          jdk: 8
   # CI / Special stage for release, e.g. building PyFlink wheel packages, etc:
   - stage: ci_release
     displayName: "CI build (release)"

@@ -37,6 +37,10 @@ STAGE=$1
 # Step 0: Check & print environment information & configure env
 # =============================================================================
 
+if [ ${STAGE} == $STAGE_SINGLE_TEST ] ; then
+  TEST_PATTERN=$2
+fi
+
 # check preconditions
 if [ -z "${DEBUG_FILES_OUTPUT_DIR:-}" ] ; then
 	echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
@@ -77,22 +81,24 @@ source "${HERE}/watchdog.sh"
 # Step 1: Rebuild jars and install Flink to local maven repository
 # =============================================================================
 
-export LOG4J_PROPERTIES=${HERE}/log4j.properties
-MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
+if [ $STAGE -ne $STAGE_SINGLE_TEST ]; then
+  export LOG4J_PROPERTIES=${HERE}/log4j.properties
+  MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
-CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES_OUTPUT_DIR}/jps-traces.out"
-run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install" $CALLBACK_ON_TIMEOUT
-EXIT_CODE=$?
+  CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES_OUTPUT_DIR}/jps-traces.out"
+  run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install" $CALLBACK_ON_TIMEOUT
+  EXIT_CODE=$?
 
-if [ $EXIT_CODE != 0 ]; then
-	echo "=============================================================================="
-	echo "Compilation failure detected, skipping test execution."
-	echo "=============================================================================="
-	exit $EXIT_CODE
+  if [ $EXIT_CODE != 0 ]; then
+  	echo "=============================================================================="
+  	echo "Compilation failure detected, skipping test execution."
+  	echo "=============================================================================="
+  	exit $EXIT_CODE
+  fi
 fi
 
 
@@ -103,6 +109,13 @@ fi
 if [ $STAGE == $STAGE_PYTHON ]; then
 	sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
 	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
+	EXIT_CODE=$?
+elif [ $STAGE == $STAGE_SINGLE_TEST ]; then
+  echo "Running single test"
+	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
+	MVN_SINGLE_TEST="-DfailIfNoTests=false -Dtest=${TEST_PATTERN}"
+
+	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_SINGLE_TEST install" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 else
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
