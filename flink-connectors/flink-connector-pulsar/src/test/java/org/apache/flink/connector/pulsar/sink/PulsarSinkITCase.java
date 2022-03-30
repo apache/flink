@@ -61,7 +61,7 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
     @ParameterizedTest
     @EnumSource(DeliveryGuarantee.class)
     void writeRecordsToPulsar(DeliveryGuarantee guarantee) throws Exception {
-        // A random topic with partition 1.
+        // A random topic with partition 4.
         String topic = randomAlphabetic(8);
         operator().createTopic(topic, 4);
         int counts = ThreadLocalRandom.current().nextInt(100, 200);

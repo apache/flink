@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -70,7 +71,10 @@ public final class PulsarSinkConfigUtils {
             PulsarClient client, Schema<T> schema, SinkConfiguration configuration) {
         ProducerBuilder<T> builder = client.newProducer(schema);
 
-        configuration.useOption(PULSAR_PRODUCER_NAME, builder::producerName);
+        configuration.useOption(
+                PULSAR_PRODUCER_NAME,
+                producerName -> String.format(producerName, UUID.randomUUID()),
+                builder::producerName);
         configuration.useOption(
                 PULSAR_SEND_TIMEOUT_MS,
                 Math::toIntExact,
