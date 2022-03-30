@@ -28,6 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkRoundRobinPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ValueFieldsStrategy;
 import org.apache.flink.table.api.TableException;
@@ -310,8 +311,9 @@ class KafkaConnectorOptionsUtil {
                                 case SINK_PARTITIONER_VALUE_FIXED:
                                     return Optional.of(new FlinkFixedPartitioner<>());
                                 case SINK_PARTITIONER_VALUE_DEFAULT:
-                                case SINK_PARTITIONER_VALUE_ROUND_ROBIN:
                                     return Optional.empty();
+                                case SINK_PARTITIONER_VALUE_ROUND_ROBIN:
+                                    return Optional.of(new FlinkRoundRobinPartitioner<>());
                                     // Default fallback to full class name of the partitioner.
                                 default:
                                     return Optional.of(
