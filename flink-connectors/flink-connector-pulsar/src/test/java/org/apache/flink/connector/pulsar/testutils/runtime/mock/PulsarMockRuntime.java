@@ -64,9 +64,8 @@ public class PulsarMockRuntime implements PulsarRuntime {
     @Override
     public void tearDown() {
         try {
-            pulsarService.close();
             operator.close();
-            this.operator = null;
+            pulsarService.close();
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

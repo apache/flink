@@ -16,41 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.pulsar.cases;
+package org.apache.flink.tests.util.pulsar.source;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicTemplateContext;
+import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
+/** We would consume from test splits by using {@link SubscriptionType#Exclusive} subscription. */
+public class ExclusiveSubscriptionContext extends MultipleTopicConsumingContext {
 
-/** We would consume from test splits by using {@link SubscriptionType#Failover} subscription. */
-public class FailoverSubscriptionContext extends MultipleTopicTemplateContext {
-
-    public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
-        this(environment, Collections.emptyList());
-    }
-
-    public FailoverSubscriptionContext(
-            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
-        super(environment, connectorJarPaths);
+    public ExclusiveSubscriptionContext(PulsarTestEnvironment environment) {
+        super(environment);
     }
 
     @Override
     protected String displayName() {
-        return "consuming message by Failover";
+        return "consume message by Exclusive";
     }
 
     @Override
     protected String subscriptionName() {
-        return "pulsar-failover-subscription";
+        return "pulsar-exclusive-subscription";
     }
 
     @Override
     protected SubscriptionType subscriptionType() {
-        return SubscriptionType.Failover;
+        return SubscriptionType.Exclusive;
     }
 }

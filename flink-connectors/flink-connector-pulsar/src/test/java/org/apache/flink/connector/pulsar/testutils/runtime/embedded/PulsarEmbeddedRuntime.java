@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.ServiceConfigurationUtils.brokerUrl;
 import static org.apache.pulsar.broker.ServiceConfigurationUtils.webServiceUrl;
 
-/** Providing a embedded pulsar server. We use this runtime for transaction related tests. */
+/** Providing an embedded pulsar server. We use this runtime for transaction related tests. */
 public class PulsarEmbeddedRuntime implements PulsarRuntime {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarEmbeddedRuntime.class);
 
@@ -86,7 +86,6 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
         try {
             if (operator != null) {
                 operator.close();
-                this.operator = null;
             }
             if (pulsarService != null) {
                 pulsarService.close();

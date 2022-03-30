@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.testutils.runtime;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfiguration;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.testframe.external.ExternalContext;
@@ -81,6 +82,7 @@ import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNam
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.SubscriptionMode.Durable;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
+import static org.apache.pulsar.common.naming.TopicDomain.persistent;
 
 /**
  * A pulsar cluster operator used for operating pulsar instance. It's serializable for using in
@@ -120,6 +122,16 @@ public class PulsarRuntimeOperator implements Closeable {
         this.admin = sneakyClient(() -> PulsarAdmin.builder().serviceHttpUrl(adminUrl).build());
         this.producers = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
+    }
+
+    public boolean topicExists(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        String namespace = topicName.getNamespace();
+        String parsedTopic = topicName.toString();
+
+        return sneakyAdmin(() -> admin().topics().getList(namespace, persistent)).stream()
+                .map(TopicNameUtils::topicName)
+                .anyMatch(name -> name.equals(parsedTopic));
     }
 
     /**
@@ -178,10 +190,12 @@ public class PulsarRuntimeOperator implements Closeable {
      */
     public void createTopic(String topic, int numberOfPartitions) {
         checkArgument(numberOfPartitions >= 0);
-        if (numberOfPartitions <= 0) {
-            createNonPartitionedTopic(topic);
+        checkArgument(!topicExists(topic), "Topic %s exists.", topic);
+
+        if (numberOfPartitions == 0) {
+            sneakyAdmin(() -> admin().topics().createNonPartitionedTopic(topic));
         } else {
-            createPartitionedTopic(topic, numberOfPartitions);
+            sneakyAdmin(() -> admin().topics().createPartitionedTopic(topic, numberOfPartitions));
         }
     }
 
@@ -195,10 +209,12 @@ public class PulsarRuntimeOperator implements Closeable {
         PartitionedTopicMetadata metadata =
                 sneakyAdmin(() -> admin().topics().getPartitionedTopicMetadata(topic));
         checkArgument(
-                metadata.partitions < newPartitionsNum,
+                metadata.partitions <= newPartitionsNum,
                 "The new partition size which should exceed previous size.");
 
-        sneakyAdmin(() -> admin().topics().updatePartitionedTopic(topic, newPartitionsNum));
+        if (metadata.partitions < newPartitionsNum) {
+            sneakyAdmin(() -> admin().topics().updatePartitionedTopic(topic, newPartitionsNum));
+        }
     }
 
     /**
@@ -361,8 +377,12 @@ public class PulsarRuntimeOperator implements Closeable {
     public <T> Message<T> receiveMessage(String topic, Schema<T> schema, Duration timeout) {
         try {
             Consumer<T> consumer = createConsumer(topic, schema);
-            Message<T> message = consumer.receiveAsync().get(timeout.toMillis(), MILLISECONDS);
-            consumer.acknowledgeCumulative(message.getMessageId());
+            int millis = Math.toIntExact(timeout.toMillis());
+            Message<T> message = consumer.receive(millis, MILLISECONDS);
+
+            if (message != null) {
+                consumer.acknowledgeCumulative(message.getMessageId());
+            }
 
             return message;
         } catch (Exception e) {
@@ -486,24 +506,6 @@ public class PulsarRuntimeOperator implements Closeable {
     }
 
     // --------------------------- Private Methods -----------------------------
-
-    private void createNonPartitionedTopic(String topic) {
-        try {
-            admin().lookups().lookupTopic(topic);
-            sneakyAdmin(() -> admin().topics().expireMessagesForAllSubscriptions(topic, 0));
-        } catch (PulsarAdminException e) {
-            sneakyAdmin(() -> admin().topics().createNonPartitionedTopic(topic));
-        }
-    }
-
-    private void createPartitionedTopic(String topic, int numberOfPartitions) {
-        try {
-            admin().lookups().lookupPartitionedTopic(topic);
-            sneakyAdmin(() -> admin().topics().expireMessagesForAllSubscriptions(topic, 0));
-        } catch (PulsarAdminException e) {
-            sneakyAdmin(() -> admin().topics().createPartitionedTopic(topic, numberOfPartitions));
-        }
-    }
 
     @SuppressWarnings("unchecked")
     private <T> Producer<T> createProducer(String topic, Schema<T> schema)

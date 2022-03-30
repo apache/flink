@@ -16,43 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.cases;
+package org.apache.flink.tests.util.pulsar.source;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
+import org.apache.flink.connector.pulsar.testutils.source.cases.MultipleTopicConsumingContext;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
+/** We would consume from test splits by using {@link SubscriptionType#Failover} subscription. */
+public class FailoverSubscriptionContext extends MultipleTopicConsumingContext {
 
-/**
- * Pulsar external context that will create multiple topics with only one partitions as source
- * splits.
- */
-public class MultipleTopicConsumingContext extends MultipleTopicTemplateContext {
-
-    public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
-        this(environment, Collections.emptyList());
-    }
-
-    public MultipleTopicConsumingContext(
-            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
-        super(environment, connectorJarPaths);
+    public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
+        super(environment);
     }
 
     @Override
     protected String displayName() {
-        return "consuming message on multiple topic";
+        return "consume message by Failover";
     }
 
     @Override
     protected String subscriptionName() {
-        return "flink-pulsar-multiple-topic-test";
+        return "pulsar-failover-subscription";
     }
 
     @Override
     protected SubscriptionType subscriptionType() {
-        return SubscriptionType.Exclusive;
+        return SubscriptionType.Failover;
     }
 }

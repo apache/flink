@@ -19,36 +19,45 @@
 package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connector.testframe.external.source.DataStreamSourceExternalContext;
+import org.apache.flink.connector.testframe.external.ExternalContext;
+
+import org.apache.pulsar.client.api.Schema;
 
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-/** Common test context for pulsar based test. */
-public abstract class PulsarTestContext<T> implements DataStreamSourceExternalContext<T> {
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicName;
+
+/**
+ * The implementation for Flink connector test tools. Providing the common test case writing
+ * constraint for both source, sink and table API.
+ */
+public abstract class PulsarTestContext<T> implements ExternalContext {
+
+    private final Set<String> generateTopics = new HashSet<>();
 
     protected final PulsarRuntimeOperator operator;
-    protected final List<URL> connectorJarPaths;
+    // The schema used for consuming and producing messages between Pulsar and tests.
+    protected final Schema<T> schema;
 
-    protected PulsarTestContext(PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+    protected PulsarTestContext(PulsarTestEnvironment environment, Schema<T> schema) {
         this.operator = environment.operator();
-        this.connectorJarPaths = connectorJarPaths;
+        this.schema = schema;
     }
 
-    // Helper methods for generating data.
-
-    protected List<String> generateStringTestData(int splitIndex, long seed) {
-        int recordNum = 300;
-        List<String> records = new ArrayList<>(recordNum);
-        for (int i = 0; i < recordNum; i++) {
-            records.add(splitIndex + "-" + i);
-        }
-
-        return records;
-    }
-
+    /** Implement this method for providing a more friendly test name in IDE. */
     protected abstract String displayName();
+
+    /**
+     * Add the generated topic into the testing context, They would be cleaned after all the cases
+     * have finished.
+     */
+    protected final void registerTopic(String topic) {
+        generateTopics.add(topicName(topic));
+    }
 
     @Override
     public String toString() {
@@ -57,6 +66,14 @@ public abstract class PulsarTestContext<T> implements DataStreamSourceExternalCo
 
     @Override
     public List<URL> getConnectorJarPaths() {
-        return connectorJarPaths;
+        // We don't need any tests jar definition. They are provided in docker related environments.
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void close() throws Exception {
+        for (String topic : generateTopics) {
+            operator.deleteTopic(topic);
+        }
     }
 }

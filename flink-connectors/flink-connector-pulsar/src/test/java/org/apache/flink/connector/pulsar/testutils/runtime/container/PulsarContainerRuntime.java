@@ -124,7 +124,6 @@ public class PulsarContainerRuntime implements PulsarRuntime {
         try {
             if (operator != null) {
                 operator.close();
-                this.operator = null;
             }
             container.stop();
             started.compareAndSet(true, false);

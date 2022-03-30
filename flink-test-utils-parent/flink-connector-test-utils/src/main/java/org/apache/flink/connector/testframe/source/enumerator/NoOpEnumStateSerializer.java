@@ -22,7 +22,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
-/** Mock enumerator state seializer. */
+/** Mock enumerator state serializer. */
 public class NoOpEnumStateSerializer implements SimpleVersionedSerializer<NoOpEnumState> {
     @Override
     public int getVersion() {

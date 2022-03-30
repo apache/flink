@@ -68,7 +68,7 @@ public class TopicRange implements Serializable {
         return new Range(start, end);
     }
 
-    /** Create a topic range which contains the fully hash range. */
+    /** Create a topic range which contains the full hash range. */
     public static TopicRange createFullRange() {
         return new TopicRange(MIN_RANGE, MAX_RANGE);
     }

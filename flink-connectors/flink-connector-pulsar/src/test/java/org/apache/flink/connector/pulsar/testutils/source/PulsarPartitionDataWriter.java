@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils;
+package org.apache.flink.connector.pulsar.testutils.source;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
@@ -25,20 +25,26 @@ import org.apache.pulsar.client.api.Schema;
 
 import java.util.List;
 
-/** Source split data writer for writing test data into a Pulsar topic partition. */
-public class PulsarPartitionDataWriter implements ExternalSystemSplitDataWriter<String> {
+/**
+ * Source split data writer for writing test data into a Pulsar topic partition. This writer doesn't
+ * need to be closed.
+ */
+public class PulsarPartitionDataWriter<T> implements ExternalSystemSplitDataWriter<T> {
 
     private final PulsarRuntimeOperator operator;
     private final String fullTopicName;
+    private final Schema<T> schema;
 
-    public PulsarPartitionDataWriter(PulsarRuntimeOperator operator, String fullTopicName) {
+    public PulsarPartitionDataWriter(
+            PulsarRuntimeOperator operator, String fullTopicName, Schema<T> schema) {
         this.operator = operator;
         this.fullTopicName = fullTopicName;
+        this.schema = schema;
     }
 
     @Override
-    public void writeRecords(List<String> records) {
-        operator.sendMessages(fullTopicName, Schema.STRING, records);
+    public void writeRecords(List<T> records) {
+        operator.sendMessages(fullTopicName, schema, records);
     }
 
     @Override
