@@ -33,6 +33,8 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.types.RowUtils;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -110,6 +112,7 @@ import java.time.Duration;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -435,7 +438,9 @@ public class HiveInspectors {
 
             List<? extends StructField> fields = structInspector.getAllStructFieldRefs();
 
-            Row row = new Row(fields.size());
+            final Object[] fieldByPosition = new Object[fields.size()];
+
+            LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
             // StandardStructObjectInspector.getStructFieldData in Hive-1.2.1 only accepts array or
             // list as data
             if (!data.getClass().isArray()
@@ -443,15 +448,18 @@ public class HiveInspectors {
                     && (inspector instanceof StandardStructObjectInspector)) {
                 data = new Object[] {data};
             }
-            for (int i = 0; i < row.getArity(); i++) {
-                row.setField(
-                        i,
+            for (int i = 0; i < fields.size(); i++) {
+                StructField field = fields.get(i);
+                fieldByPosition[i] =
                         toFlinkObject(
-                                fields.get(i).getFieldObjectInspector(),
-                                structInspector.getStructFieldData(data, fields.get(i)),
-                                hiveShim));
+                                field.getFieldObjectInspector(),
+                                structInspector.getStructFieldData(data, field),
+                                hiveShim);
+                positionByName.put(field.getFieldName(), i);
             }
-            return row;
+
+            return RowUtils.createRowWithNamedPositions(
+                    RowKind.INSERT, fieldByPosition, positionByName);
         }
         throw new FlinkHiveUDFException(
                 String.format("Unwrap does not support ObjectInspector '%s' yet", inspector));

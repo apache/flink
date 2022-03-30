@@ -74,10 +74,10 @@ public class HiveModuleTest {
     private void verifyNumBuiltInFunctions(String hiveVersion, HiveModule hiveModule) {
         switch (hiveVersion) {
             case HIVE_VERSION_V2_3_9:
-                assertThat(hiveModule.listFunctions()).hasSize(274);
+                assertThat(hiveModule.listFunctions()).hasSize(275);
                 break;
             case HIVE_VERSION_V3_1_1:
-                assertThat(hiveModule.listFunctions()).hasSize(293);
+                assertThat(hiveModule.listFunctions()).hasSize(294);
                 break;
             default:
                 fail("Unknown test version " + hiveVersion);

@@ -608,6 +608,38 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testNestType() throws Exception {
+        tableEnv.executeSql("CREATE TABLE dummy (i int)");
+        tableEnv.executeSql("INSERT INTO TABLE dummy VALUES (42)").await();
+        tableEnv.executeSql(
+                        "INSERT INTO TABLE nested SELECT\n"
+                                + "  1, named_struct('f1', false, 'f2', 'foo', 'f3', named_struct('f4', 4, 'f5', cast(5.0 as double)), 'f6', 4),\n"
+                                + "  named_struct('f7', 'f7', 'f8', named_struct('f9', true, 'f10', array(10, 11), 'f11', map('key1', true, 'key2', false))),\n"
+                                + "  named_struct('f12', array(named_struct('f13', 'foo', 'f14', 14), named_struct('f13', 'bar', 'f14', 28))),\n"
+                                + "  map('key1', named_struct('f15', 1), 'key2', named_struct('f15', 2)),\n"
+                                + "  named_struct('f16', array(named_struct('f17', 'foo', 'f18', named_struct('f19', 14)), named_struct('f17', 'bar', 'f18', named_struct('f19', 28)))),\n"
+                                + "  map('key1', named_struct('f20', array(named_struct('f21', named_struct('f22', 1)))),\n"
+                                + "      'key2', named_struct('f20', array(named_struct('f21', named_struct('f22', 2)))))\n"
+                                + "FROM dummy")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select s3.f12[0].f14 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[14]]");
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT s6['key1'].f20.f21.f22 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[[1]]]");
+
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT s5.f16.f18.f19 FROM nested").collect());
+        assertThat(result.toString()).isEqualTo("[+I[[14, 28]]]");
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
