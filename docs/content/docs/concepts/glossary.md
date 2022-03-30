@@ -76,16 +76,25 @@ For providing exactly-once guarantees, Flink aligns the streams at operators tha
 input streams, so that the snapshot will reflect the state resulting from consuming events from both 
 input streams up to (but not past) both barriers. 
 
+See [checkpoint barrier](#checkpoint-barrier).
+
 #### Batch Processing
 
-See [checkpoint barrier](#checkpoint-barrier).
+This commonly describes the processing and analysis on a set of data that have already been stored 
+over a period of time (i.e. in groups or batches). The results are usually not available in real-time.
+In the context of Flink, batch processing refers to a [Job](#flink-job) which is run with `ExecutionMode.BATCH`.
+This implies that the data is not only bounded, but that the engine is taking advantage of the bounded 
+nature of the data by applying batch processing techniques instead of stream processing techniques.
 
 #### Bounded Streams
 
 Flink treats [bounded data](https://flink.apache.org/flink-architecture.html) as bounded [DataStreams](#datastream), 
-which have a defined start and end. They can be processed by ingesting all data before performing any 
-computations. Ordered ingestion is not required to process bounded streams because a bounded data set 
-can always be sorted. Processing of bounded streams is also known as [batch processing](#batch-processing).
+which have a defined start and end, known before the beginning of processing. Bounded streams can be 
+processed by ingesting all data before performing any computations. Ordered ingestion is not required 
+to process bounded streams because a bounded data set can always be sorted. 
+
+When doing stream processing, Flink can apply optimizations to bounded streams, while when doing [batch 
+processing](#batch-processing), Flink requires that every input stream is a bounded stream.
 
 #### Checkpoint
 
@@ -132,7 +141,7 @@ be used to implement streaming joins.
 #### Connectors
 
 Connectors allow [Flink applications](#flink-applications) to read from and write to various external 
-systems. They support multiple formats in order to decode/encode data from/to the existing/desired 
+systems. They support multiple [formats](#format) in order to decode/encode data from/to the existing/desired 
 format of external systems.
 
 This is a term often used to describe a [sink](#sink)/[source](#source) implementation for a specific 
@@ -183,12 +192,13 @@ can be input and/or output of a stream processing application. Events are specia
 #### Event Time
 
 The time when an [event](#event) occurred, as recorded by the device producing (or storing) the event.
-For reproducible results, you should use event time because the result does not depend on when the 
-calculation is performed.
+When developing streaming applications, it is good practice for the source of the event to attach the 
+event time to the event, in order for the stream processor to achieve reproducible results that do not 
+depend on when the calculation is performed.
 
-If you want to use event time, you will also need to supply a {{< javadoc file="org/apache/flink/streaming/api/functions/TimestampExtractor.html" name="Timestamp Extractor" >}} 
-and {{< javadoc file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html" name="Watermark Generator" >}} 
-that Flink will use to track the progress of event time.
+The various Flink APIs provides different ways to specify how to extract the event time from the event 
+instances (and track its progress), such as {{< javadoc file="org/apache/flink/streaming/api/functions/TimestampExtractor.html" name="Timestamp Extractor" >}} 
+for DataStream API and timestamp column for SQL/Table API.
 
 #### Exactly-Once Delivery Guarantee
 
@@ -202,7 +212,11 @@ See [Physical Graph](#physical-graph).
 
 #### Format
 
-A table format is a storage format that defines how to map binary data onto table columns.
+A format is a way to define how to map binary data from one source to another.  For example, table 
+formats define how to store and map binary data onto table columns.  When [records](#record) come from
+"transient" sources in a [DataStream](#datastream) application, formats can help map binary data to 
+data types such as [POJOs](#pojo). 
+
 Flink comes with a variety of built-in output formats that can be used with table [connectors](#connector).
 
 #### Ingestion Time
@@ -220,7 +234,7 @@ This is a dedicated [Flink cluster](#(flink)-cluster) that only executes a singl
 The lifetime of the Flink cluster is bound to the lifetime of the Flink job. This deployment mode has 
 been deprecated since Flink 1.15.
 
-#### JobGraph
+#### Job Graph
 
 See [Logical Graph](#logical-graph).
 
@@ -246,9 +260,12 @@ are then used by Flink to determine whether jobs should be subject to recovery i
 
 #### Key Group
 
-These are the atomic units by which Flink can redistribute [keyed state](#keyed-state). There are 
-exactly as many key groups as the defined maximum parallelism. During execution, each parallel instance 
-of a keyed operator works with the keys for one or more key groups.
+This is a disjoint subset of keys, for a given key type, spanning a certain range of keys. Flink creates 
+a [keyed state](#keyed-state) bucket for each key group, always assigning the state of a specific key 
+to a specific bucket.
+
+There are exactly as many key groups as the defined maximum parallelism. During execution, each parallel 
+instance of a keyed operator works with the keys for one or more key groups.
 
 #### Keyed State
 
@@ -264,8 +281,10 @@ Flink supports several different types of keyed state, with the simplest one bei
 
 #### Keyed Stream
 
-A keyed stream is a [DataStream](#DataStream) on which [operator state](#operator-state) is partitioned 
-by a key attribute. Typical operations supported by a DataStream are also possible on a keyed stream, 
+A keyed stream is a [stream](#stream) on which [operator state](#operator-state) is partitioned 
+by a key attribute. 
+
+Typical operations supported by a [DataStream](#datastream) are also possible on a keyed stream, 
 except for partitioning methods such as shuffle, forward, and keyBy.
 
 #### Lateness
@@ -353,13 +372,7 @@ or [partitions](#partition) of [streams](#stream).
 #### POJO
 
 This is a composite data type and can be serialized with Flink's serializer. Flink recognizes a data 
-type as a POJO type (and allows “by-name” field referencing) if the following conditions are met:
-
-- the class is public and standalone (no non-static inner class)
-- the class has a public no-argument constructor
-- all non-static, non-transient fields in the class (and all superclasses) are either public (and 
-  non-final) or have public getter- and setter- methods that follow the Java naming conventions for 
-  getters and setters
+type as a POJO type (and allows “by-name” field referencing) if certain [conditions]({{< ref "/docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos) are met.
   
 Flink analyzes the structure of POJO types and can process POJOs more efficiently than general types.
 
