@@ -293,17 +293,16 @@ Lateness is defined relative to the [watermarks](#watermark). A `watermark(t)` a
 is complete up through to time `t`. A [record](#record) with timestamp `s` is considered late if it 
 arrives after any watermark whose timestamp is `≤ s`.
 
-#### ListState<T>
+#### List State
 
 This is a type of [keyed state](#keyed-state) that keeps a list of elements per key. You can append 
-elements and retrieve an Iterable over all currently stored elements. Elements are added using add(T) 
-or addAll(List<T>). The Iterable can be retrieved using Iterable<T> get().
+elements and retrieve an Iterable over all currently stored elements.
 
 #### Logical Graph
 
 This is a directed graph where the nodes are [operators](#operator) and the edges define input/output 
-relationships of the operators and correspond to [DataStreams](#datastreams). A logical graph is created 
-by submitting jobs to a [Flink cluster](#(flink)-cluster) from a [Flink application](#flink-application).
+relationships of the operators and correspond to [DataStreams](#datastreams) or SQL queries. A logical 
+graph is created by submitting jobs to a [Flink cluster](#(flink)-cluster) from a [Flink application](#flink-application).
 
 Logical graphs are also often referred to as [dataflow](#dataflow).
 
@@ -317,20 +316,19 @@ hash tables, or RocksDB. Flink’s runtime encodes the states and writes them in
 
 [Keyed state](#keyed-state) and [operator state](#operator-state) exist in two forms: managed and [raw](#raw-state).
 
-#### MapState<UK, UV>
+#### Map State
 
 This is a type of [keyed state](#keyed-state) that keeps a list of mappings. You can put key-value 
-pairs into the state and retrieve an Iterable over all currently stored mappings. Mappings are added 
-using put(UK, UV) or putAll(Map<UK, UV>). The value associated with a key can be retrieved using get(UK).
+pairs into the state and retrieve an Iterable over all currently stored mappings.
 
-#### Non-keyed State
+#### Non-Keyed State
 
 This type of state is bound to one parallel operator instance and is also called [operator state](#operator-state). 
 
 It is possible to work with [managed state](#managed-state) in non-keyed contexts but it is unusual 
 for user-defined functions to need non-keyed state and the interfaces involved would be different. 
 
-This feature is most often used in the implementation of [sources](#source) and [sinks](#sink).
+This feature is often used in the implementation of [sources](#source) and [sinks](#sink).
 
 #### Offset
 
