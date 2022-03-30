@@ -84,9 +84,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -132,6 +135,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     private CompletableFuture<JobID> cleanupJobFuture;
     private CompletableFuture<JobID> cleanupJobHADataFuture;
     private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
+    private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
 
     @BeforeClass
     public static void setupClass() {
@@ -213,7 +217,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                 heartbeatServices,
                                 archivedExecutionGraphStore,
                                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                                VoidHistoryServerArchivist.INSTANCE,
+                                historyServerArchivist,
                                 null,
                                 UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
                                 jobGraphWriter,
@@ -635,6 +639,75 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         assertThat(cleanupJobFuture.get(), equalTo(jobId));
         assertThat(deleteAllHABlobsFuture.get(), equalTo(jobId));
+    }
+
+    @Test
+    public void testArchivingFinishedJobToHistoryServer() throws Exception {
+
+        final OneShotLatch archivingLatch = new OneShotLatch();
+        final CompletableFuture<Acknowledge> archiveFuture = new CompletableFuture<>();
+
+        historyServerArchivist =
+                executionGraphInfo -> {
+                    archivingLatch.trigger();
+                    return archiveFuture;
+                };
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob(0);
+
+        finishJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        archivingLatch.await();
+
+        // The cleanup is not triggered before archiving is done
+        assertThatNoCleanupWasTriggered();
+
+        archiveFuture.complete(Acknowledge.get());
+
+        assertGlobalCleanupTriggered(jobId);
+    }
+
+    @Test
+    public void testNotArchivingSuspendedJobToHistoryServer() throws Exception {
+
+        final AtomicBoolean isArchived = new AtomicBoolean(false);
+
+        historyServerArchivist =
+                executionGraphInfo -> {
+                    isArchived.set(true);
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                };
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitJob(0);
+
+        suspendJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertLocalCleanupTriggered(jobId);
+        dispatcher.getJobTerminationFuture(jobId, Time.hours(1)).join();
+
+        assertFalse(
+                "Archiving should not be triggered for a non-globally terminal job.",
+                isArchived.get());
+    }
+
+    private void assertThatNoCleanupWasTriggered() {
+        assertFalse(cleanupJobFuture.isDone());
+        assertFalse(deleteAllHABlobsFuture.isDone());
+        assertFalse(cleanupJobHADataFuture.isDone());
+    }
+
+    private void assertLocalCleanupTriggered(JobID jobId)
+            throws ExecutionException, InterruptedException {
+        assertEquals(cleanupJobFuture.get(), jobId);
+        assertFalse(deleteAllHABlobsFuture.isDone());
+        assertFalse(cleanupJobHADataFuture.isDone());
+    }
+
+    private void assertGlobalCleanupTriggered(JobID jobId)
+            throws ExecutionException, InterruptedException {
+        assertEquals(cleanupJobFuture.get(), jobId);
+        assertEquals(deleteAllHABlobsFuture.get(), jobId);
+        assertEquals(cleanupJobHADataFuture.get(), jobId);
     }
 
     private static final class TestingBlobServer extends BlobServer {
