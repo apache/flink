@@ -191,7 +191,10 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
             assertEquals(expectedResult, actualResult);
 
-            TestUtils.waitUntilExternalizedCheckpointCreated(checkpointDir);
+            // ensure contents of state within SubtaskIndexFlatMapper are all included
+            // in the last checkpoint (refer to FLINK-26882 for more details).
+            cluster.getMiniCluster().triggerCheckpoint(jobGraph.getJobID()).get();
+
             client.cancel(jobGraph.getJobID()).get();
             TestUtils.waitUntilJobCanceled(jobGraph.getJobID(), client);
             return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir).getAbsolutePath();
