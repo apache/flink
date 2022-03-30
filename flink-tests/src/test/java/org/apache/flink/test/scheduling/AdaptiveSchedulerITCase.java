@@ -34,6 +34,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -67,9 +68,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
@@ -180,7 +184,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     }
 
     @Test
-    public void testStopWithSavepointFailOnStop() throws Exception {
+    public void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
@@ -190,18 +194,23 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
-        try {
-            client.stopWithSavepoint(
-                            false,
-                            tempFolder.newFolder("savepoint").getAbsolutePath(),
-                            SavepointFormatType.CANONICAL)
-                    .get();
-            fail("Expect exception");
-        } catch (ExecutionException e) {
-            assertThat(e, containsCause(FlinkException.class));
-        }
-        // expect job to run again (maybe restart)
-        CommonTestUtils.waitUntilCondition(() -> client.getJobStatus().get() == JobStatus.RUNNING);
+        final CompletableFuture<String> savepointCompleted =
+                client.stopWithSavepoint(
+                        false,
+                        tempFolder.newFolder("savepoint").getAbsolutePath(),
+                        SavepointFormatType.CANONICAL);
+        final Throwable savepointException =
+                assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
+        assertThrowable(
+                savepointException,
+                throwable ->
+                        throwable instanceof StopWithSavepointStoppingException
+                                && throwable
+                                        .getMessage()
+                                        .startsWith("A savepoint has been created at: "));
+        assertThat(
+                client.getJobStatus().get(),
+                either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
     }
 
     @Test
