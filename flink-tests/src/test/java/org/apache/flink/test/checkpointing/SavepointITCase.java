@@ -145,6 +145,7 @@ import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -296,8 +297,6 @@ public class SavepointITCase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
-    private static final OneShotLatch stopWithSavepointRestartLatch = new OneShotLatch();
-
     @Test
     public void testStopWithSavepointFailsOverToSavepoint() throws Throwable {
         int sinkParallelism = 5;
@@ -342,7 +341,9 @@ public class SavepointITCase extends TestLogger {
                                     && throwable
                                             .getMessage()
                                             .startsWith("A savepoint has been created at: "));
-            assertThat(client.getJobStatus(jobGraph.getJobID()).get(), is(JobStatus.FAILED));
+            assertThat(
+                    client.getJobStatus(jobGraph.getJobID()).get(),
+                    either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
         } finally {
             cluster.after();
         }

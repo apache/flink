@@ -35,14 +35,22 @@ public class StopWithSavepointStoppingException extends FlinkException {
     private final String savepointPath;
 
     public StopWithSavepointStoppingException(String savepointPath, JobID jobID) {
-        super(
-                String.format(
-                        "A savepoint has been created at: %s, but the corresponding job %s failed "
-                                + "during stopping. The savepoint is consistent, but might have "
-                                + "uncommitted transactions. If you want to commit the transaction "
-                                + "please restart a job from this savepoint.",
-                        savepointPath, jobID));
+        super(formatMessage(savepointPath, jobID));
         this.savepointPath = savepointPath;
+    }
+
+    public StopWithSavepointStoppingException(String savepointPath, JobID jobID, Throwable cause) {
+        super(formatMessage(savepointPath, jobID), cause);
+        this.savepointPath = savepointPath;
+    }
+
+    private static String formatMessage(String savepointPath, JobID jobID) {
+        return String.format(
+                "A savepoint has been created at: %s, but the corresponding job %s failed "
+                        + "during stopping. The savepoint is consistent, but might have "
+                        + "uncommitted transactions. If you want to commit the transaction "
+                        + "please restart a job from this savepoint.",
+                savepointPath, jobID);
     }
 
     public String getSavepointPath() {
