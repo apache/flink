@@ -86,10 +86,10 @@ public class HBaseWriteOptions implements Serializable {
             return false;
         }
         HBaseWriteOptions that = (HBaseWriteOptions) o;
-        return bufferFlushMaxSizeInBytes == that.bufferFlushMaxSizeInBytes
-                && bufferFlushMaxRows == that.bufferFlushMaxRows
-                && bufferFlushIntervalMillis == that.bufferFlushIntervalMillis
-                && parallelism == that.parallelism;
+        return Objects.equals(bufferFlushMaxSizeInBytes, that.bufferFlushMaxSizeInBytes)
+                && Objects.equals(bufferFlushMaxRows, that.bufferFlushMaxRows)
+                && Objects.equals(bufferFlushIntervalMillis, that.bufferFlushIntervalMillis)
+                && Objects.equals(parallelism, that.parallelism);
     }
 
     @Override
