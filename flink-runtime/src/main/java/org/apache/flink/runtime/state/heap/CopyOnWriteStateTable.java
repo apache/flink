@@ -43,7 +43,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
      * @param metaInfo the meta information, including the type serializer for state copy-on-write.
      * @param keySerializer the serializer of the key.
      */
-    CopyOnWriteStateTable(
+    protected CopyOnWriteStateTable(
             InternalKeyContext<K> keyContext,
             RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
             TypeSerializer<K> keySerializer) {
