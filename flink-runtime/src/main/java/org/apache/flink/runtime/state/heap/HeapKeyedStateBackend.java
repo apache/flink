@@ -122,7 +122,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             LocalRecoveryConfig localRecoveryConfig,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
-            HeapSnapshotStrategy<K> checkpointStrategy,
+            SnapshotStrategy<KeyedStateHandle, ?> checkpointStrategy,
             SnapshotExecutionType snapshotExecutionType,
             StateTableFactory<K> stateTableFactory,
             InternalKeyContext<K> keyContext) {
