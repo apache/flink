@@ -464,4 +464,25 @@ class TableSinkTest extends TableTestBase {
         |   WHERE rank_number < 10
         |""".stripMargin)
   }
+
+  @Test
+  def testInsertPartColumn(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE zm_test (
+         |  `a` BIGINT,
+         |  `m1` MAP<STRING, BIGINT>,
+         |  `m2` MAP<STRING NOT NULL, BIGINT>,
+         |  `m3` MAP<STRING, BIGINT NOT NULL>,
+         |  `m4` MAP<STRING NOT NULL, BIGINT NOT NULL>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO zm_test(`a`) SELECT `a` FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
 }
