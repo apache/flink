@@ -42,7 +42,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSn
     private final int keyGroupOffset;
 
     /** Snapshots of state partitioned by key-group. */
-    @Nonnull private final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
+    @Nonnull protected final List<CopyOnWriteStateMapSnapshot<K, N, S>> stateMapSnapshots;
 
     /**
      * Creates a new {@link CopyOnWriteStateTableSnapshot}.
@@ -50,7 +50,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSn
      * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a
      *     snapshot.
      */
-    CopyOnWriteStateTableSnapshot(
+    protected CopyOnWriteStateTableSnapshot(
             CopyOnWriteStateTable<K, N, S> owningStateTable,
             TypeSerializer<K> localKeySerializer,
             TypeSerializer<N> localNamespaceSerializer,
