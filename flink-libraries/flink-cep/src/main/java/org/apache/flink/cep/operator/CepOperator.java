@@ -422,8 +422,18 @@ public class CepOperator<IN, KEY, OUT>
      */
     private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
         try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
-            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+            Tuple2<
+                            Collection<Map<String, List<IN>>>,
+                            Collection<Tuple2<Map<String, List<IN>>, Long>>>
+                    pendingMatchesAndTimeout =
+                            nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+
+            Collection<Map<String, List<IN>>> pendingMatches = pendingMatchesAndTimeout.f0;
+            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut = pendingMatchesAndTimeout.f1;
+
+            if (!pendingMatches.isEmpty()) {
+                processMatchedSequences(pendingMatches, timestamp);
+            }
             if (!timedOut.isEmpty()) {
                 processTimedOutSequences(timedOut);
             }

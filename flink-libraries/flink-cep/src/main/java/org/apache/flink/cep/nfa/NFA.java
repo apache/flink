@@ -257,23 +257,30 @@ public class NFA<T> {
      * @param nfaState The NFAState object that we need to affect while processing
      * @param timestamp timestamp that indicates that there will be no more events with lower
      *     timestamp
-     * @return all timed outed partial matches
+     * @return all pending matches and timed outed partial matches
      * @throws Exception Thrown if the system cannot access the state.
      */
-    public Collection<Tuple2<Map<String, List<T>>, Long>> advanceTime(
-            final SharedBufferAccessor<T> sharedBufferAccessor,
-            final NFAState nfaState,
-            final long timestamp)
-            throws Exception {
+    public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>>
+            advanceTime(
+                    final SharedBufferAccessor<T> sharedBufferAccessor,
+                    final NFAState nfaState,
+                    final long timestamp)
+                    throws Exception {
 
+        final Collection<Map<String, List<T>>> pendingMatches = new ArrayList<>();
         final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
         final PriorityQueue<ComputationState> newPartialMatches =
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
         for (ComputationState computationState : nfaState.getPartialMatches()) {
             if (isStateTimedOut(computationState, timestamp)) {
-
-                if (handleTimeout) {
+                if (getState(computationState).isPending()) {
+                    // extract the Pending State
+                    Map<String, List<T>> pendingPattern =
+                            sharedBufferAccessor.materializeMatch(
+                                    extractCurrentMatches(sharedBufferAccessor, computationState));
+                    pendingMatches.add(pendingPattern);
+                } else if (handleTimeout) {
                     // extract the timed out event pattern
                     Map<String, List<T>> timedOutPattern =
                             sharedBufferAccessor.materializeMatch(
@@ -297,7 +304,7 @@ public class NFA<T> {
 
         sharedBufferAccessor.advanceTime(timestamp);
 
-        return timeoutResult;
+        return Tuple2.of(pendingMatches, timeoutResult);
     }
 
     private boolean isStateTimedOut(final ComputationState state, final long timestamp) {

@@ -477,7 +477,7 @@ public class NFAITCase extends TestLogger {
         for (StreamRecord<Event> event : events) {
 
             Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp());
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f1;
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -495,6 +495,74 @@ public class NFAITCase extends TestLogger {
         assertEquals(expectedTimeoutPatterns.size(), resultingTimeoutPatterns.size());
 
         assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
+    }
+
+    @Test
+    public void testPendingStateMatches() throws Exception {
+        List<StreamRecord<Event>> events = new ArrayList<>();
+        Set<Map<String, List<Event>>> resultingPendingMatches = new HashSet<>();
+        Set<Map<String, List<Event>>> expectedPendingMatches = new HashSet<>();
+
+        events.add(new StreamRecord<>(new Event(1, "start", 1.0), 1));
+        events.add(new StreamRecord<>(new Event(2, "middle", 1.0), 4));
+        events.add(new StreamRecord<>(new Event(3, "start", 1.0), 5));
+        events.add(new StreamRecord<>(new Event(4, "start", 1.0), 11));
+        events.add(new StreamRecord<>(new Event(5, "middle", 1.0), 18));
+
+        Map<String, List<Event>> pendingMatches1 = new HashMap<>();
+        pendingMatches1.put("start", Collections.singletonList(new Event(3, "start", 1.0)));
+
+        Map<String, List<Event>> pendingMatches2 = new HashMap<>();
+        pendingMatches2.put("start", Collections.singletonList(new Event(4, "start", 1.0)));
+
+        expectedPendingMatches.add(pendingMatches1);
+        expectedPendingMatches.add(pendingMatches2);
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            7907391379273505897L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .notFollowedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            -3268741540234334074L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .within(Time.milliseconds(5));
+
+        NFA<Event> nfa = compile(pattern, true);
+
+        NFAState nfaState = nfa.createInitialNFAState();
+
+        for (StreamRecord<Event> event : events) {
+            Collection<Map<String, List<Event>>> pendingMatches =
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f0;
+            resultingPendingMatches.addAll(pendingMatches);
+            nfa.process(
+                    sharedBufferAccessor,
+                    nfaState,
+                    event.getValue(),
+                    event.getTimestamp(),
+                    AfterMatchSkipStrategy.noSkip(),
+                    new TestTimerService());
+        }
+
+        assertEquals(2, resultingPendingMatches.size());
+        assertEquals(expectedPendingMatches.size(), resultingPendingMatches.size());
+        assertEquals(expectedPendingMatches, resultingPendingMatches);
     }
 
     @Test

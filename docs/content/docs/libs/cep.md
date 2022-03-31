@@ -636,7 +636,7 @@ or
 2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types.
 
 {{< hint warning >}}
-A pattern sequence cannot end in `notFollowedBy()`.
+A pattern sequence cannot end with `notFollowedBy()` if the time interval is not defined via `withIn()`.
 {{< /hint >}}
 
 {{< hint warning >}}
@@ -714,6 +714,35 @@ next.within(Time.seconds(10));
 {{< tab "Scala" >}}
 ```scala
 next.within(Time.seconds(10))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Notice that a pattern sequence can end with `notFollowedBy()` with temporal constraint
+E.g. a pattern like:
+
+{{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}
+{{< tab "Java" >}}
+```java
+Pattern.<Event>begin("start")
+    .next("middle").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("a");
+    }
+}).notFollowedBy("end").where(new SimpleCondition<Event>() {
+    @Override
+    public boolean filter(Event value) throws Exception {
+        return value.getName().equals("b");
+    }
+}).within(Time.seconds(10));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+Pattern.begin("start").where(_.getName().equals("a"))
+.notFollowedBy("end").where(_.getName == "b")
+.within(Time.seconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}
