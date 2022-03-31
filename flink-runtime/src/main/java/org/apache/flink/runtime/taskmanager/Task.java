@@ -422,7 +422,7 @@ public class Task
         }
 
         if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
-            //noinspection deprecation
+            // noinspection deprecation
             ((NettyShuffleEnvironment) shuffleEnvironment)
                     .registerLegacyNetworkMetrics(
                             metrics.getIOMetricGroup(), resultPartitionWriters, gates);
