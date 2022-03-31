@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assume;
@@ -39,6 +40,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -387,6 +389,44 @@ public class LocalFileSystemTest extends TestLogger {
                 fs.delete(filePath, true);
             }
         }
+    }
+
+    @Test(expected = ClosedChannelException.class)
+    public void testFlushMethodFailsOnClosedOutputStream() throws IOException {
+        testMethodCallFailureOnClosedStream(FSDataOutputStream::flush);
+    }
+
+    @Test(expected = ClosedChannelException.class)
+    public void testWriteIntegerMethodFailsOnClosedOutputStream() throws IOException {
+        testMethodCallFailureOnClosedStream(os -> os.write(0));
+    }
+
+    @Test(expected = ClosedChannelException.class)
+    public void testWriteBytesMethodFailsOnClosedOutputStream() throws IOException {
+        testMethodCallFailureOnClosedStream(os -> os.write(new byte[0]));
+    }
+
+    @Test(expected = ClosedChannelException.class)
+    public void testWriteBytesSubArrayMethodFailsOnClosedOutputStream() throws IOException {
+        testMethodCallFailureOnClosedStream(os -> os.write(new byte[0], 0, 0));
+    }
+
+    @Test(expected = ClosedChannelException.class)
+    public void testGetPosMethodFailsOnClosedOutputStream() throws IOException {
+        testMethodCallFailureOnClosedStream(FSDataOutputStream::getPos);
+    }
+
+    private void testMethodCallFailureOnClosedStream(
+            ThrowingConsumer<FSDataOutputStream, IOException> callback) throws IOException {
+        final FileSystem fs = FileSystem.getLocalFileSystem();
+        final FSDataOutputStream outputStream =
+                fs.create(
+                        new Path(
+                                temporaryFolder.getRoot().toString(),
+                                "close_fs_test_" + UUID.randomUUID()),
+                        WriteMode.OVERWRITE);
+        outputStream.close();
+        callback.accept(outputStream);
     }
 
     private Collection<File> createTargetDirectories(
