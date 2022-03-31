@@ -667,6 +667,22 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testInsertTimeStampToDecimal() throws Exception {
+        try {
+            tableEnv.executeSql("create table t1 (c1 DECIMAL(38,6))");
+            tableEnv.executeSql("create table t2 (c2 TIMESTAMP)");
+            tableEnv.executeSql("insert into t2 values('2029-06-05 14:28:29.23445')").await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t2").collect());
+            assertEquals("[+I[2029-06-05T14:28:29.234450]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table t1");
+            tableEnv.executeSql("drop table t2");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
