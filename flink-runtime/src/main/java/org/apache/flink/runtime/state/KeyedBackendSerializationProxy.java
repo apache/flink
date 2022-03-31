@@ -46,7 +46,7 @@ import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReade
  */
 public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
-    public static final int VERSION = 6;
+    private static final int VERSION = 6;
 
     private static final Map<Integer, Integer> META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER =
             new HashMap<>();
@@ -112,7 +112,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
     @Override
     public int[] getCompatibleVersions() {
-        return new int[] {VERSION, 5, 4, 3, 2, 1};
+        return new int[] {getVersion(), VERSION, 5, 4, 3, 2, 1};
     }
 
     @Override
@@ -165,17 +165,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
         }
         this.keySerializer = null;
 
-        Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(readVersion);
-        if (metaInfoSnapshotVersion == null) {
-            // this should not happen; guard for the future
-            throw new IOException(
-                    "Cannot determine corresponding meta info snapshot version for keyed backend serialization readVersion="
-                            + readVersion);
-        }
-        final StateMetaInfoReader stateMetaInfoReader =
-                StateMetaInfoSnapshotReadersWriters.getReader(
-                        metaInfoSnapshotVersion,
-                        StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
+        final StateMetaInfoReader stateMetaInfoReader = getMetaInfoReader(readVersion);
 
         int numKvStates = in.readShort();
         stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
@@ -185,5 +175,18 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
             stateMetaInfoSnapshots.add(snapshot);
         }
+    }
+
+    protected StateMetaInfoReader getMetaInfoReader(int readVersion) throws IOException {
+        Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(readVersion);
+        if (metaInfoSnapshotVersion == null) {
+            // this should not happen; guard for the future
+            throw new IOException(
+                    "Cannot determine corresponding meta info snapshot version for keyed backend serialization readVersion="
+                            + readVersion);
+        }
+        return StateMetaInfoSnapshotReadersWriters.getReader(
+                metaInfoSnapshotVersion,
+                StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
     }
 }
