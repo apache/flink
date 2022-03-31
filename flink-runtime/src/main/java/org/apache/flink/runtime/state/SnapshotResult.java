@@ -129,4 +129,16 @@ public class SnapshotResult<T extends StateObject> implements StateObject {
             @Nonnull T jobManagerState, @Nonnull T localState) {
         return new SnapshotResult<>(jobManagerState, localState);
     }
+
+    public boolean isEmpty() {
+        return jobManagerOwnedSnapshot == null && taskLocalSnapshot == null;
+    }
+
+    @Override
+    public String toString() {
+        return "jobManagerOwnedSnapshot="
+                + jobManagerOwnedSnapshot
+                + ", taskLocalSnapshot="
+                + taskLocalSnapshot;
+    }
 }

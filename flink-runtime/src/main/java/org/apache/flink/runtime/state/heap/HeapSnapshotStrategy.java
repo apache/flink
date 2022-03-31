@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.HeapSnapshotStrategy.MetadataWriter.MetadataWriterImpl;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -54,8 +57,10 @@ import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.
 import static org.apache.flink.runtime.state.CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult;
 
 /** A strategy how to perform a snapshot of a {@link HeapKeyedStateBackend}. */
-class HeapSnapshotStrategy<K>
-        implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotResources<K>> {
+@Internal
+// todo: move writer up and close access to this class
+public class HeapSnapshotStrategy<K>
+        implements SnapshotStrategy<KeyedStateHandle, HeapSnapshotResourcesBase<K>> {
 
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
     private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
@@ -64,6 +69,7 @@ class HeapSnapshotStrategy<K>
     private final KeyGroupRange keyGroupRange;
     private final StateSerializerProvider<K> keySerializerProvider;
     private final int totalKeyGroups;
+    private final StateSnapshotWriter snapshotWriter;
 
     HeapSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
@@ -72,7 +78,8 @@ class HeapSnapshotStrategy<K>
             LocalRecoveryConfig localRecoveryConfig,
             KeyGroupRange keyGroupRange,
             StateSerializerProvider<K> keySerializerProvider,
-            int totalKeyGroups) {
+            int totalKeyGroups,
+            StateSnapshotWriter snapshotWriter) {
         this.registeredKVStates = registeredKVStates;
         this.registeredPQStates = registeredPQStates;
         this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
@@ -80,10 +87,11 @@ class HeapSnapshotStrategy<K>
         this.keyGroupRange = keyGroupRange;
         this.keySerializerProvider = keySerializerProvider;
         this.totalKeyGroups = totalKeyGroups;
+        this.snapshotWriter = snapshotWriter;
     }
 
     @Override
-    public HeapSnapshotResources<K> syncPrepareResources(long checkpointId) {
+    public HeapSnapshotResourcesBase<K> syncPrepareResources(long checkpointId) {
         return HeapSnapshotResources.create(
                 registeredKVStates,
                 registeredPQStates,
@@ -95,47 +103,85 @@ class HeapSnapshotStrategy<K>
 
     @Override
     public SnapshotResultSupplier<KeyedStateHandle> asyncSnapshot(
-            HeapSnapshotResources<K> syncPartResource,
+            HeapSnapshotResourcesBase<K> syncPartResource,
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
 
-        List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
-        if (metaInfoSnapshots.isEmpty()) {
-            return snapshotCloseableRegistry -> SnapshotResult.empty();
+        return new HeapSnapshotWriter<>(
+                syncPartResource,
+                keyGroupRange,
+                keyGroupCompressionDecorator,
+                snapshotWriter,
+                localRecoveryConfig,
+                checkpointOptions,
+                CheckpointedStateScope.EXCLUSIVE,
+                checkpointId,
+                streamFactory,
+                new MetadataWriterImpl<>(syncPartResource, keyGroupCompressionDecorator));
+    }
+
+    public static class HeapSnapshotWriter<K> implements SnapshotResultSupplier<KeyedStateHandle> {
+        private final HeapSnapshotResourcesBase<K> syncPartResource;
+        private final KeyGroupRange keyGroupRange;
+        private final StreamCompressionDecorator keyGroupCompressionDecorator;
+        private final StateSnapshotWriter snapshotWriter;
+        private final LocalRecoveryConfig localRecoveryConfig;
+        private final CheckpointOptions checkpointOptions;
+        private final CheckpointedStateScope stateScope;
+        private final long checkpointId;
+        private final CheckpointStreamFactory streamFactory;
+        private final MetadataWriter metadataWriter;
+
+        public HeapSnapshotWriter(
+                HeapSnapshotResourcesBase<K> syncPartResource,
+                KeyGroupRange keyGroupRange,
+                StreamCompressionDecorator keyGroupCompressionDecorator,
+                StateSnapshotWriter snapshotWriter,
+                LocalRecoveryConfig localRecoveryConfig,
+                CheckpointOptions checkpointOptions,
+                CheckpointedStateScope stateScope,
+                long checkpointId,
+                CheckpointStreamFactory streamFactory,
+                MetadataWriter metadataWriter) {
+            this.syncPartResource = syncPartResource;
+            this.keyGroupRange = keyGroupRange;
+            this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
+            this.snapshotWriter = snapshotWriter;
+            this.localRecoveryConfig = localRecoveryConfig;
+            this.checkpointOptions = checkpointOptions;
+            this.stateScope = stateScope;
+            this.checkpointId = checkpointId;
+            this.streamFactory = streamFactory;
+            this.metadataWriter = metadataWriter;
         }
 
-        final KeyedBackendSerializationProxy<K> serializationProxy =
-                new KeyedBackendSerializationProxy<>(
-                        // TODO: this code assumes that writing a serializer is threadsafe, we
-                        // should support to
-                        // get a serialized form already at state registration time in the future
-                        syncPartResource.getKeySerializer(),
-                        metaInfoSnapshots,
-                        !Objects.equals(
-                                UncompressedStreamCompressionDecorator.INSTANCE,
-                                keyGroupCompressionDecorator));
+        @Override
+        public SnapshotResult<KeyedStateHandle> get(CloseableRegistry snapshotCloseableRegistry)
+                throws Exception {
 
-        final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
-                checkpointStreamSupplier =
-                        localRecoveryConfig.isLocalRecoveryEnabled()
-                                        && !checkpointOptions.getCheckpointType().isSavepoint()
-                                ? () ->
-                                        createDuplicatingStream(
-                                                checkpointId,
-                                                CheckpointedStateScope.EXCLUSIVE,
-                                                streamFactory,
-                                                localRecoveryConfig
-                                                        .getLocalStateDirectoryProvider()
-                                                        .orElseThrow(
-                                                                LocalRecoveryConfig
-                                                                        .localRecoveryNotEnabled()))
-                                : () ->
-                                        createSimpleStream(
-                                                CheckpointedStateScope.EXCLUSIVE, streamFactory);
+            List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
+            if (metaInfoSnapshots.isEmpty()) {
+                return SnapshotResult.empty();
+            }
 
-        return (snapshotCloseableRegistry) -> {
+            final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+                    checkpointStreamSupplier =
+                            localRecoveryConfig.isLocalRecoveryEnabled()
+                                            && !checkpointOptions.getCheckpointType().isSavepoint()
+                                    ? () ->
+                                            createDuplicatingStream(
+                                                    checkpointId,
+                                                    stateScope,
+                                                    streamFactory,
+                                                    localRecoveryConfig
+                                                            .getLocalStateDirectoryProvider()
+                                                            .orElseThrow(
+                                                                    LocalRecoveryConfig
+                                                                            .localRecoveryNotEnabled()))
+                                    : () -> createSimpleStream(stateScope, streamFactory);
+
             final Map<StateUID, Integer> stateNamesToId = syncPartResource.getStateNamesToId();
             final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
                     syncPartResource.getCowStateStableSnapshots();
@@ -149,7 +195,7 @@ class HeapSnapshotStrategy<K>
 
             final DataOutputViewStreamWrapper outView =
                     new DataOutputViewStreamWrapper(localStream);
-            serializationProxy.write(outView);
+            metadataWriter.write(outView);
 
             final long[] keyGroupRangeOffsets = new long[keyGroupRange.getNumberOfKeyGroups()];
 
@@ -162,14 +208,13 @@ class HeapSnapshotStrategy<K>
 
                 for (Map.Entry<StateUID, StateSnapshot> stateSnapshot :
                         cowStateStableSnapshots.entrySet()) {
-                    StateSnapshot.StateKeyGroupWriter partitionedSnapshot =
-                            stateSnapshot.getValue().getKeyGroupWriter();
                     try (OutputStream kgCompressionOut =
                             keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
                         DataOutputViewStreamWrapper kgCompressionView =
                                 new DataOutputViewStreamWrapper(kgCompressionOut);
                         kgCompressionView.writeShort(stateNamesToId.get(stateSnapshot.getKey()));
-                        partitionedSnapshot.writeStateInKeyGroup(kgCompressionView, keyGroupId);
+                        snapshotWriter.write(
+                                stateSnapshot.getValue(), kgCompressionView, keyGroupId);
                     } // this will just close the outer compression stream
                 }
             }
@@ -183,10 +228,38 @@ class HeapSnapshotStrategy<K>
             } else {
                 throw new IOException("Stream already unregistered.");
             }
-        };
+        }
     }
 
     public TypeSerializer<K> getKeySerializer() {
         return keySerializerProvider.currentSchemaSerializer();
+    }
+
+    public interface MetadataWriter {
+        void write(DataOutputViewStreamWrapper outView) throws IOException;
+
+        class MetadataWriterImpl<K> implements MetadataWriter {
+
+            private final KeyedBackendSerializationProxy<K> serializationProxy;
+
+            public MetadataWriterImpl(
+                    HeapSnapshotResourcesBase<K> resources, StreamCompressionDecorator decorator) {
+                serializationProxy =
+                        new KeyedBackendSerializationProxy<>(
+                                // TODO: this code assumes that writing a serializer is threadsafe,
+                                // we should support to get a serialized form already at state
+                                // registration time in the future
+                                resources.getKeySerializer(),
+                                resources.getMetaInfoSnapshots(),
+                                !Objects.equals(
+                                        UncompressedStreamCompressionDecorator.INSTANCE,
+                                        decorator));
+            }
+
+            @Override
+            public void write(DataOutputViewStreamWrapper outView) throws IOException {
+                serializationProxy.write(outView);
+            }
+        }
     }
 }
