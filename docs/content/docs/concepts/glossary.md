@@ -336,8 +336,13 @@ A number identifying how far you are from the beginning of a certain [stream](#s
 
 #### Operator
 
-An operator is a node of a [logical graph](#logical-graph). An operator performs a certain operation, 
-which is usually executed by a [function](#function). Sources and sinks are special operators for data
+An operator is a node of a [logical graph](#logical-graph) executing a specific stream processing logic. 
+In general, Flink's [stream](#stream) operators can have `N` input streams, `N` output streams, and 
+an arbitrary amount of [keyed state](#keyed-state)/global state assigned to it. Operator behavior can 
+usually be customized by user-provided [functions](#function). 
+
+An example is the map operator, which is a 1-input/1-output stream that transforms the input records 
+with a user-provided function. [Sources](#source) and [sinks](#sink) are special operators for data 
 ingestion and data egress.
 
 #### Operator Chain
@@ -440,8 +445,10 @@ savepoint is controlled by the user.
 This is the process of turning a data element in memory into a stream of bytes so that you can store 
 it on disk or send it over the network.
 
-Flink handles data types and serialization in a unique way, containing its own type descriptors, 
-generic type extraction, and type serialization framework.
+Flink automatically generates serializers for most data types and handles [data types and 
+serialization]({{< ref "/docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) 
+in a unique way, containing its own type descriptors, generic type extraction, and type serialization 
+framework.
 
 #### Session Cluster
 
@@ -610,17 +617,20 @@ Most functions are wrapped by a corresponding [operator](#operator).
 
 #### User-Defined Aggregate Function (UDAF)
 
-This type of user-defined function aggregates multiple values into a single value.
+In Table API/SQL, this type of [user-defined function]({{< ref "/docs/dev/table/functions/udfs" >}}) 
+aggregates multiple values into a single value.
 
 #### User-Defined Scalar Function (UDSF)
 
-This type of user-defined function maps zero, one, or more [scalar](#scalar) values to a new scalar value.
+In Table API/SQL, this type of [user-defined function]({{< ref "/docs/dev/table/functions/udfs" >}}) 
+maps zero, one, or more [scalar](#scalar) values to a new scalar value.
 
 #### User-Defined Table-valued Function (UDTF)
 
-This type of user-defined function uses zero, one, or multiple [scalar](#scalar) values as input parameters 
-(including variable-length parameters). A UDTF returns any number of rows, rather than a single value. 
-The returned rows can consist of one or more columns.
+In Table API/SQL, this type of [user-defined function]({{< ref "/docs/dev/table/functions/udfs" >}}) 
+uses zero, one, or multiple [scalar](#scalar) values as input parameters (including variable-length 
+parameters). A UDTF returns any number of rows, rather than a single value. The returned rows can 
+consist of one or more columns.
 
 #### ValueState<T>
 
