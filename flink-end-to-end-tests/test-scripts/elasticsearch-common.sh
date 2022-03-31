@@ -50,8 +50,14 @@ function setup_elasticsearch {
       echo xpack.ml.enabled: false >> $elasticsearchDir/config/elasticsearch.yml
     fi
 
+    adduser --disabled-password --gecos "" elasticsearch || true
+    chown -R elasticsearch $elasticsearchDir
+    chmod -R 755 /root
+
     # start Elasticsearch cluster
-    $elasticsearchDir/bin/elasticsearch &
+    pushd $elasticsearchDir
+    su -c "bash -x bin/elasticsearch" elasticsearch &
+    popd
 }
 
 function wait_elasticsearch_working {
