@@ -125,22 +125,48 @@ public class HashMapStateBackend extends AbstractStateBackend implements Configu
 
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
-        return new HeapKeyedStateBackendBuilder<>(
-                        kvStateRegistry,
+        return createBuilder(
+                        env,
                         keySerializer,
-                        env.getUserCodeClassLoader().asClassLoader(),
                         numberOfKeyGroups,
                         keyGroupRange,
-                        env.getExecutionConfig(),
+                        kvStateRegistry,
                         ttlTimeProvider,
-                        latencyTrackingStateConfig,
                         stateHandles,
-                        getCompressionDecorator(env.getExecutionConfig()),
+                        cancelStreamRegistry,
                         localRecoveryConfig,
                         priorityQueueSetFactory,
-                        true,
-                        cancelStreamRegistry)
+                        latencyTrackingStateConfig)
                 .build();
+    }
+
+    protected <K> HeapKeyedStateBackendBuilder<K> createBuilder(
+            Environment env,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry,
+            LocalRecoveryConfig localRecoveryConfig,
+            HeapPriorityQueueSetFactory priorityQueueSetFactory,
+            LatencyTrackingStateConfig latencyTrackingStateConfig) {
+        return new HeapKeyedStateBackendBuilder<>(
+                kvStateRegistry,
+                keySerializer,
+                env.getUserCodeClassLoader().asClassLoader(),
+                numberOfKeyGroups,
+                keyGroupRange,
+                env.getExecutionConfig(),
+                ttlTimeProvider,
+                latencyTrackingStateConfig,
+                stateHandles,
+                getCompressionDecorator(env.getExecutionConfig()),
+                localRecoveryConfig,
+                priorityQueueSetFactory,
+                true,
+                cancelStreamRegistry);
     }
 
     @Override
