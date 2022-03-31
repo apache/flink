@@ -59,6 +59,7 @@ class StateSnapshotTransformerTest {
         List<TestState> testStates =
                 Arrays.asList(new TestValueState(), new TestListState(), new TestMapState());
 
+        long checkpointId = 1L;
         for (TestState state : testStates) {
             for (int i = 0; i < 100; i++) {
                 backend.setCurrentKey(i);
@@ -69,10 +70,10 @@ class StateSnapshotTransformerTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation();
 
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
-                    backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
+                    backend.snapshot(checkpointId++, 0L, streamFactory, checkpointOptions);
 
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
-                    backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
+                    backend.snapshot(checkpointId++, 0L, streamFactory, checkpointOptions);
 
             Thread runner1 = new Thread(snapshot1, "snapshot1");
             runner1.start();
