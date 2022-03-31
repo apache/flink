@@ -630,6 +630,102 @@ public class CEPITCase extends AbstractTestBase {
         assertEquals(expected, resultList);
     }
 
+    @Test
+    public void testNotFollowedByWithIn() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
+        env.setParallelism(1);
+
+        // (Event, timestamp)
+        DataStream<Event> input =
+                env.fromElements(
+                                Tuple2.of(new Event(1, "start", 1.0), 1L),
+                                Tuple2.of(new Event(1, "middle", 2.0), 2L),
+                                Tuple2.of(new Event(1, "start", 3.0), 4L),
+                                Tuple2.of(new Event(1, "end", 2.0), 5L),
+                                Tuple2.of(new Event(1, "middle", 5.0), 10L),
+                                Tuple2.of(new Event(1, "start", 6.0), 11L),
+                                Tuple2.of(new Event(1, "middle", 5.0), 13L))
+                        .assignTimestampsAndWatermarks(
+                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+                                    @Override
+                                    public long extractTimestamp(
+                                            Tuple2<Event, Long> element, long currentTimestamp) {
+                                        return element.f1;
+                                    }
+
+                                    @Override
+                                    public Watermark checkAndGetNextWatermark(
+                                            Tuple2<Event, Long> lastElement,
+                                            long extractedTimestamp) {
+                                        return new Watermark(lastElement.f1 - 5);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Tuple2<Event, Long>, Event>() {
+
+                                    @Override
+                                    public Event map(Tuple2<Event, Long> value) throws Exception {
+                                        return value.f0;
+                                    }
+                                });
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .notFollowedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .within(Time.milliseconds(3));
+
+        DataStream<Either<String, String>> result =
+                CEP.pattern(input, pattern)
+                        .select(
+                                new PatternTimeoutFunction<Event, String>() {
+                                    @Override
+                                    public String timeout(
+                                            Map<String, List<Event>> pattern, long timeoutTimestamp)
+                                            throws Exception {
+                                        return pattern.get("start").get(0).getPrice() + "";
+                                    }
+                                },
+                                new PatternSelectFunction<Event, String>() {
+
+                                    @Override
+                                    public String select(Map<String, List<Event>> pattern) {
+                                        StringBuilder builder = new StringBuilder();
+
+                                        builder.append(pattern.get("start").get(0).getPrice());
+
+                                        return builder.toString();
+                                    }
+                                });
+
+        List<Either<String, String>> resultList = new ArrayList<>();
+
+        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+        resultList.sort(Comparator.comparing(either -> either.toString()));
+
+        List<Either<String, String>> expected = Arrays.asList(Either.Right.of("3.0"));
+
+        assertEquals(expected, resultList);
+    }
+
     /**
      * Checks that a certain event sequence is recognized with an OR filter.
      *
