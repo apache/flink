@@ -34,7 +34,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -130,7 +129,8 @@ final class IndexGeneratorFactory {
             final String dateTimeFormat =
                     indexHelper.extractDateFormat(index, indexFieldLogicalTypeRoot);
             DynamicFormatter formatFunction =
-                    createFormatFunction(indexFieldType, indexFieldLogicalTypeRoot);
+                    createFormatFunction(
+                            indexFieldType, indexFieldLogicalTypeRoot, localTimeZoneId);
 
             return new AbstractTimeIndexGenerator(index, dateTimeFormat) {
                 @Override
@@ -160,7 +160,9 @@ final class IndexGeneratorFactory {
     }
 
     private static DynamicFormatter createFormatFunction(
-            LogicalType indexFieldType, LogicalTypeRoot indexFieldLogicalTypeRoot) {
+            LogicalType indexFieldType,
+            LogicalTypeRoot indexFieldLogicalTypeRoot,
+            ZoneId localTimeZoneId) {
         switch (indexFieldLogicalTypeRoot) {
             case DATE:
                 return (value, dateTimeFormatter) -> {
@@ -183,7 +185,7 @@ final class IndexGeneratorFactory {
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return (value, dateTimeFormatter) -> {
                     TimestampData indexField = (TimestampData) value;
-                    return indexField.toInstant().atZone(ZoneOffset.UTC).format(dateTimeFormatter);
+                    return indexField.toInstant().atZone(localTimeZoneId).format(dateTimeFormatter);
                 };
             default:
                 throw new TableException(

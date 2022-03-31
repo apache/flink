@@ -35,10 +35,13 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assumptions.assumingThat;
 
 /** Suite tests for {@link IndexGenerator}. */
 public class IndexGeneratorTest {
@@ -54,6 +57,7 @@ public class IndexGeneratorTest {
                     "local_datetime",
                     "local_date",
                     "local_time",
+                    "local_timestamp",
                     "note",
                     "status");
 
@@ -68,6 +72,7 @@ public class IndexGeneratorTest {
                     DataTypes.TIMESTAMP().bridgedTo(LocalDateTime.class),
                     DataTypes.DATE().bridgedTo(LocalDate.class),
                     DataTypes.TIME().bridgedTo(LocalTime.class),
+                    DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
                     DataTypes.STRING(),
                     DataTypes.BOOLEAN());
 
@@ -86,6 +91,10 @@ public class IndexGeneratorTest {
                                     LocalDateTime.of(2020, 3, 18, 12, 12, 14, 1000)),
                             (int) LocalDate.of(2020, 3, 18).toEpochDay(),
                             (int) (LocalTime.of(12, 13, 14, 2000).toNanoOfDay() / 1_000_000L),
+                            TimestampData.fromInstant(
+                                    LocalDateTime.of(2020, 3, 18, 3, 12, 14, 1000)
+                                            .atZone(ZoneId.of("Asia/Shanghai"))
+                                            .toInstant()),
                             "test1",
                             true),
                     GenericRowData.of(
@@ -101,8 +110,43 @@ public class IndexGeneratorTest {
                                     LocalDateTime.of(2020, 3, 19, 12, 22, 14, 1000)),
                             (int) LocalDate.of(2020, 3, 19).toEpochDay(),
                             (int) (LocalTime.of(12, 13, 14, 2000).toNanoOfDay() / 1_000_000L),
+                            TimestampData.fromInstant(
+                                    LocalDateTime.of(2020, 3, 19, 20, 22, 14, 1000)
+                                            .atZone(ZoneId.of("America/Los_Angeles"))
+                                            .toInstant()),
                             "test2",
                             false));
+
+    @Test
+    public void testDynamicIndexFromTimestampTzUTC() {
+        assumingThat(
+                ZoneId.systemDefault().equals(ZoneId.of("UTC")),
+                () -> {
+                    IndexGenerator indexGenerator =
+                            IndexGeneratorFactory.createIndexGenerator(
+                                    "{local_timestamp|yyyy_MM_dd_HH-ss}_index",
+                                    fieldNames,
+                                    dataTypes);
+                    indexGenerator.open();
+                    Assertions.assertEquals(
+                            "2020_03_17_19-14_index", indexGenerator.generate(rows.get(0)));
+                    Assertions.assertEquals(
+                            "2020_03_20_03-14_index", indexGenerator.generate(rows.get(1)));
+                });
+    }
+
+    @Test
+    public void testDynamicIndexFromTimestampTzWithSpecificTimezone() {
+        IndexGenerator indexGenerator =
+                IndexGeneratorFactory.createIndexGenerator(
+                        "{local_timestamp|yyyy_MM_dd_HH-ss}_index",
+                        fieldNames,
+                        dataTypes,
+                        ZoneId.of("Europe/Berlin"));
+        indexGenerator.open();
+        Assertions.assertEquals("2020_03_17_20-14_index", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("2020_03_20_04-14_index", indexGenerator.generate(rows.get(1)));
+    }
 
     @Test
     public void testDynamicIndexFromTimestamp() {
