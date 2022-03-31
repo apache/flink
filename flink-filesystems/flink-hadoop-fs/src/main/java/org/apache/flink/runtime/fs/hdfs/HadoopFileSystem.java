@@ -239,8 +239,10 @@ public class HadoopFileSystem extends FileSystem {
         if (scheme.startsWith("s3")
                 || scheme.startsWith("emr")
                 || scheme.startsWith("oss")
-                || scheme.startsWith("wasb")) {
+                || scheme.startsWith("wasb")
+                || scheme.startsWith("gs")) {
             // the Amazon S3 storage or Aliyun OSS storage or Azure Blob Storage
+            // or Google Cloud Storage
             return FileSystemKind.OBJECT_STORE;
         } else if (scheme.startsWith("http") || scheme.startsWith("ftp")) {
             // file servers instead of file systems

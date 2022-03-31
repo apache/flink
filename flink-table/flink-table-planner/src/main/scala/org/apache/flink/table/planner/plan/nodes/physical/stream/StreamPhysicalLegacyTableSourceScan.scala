@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan._
@@ -57,6 +58,7 @@ class StreamPhysicalLegacyTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecLegacyTableSourceScan(
+      unwrapTableConfig(this),
       tableSource,
       getTable.getQualifiedName,
       FlinkTypeFactory.toLogicalRowType(getRowType),

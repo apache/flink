@@ -109,9 +109,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             abilitySpec = sourceWatermarkSpec;
         } else {
             final Duration idleTimeout =
-                    tableConfig
-                            .getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
+                    tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT);
             final long idleTimeoutMillis;
             if (!idleTimeout.isZero() && !idleTimeout.isNegative()) {
                 idleTimeoutMillis = idleTimeout.toMillis();
@@ -144,7 +142,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
     }
 
     private boolean hasSourceWatermarkDeclaration(TableSourceTable table) {
-        final ResolvedSchema schema = table.catalogTable().getResolvedSchema();
+        final ResolvedSchema schema = table.contextResolvedTable().getResolvedSchema();
         final List<WatermarkSpec> specs = schema.getWatermarkSpecs();
         // we only support one watermark spec for now
         if (specs.size() != 1) {

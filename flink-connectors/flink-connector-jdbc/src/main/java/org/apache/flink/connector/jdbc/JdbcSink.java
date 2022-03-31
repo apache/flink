@@ -90,7 +90,9 @@ public class JdbcSink {
      * @param <T> type of data in {@link
      *     org.apache.flink.streaming.runtime.streamrecord.StreamRecord StreamRecord}.
      * @param executionOptions parameters of execution, such as batch size and maximum retries
-     * @param exactlyOnceOptions exactly-once options
+     * @param exactlyOnceOptions exactly-once options. Note: maxRetries setting must be strictly set
+     *     to 0 for the created sink to work properly and not to produce duplicates. See issue
+     *     FLINK-22311 for details.
      * @param dataSourceSupplier supplies the {@link XADataSource}
      */
     public static <T> SinkFunction<T> exactlyOnceSink(

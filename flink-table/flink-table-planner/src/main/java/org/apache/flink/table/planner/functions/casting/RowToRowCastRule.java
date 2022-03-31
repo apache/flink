@@ -184,13 +184,9 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
             final String fieldIsNullTerm = newName("f" + indexTerm + "IsNull");
 
             final CastCodeBlock codeBlock =
-                    CastRuleProvider.generateCodeBlock(
-                            context,
-                            fieldTerm,
-                            fieldIsNullTerm,
-                            // Null check is done at the row access level
-                            inputFieldType.copy(false),
-                            targetFieldType);
+                    // Null check is done at the row access level
+                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                            context, fieldTerm, inputFieldType, targetFieldType);
 
             final String readField = rowFieldReadAccess(indexTerm, inputTerm, inputFieldType);
             final String writeField =
@@ -227,5 +223,14 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
 
         writer.stmt(methodCall(writerTerm, "complete")).assignStmt(returnVariable, rowTerm);
         return writer.toString();
+    }
+
+    @Override
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        final List<LogicalType> inputFields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
+        final List<LogicalType> targetFields = LogicalTypeChecks.getFieldTypes(targetLogicalType);
+
+        return IntStream.range(0, Math.min(inputFields.size(), targetFields.size()))
+                .anyMatch(i -> CastRuleProvider.canFail(inputFields.get(i), targetFields.get(i)));
     }
 }

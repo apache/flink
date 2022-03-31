@@ -45,10 +45,8 @@ public enum StateChangeOperation {
     ADD_OR_UPDATE_ELEMENT((byte) 6),
     /** Scope: key + namespace + element (e.g. user map remove or iterator remove). */
     REMOVE_ELEMENT((byte) 7),
-    /** Scope: key + namespace, first element (e.g. priority queue poll). */
-    REMOVE_FIRST_ELEMENT((byte) 8),
     /** State metadata (name, serializers, etc.). */
-    METADATA((byte) 9);
+    METADATA((byte) 8);
     private final byte code;
 
     StateChangeOperation(byte code) {

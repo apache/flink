@@ -81,12 +81,10 @@ public class KinesisTableApiITCase extends TestLogger {
 
     public static final FlinkContainers FLINK =
             FlinkContainers.builder()
-                    .setEnvironmentVariable("AWS_ACCESS_KEY_ID", KINESALITE.getAccessKey())
-                    .setEnvironmentVariable("AWS_SECRET_KEY", KINESALITE.getSecretKey())
                     .setEnvironmentVariable("AWS_CBOR_DISABLE", "1")
                     .setEnvironmentVariable(
                             "FLINK_ENV_JAVA_OPTS",
-                            "-Dorg.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking")
+                            "-Dorg.apache.flink.kinesis.shaded.com.amazonaws.sdk.disableCertChecking -Daws.cborEnabled=false")
                     .setNetwork(network)
                     .setLogger(LOGGER)
                     .dependsOn(KINESALITE)

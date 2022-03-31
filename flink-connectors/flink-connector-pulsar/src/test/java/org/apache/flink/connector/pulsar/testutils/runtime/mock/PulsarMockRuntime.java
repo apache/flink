@@ -21,26 +21,19 @@ package org.apache.flink.connector.pulsar.testutils.runtime.mock;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
-
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 
 import java.util.Optional;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
+import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeUtils.initializePulsarEnvironment;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Providing a mocked pulsar server. */
 public class PulsarMockRuntime implements PulsarRuntime {
 
     private static final String CLUSTER_NAME = "mock-pulsar-" + randomAlphanumeric(6);
+    private final ServiceConfiguration configuration;
     private final MockPulsarService pulsarService;
     private PulsarRuntimeOperator operator;
 
@@ -49,6 +42,7 @@ public class PulsarMockRuntime implements PulsarRuntime {
     }
 
     public PulsarMockRuntime(ServiceConfiguration configuration) {
+        this.configuration = configuration;
         this.pulsarService = new MockPulsarService(configuration);
     }
 
@@ -56,15 +50,15 @@ public class PulsarMockRuntime implements PulsarRuntime {
     public void startUp() {
         try {
             pulsarService.start();
-        } catch (PulsarServerException e) {
+
+            String serviceUrl = pulsarService.getBrokerServiceUrl();
+            String adminUrl = pulsarService.getWebServiceAddress();
+            initializePulsarEnvironment(configuration, serviceUrl, adminUrl);
+
+            this.operator = new PulsarRuntimeOperator(serviceUrl, adminUrl);
+        } catch (Exception e) {
             throw new IllegalStateException(e);
         }
-        this.operator =
-                new PulsarRuntimeOperator(
-                        pulsarService.getBrokerServiceUrl(), pulsarService.getWebServiceAddress());
-
-        // Successfully start a pulsar broker, we have to create the required resources.
-        sneakyAdmin(this::createTestResource);
     }
 
     @Override
@@ -81,48 +75,6 @@ public class PulsarMockRuntime implements PulsarRuntime {
     @Override
     public PulsarRuntimeOperator operator() {
         return checkNotNull(operator, "You should start this mock pulsar first.");
-    }
-
-    private void createTestResource() throws PulsarAdminException {
-        PulsarAdmin admin = operator().admin();
-        if (!admin.clusters().getClusters().contains(CLUSTER_NAME)) {
-            // Make clients can test short names
-            ClusterData data =
-                    ClusterData.builder()
-                            .serviceUrl("http://127.0.0.1:" + pulsarService.getBrokerServicePort())
-                            .build();
-            admin.clusters().createCluster(CLUSTER_NAME, data);
-        }
-
-        createOrUpdateTenant("public");
-        createOrUpdateNamespace("public", "default");
-
-        createOrUpdateTenant("pulsar");
-        createOrUpdateNamespace("pulsar", "system");
-    }
-
-    private void createOrUpdateTenant(String tenant) throws PulsarAdminException {
-        PulsarAdmin admin = operator().admin();
-        TenantInfo info =
-                TenantInfo.builder()
-                        .adminRoles(ImmutableSet.of("appid1", "appid2"))
-                        .allowedClusters(ImmutableSet.of(CLUSTER_NAME))
-                        .build();
-        if (!admin.tenants().getTenants().contains(tenant)) {
-            admin.tenants().createTenant(tenant, info);
-        } else {
-            admin.tenants().updateTenant(tenant, info);
-        }
-    }
-
-    public void createOrUpdateNamespace(String tenant, String namespace)
-            throws PulsarAdminException {
-        PulsarAdmin admin = operator().admin();
-        String namespaceValue = tenant + "/" + namespace;
-        if (!admin.namespaces().getNamespaces(tenant).contains(namespaceValue)) {
-            admin.namespaces().createNamespace(namespaceValue);
-            admin.namespaces().setRetention(namespaceValue, new RetentionPolicies(60, 1000));
-        }
     }
 
     private static ServiceConfiguration createConfig() {
@@ -148,12 +100,10 @@ public class PulsarMockRuntime implements PulsarRuntime {
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));
 
-        // Enable transaction with in memory.
+        // Enable transactions.
         configuration.setTransactionCoordinatorEnabled(true);
         configuration.setTransactionMetadataStoreProviderClassName(
-                "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider");
-        configuration.setTransactionBufferProviderClassName(
-                "org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider");
+                "org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider");
 
         return configuration;
     }

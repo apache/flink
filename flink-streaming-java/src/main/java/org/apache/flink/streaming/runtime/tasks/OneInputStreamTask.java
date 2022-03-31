@@ -45,7 +45,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
 

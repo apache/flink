@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
-import org.apache.flink.table.api.{TableConfig, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.veri
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
@@ -64,7 +65,7 @@ object LookupJoinCodeGenerator {
     * Generates a lookup function ([[TableFunction]])
     */
   def generateSyncLookupFunction(
-      config: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -86,7 +87,7 @@ object LookupJoinCodeGenerator {
 
     generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
-      config,
+      tableConfig,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -104,7 +105,7 @@ object LookupJoinCodeGenerator {
     * Generates a async lookup function ([[AsyncTableFunction]])
     */
   def generateAsyncLookupFunction(
-      config: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -117,7 +118,7 @@ object LookupJoinCodeGenerator {
 
     generateLookupFunction(
       classOf[AsyncFunction[RowData, AnyRef]],
-      config,
+      tableConfig,
       dataTypeFactory,
       inputType,
       tableSourceType,
@@ -133,7 +134,7 @@ object LookupJoinCodeGenerator {
 
   private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
-      config: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -161,7 +162,7 @@ object LookupJoinCodeGenerator {
       lookupFunction,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      config.getConfiguration)
+      tableConfig)
 
     val inference = createLookupTypeInference(
       dataTypeFactory,
@@ -170,7 +171,7 @@ object LookupJoinCodeGenerator {
       udf,
       functionName)
 
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
     val operands = prepareOperands(
       ctx,
       inputType,
@@ -213,10 +214,8 @@ object LookupJoinCodeGenerator {
         .map(lookupKeys.get)
         .map {
           case constantKey: ConstantLookupKey =>
-            generateLiteral(
-              ctx,
-              constantKey.sourceType,
-              constantKey.literal.getValue3)
+            val res = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
+            generateLiteral(ctx, res.f0, res.f1)
           case fieldKey: FieldRefLookupKey =>
             generateInputAccess(
               ctx,
@@ -409,22 +408,22 @@ object LookupJoinCodeGenerator {
     """.stripMargin
 
     new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
     * Generates a [[TableFunctionResultFuture]] that can be passed to Java compiler.
     *
-    * @param config The TableConfig
-    * @param name Class name of the table function collector. Must not be unique but has to be a
-    *             valid Java class identifier.
+    * @param tableConfig   The TableConfig
+    * @param name          Class name of the table function collector. Must not be unique but has
+    *   to be a valid Java class identifier.
     * @param leftInputType The type information of the element being collected
     * @param collectedType The type information of the element collected by the collector
-    * @param condition The filter condition before collect elements
+    * @param condition     The filter condition before collect elements
     * @return instance of GeneratedCollector
     */
   def generateTableAsyncCollector(
-      config: TableConfig,
+      tableConfig: ReadableConfig,
       name: String,
       leftInputType: RowType,
       collectedType: RowType,
@@ -438,7 +437,7 @@ object LookupJoinCodeGenerator {
     val input2Term = DEFAULT_INPUT2_TERM
     val outTerm = "resultCollection"
 
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
 
     val body = if (condition.isEmpty) {
       "getResultFuture().complete(records);"
@@ -500,7 +499,7 @@ object LookupJoinCodeGenerator {
     """.stripMargin
 
     new GeneratedResultFuture(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
@@ -508,7 +507,7 @@ object LookupJoinCodeGenerator {
     * to projection/filter the dimension table results
     */
   def generateCalcMapFunction(
-      config: TableConfig,
+      tableConfig: ReadableConfig,
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RelDataType,
@@ -521,6 +520,6 @@ object LookupJoinCodeGenerator {
       classOf[GenericRowData],
       projection,
       Option(condition),
-      config)
+      tableConfig)
   }
 }

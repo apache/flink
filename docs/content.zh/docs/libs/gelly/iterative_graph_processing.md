@@ -50,7 +50,7 @@ Let us consider computing Single-Source-Shortest-Paths with vertex-centric itera
 {{< tab "Java" >}}
 ```java
 // read the input graph
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // define the maximum number of iterations
 int maxIterations = 10;
@@ -178,7 +178,7 @@ all aggregates globally once per superstep and makes them available in the next 
 {{< tab "Java" >}}
 ```java
 
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // configure the iteration
 VertexCentricConfiguration parameters = new VertexCentricConfiguration();
@@ -296,7 +296,7 @@ Let us consider computing Single-Source-Shortest-Paths with scatter-gather itera
 {{< tab "Java" >}}
 ```java
 // read the input graph
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // define the maximum number of iterations
 int maxIterations = 10;
@@ -421,7 +421,7 @@ If the degrees option is not set in the configuration, these methods will return
 {{< tab "Java" >}}
 ```java
 
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // configure the iteration
 ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -525,7 +525,7 @@ The following example illustrates the usage of the degree as well as the number 
 {{< tab "Java" >}}
 ```java
 
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // configure the iteration
 ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -599,7 +599,7 @@ The following example illustrates the usage of the edge direction option. Vertic
 {{< tabs "5efb0e23-7fd4-4e08-9952-981d6e4f3b9e" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, HashSet<Long>, Double> graph = ...
+Graph<Long, HashSet<Long>, Double> graph = ...;
 
 // configure the iteration
 ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
@@ -664,7 +664,7 @@ To implement this example in Gelly GSA, the user only needs to call the `runGath
 {{< tab "Java" >}}
 ```java
 // read the input graph
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // define the maximum number of iterations
 int maxIterations = 10;
@@ -756,7 +756,7 @@ final class UpdateDistance extends ApplyFunction[Long, Double, Double] {
 
 Note that `gather` takes a `Neighbor` type as an argument. This is a convenience type which simply wraps a vertex with its neighboring edge.
 
-For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAPageRank.java" name="GSAPageRank" >}} and {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAConnectedComponents.java" name="GSAConnectedComponents" >}} library methods of Gelly.
+For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {{< gh_link file="/flink-libraries/flink-gelly-examples/src/main/java/org/apache/flink/graph/examples/GSAPageRank.java" name="GSAPageRank" >}} and {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAConnectedComponents.java" name="GSAConnectedComponents" >}} library methods of Gelly.
 
 {{< top >}}
 
@@ -786,7 +786,7 @@ The following example illustrates the usage of the number of vertices option.
 {{< tab "Java" >}}
 ```java
 
-Graph<Long, Double, Double> graph = ...
+Graph<Long, Double, Double> graph = ...;
 
 // configure the iteration
 GSAConfiguration parameters = new GSAConfiguration();
@@ -868,7 +868,7 @@ The following example illustrates the usage of the edge direction option.
 {{< tab "Java" >}}
 ```java
 
-Graph<Long, HashSet<Long>, Double> graph = ...
+Graph<Long, HashSet<Long>, Double> graph = ...;
 
 // configure the iteration
 GSAConfiguration parameters = new GSAConfiguration();

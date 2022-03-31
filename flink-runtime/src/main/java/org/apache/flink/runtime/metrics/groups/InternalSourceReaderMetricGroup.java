@@ -48,6 +48,8 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
     private long lastEventTime = TimestampAssigner.NO_TIMESTAMP;
     private long idleStartTime = ACTIVE;
     private boolean firstWatermark = true;
+    private long currentMaxDesiredWatermark;
+    private boolean firstDesiredWatermark = true;
 
     private InternalSourceReaderMetricGroup(
             MetricGroup parentMetricGroup,
@@ -131,6 +133,16 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         }
     }
 
+    public void updateMaxDesiredWatermark(long currentMaxDesiredWatermark) {
+        this.currentMaxDesiredWatermark = currentMaxDesiredWatermark;
+
+        if (firstDesiredWatermark) {
+            parentMetricGroup.gauge(
+                    MetricNames.WATERMARK_ALIGNMENT_DRIFT, this::getAlignedWatermarkDrift);
+            firstDesiredWatermark = false;
+        }
+    }
+
     boolean isIdling() {
         return idleStartTime != ACTIVE;
     }
@@ -156,5 +168,9 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
 
     long getWatermarkLag() {
         return getLastEmitTime() - lastWatermark;
+    }
+
+    long getAlignedWatermarkDrift() {
+        return lastWatermark - currentMaxDesiredWatermark;
     }
 }

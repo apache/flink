@@ -92,7 +92,7 @@ public class TestJobBuilders {
                                             "transform-1-forward",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapForward, eventQueue))
+                                                    mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
                     forwardTransform.addSink(new DiscardingSink<>());
@@ -190,18 +190,20 @@ public class TestJobBuilders {
                                             "transform-1-forward",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapForward, eventQueue))
+                                                    mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
                     SingleOutputStreamOperator<TestDataElement> keyedTransform =
                             forwardTransform
                                     .startNewChain()
-                                    .keyBy(e -> e)
+                                    // distribute the load evenly but keep the number of keys
+                                    // manageable to not overload state backends
+                                    .keyBy(e -> e.seq % 1000)
                                     .transform(
                                             "transform-2-keyed",
                                             TypeInformation.of(TestDataElement.class),
                                             new OneInputTestStreamOperatorFactory(
-                                                    mapKeyed, eventQueue))
+                                                    mapKeyed, eventQueue, commandQueue))
                                     .setUidHash(mapKeyed);
 
                     SingleOutputStreamOperator<TestDataElement> twoInputTransform =

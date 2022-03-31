@@ -786,6 +786,7 @@ public class SqlFunctionUtils {
      * Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
      * first delimiter separates pairs, and the second delimiter separates key and value. If only
      * one parameter is given, default delimiters are used: ',' as delimiter1 and '=' as delimiter2.
+     * Both delimiters are treated as regular expressions.
      *
      * @param text the input text
      * @return the map
@@ -796,7 +797,8 @@ public class SqlFunctionUtils {
 
     /**
      * Creates a map by parsing text. Split text into key-value pairs using two delimiters. The
-     * first delimiter separates pairs, and the second delimiter separates key and value.
+     * first delimiter separates pairs, and the second delimiter separates key and value. Both
+     * {@code listDelimiter} and {@code keyValueDelimiter} are treated as regular expressions.
      *
      * @param text the input text
      * @param listDelimiter the delimiter to separates pairs

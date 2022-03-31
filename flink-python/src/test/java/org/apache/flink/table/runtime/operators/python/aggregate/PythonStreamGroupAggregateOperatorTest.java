@@ -257,7 +257,7 @@ public class PythonStreamGroupAggregateOperatorTest
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughStreamAggregatePythonFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
                     userDefinedFunctionInputType,
                     outputType,
                     STREAM_GROUP_AGGREGATE_URN,

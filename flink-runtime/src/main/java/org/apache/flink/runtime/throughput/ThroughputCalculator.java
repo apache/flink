@@ -45,28 +45,18 @@ public class ThroughputCalculator {
         currentAccumulatedDataSize += receivedDataSize;
     }
 
-    /**
-     * Mark when the time should not be taken into account.
-     *
-     * @param absoluteTimeMillis Current absolute time received outside to avoid performance drop on
-     *     calling {@link Clock#absoluteTimeMillis()} inside of the method.
-     */
-    public void pauseMeasurement(long absoluteTimeMillis) {
+    /** Mark when the time should not be taken into account. */
+    public void pauseMeasurement() {
         if (measurementStartTime != NOT_TRACKED) {
-            currentMeasurementTime += absoluteTimeMillis - measurementStartTime;
+            currentMeasurementTime += clock.absoluteTimeMillis() - measurementStartTime;
         }
         measurementStartTime = NOT_TRACKED;
     }
 
-    /**
-     * Mark when the time should be included to the throughput calculation.
-     *
-     * @param absoluteTimeMillis Current absolute time received outside to avoid performance drop on
-     *     calling {@link Clock#absoluteTimeMillis()} inside of the method.
-     */
-    public void resumeMeasurement(long absoluteTimeMillis) {
+    /** Mark when the time should be included to the throughput calculation. */
+    public void resumeMeasurement() {
         if (measurementStartTime == NOT_TRACKED) {
-            measurementStartTime = absoluteTimeMillis;
+            measurementStartTime = clock.absoluteTimeMillis();
         }
     }
 

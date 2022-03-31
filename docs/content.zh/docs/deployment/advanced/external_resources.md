@@ -244,7 +244,7 @@ class FPGAInfo extends ExternalResourceInfo {
 
 我们为 GPU 提供了第一方插件。该插件利用一个脚本来发现 GPU 设备的索引，该索引可通过“index”从 `ExternalResourceInfo` 中获取。我们提供了一个默认脚本，可以用来发现 NVIDIA GPU。您还可以提供自定义脚本。
 
-我们提供了[一个示例程序](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java)，展示了如何在 Flink 中使用 GPU 资源来做矩阵-向量乘法。
+我们提供了{{< gh_link file="/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java" name="一个示例程序" >}}，展示了如何在 Flink 中使用 GPU 资源来做矩阵-向量乘法。
 
 {{< hint info >}}
 **提示：** 目前，对于所有算子，RuntimeContext#getExternalResourceInfos 会返回同样的资源信息。也即，在同一个 TaskManager 中运行的所有算子都可以访问同一组 GPU 设备。扩展资源目前没有算子级别的隔离。

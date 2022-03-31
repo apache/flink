@@ -32,6 +32,8 @@ import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -43,6 +45,7 @@ import java.util.List;
  * @param <F> The implementation type.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
@@ -53,13 +56,12 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
     protected final SavepointMetadata metadata;
 
     /** The state backend to use when writing this savepoint. */
-    protected final StateBackend stateBackend;
+    @Nullable protected final StateBackend stateBackend;
 
     private final Configuration configuration;
 
-    WritableSavepoint(SavepointMetadata metadata, StateBackend stateBackend) {
+    WritableSavepoint(SavepointMetadata metadata, @Nullable StateBackend stateBackend) {
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         this.metadata = metadata;
         this.stateBackend = stateBackend;
         this.configuration = new Configuration();

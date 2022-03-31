@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
@@ -45,6 +43,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -56,12 +55,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -306,62 +300,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         // wait until all sources have been started
         NotifyingInfiniteTupleSource.countDownLatch.await();
 
-        waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
+        TestUtils.waitUntilExternalizedCheckpointCreated(checkpointDir);
         client.cancel(initialJobGraph.getJobID()).get();
-        waitUntilCanceled(initialJobGraph.getJobID(), client);
+        TestUtils.waitUntilJobCanceled(initialJobGraph.getJobID(), client);
 
-        return getExternalizedCheckpointCheckpointPath(checkpointDir, initialJobGraph.getJobID());
-    }
-
-    private static String getExternalizedCheckpointCheckpointPath(File checkpointDir, JobID jobId)
-            throws IOException {
-        Optional<Path> checkpoint = findExternalizedCheckpoint(checkpointDir, jobId);
-        if (!checkpoint.isPresent()) {
-            throw new AssertionError("No complete checkpoint could be found.");
-        } else {
-            return checkpoint.get().toString();
-        }
-    }
-
-    private static void waitUntilExternalizedCheckpointCreated(File checkpointDir, JobID jobId)
-            throws InterruptedException, IOException {
-        while (true) {
-            Thread.sleep(50);
-            Optional<Path> externalizedCheckpoint =
-                    findExternalizedCheckpoint(checkpointDir, jobId);
-            if (externalizedCheckpoint.isPresent()) {
-                break;
-            }
-        }
-    }
-
-    private static Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId)
-            throws IOException {
-        try (Stream<Path> checkpoints =
-                Files.list(checkpointDir.toPath().resolve(jobId.toString()))) {
-            return checkpoints
-                    .filter(path -> path.getFileName().toString().startsWith("chk-"))
-                    .filter(
-                            path -> {
-                                try (Stream<Path> checkpointFiles = Files.list(path)) {
-                                    return checkpointFiles.anyMatch(
-                                            child ->
-                                                    child.getFileName()
-                                                            .toString()
-                                                            .contains("meta"));
-                                } catch (IOException ignored) {
-                                    return false;
-                                }
-                            })
-                    .findAny();
-        }
-    }
-
-    private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client)
-            throws ExecutionException, InterruptedException {
-        while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
-            Thread.sleep(50);
-        }
+        return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir).getAbsolutePath();
     }
 
     private static JobGraph getJobGraph(StateBackend backend, @Nullable String externalCheckpoint) {

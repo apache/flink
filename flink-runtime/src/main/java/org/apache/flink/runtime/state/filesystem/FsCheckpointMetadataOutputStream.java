@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 
 import org.slf4j.Logger;
@@ -44,8 +43,6 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
     // ------------------------------------------------------------------------
 
-    private final FSDataOutputStream out;
-
     private final Path metadataFilePath;
 
     private final Path exclusiveCheckpointDir;
@@ -53,6 +50,8 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
     private final FileSystem fileSystem;
 
     private volatile boolean closed;
+
+    private final MetadataOutputStreamWrapper outputStreamWrapper;
 
     public FsCheckpointMetadataOutputStream(
             FileSystem fileSystem, Path metadataFilePath, Path exclusiveCheckpointDir)
@@ -62,7 +61,7 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
         this.metadataFilePath = checkNotNull(metadataFilePath);
         this.exclusiveCheckpointDir = checkNotNull(exclusiveCheckpointDir);
 
-        this.out = fileSystem.create(metadataFilePath, WriteMode.NO_OVERWRITE);
+        this.outputStreamWrapper = getOutputStreamWrapper(fileSystem, metadataFilePath);
     }
 
     // ------------------------------------------------------------------------
@@ -71,27 +70,27 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 
     @Override
     public final void write(int b) throws IOException {
-        out.write(b);
+        outputStreamWrapper.getOutput().write(b);
     }
 
     @Override
     public final void write(@Nonnull byte[] b, int off, int len) throws IOException {
-        out.write(b, off, len);
+        outputStreamWrapper.getOutput().write(b, off, len);
     }
 
     @Override
     public long getPos() throws IOException {
-        return out.getPos();
+        return outputStreamWrapper.getOutput().getPos();
     }
 
     @Override
     public void flush() throws IOException {
-        out.flush();
+        outputStreamWrapper.getOutput().flush();
     }
 
     @Override
     public void sync() throws IOException {
-        out.sync();
+        outputStreamWrapper.getOutput().sync();
     }
 
     // ------------------------------------------------------------------------
@@ -108,8 +107,8 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
             closed = true;
 
             try {
-                out.close();
-                fileSystem.delete(metadataFilePath, false);
+                outputStreamWrapper.close();
+                outputStreamWrapper.cleanup();
             } catch (Throwable t) {
                 LOG.warn("Could not close the state stream for {}.", metadataFilePath, t);
             }
@@ -124,11 +123,11 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
                     // make a best effort attempt to figure out the size
                     long size = 0;
                     try {
-                        size = out.getPos();
+                        size = outputStreamWrapper.getOutput().getPos();
                     } catch (Exception ignored) {
                     }
 
-                    out.close();
+                    outputStreamWrapper.closeForCommit();
 
                     FileStateHandle metaDataHandle = new FileStateHandle(metadataFilePath, size);
 
@@ -139,7 +138,7 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
                             metaDataHandle.getFilePath().getParent().toString());
                 } catch (Exception e) {
                     try {
-                        fileSystem.delete(metadataFilePath, false);
+                        outputStreamWrapper.cleanup();
                     } catch (Exception deleteException) {
                         LOG.warn(
                                 "Could not delete the checkpoint stream file {}.",
@@ -161,5 +160,22 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
                 throw new IOException("Stream has already been closed and discarded.");
             }
         }
+    }
+
+    static MetadataOutputStreamWrapper getOutputStreamWrapper(
+            final FileSystem fileSystem, final Path metadataFilePath) throws IOException {
+        if (fileSystem.exists(metadataFilePath)) {
+            throw new IOException("Target file " + metadataFilePath + " already exists.");
+        }
+
+        try {
+            RecoverableWriter recoverableWriter = fileSystem.createRecoverableWriter();
+            return new RecoverableStreamWrapper(recoverableWriter.open(metadataFilePath));
+        } catch (Throwable throwable) {
+            LOG.info(
+                    "Cannot create recoverable writer due to {}, will use the ordinary writer.",
+                    throwable.getMessage());
+        }
+        return new FSDataOutputStreamWrapper(fileSystem, metadataFilePath);
     }
 }

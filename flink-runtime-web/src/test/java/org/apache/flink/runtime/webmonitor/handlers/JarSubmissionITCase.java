@@ -51,7 +51,7 @@ public class JarSubmissionITCase extends TestLogger {
     @Test
     public void testJarSubmission() throws Exception {
         final TestingDispatcherGateway restfulGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(blobServerResource.getBlobServerPort())
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))

@@ -23,7 +23,8 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
@@ -54,9 +55,9 @@ trait BatchPhysicalJoinRuleBase {
   def chooseSemiBuildDistinct(
       buildRel: RelNode,
       distinctKeys: Seq[Int]): Boolean = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
+    val tableConfig = unwrapTableConfig(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
-    val ratioConf = tableConfig.getConfiguration.getDouble(
+    val ratioConf = tableConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(
@@ -84,8 +85,9 @@ object BatchPhysicalJoinRuleBase {
   @Experimental
   val TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
     key("table.optimizer.semi-anti-join.build-distinct.ndv-ratio")
-      .defaultValue(JDouble.valueOf(0.8))
-      .withDescription("In order to reduce the amount of data on semi/anti join's" +
+        .doubleType()
+        .defaultValue(JDouble.valueOf(0.8))
+        .withDescription("In order to reduce the amount of data on semi/anti join's" +
           " build side, we will add distinct node before semi/anti join when" +
           "  the semi-side or semi/anti join can distinct a lot of data in advance." +
           " We add this configuration to help the optimizer to decide whether to" +
@@ -95,6 +97,7 @@ object BatchPhysicalJoinRuleBase {
   @Experimental
   val TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.shuffle-by-partial-key-enabled")
+        .booleanType()
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("Enables shuffling by partial partition keys. " +
             "For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. " +

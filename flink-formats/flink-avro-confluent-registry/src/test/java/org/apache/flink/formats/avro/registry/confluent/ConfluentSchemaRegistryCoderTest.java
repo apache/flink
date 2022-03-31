@@ -21,20 +21,21 @@ package org.apache.flink.formats.avro.registry.confluent;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ConfluentSchemaRegistryCoder}. */
-public class ConfluentSchemaRegistryCoderTest {
+class ConfluentSchemaRegistryCoderTest {
 
     @Test
-    public void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
+    void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
         MockSchemaRegistryClient client = new MockSchemaRegistryClient();
 
         Schema schema =
@@ -51,12 +52,12 @@ public class ConfluentSchemaRegistryCoderTest {
         ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
         Schema readSchema = registryCoder.readSchema(byteInStream);
 
-        assertEquals(schema, readSchema);
-        assertEquals(0, byteInStream.available());
+        assertThat(readSchema).isEqualTo(schema);
+        assertThat(byteInStream).isEmpty();
     }
 
-    @Test(expected = IOException.class)
-    public void testMagicByteVerification() throws Exception {
+    @Test
+    void testMagicByteVerification() throws Exception {
         MockSchemaRegistryClient client = new MockSchemaRegistryClient();
         int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
 
@@ -67,9 +68,10 @@ public class ConfluentSchemaRegistryCoderTest {
         dataOutputStream.writeInt(schemaId);
         dataOutputStream.flush();
 
-        ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
-        coder.readSchema(byteInStream);
-
-        // exception is thrown
+        try (ByteArrayInputStream byteInStream =
+                new ByteArrayInputStream(byteOutStream.toByteArray())) {
+            assertThatThrownBy(() -> coder.readSchema(byteInStream))
+                    .isInstanceOf(IOException.class);
+        }
     }
 }

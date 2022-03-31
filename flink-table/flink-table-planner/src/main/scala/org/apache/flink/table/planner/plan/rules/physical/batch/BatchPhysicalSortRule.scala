@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -52,8 +53,8 @@ class BatchPhysicalSortRule extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput
-    val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val enableRangeSort = config.getConfiguration.getBoolean(
+    val tableConfig = ShortcutUtils.unwrapTableConfig(sort)
+    val enableRangeSort = tableConfig.get(
       BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
@@ -83,6 +84,7 @@ object BatchPhysicalSortRule {
   @Experimental
   val TABLE_EXEC_RANGE_SORT_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.range-sort.enabled")
+      .booleanType()
       .defaultValue(JBoolean.valueOf(false))
       .withDescription("Sets whether to enable range sort, use range sort to sort all data in" +
           " several partitions. When it is false, sorting in only one partition")

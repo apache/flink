@@ -198,14 +198,14 @@ GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7
     <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*($0, $4)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
    +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- Calc(select=[long, int, string, rowtime, CAST(int AS BIGINT) AS int0])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
@@ -264,14 +264,14 @@ GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8
     <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*($0, $4)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
    +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- Calc(select=[long, int, string, rowtime, CAST(int AS BIGINT) AS int0])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
@@ -298,14 +298,14 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 
     <Resource name="ast">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*($0, $4)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- Calc(select=[long, int, string, rowtime, CAST(int AS BIGINT) AS int0])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
@@ -417,7 +417,7 @@ Calc(select=[EXPR$0 AS we1, string, EXPR$1 AS cnt, EXPR$2 AS ws, EXPR$0 AS we2])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
-+- LogicalWindowAggregate(group=[{2, 3, 4}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $6)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
++- LogicalWindowAggregate(group=[{2, 3, 4}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*($0, $6)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
    +- LogicalProject(long=[$0], int=[$1], string=[$2], int2=[$3], int3=[$4], proctime=[$5], int0=[CAST($1):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
@@ -425,7 +425,7 @@ LogicalProject(EXPR$0=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
-+- GroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, int2, int3, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(long, int0) AS EXPR$0])
++- GroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, int2, int3, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*(long, int0) AS EXPR$0])
    +- Exchange(distribution=[hash[string, int2, int3]])
       +- Calc(select=[long, int, string, int2, int3, proctime, CAST(int AS BIGINT) AS int0])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, int2, int3, proctime])

@@ -18,10 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
@@ -51,7 +48,6 @@ public class TemporalTableSourceSpec {
     public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
 
     @JsonProperty(FIELD_NAME_LOOK_UP_TABLE_SOURCE)
-    @Nullable
     private DynamicTableSourceSpec tableSourceSpec;
 
     @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
@@ -60,18 +56,15 @@ public class TemporalTableSourceSpec {
 
     @JsonIgnore private RelOptTable temporalTable;
 
-    public TemporalTableSourceSpec(RelOptTable temporalTable, TableConfig tableConfig) {
+    public TemporalTableSourceSpec(RelOptTable temporalTable) {
         this.temporalTable = temporalTable;
         if (temporalTable instanceof TableSourceTable) {
             TableSourceTable tableSourceTable = (TableSourceTable) temporalTable;
             outputType = tableSourceTable.getRowType();
             this.tableSourceSpec =
                     new DynamicTableSourceSpec(
-                            tableSourceTable.tableIdentifier(),
-                            tableSourceTable.catalogTable(),
+                            tableSourceTable.contextResolvedTable(),
                             Arrays.asList(tableSourceTable.abilitySpecs()));
-            tableSourceSpec.setTableSource(tableSourceTable.tableSource());
-            tableSourceSpec.setReadableConfig(tableConfig.getConfiguration());
         }
     }
 
@@ -92,21 +85,18 @@ public class TemporalTableSourceSpec {
         if (null != tableSourceSpec && null != outputType) {
             LookupTableSource lookupTableSource =
                     tableSourceSpec.getLookupTableSource(flinkContext);
-            ObjectIdentifier objectIdentifier = tableSourceSpec.getObjectIdentifier();
-            ResolvedCatalogTable catalogTable = tableSourceSpec.getCatalogTable();
             SourceAbilitySpec[] sourceAbilitySpecs = null;
-            if (null != tableSourceSpec.getSourceAbilitySpecs()) {
+            if (null != tableSourceSpec.getSourceAbilities()) {
                 sourceAbilitySpecs =
-                        tableSourceSpec.getSourceAbilitySpecs().toArray(new SourceAbilitySpec[0]);
+                        tableSourceSpec.getSourceAbilities().toArray(new SourceAbilitySpec[0]);
             }
             return new TableSourceTable(
                     null,
-                    objectIdentifier,
                     outputType,
                     FlinkStatistic.UNKNOWN(),
                     lookupTableSource,
                     true,
-                    catalogTable,
+                    tableSourceSpec.getContextResolvedTable(),
                     flinkContext,
                     sourceAbilitySpecs);
         }
@@ -114,7 +104,6 @@ public class TemporalTableSourceSpec {
     }
 
     @JsonIgnore
-    @Nullable
     public DynamicTableSourceSpec getTableSourceSpec() {
         return tableSourceSpec;
     }

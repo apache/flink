@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -102,7 +103,8 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
      * @param configuration configuration object
      * @return the configuration for standalone ResourceManager
      */
-    private static Configuration getConfigurationWithoutMaxSlotNumberIfSet(
+    @VisibleForTesting
+    public static Configuration getConfigurationWithoutMaxSlotNumberIfSet(
             Configuration configuration) {
         final Configuration copiedConfig = new Configuration(configuration);
         // The max slot limit should not take effect for standalone cluster, we overwrite the

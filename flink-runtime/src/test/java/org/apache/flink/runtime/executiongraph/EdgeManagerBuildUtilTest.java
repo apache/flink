@@ -78,9 +78,7 @@ public class EdgeManagerBuildUtilTest {
 
             IntermediateResultPartition partition =
                     ev.getProducedPartitions().values().iterator().next();
-            assertEquals(1, partition.getConsumerVertexGroups().size());
-
-            ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroups().get(0);
+            ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
             int actual = consumerVertexGroup.size();
             if (actual > actualMaxForUpstream) {
                 actualMaxForUpstream = actual;

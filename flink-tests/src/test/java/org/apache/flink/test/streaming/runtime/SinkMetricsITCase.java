@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.configuration.Configuration;
@@ -35,8 +36,7 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -53,31 +53,23 @@ import static org.hamcrest.Matchers.hasSize;
 
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
 public class SinkMetricsITCase extends TestLogger {
+
+    private static final String TEST_SINK_NAME = "MetricTestSink";
+    // please refer to SinkTransformationTranslator#WRITER_NAME
+    private static final String DEFAULT_WRITER_NAME = "Writer";
     private static final int DEFAULT_PARALLELISM = 4;
+
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    private InMemoryReporter reporter;
+    private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    private MiniClusterWithClientResource miniClusterResource;
-
-    @Before
-    public void setup() throws Exception {
-        reporter = InMemoryReporter.createWithRetainedMetrics();
-        Configuration configuration = new Configuration();
-        reporter.addToConfiguration(configuration);
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                                .setConfiguration(configuration)
-                                .build());
-        miniClusterResource.before();
-    }
-
-    @After
-    public void teardown() {
-        miniClusterResource.after();
-    }
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .setConfiguration(reporter.addToConfiguration(new Configuration()))
+                            .build());
 
     @Test
     public void testMetrics() throws Exception {
@@ -109,40 +101,50 @@ public class SinkMetricsITCase extends TestLogger {
                             }
                             return i;
                         })
-                .sinkTo(TestSink.newBuilder().setWriter(new MetricWriter()).build())
-                .name("MetricTestSink");
+                .sinkTo(
+                        TestSink.newBuilder()
+                                .setDefaultCommitter()
+                                .setWriter(new MetricWriter())
+                                .build())
+                .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();
+        final JobID jobId = jobClient.getJobID();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(stopAtRecord1, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord1, env.getParallelism(), numSplits);
         afterBarrier.get().await();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(stopAtRecord2, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord2, env.getParallelism(), numSplits);
         afterBarrier.get().await();
 
         jobClient.getJobExecutionResult().get();
     }
 
+    @SuppressWarnings("checkstyle:WhitespaceAfter")
     private void assertSinkMetrics(
-            long processedRecordsPerSubtask, int parallelism, int numSplits) {
-        List<OperatorMetricGroup> groups = reporter.findOperatorMetricGroups("MetricTestSink");
+            JobID jobId, long processedRecordsPerSubtask, int parallelism, int numSplits) {
+        List<OperatorMetricGroup> groups =
+                reporter.findOperatorMetricGroups(
+                        jobId, TEST_SINK_NAME + ": " + DEFAULT_WRITER_NAME);
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
-            // there are only 2 splits assigned; so two groups will not update metrics
-            if (group.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
+            // There are only 2 splits assigned; so two groups will not update metrics.
+            // There is no other way to access the counter via OperatorMetricGroup, we have to use
+            // metrics from the reporter.
+            if (((Counter) metrics.get(MetricNames.NUM_RECORDS_SEND)).getCount() == 0) {
                 continue;
             }
             subtaskWithMetrics++;
-            // I/O metrics
+            // SinkWriterMetricGroup metrics
             assertThat(
-                    group.getIOMetricGroup().getNumRecordsOutCounter(),
+                    metrics.get(MetricNames.NUM_RECORDS_SEND),
                     isCounter(equalTo(processedRecordsPerSubtask)));
             assertThat(
-                    group.getIOMetricGroup().getNumBytesOutCounter(),
+                    metrics.get(MetricNames.NUM_BYTES_SEND),
                     isCounter(
                             equalTo(
                                     processedRecordsPerSubtask
@@ -150,6 +152,9 @@ public class SinkMetricsITCase extends TestLogger {
             // MetricWriter is just incrementing errors every even record
             assertThat(
                     metrics.get(MetricNames.NUM_RECORDS_OUT_ERRORS),
+                    isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
+            assertThat(
+                    metrics.get(MetricNames.NUM_RECORDS_SEND_ERRORS),
                     isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
             // check if the latest send time is fetched
             assertThat(
@@ -167,12 +172,10 @@ public class SinkMetricsITCase extends TestLogger {
         static final long RECORD_SIZE_IN_BYTES = 10;
         private SinkWriterMetricGroup metricGroup;
         private long sendTime;
-        private Counter recordsOutCounter;
 
         @Override
         public void init(Sink.InitContext context) {
             this.metricGroup = context.metricGroup();
-            this.recordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }
 
@@ -180,11 +183,12 @@ public class SinkMetricsITCase extends TestLogger {
         public void write(Long element, Context context) {
             super.write(element, context);
             sendTime = element * BASE_SEND_TIME;
-            recordsOutCounter.inc();
+            metricGroup.getNumRecordsSendCounter().inc();
             if (element % 2 == 0) {
                 metricGroup.getNumRecordsOutErrorsCounter().inc();
+                metricGroup.getNumRecordsSendErrorsCounter().inc();
             }
-            metricGroup.getIOMetricGroup().getNumBytesOutCounter().inc(RECORD_SIZE_IN_BYTES);
+            metricGroup.getNumBytesSendCounter().inc(RECORD_SIZE_IN_BYTES);
         }
     }
 }

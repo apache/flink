@@ -288,8 +288,8 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testJoinOnChangelogSourceWithEventsDuplicate(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, Boolean.box(true))
     verifyJoinOnSource("I,UB,UA")
   }
 
@@ -356,8 +356,8 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testChangelogSourceWithEventsDuplicate(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, Boolean.box(true))
     util.addTable(
       """
         |CREATE TABLE src (
@@ -668,8 +668,8 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UB,UA,D'
         |)
       """.stripMargin)
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, Boolean.box(true))
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Configuration 'table.exec.source.cdc-events-duplicate' is enabled " +

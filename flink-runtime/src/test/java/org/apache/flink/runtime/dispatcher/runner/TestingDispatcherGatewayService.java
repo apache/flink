@@ -91,8 +91,7 @@ class TestingDispatcherGatewayService
         private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction =
                 ignored -> FutureUtils.completedVoidFuture();
 
-        private DispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder().build();
+        private DispatcherGateway dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
 
         private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 

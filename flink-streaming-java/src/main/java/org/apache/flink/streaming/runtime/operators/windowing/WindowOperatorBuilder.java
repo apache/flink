@@ -326,7 +326,11 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         }
     }
 
-    public String generateOperatorName(Function function1, @Nullable Function function2) {
+    public String generateOperatorName() {
+        return windowAssigner.getClass().getSimpleName();
+    }
+
+    public String generateOperatorDescription(Function function1, @Nullable Function function2) {
         return "Window("
                 + windowAssigner
                 + ", "

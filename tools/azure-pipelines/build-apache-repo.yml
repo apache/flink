@@ -70,7 +70,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -110,18 +110,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_hadoop241
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -143,7 +132,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
@@ -154,7 +143,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Penable-adaptive-scheduler"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Penable-adaptive-scheduler"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -166,5 +155,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           container: flink-build-container

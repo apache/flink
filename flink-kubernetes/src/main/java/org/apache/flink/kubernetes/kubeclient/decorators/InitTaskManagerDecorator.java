@@ -28,14 +28,19 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_DEFAULT;
+import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_HOSTNETWORK;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An initializer for the TaskManager {@link org.apache.flink.kubernetes.kubeclient.FlinkPod}. */
@@ -76,6 +81,11 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withServiceAccount(serviceAccountName)
                 .withServiceAccountName(serviceAccountName)
                 .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
+                .withHostNetwork(kubernetesTaskManagerParameters.isHostNetworkEnabled())
+                .withDnsPolicy(
+                        kubernetesTaskManagerParameters.isHostNetworkEnabled()
+                                ? DNS_PLOICY_HOSTNETWORK
+                                : DNS_PLOICY_DEFAULT)
                 .endSpec();
 
         // Merge fields
@@ -113,7 +123,9 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 KubernetesUtils.getResourceRequirements(
                         requirementsInPodTemplate,
                         kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+                        kubernetesTaskManagerParameters.getTaskManagerMemoryLimitFactor(),
                         kubernetesTaskManagerParameters.getTaskManagerCPU(),
+                        kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResources(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResourceConfigKeys());
         final String image =
@@ -137,20 +149,32 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withResources(resourceRequirements);
 
         // Merge fields
-        mainContainerBuilder
-                .addToPorts(
-                        new ContainerPortBuilder()
-                                .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
-                                .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
-                                .build())
-                .addAllToEnv(getCustomizedEnvs());
+        mainContainerBuilder.addAllToPorts(getContainerPorts()).addAllToEnv(getCustomizedEnvs());
+        getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
 
         return mainContainerBuilder.build();
+    }
+
+    private List<ContainerPort> getContainerPorts() {
+        if (kubernetesTaskManagerParameters.isHostNetworkEnabled()) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(
+                new ContainerPortBuilder()
+                        .withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+                        .withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+                        .build());
     }
 
     private List<EnvVar> getCustomizedEnvs() {
         return kubernetesTaskManagerParameters.getEnvironments().entrySet().stream()
                 .map(kv -> new EnvVar(kv.getKey(), kv.getValue(), null))
                 .collect(Collectors.toList());
+    }
+
+    private Optional<EnvVar> getFlinkLogDirEnv() {
+        return kubernetesTaskManagerParameters
+                .getFlinkLogDirInPod()
+                .map(logDir -> new EnvVar(Constants.ENV_FLINK_LOG_DIR, logDir, null));
     }
 }

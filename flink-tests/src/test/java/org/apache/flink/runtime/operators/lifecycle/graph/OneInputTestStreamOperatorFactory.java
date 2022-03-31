@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
+import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
@@ -25,17 +26,21 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 
-class OneInputTestStreamOperatorFactory
+/** {@link OneInputTestStreamOperator} factory. */
+public class OneInputTestStreamOperatorFactory
         implements OneInputStreamOperatorFactory<TestDataElement, TestDataElement>,
                 ProcessingTimeServiceAware {
     private ChainingStrategy strategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
     private ProcessingTimeService processingTimeService;
     private final String operatorID;
     private final TestEventQueue eventQueue;
+    private final TestCommandDispatcher commandDispatcher;
 
-    OneInputTestStreamOperatorFactory(String operatorID, TestEventQueue eventQueue) {
+    public OneInputTestStreamOperatorFactory(
+            String operatorID, TestEventQueue eventQueue, TestCommandDispatcher commandDispatcher) {
         this.operatorID = operatorID;
         this.eventQueue = eventQueue;
+        this.commandDispatcher = commandDispatcher;
     }
 
     @Override
@@ -43,7 +48,7 @@ class OneInputTestStreamOperatorFactory
     public <T extends StreamOperator<TestDataElement>> T createStreamOperator(
             StreamOperatorParameters<TestDataElement> parameters) {
         OneInputTestStreamOperator operator =
-                new OneInputTestStreamOperator(operatorID, eventQueue);
+                new OneInputTestStreamOperator(operatorID, eventQueue, commandDispatcher);
         operator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),

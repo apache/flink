@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.util.TestLoggerExtension;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.Shard;

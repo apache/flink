@@ -18,7 +18,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.junit.jupiter.api.DynamicTest;
@@ -29,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -54,6 +55,12 @@ abstract class ElasticsearchSinkBuilderBaseTest<B extends ElasticsearchSinkBuild
                 validBuilders,
                 ElasticsearchSinkBuilderBase::toString,
                 builder -> assertDoesNotThrow(builder::build));
+    }
+
+    @Test
+    void testDefaultDeliveryGuarantee() {
+        assertThat(createMinimalBuilder().build().getDeliveryGuarantee())
+                .isEqualTo(DeliveryGuarantee.AT_LEAST_ONCE);
     }
 
     @Test

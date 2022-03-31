@@ -26,7 +26,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlBinaryOperator
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, EQUALS, IN, NOT_EQUALS, NOT_IN, OR}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, EQUALS, IN, NOT, NOT_EQUALS, NOT_IN, OR}
 import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConversions._
@@ -154,7 +154,9 @@ class ConvertToNotInOrInRule
         val values = list.map(_.getOperands.last)
         val call = toOperator match {
           case IN => builder.getRexBuilder.makeIn(inputRef, values)
-          case _ => builder.getRexBuilder.makeCall(toOperator, List(inputRef) ++ values)
+          case NOT_IN => builder
+            .getRexBuilder
+            .makeCall(NOT, builder.getRexBuilder.makeIn(inputRef, values))
         }
         rexBuffer += call
         beenConverted = true

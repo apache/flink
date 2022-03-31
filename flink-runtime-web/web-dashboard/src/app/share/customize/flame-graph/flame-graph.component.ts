@@ -49,7 +49,7 @@ export class FlameGraphComponent {
         .direction('s')
         .offset([8, 0])
         .attr('class', 'd3-flame-graph-tip')
-        .html(function(d: { data: { name: string; value: string }; x1: number; x0: number }) {
+        .html(function (d: { data: { name: string; value: string }; x1: number; x0: number }) {
           return `${d.data.name} (${format('.3f')(100 * (d.x1 - d.x0))}%, ${d.data.value} samples)`;
         });
 
@@ -59,12 +59,8 @@ export class FlameGraphComponent {
         chart.setColorMapper(offCpuColorMapper);
       }
 
-      select(element)
-        .selectAll('*')
-        .remove();
-      select(element)
-        .datum(this.data)
-        .call(chart);
+      select(element).selectAll('*').remove();
+      select(element).datum(this.data).call(chart);
     }
   }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.sorted.state;
 
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -68,7 +70,13 @@ class NonCheckpointingStorageAccess implements CheckpointStorageAccess {
     }
 
     @Override
-    public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream() {
+    public CheckpointStateOutputStream createTaskOwnedStateStream() {
+        throw new UnsupportedOperationException(
+                "Checkpoints are not supported in a single key state backend");
+    }
+
+    @Override
+    public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
         throw new UnsupportedOperationException(
                 "Checkpoints are not supported in a single key state backend");
     }

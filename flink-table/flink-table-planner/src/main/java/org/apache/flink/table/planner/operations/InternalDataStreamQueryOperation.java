@@ -45,6 +45,7 @@ import java.util.Map;
  * of the {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
+@Deprecated
 public class InternalDataStreamQueryOperation<E> implements QueryOperation {
 
     private final ObjectIdentifier identifier;

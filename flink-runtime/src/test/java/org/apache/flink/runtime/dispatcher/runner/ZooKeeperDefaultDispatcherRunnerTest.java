@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -35,14 +34,15 @@ import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -58,7 +58,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
 import org.junit.After;
 import org.junit.Before;
@@ -70,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -86,8 +85,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
             LoggerFactory.getLogger(ZooKeeperDefaultDispatcherRunnerTest.class);
 
     private static final Time TESTING_TIMEOUT = Time.seconds(10L);
-
-    private static final Duration VERIFICATION_TIMEOUT = Duration.ofSeconds(10L);
 
     @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
@@ -122,7 +119,10 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                                         configuration)
                                 .toString());
         blobServer =
-                new BlobServer(configuration, BlobUtils.createBlobStoreFromConfig(configuration));
+                new BlobServer(
+                        configuration,
+                        temporaryFolder.newFolder(),
+                        BlobUtils.createBlobStoreFromConfig(configuration));
     }
 
     @After
@@ -148,8 +148,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                         .asCuratorFramework();
         try (final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder()
-                        .setRunningJobsRegistry(
-                                new ZooKeeperRunningJobsRegistry(client, configuration))
                         .setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
                         .setJobMasterLeaderRetrieverFunction(
                                 jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))
@@ -170,8 +168,6 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                             ForkJoinPool.commonPool(),
                             new DispatcherOperationCaches());
 
-            final JobGraph jobGraph = createJobGraphWithBlobs();
-
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(
                             SessionDispatcherFactory.INSTANCE);
@@ -180,7 +176,17 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                     createDispatcherRunner(
                             rpcService,
                             dispatcherLeaderElectionService,
-                            () -> createZooKeeperJobGraphStore(client),
+                            new JobPersistenceComponentFactory() {
+                                @Override
+                                public JobGraphStore createJobGraphStore() {
+                                    return createZooKeeperJobGraphStore(client);
+                                }
+
+                                @Override
+                                public JobResultStore createJobResultStore() {
+                                    return new EmbeddedJobResultStore();
+                                }
+                            },
                             partialDispatcherServices,
                             defaultDispatcherRunnerFactory)) {
 
@@ -188,6 +194,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 DispatcherGateway dispatcherGateway =
                         grantLeadership(dispatcherLeaderElectionService);
 
+                final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
                 dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
 
@@ -214,9 +221,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 final JobGraphStore submittedJobGraphStore = createZooKeeperJobGraphStore(client);
 
                 CommonTestUtils.waitUntilCondition(
-                        () -> submittedJobGraphStore.getJobIds().isEmpty(),
-                        Deadline.fromNow(VERIFICATION_TIMEOUT),
-                        20L);
+                        () -> submittedJobGraphStore.getJobIds().isEmpty(), 20L);
             }
         }
 
@@ -227,14 +232,14 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
             TestingLeaderElectionService dispatcherLeaderElectionService,
-            JobGraphStoreFactory jobGraphStoreFactory,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
-                jobGraphStoreFactory,
+                jobPersistenceComponentFactory,
                 TestingUtils.defaultExecutor(),
                 rpcService,
                 partialDispatcherServices);

@@ -38,13 +38,15 @@
 
 avro:
     name: Avro
-    maven: flink-sql-avro
+    maven: flink-avro
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro/$version/flink-sql-avro-$version.jar
 
 avro-confluent:
     name: Avro Schema Registry
-    maven: flink-avro-confluent-registry
+    maven:
+      - flink-avro-confluent-registry
+      - flink-avro
     category: format
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/$version/flink-sql-avro-confluent-registry-$version.jar
 
@@ -82,6 +84,12 @@ maxwell:
     name: Maxwell
     maven: flink-json
     category: format
+    builtin: true
+
+ogg-json:
+    name: Ogg
+    maven: flink-json
+    catagory: format
     builtin: true
 
 csv:

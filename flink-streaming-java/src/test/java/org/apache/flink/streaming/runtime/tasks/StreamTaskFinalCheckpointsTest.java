@@ -21,15 +21,16 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -61,7 +61,6 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -233,11 +232,6 @@ public class StreamTaskFinalCheckpointsTest {
                                     config.setCheckpointingEnabled(true);
                                     config.setUnalignedCheckpointsEnabled(
                                             enableUnalignedCheckpoint);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
                                 })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOperatorChain(new EmptyOperator())
@@ -462,11 +456,6 @@ public class StreamTaskFinalCheckpointsTest {
                         .modifyStreamConfig(
                                 config -> {
                                     config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
                                 })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOutputForSingletonOperatorChain(
@@ -629,15 +618,7 @@ public class StreamTaskFinalCheckpointsTest {
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO, 1)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
-                                    })
+                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .setupOperatorChain(new StatefulOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -711,19 +692,19 @@ public class StreamTaskFinalCheckpointsTest {
     static CompletableFuture<Boolean> triggerStopWithSavepointDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
         return triggerStopWithSavepoint(
-                testHarness, checkpointId, CheckpointType.SAVEPOINT_TERMINATE);
+                testHarness, checkpointId, SavepointType.terminate(SavepointFormatType.CANONICAL));
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepointNoDrain(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
         return triggerStopWithSavepoint(
-                testHarness, checkpointId, CheckpointType.SAVEPOINT_SUSPEND);
+                testHarness, checkpointId, SavepointType.suspend(SavepointFormatType.CANONICAL));
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepoint(
             StreamTaskMailboxTestHarness<String> testHarness,
             long checkpointId,
-            CheckpointType checkpointType) {
+            SavepointType checkpointType) {
         testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         return testHarness
                 .getStreamTask()
@@ -903,8 +884,7 @@ public class StreamTaskFinalCheckpointsTest {
             CommonTestUtils.waitUntilCondition(
                     () ->
                             checkpointResponder.getAcknowledgeLatch().isTriggered()
-                                    || checkpointResponder.getDeclinedLatch().isTriggered(),
-                    Deadline.fromNow(Duration.ofSeconds(10)));
+                                    || checkpointResponder.getDeclinedLatch().isTriggered());
 
             assertEquals(
                     Collections.singletonList(2L),

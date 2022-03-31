@@ -21,14 +21,18 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -36,6 +40,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -78,6 +84,7 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -99,7 +106,6 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -187,6 +193,7 @@ import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.CoreMatchers.both;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
@@ -196,6 +203,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -222,14 +230,16 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointCompleteAsync, CheckpointType.SAVEPOINT_SUSPEND, false);
+                StreamTask::notifyCheckpointCompleteAsync,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
+                false);
     }
 
     @Test
     public void testSavepointTerminateCompleted() throws Exception {
         testSyncSavepointWithEndInput(
                 StreamTask::notifyCheckpointCompleteAsync,
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -243,7 +253,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -257,7 +267,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -268,7 +278,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -279,7 +289,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -295,7 +305,7 @@ public class StreamTaskTest extends TestLogger {
      */
     private void testSyncSavepointWithEndInput(
             BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
-            CheckpointType checkpointType,
+            SnapshotType checkpointType,
             boolean expectEndInput)
             throws Exception {
         StreamTaskMailboxTestHarness<String> harness =
@@ -1374,7 +1384,7 @@ public class StreamTaskTest extends TestLogger {
                             completeFutureTask,
                             sleepTimeInsideMail,
                             sleepTimeOutsideMail,
-                            ioMetricGroup.getBackPressuredTimePerSecond());
+                            ioMetricGroup.getSoftBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
@@ -1385,10 +1395,10 @@ public class StreamTaskTest extends TestLogger {
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     greaterThanOrEqualTo(sleepTimeOutsideMail));
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
@@ -1447,7 +1457,8 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
-            assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getHardBackPressuredTimePerSecond().getCount(), is(0L));
         } finally {
             if (waitingThread != null) {
                 waitingThread.join();
@@ -1598,15 +1609,7 @@ public class StreamTaskTest extends TestLogger {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -1632,15 +1635,7 @@ public class StreamTaskTest extends TestLogger {
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setTaskStateSnapshot(3, new TaskStateSnapshot())
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -1769,6 +1764,111 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     getCurrentBufferSize(inputGates[1]),
                     equalTo((int) throughputGate2 / inputChannelsGate2));
+        }
+    }
+
+    /**
+     * Tests mailbox metrics latency and queue size and verifies that (1) latency measurement is
+     * executed initially once and at least once triggered by timer, (2) latency max value is
+     * greater than zero and (3) mailbox size is greater than zero for some time and eventually
+     * equals to zero.
+     *
+     * @throws Exception on {@link MockEnvironmentBuilder#build()} failure.
+     */
+    @Test
+    public void testMailboxMetricsScheduling() throws Exception {
+        try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
+            Gauge<Integer> mailboxSizeMetric =
+                    mockEnvironment.getMetricGroup().getIOMetricGroup().getMailboxSize();
+            Histogram mailboxLatencyMetric =
+                    mockEnvironment.getMetricGroup().getIOMetricGroup().getMailboxLatency();
+            AtomicInteger maxMailboxSize = new AtomicInteger(-1);
+            final int minMeasurements = 2;
+            SupplierWithException<StreamTask, Exception> task =
+                    () ->
+                            new StreamTask<Object, StreamOperator<Object>>(mockEnvironment) {
+                                @Override
+                                protected void init() {
+                                    this.mailboxMetricsInterval = 2;
+                                }
+
+                                @Override
+                                protected void processInput(
+                                        MailboxDefaultAction.Controller controller)
+                                        throws Exception {
+                                    if (mailboxLatencyMetric.getCount() < minMeasurements) {
+                                        mailboxProcessor
+                                                .getMainMailboxExecutor()
+                                                .execute(() -> {}, "mail");
+                                        // The actual delay here is irrelevant for the test but
+                                        // delay should be at least once 10 ms to reach a measurable
+                                        // delay >~ 8 ms.
+                                        Thread.sleep(mailboxLatencyMetric.getCount() == 0 ? 10 : 1);
+                                    } else {
+                                        controller.suspendDefaultAction();
+                                        mailboxProcessor.suspend();
+                                    }
+                                    maxMailboxSize.set(
+                                            Math.max(
+                                                    maxMailboxSize.get(),
+                                                    mailboxSizeMetric.getValue()));
+                                }
+                            };
+
+            runTask(task::get).waitForTaskCompletion(false);
+
+            assertThat(
+                    mailboxLatencyMetric.getCount(),
+                    greaterThanOrEqualTo(new Long(minMeasurements)));
+            assertThat(mailboxLatencyMetric.getStatistics().getMax(), greaterThan(0L));
+            assertThat(maxMailboxSize.get(), greaterThan(0));
+            assertThat(mailboxSizeMetric.getValue(), equalTo(0));
+        }
+    }
+
+    @Test
+    public void testMailboxMetricsMeasurement() throws Exception {
+        final int numMails = 10, sleepTime = 5;
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator());
+        try (StreamTaskMailboxTestHarness<Integer> harness = builder.build()) {
+            Histogram mailboxLatencyMetric =
+                    harness.streamTask
+                            .getEnvironment()
+                            .getMetricGroup()
+                            .getIOMetricGroup()
+                            .getMailboxLatency();
+            Gauge<Integer> mailboxSizeMetric =
+                    harness.streamTask
+                            .getEnvironment()
+                            .getMetricGroup()
+                            .getIOMetricGroup()
+                            .getMailboxSize();
+            long startTime = SystemClock.getInstance().relativeTimeMillis();
+            harness.streamTask.measureMailboxLatency();
+            for (int i = 0; i < numMails; ++i) {
+                harness.streamTask.mainMailboxExecutor.execute(
+                        () -> Thread.sleep(sleepTime), "add value");
+            }
+            harness.streamTask.measureMailboxLatency();
+
+            assertThat(mailboxSizeMetric.getValue(), greaterThanOrEqualTo(numMails));
+            assertThat(mailboxLatencyMetric.getCount(), equalTo(0L));
+
+            harness.processAll();
+            long endTime = SystemClock.getInstance().relativeTimeMillis();
+
+            assertThat(mailboxSizeMetric.getValue(), equalTo(0));
+            assertThat(mailboxLatencyMetric.getCount(), equalTo(2L));
+            assertThat(
+                    mailboxLatencyMetric.getStatistics().getMax(),
+                    is(
+                            both(greaterThanOrEqualTo(new Long(sleepTime * numMails)))
+                                    .and(lessThanOrEqualTo(endTime - startTime))));
         }
     }
 
@@ -2391,6 +2491,8 @@ public class StreamTaskTest extends TestLogger {
 
         private final transient CompletableFuture<Void> discardFuture = new CompletableFuture<>();
 
+        private final StateHandleID stateHandleId = StateHandleID.randomStateHandleId();
+
         public CompletableFuture<Void> getDiscardFuture() {
             return discardFuture;
         }
@@ -2406,6 +2508,11 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleId;
+        }
+
+        @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
@@ -2416,6 +2523,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0L;
+        }
+
+        @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
         }
     }
 

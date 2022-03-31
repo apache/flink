@@ -67,9 +67,8 @@ import java.util.function.Supplier;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
 public class AsyncLookupJoinHarnessTest {
@@ -273,17 +272,17 @@ public class AsyncLookupJoinHarnessTest {
                         rightRowSerializer,
                         true,
                         100);
-        assertNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         joinRunner.open(new Configuration());
-        assertNotNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.open(new Configuration());
         joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
-        assertNotNull(joinRunner.getAllResultFutures());
+        assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
     }
 

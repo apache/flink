@@ -41,7 +41,7 @@ class LogicalWindowTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends WindowTableAggregate(
     cluster,
     traitSet,
@@ -69,7 +69,7 @@ object LogicalWindowTableAggregate {
 
   def create(
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty],
+    namedProperties: util.List[NamedWindowProperty],
     aggregate: Aggregate): LogicalWindowTableAggregate = {
 
     val cluster: RelOptCluster = aggregate.getCluster

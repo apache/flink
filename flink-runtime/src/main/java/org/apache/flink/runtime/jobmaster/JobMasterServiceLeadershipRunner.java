@@ -21,8 +21,9 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -81,7 +82,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     private final LeaderElectionService leaderElectionService;
 
-    private final RunningJobsRegistry runningJobsRegistry;
+    private final JobResultStore jobResultStore;
 
     private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
 
@@ -111,12 +112,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     public JobMasterServiceLeadershipRunner(
             JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
             LeaderElectionService leaderElectionService,
-            RunningJobsRegistry runningJobsRegistry,
+            JobResultStore jobResultStore,
             LibraryCacheManager.ClassLoaderLease classLoaderLease,
             FatalErrorHandler fatalErrorHandler) {
         this.jobMasterServiceProcessFactory = jobMasterServiceProcessFactory;
         this.leaderElectionService = leaderElectionService;
-        this.runningJobsRegistry = runningJobsRegistry;
+        this.jobResultStore = jobResultStore;
         this.classLoaderLease = classLoaderLease;
         this.fatalErrorHandler = fatalErrorHandler;
     }
@@ -192,7 +193,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                     .exceptionally(
                             e -> {
                                 throw new CompletionException(
-                                        new FlinkException(
+                                        new JobCancellationFailedException(
                                                 "Cancellation failed.",
                                                 ExceptionUtils.stripCompletionException(e)));
                             });
@@ -269,13 +270,17 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @GuardedBy("lock")
     private void verifyJobSchedulingStatusAndCreateJobMasterServiceProcess(UUID leaderSessionId)
             throws FlinkException {
-        final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus =
-                getJobSchedulingStatus();
-
-        if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE) {
-            jobAlreadyDone();
-        } else {
-            createNewJobMasterServiceProcess(leaderSessionId);
+        try {
+            if (jobResultStore.hasJobResultEntry(getJobID())) {
+                jobAlreadyDone();
+            } else {
+                createNewJobMasterServiceProcess(leaderSessionId);
+            }
+        } catch (IOException e) {
+            throw new FlinkException(
+                    String.format(
+                            "Could not retrieve the job scheduling status for job %s.", getJobID()),
+                    e);
         }
     }
 
@@ -293,17 +298,6 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                                         new JobAlreadyDoneException(getJobID())))));
     }
 
-    private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {
-        try {
-            return runningJobsRegistry.getJobSchedulingStatus(getJobID());
-        } catch (IOException e) {
-            throw new FlinkException(
-                    String.format(
-                            "Could not retrieve the job scheduling status for job %s.", getJobID()),
-                    e);
-        }
-    }
-
     @GuardedBy("lock")
     private void createNewJobMasterServiceProcess(UUID leaderSessionId) throws FlinkException {
         Preconditions.checkState(jobMasterServiceProcess.closeAsync().isDone());
@@ -311,16 +305,6 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         LOG.debug(
                 "Create new JobMasterServiceProcess because we were granted leadership under {}.",
                 leaderSessionId);
-
-        try {
-            runningJobsRegistry.setJobRunning(getJobID());
-        } catch (IOException e) {
-            throw new FlinkException(
-                    String.format(
-                            "Failed to set the job %s to running in the running jobs registry.",
-                            getJobID()),
-                    e);
-        }
 
         jobMasterServiceProcess = jobMasterServiceProcessFactory.create(leaderSessionId);
 
@@ -382,17 +366,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             "Could not retrieve JobMasterGateway because the JobMaster failed.",
                             throwable));
         } else {
-            if (jobManagerRunnerResult.isSuccess()) {
-                try {
-                    runningJobsRegistry.setJobFinished(getJobID());
-                } catch (IOException e) {
-                    LOG.error(
-                            "Could not un-register from high-availability services job {}."
-                                    + "Other JobManager's may attempt to recover it and re-execute it.",
-                            getJobID(),
-                            e);
-                }
-            } else {
+            if (!jobManagerRunnerResult.isSuccess()) {
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException(
                                 "Could not retrieve JobMasterGateway because the JobMaster initialization failed.",

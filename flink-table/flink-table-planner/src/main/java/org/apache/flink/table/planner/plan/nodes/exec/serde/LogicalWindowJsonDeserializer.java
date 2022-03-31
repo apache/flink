@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -30,15 +31,14 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 import java.time.Duration;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_ALIAS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_FIELD_INDEX;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.FIELD_NAME_FIELD_NAME;
@@ -55,37 +55,40 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindow
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.KIND_TUMBLING;
 
 /**
- * JSON deserializer for {@link LogicalWindow}, refer to {@link LogicalWindowJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link LogicalWindow}.
+ *
+ * @see LogicalWindowJsonSerializer for the reverse operation
  */
-public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow> {
+@Internal
+final class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow> {
     private static final long serialVersionUID = 1L;
 
-    public LogicalWindowJsonDeserializer() {
+    LogicalWindowJsonDeserializer() {
         super(LogicalWindow.class);
     }
 
     @Override
     public LogicalWindow deserialize(
             JsonParser jsonParser, DeserializationContext deserializationContext)
-            throws IOException, JsonProcessingException {
-        FlinkDeserializationContext flinkDeserializationContext =
-                (FlinkDeserializationContext) deserializationContext;
-        ObjectMapper mapper = flinkDeserializationContext.getObjectMapper();
+            throws IOException {
         JsonNode jsonNode = jsonParser.readValueAsTree();
         String kind = jsonNode.get(FIELD_NAME_KIND).asText().toUpperCase();
         WindowReference alias =
-                mapper.readValue(jsonNode.get(FIELD_NAME_ALIAS).toString(), WindowReference.class);
+                deserializationContext.readValue(
+                        jsonNode.get(FIELD_NAME_ALIAS).traverse(jsonParser.getCodec()),
+                        WindowReference.class);
         FieldReferenceExpression timeField =
-                deserializeFieldReferenceExpression(jsonNode.get(FIELD_NAME_TIME_FIELD), mapper);
+                deserializeFieldReferenceExpression(
+                        jsonNode.get(FIELD_NAME_TIME_FIELD), jsonParser, deserializationContext);
 
         switch (kind) {
             case KIND_TUMBLING:
                 boolean isTimeTumblingWindow = jsonNode.get(FIELD_NAME_IS_TIME_WINDOW).asBoolean();
                 if (isTimeTumblingWindow) {
                     Duration size =
-                            mapper.readValue(
-                                    jsonNode.get(FIELD_NAME_SIZE).toString(), Duration.class);
+                            deserializationContext.readValue(
+                                    traverse(jsonNode.get(FIELD_NAME_SIZE), jsonParser.getCodec()),
+                                    Duration.class);
                     return new TumblingGroupWindow(
                             alias, timeField, new ValueLiteralExpression(size));
                 } else {
@@ -97,11 +100,13 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
                 boolean isTimeSlidingWindow = jsonNode.get(FIELD_NAME_IS_TIME_WINDOW).asBoolean();
                 if (isTimeSlidingWindow) {
                     Duration size =
-                            mapper.readValue(
-                                    jsonNode.get(FIELD_NAME_SIZE).toString(), Duration.class);
+                            deserializationContext.readValue(
+                                    traverse(jsonNode.get(FIELD_NAME_SIZE), jsonParser.getCodec()),
+                                    Duration.class);
                     Duration slide =
-                            mapper.readValue(
-                                    jsonNode.get(FIELD_NAME_SLIDE).toString(), Duration.class);
+                            deserializationContext.readValue(
+                                    traverse(jsonNode.get(FIELD_NAME_SLIDE), jsonParser.getCodec()),
+                                    Duration.class);
                     return new SlidingGroupWindow(
                             alias,
                             timeField,
@@ -118,7 +123,9 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
                 }
             case KIND_SESSION:
                 Duration gap =
-                        mapper.readValue(jsonNode.get(FIELD_NAME_GAP).toString(), Duration.class);
+                        deserializationContext.readValue(
+                                traverse(jsonNode.get(FIELD_NAME_GAP), jsonParser.getCodec()),
+                                Duration.class);
                 return new SessionGroupWindow(alias, timeField, new ValueLiteralExpression(gap));
 
             default:
@@ -127,12 +134,15 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
     }
 
     private FieldReferenceExpression deserializeFieldReferenceExpression(
-            JsonNode input, ObjectMapper mapper) throws JsonProcessingException {
+            JsonNode input, JsonParser jsonParser, DeserializationContext deserializationContext)
+            throws IOException {
         String name = input.get(FIELD_NAME_FIELD_NAME).asText();
         int fieldIndex = input.get(FIELD_NAME_FIELD_INDEX).asInt();
         int inputIndex = input.get(FIELD_NAME_INPUT_INDEX).asInt();
         LogicalType type =
-                mapper.readValue(input.get(FIELD_NAME_FIELD_TYPE).toString(), LogicalType.class);
+                deserializationContext.readValue(
+                        input.get(FIELD_NAME_FIELD_TYPE).traverse(jsonParser.getCodec()),
+                        LogicalType.class);
         return new FieldReferenceExpression(name, new AtomicDataType(type), inputIndex, fieldIndex);
     }
 }

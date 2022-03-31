@@ -175,7 +175,7 @@ class CorrelateSortToRankRule extends RelOptRule(
           1,
           sort.fetch.asInstanceOf[RexLiteral].getValueAs(classOf[java.lang.Long])),
         null,
-        outputRankNumber = false)
+        false)
       .project(projects)
       .build()
 

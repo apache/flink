@@ -35,7 +35,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
 
 /** built-in max aggregate function. */
 public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression max = unresolvedRef("max");
+
+    private final UnresolvedReferenceExpression max = unresolvedRef("max");
 
     @Override
     public int operandCount() {
@@ -151,15 +152,15 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 
     /** Built-in Decimal Max aggregate function. */
     public static class DecimalMaxAggFunction extends MaxAggFunction {
-        private DecimalType decimalType;
+        private final DataType resultType;
 
         public DecimalMaxAggFunction(DecimalType decimalType) {
-            this.decimalType = decimalType;
+            this.resultType = DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
         }
 
         @Override
         public DataType getResultType() {
-            return DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
+            return resultType;
         }
     }
 

@@ -22,8 +22,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, JoinTypeUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinTypeUtil}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -77,9 +78,10 @@ class StreamPhysicalLookupJoin(
         (null, null)
     }
     new StreamExecLookupJoin(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       remainingCondition.orNull,
-      new TemporalTableSourceSpec(temporalTable, FlinkRelOptUtil.getTableConfigFromContext(this)),
+      new TemporalTableSourceSpec(temporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,

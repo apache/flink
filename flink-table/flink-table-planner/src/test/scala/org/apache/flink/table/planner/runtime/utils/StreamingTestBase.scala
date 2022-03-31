@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.{After, Before, Rule}
 
@@ -44,6 +45,7 @@ class StreamingTestBase extends AbstractTestBase {
   def tempFolder: TemporaryFolder = _tempFolder
 
   @Before
+  @BeforeEach
   def before(): Unit = {
     this.env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
@@ -55,6 +57,7 @@ class StreamingTestBase extends AbstractTestBase {
   }
 
   @After
+  @AfterEach
   def after(): Unit = {
     StreamTestSink.clear()
     TestValuesTableFactory.clearAllData()

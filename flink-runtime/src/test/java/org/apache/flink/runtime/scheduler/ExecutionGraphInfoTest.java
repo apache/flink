@@ -36,7 +36,7 @@ public class ExecutionGraphInfoTest {
     @Test
     public void testExecutionGraphHistoryBeingDerivedFromFailedExecutionGraph() {
         final ArchivedExecutionGraph executionGraph =
-                ArchivedExecutionGraph.createFromInitializingJob(
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         new JobID(),
                         "test job name",
                         JobStatus.FAILED,

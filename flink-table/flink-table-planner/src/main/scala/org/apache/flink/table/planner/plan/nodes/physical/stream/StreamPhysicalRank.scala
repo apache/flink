@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -106,6 +107,7 @@ class StreamPhysicalRank(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val fieldCollations = orderKey.getFieldCollations
     new StreamExecRank(
+      unwrapTableConfig(this),
       rankType,
       new PartitionSpec(partitionKey.toArray),
       SortUtil.getSortSpec(fieldCollations),
@@ -115,7 +117,6 @@ class StreamPhysicalRank(
       generateUpdateBefore,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

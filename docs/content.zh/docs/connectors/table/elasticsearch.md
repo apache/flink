@@ -40,6 +40,8 @@ Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中
 
 {{< sql_download_table "elastic" >}}
 
+Elasticsearch 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Elasticsearch 连接器。
+
 如何创建 Elasticsearch 表
 ----------------
 
@@ -129,7 +131,7 @@ CREATE TABLE myUserTable (
     </tr>
     <tr>
       <td><h5>failure-handler</h5></td>
-      <td>可选</td>
+      <td>optional</td>
       <td style="word-wrap: break-word;">fail</td>
       <td>String</td>
       <td>对 Elasticsearch 请求失败情况下的失败处理策略。有效策略为：
@@ -143,10 +145,11 @@ CREATE TABLE myUserTable (
     </tr>
     <tr>
       <td><h5>sink.flush-on-checkpoint</h5></td>
-      <td>可选</td>
+      <td>optional</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>是否在 checkpoint 时执行 flush。禁用后，在 checkpoint 时 sink 将不会等待所有的 pending 请求被 Elasticsearch 确认。因此，sink 不会为请求的 at-least-once 交付提供任何有力保证。
+      <td>在进行 checkpoint 时是否保证刷出缓冲区中的数据。如果关闭这一选项，在进行checkpoint时 sink 将不再为所有进行
+        中的请求等待 Elasticsearch 的执行完成确认。因此，在这种情况下 sink 将不对至少一次的请求的一致性提供任何保证。
       </td>
     </tr>
     <tr>
@@ -192,23 +195,16 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.backoff.max-retries</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">8</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>最大回退重试次数。</td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.backoff.delay</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">50ms</td>
-      <td>Duration</td>
-      <td>每次回退尝试之间的延迟。对于 <code>CONSTANT</code> 回退策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 回退策略，该值是初始的延迟。</td>
-    </tr>
-    <tr>
-      <td><h5>connection.max-retry-timeout</h5></td>
-      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>最大重试超时时间。</td>
+      <td>每次退避尝试之间的延迟。对于 <code>CONSTANT</code> 退避策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 退避策略，该值是初始的延迟。</td>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>
@@ -219,21 +215,21 @@ CREATE TABLE myUserTable (
     </tr>
     <tr>
       <td><h5>connection.request-timeout</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>从连接管理器请求连接的超时时间。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。</td>
     </tr>
     <tr>
       <td><h5>connection.timeout</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>建立请求的超时时间 。超时时间必须大于或者等于 0 ，如果设置为 0 则是无限超时。</td>
     </tr>
     <tr>
       <td><h5>socket.timeout</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>等待数据的 socket 的超时时间 (SO_TIMEOUT)。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。
@@ -256,7 +252,7 @@ CREATE TABLE myUserTable (
 
 ### Key 处理
 
-Elasticsearch sink 可以根据是否定义了主键来确定是在 upsert 模式还是 append 模式下工作。
+Elasticsearch sink 可以根据是否定义了一个主键来确定是在 upsert 模式还是 append 模式下工作。
 如果定义了主键，Elasticsearch sink 将以 upsert 模式工作，该模式可以消费包含 UPDATE/DELETE 消息的查询。
 如果未定义主键，Elasticsearch sink 将以 append 模式工作，该模式只能消费包含 INSERT 消息的查询。
 
@@ -278,6 +274,10 @@ Elasticsearch sink 同时支持静态索引和动态索引。
 `date_format_string` 与 Java 的 [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/index.html) 兼容。
 例如，如果选项值设置为 `'myusers-{log_ts|yyyy-MM-dd}'`，则 `log_ts` 字段值为 `2020-03-27 12:25:55` 的记录将被写入到 "myusers-2020-03-27" 索引中。
 
+你也可以使用 `'{now()|date_format_string}'` 将当前的系统时间转换为 `date_format_string` 指定的格式。`now()` 对应的时间类型是 `TIMESTAMP_WITH_LTZ` 。
+在将系统时间格式化为字符串时会使用 session 中通过 `table.local-time-zone` 中配置的时区。 使用 `NOW()`, `now()`, `CURRENT_TIMESTAMP`, `current_timestamp` 均可以。
+
+**注意:** 使用当前系统时间生成的动态索引时， 对于 changelog 的流，无法保证同一主键对应的记录能产生相同的索引名, 因此使用基于系统时间的动态索引，只能支持 append only 的流。
 
 数据类型映射
 ----------------

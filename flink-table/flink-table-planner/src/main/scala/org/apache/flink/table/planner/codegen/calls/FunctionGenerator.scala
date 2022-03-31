@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.calcite.sql.SqlOperator
 import org.apache.flink.api.common.RuntimeExecutionMode
-import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.{ExecutionOptions, ReadableConfig}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 
+import org.apache.calcite.sql.SqlOperator
+
 import java.lang.reflect.Method
+
 import scala.collection.mutable
 
-class FunctionGenerator private(config: TableConfig) {
+class FunctionGenerator private(tableConfig: ReadableConfig) {
 
   val INTEGRAL_TYPES = Array(
     TINYINT,
@@ -44,7 +45,7 @@ class FunctionGenerator private(config: TableConfig) {
     mutable.Map()
 
   val isStreamingMode = RuntimeExecutionMode.STREAMING.equals(
-    config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE))
+    tableConfig.get(ExecutionOptions.RUNTIME_MODE))
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -942,5 +943,6 @@ class FunctionGenerator private(config: TableConfig) {
 }
 
 object FunctionGenerator {
-    def getInstance(config: TableConfig): FunctionGenerator = new FunctionGenerator(config)
+    def getInstance(tableConfig: ReadableConfig): FunctionGenerator =
+      new FunctionGenerator(tableConfig)
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -65,10 +64,10 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             LoggerFactory.getLogger(SortMergeResultPartitionReadScheduler.class);
 
     /**
-     * Maximum time (5min) to wait when requesting read buffers from the buffer pool before throwing
-     * an exception.
+     * Default maximum time (5min) to wait when requesting read buffers from the buffer pool before
+     * throwing an exception.
      */
-    private static final Duration BUFFER_REQUEST_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration DEFAULT_BUFFER_REQUEST_TIMEOUT = Duration.ofMinutes(5);
 
     /** Lock used to synchronize multi-thread access to thread-unsafe fields. */
     private final Object lock;
@@ -87,6 +86,12 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
     /** Maximum number of buffers can be allocated by this partition reader. */
     private final int maxRequestedBuffers;
+
+    /**
+     * Maximum time to wait when requesting read buffers from the buffer pool before throwing an
+     * exception.
+     */
+    private final Duration bufferRequestTimeout;
 
     /** All failed subpartition readers to be released. */
     @GuardedBy("lock")
@@ -120,16 +125,29 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
     private volatile boolean isReleased;
 
     SortMergeResultPartitionReadScheduler(
-            BatchShuffleReadBufferPool bufferPool, Executor ioExecutor, Object lock) {
+            int numSubpartitions,
+            BatchShuffleReadBufferPool bufferPool,
+            Executor ioExecutor,
+            Object lock) {
+        this(numSubpartitions, bufferPool, ioExecutor, lock, DEFAULT_BUFFER_REQUEST_TIMEOUT);
+    }
+
+    SortMergeResultPartitionReadScheduler(
+            int numSubpartitions,
+            BatchShuffleReadBufferPool bufferPool,
+            Executor ioExecutor,
+            Object lock,
+            Duration bufferRequestTimeout) {
+
         this.lock = checkNotNull(lock);
         this.bufferPool = checkNotNull(bufferPool);
         this.ioExecutor = checkNotNull(ioExecutor);
-        // one partition reader can consume at most 32M (the expected buffers per request is 8M)
-        // buffers for data read. Currently, it is only an empirical value can not be configured
-        this.maxRequestedBuffers = Math.max(1, 4 * bufferPool.getNumBuffersPerRequest());
-
-        // initialize the buffer pool eagerly to avoid reporting errors like OOM too late
-        bufferPool.initialize();
+        // one partition reader can consume at most Math.max(16M, numSubpartitions) (the expected
+        // buffers per request is 8M) buffers for data read, which means larger parallelism, more
+        // buffers. Currently, it is only an empirical strategy which can not be configured.
+        this.maxRequestedBuffers =
+                Math.max(2 * bufferPool.getNumBuffersPerRequest(), numSubpartitions);
+        this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
     }
 
     @Override
@@ -147,21 +165,22 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         removeFinishedAndFailedReaders(numBuffersRead, finishedReaders);
     }
 
-    private Queue<MemorySegment> allocateBuffers(
-            Queue<SortMergeSubpartitionReader> availableReaders) {
+    @VisibleForTesting
+    Queue<MemorySegment> allocateBuffers(Queue<SortMergeSubpartitionReader> availableReaders) {
         if (availableReaders.isEmpty()) {
             return new ArrayDeque<>();
         }
 
         try {
-            Deadline deadline = Deadline.fromNow(BUFFER_REQUEST_TIMEOUT);
-            while (deadline.hasTimeLeft()) {
+            long timeoutTime = getBufferRequestTimeoutTime();
+            do {
                 List<MemorySegment> buffers = bufferPool.requestBuffers();
                 if (!buffers.isEmpty()) {
                     return new ArrayDeque<>(buffers);
                 }
                 checkState(!isReleased, "Result partition has been already released.");
-            }
+            } while (System.nanoTime() < timeoutTime
+                    || System.nanoTime() < (timeoutTime = getBufferRequestTimeoutTime()));
 
             if (numRequestedBuffers <= 0) {
                 throw new TimeoutException(
@@ -176,6 +195,10 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             LOG.error("Failed to request buffers for data reading.", throwable);
         }
         return new ArrayDeque<>();
+    }
+
+    private long getBufferRequestTimeoutTime() {
+        return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toNanos();
     }
 
     private void releaseBuffers(Queue<MemorySegment> buffers) {
@@ -241,6 +264,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             failedReaders.clear();
 
             if (allReaders.isEmpty()) {
+                bufferPool.unregisterRequester(this);
                 closeFileChannels();
             }
 
@@ -269,7 +293,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         }
     }
 
-    SortMergeSubpartitionReader crateSubpartitionReader(
+    SortMergeSubpartitionReader createSubpartitionReader(
             BufferAvailabilityListener availabilityListener,
             int targetSubpartition,
             PartitionedFile resultFile)
@@ -280,6 +304,9 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             PartitionedFileReader fileReader = createFileReader(resultFile, targetSubpartition);
             SortMergeSubpartitionReader subpartitionReader =
                     new SortMergeSubpartitionReader(availabilityListener, fileReader);
+            if (allReaders.isEmpty()) {
+                bufferPool.registerRequester(this);
+            }
             allReaders.add(subpartitionReader);
             subpartitionReader
                     .getReleaseFuture()
@@ -347,8 +374,8 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
         if (!isRunning
                 && !allReaders.isEmpty()
-                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest()
-                        <= maxRequestedBuffers) {
+                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
+                && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
             isRunning = true;
             ioExecutor.execute(this);
         }

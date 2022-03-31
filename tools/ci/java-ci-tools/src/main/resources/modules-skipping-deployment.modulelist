@@ -18,7 +18,6 @@
 
 # These modules are not deployed to maven central, despite their use of the shade plugin.
 
-flink-examples-streaming-twitter
 flink-examples-streaming-gcp-pubsub
 flink-yarn-tests
 flink-docs

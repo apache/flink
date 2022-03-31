@@ -21,13 +21,13 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
 import org.apache.calcite.plan.volcano.RelSubset
@@ -174,10 +174,9 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       ndvOfGroupKeysOnGlobalAgg
     } else {
       val inputRowCnt = mq.getRowCount(input)
-      val config = rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+      val tableConfig = unwrapTableConfig(rel)
       val parallelism = (inputRowCnt /
-          config.getConfiguration.getLong(
-            FlinkRelMdRowCount.TABLE_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
+          tableConfig.get(FlinkRelMdRowCount.TABLE_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {
@@ -449,6 +448,7 @@ object FlinkRelMdRowCount {
   @Experimental
   val TABLE_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
     key("table.optimizer.rows-per-local-agg")
+        .longType()
         .defaultValue(JLong.valueOf(1000000L))
         .withDescription("Sets estimated number of records that one local-agg processes. " +
             "Optimizer will infer whether to use local/global aggregate according to it.")

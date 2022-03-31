@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -48,6 +49,7 @@ import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -128,6 +130,9 @@ public class StreamGraph implements Pipeline {
     private InternalTimeServiceManager.Provider timerServiceProvider;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
+    private PipelineOptions.VertexDescriptionMode descriptionMode =
+            PipelineOptions.VertexDescriptionMode.TREE;
+    private boolean vertexNameIncludeIndexPrefix = false;
 
     public StreamGraph(
             ExecutionConfig executionConfig,
@@ -640,50 +645,78 @@ public class StreamGraph implements Pipeline {
                     outputTag,
                     exchangeMode);
         } else {
-            StreamNode upstreamNode = getStreamNode(upStreamVertexID);
-            StreamNode downstreamNode = getStreamNode(downStreamVertexID);
-
-            // If no partitioner was specified and the parallelism of upstream and downstream
-            // operator matches use forward partitioning, use rebalance otherwise.
-            if (partitioner == null
-                    && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
-                partitioner = new ForwardPartitioner<Object>();
-            } else if (partitioner == null) {
-                partitioner = new RebalancePartitioner<Object>();
-            }
-
-            if (partitioner instanceof ForwardPartitioner) {
-                if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
-                    throw new UnsupportedOperationException(
-                            "Forward partitioning does not allow "
-                                    + "change of parallelism. Upstream operation: "
-                                    + upstreamNode
-                                    + " parallelism: "
-                                    + upstreamNode.getParallelism()
-                                    + ", downstream operation: "
-                                    + downstreamNode
-                                    + " parallelism: "
-                                    + downstreamNode.getParallelism()
-                                    + " You must use another partitioning strategy, such as broadcast, rebalance, shuffle or global.");
-                }
-            }
-
-            if (exchangeMode == null) {
-                exchangeMode = StreamExchangeMode.UNDEFINED;
-            }
-
-            StreamEdge edge =
-                    new StreamEdge(
-                            upstreamNode,
-                            downstreamNode,
-                            typeNumber,
-                            partitioner,
-                            outputTag,
-                            exchangeMode);
-
-            getStreamNode(edge.getSourceId()).addOutEdge(edge);
-            getStreamNode(edge.getTargetId()).addInEdge(edge);
+            createActualEdge(
+                    upStreamVertexID,
+                    downStreamVertexID,
+                    typeNumber,
+                    partitioner,
+                    outputTag,
+                    exchangeMode);
         }
+    }
+
+    private void createActualEdge(
+            Integer upStreamVertexID,
+            Integer downStreamVertexID,
+            int typeNumber,
+            StreamPartitioner<?> partitioner,
+            OutputTag outputTag,
+            StreamExchangeMode exchangeMode) {
+        StreamNode upstreamNode = getStreamNode(upStreamVertexID);
+        StreamNode downstreamNode = getStreamNode(downStreamVertexID);
+
+        // If no partitioner was specified and the parallelism of upstream and downstream
+        // operator matches use forward partitioning, use rebalance otherwise.
+        if (partitioner == null
+                && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
+            partitioner =
+                    executionConfig.isDynamicGraph()
+                            ? new ForwardForUnspecifiedPartitioner<>()
+                            : new ForwardPartitioner<>();
+        } else if (partitioner == null) {
+            partitioner = new RebalancePartitioner<Object>();
+        }
+
+        if (partitioner instanceof ForwardPartitioner) {
+            if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
+                throw new UnsupportedOperationException(
+                        "Forward partitioning does not allow "
+                                + "change of parallelism. Upstream operation: "
+                                + upstreamNode
+                                + " parallelism: "
+                                + upstreamNode.getParallelism()
+                                + ", downstream operation: "
+                                + downstreamNode
+                                + " parallelism: "
+                                + downstreamNode.getParallelism()
+                                + " You must use another partitioning strategy, such as broadcast, rebalance, shuffle or global.");
+            }
+        }
+
+        if (exchangeMode == null) {
+            exchangeMode = StreamExchangeMode.UNDEFINED;
+        }
+
+        /**
+         * Just make sure that {@link StreamEdge} connecting same nodes (for example as a result of
+         * self unioning a {@link DataStream}) are distinct and unique. Otherwise it would be
+         * difficult on the {@link StreamTask} to assign {@link RecordWriter}s to correct {@link
+         * StreamEdge}.
+         */
+        int uniqueId = getStreamEdges(upstreamNode.getId(), downstreamNode.getId()).size();
+
+        StreamEdge edge =
+                new StreamEdge(
+                        upstreamNode,
+                        downstreamNode,
+                        typeNumber,
+                        partitioner,
+                        outputTag,
+                        exchangeMode,
+                        uniqueId);
+
+        getStreamNode(edge.getSourceId()).addOutEdge(edge);
+        getStreamNode(edge.getTargetId()).addInEdge(edge);
     }
 
     public void setParallelism(Integer vertexID, int parallelism) {
@@ -980,5 +1013,21 @@ public class StreamGraph implements Pipeline {
 
     public JobType getJobType() {
         return jobType;
+    }
+
+    public PipelineOptions.VertexDescriptionMode getVertexDescriptionMode() {
+        return descriptionMode;
+    }
+
+    public void setVertexDescriptionMode(PipelineOptions.VertexDescriptionMode mode) {
+        this.descriptionMode = mode;
+    }
+
+    public void setVertexNameIncludeIndexPrefix(boolean includePrefix) {
+        this.vertexNameIncludeIndexPrefix = includePrefix;
+    }
+
+    public boolean isVertexNameIncludeIndexPrefix() {
+        return this.vertexNameIncludeIndexPrefix;
     }
 }

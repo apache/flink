@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
@@ -35,7 +36,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Ignore;
@@ -73,11 +73,11 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
     /**
      * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * MigrationVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
+     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
      * methods to generate savepoints TODO Note: You should generate the savepoint based on the
      * release branch instead of the master.
      */
-    private final MigrationVersion flinkGenerateSavepointVersion = null;
+    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
     private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
@@ -90,25 +90,25 @@ public class FlinkKafkaConsumerBaseMigrationTest {
             new ArrayList<>(PARTITION_STATE.keySet())
                     .stream().map(p -> p.getTopic()).distinct().collect(Collectors.toList());
 
-    private final MigrationVersion testMigrateVersion;
+    private final FlinkVersion testMigrateVersion;
 
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
-    public static Collection<MigrationVersion> parameters() {
+    public static Collection<FlinkVersion> parameters() {
         return Arrays.asList(
-                MigrationVersion.v1_4,
-                MigrationVersion.v1_5,
-                MigrationVersion.v1_6,
-                MigrationVersion.v1_7,
-                MigrationVersion.v1_8,
-                MigrationVersion.v1_9,
-                MigrationVersion.v1_10,
-                MigrationVersion.v1_11,
-                MigrationVersion.v1_12,
-                MigrationVersion.v1_13,
-                MigrationVersion.v1_14);
+                FlinkVersion.v1_4,
+                FlinkVersion.v1_5,
+                FlinkVersion.v1_6,
+                FlinkVersion.v1_7,
+                FlinkVersion.v1_8,
+                FlinkVersion.v1_9,
+                FlinkVersion.v1_10,
+                FlinkVersion.v1_11,
+                FlinkVersion.v1_12,
+                FlinkVersion.v1_13,
+                FlinkVersion.v1_14);
     }
 
-    public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
+    public FlinkKafkaConsumerBaseMigrationTest(FlinkVersion testMigrateVersion) {
         this.testMigrateVersion = testMigrateVersion;
     }
 

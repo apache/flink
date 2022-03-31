@@ -34,10 +34,10 @@ The site can be viewed at http://localhost:1313/
 
 ## Generate configuration tables
 
-Configuration descriptions are auto generated from code. To trigger the generation you need to run:
+Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
 
 ```
-mvn -Pgenerate-config-docs install
+mvn -Pgenerate-config-docs install -Dfast -DskipTests
 ```
 
 The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
@@ -119,7 +119,12 @@ It includes a number of optional flags:
 
 * withScalaVersion: Includes the scala version suffix to the artifact id
 * withTestScope: Includes `<scope>test</scope>` to the module. Useful for marking test dependencies.
-* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flinks tests dependencies. This is mostly for the test harnesses and probably not what you want. 
+* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flink tests dependencies. This is mostly for the test harnesses and probably not what you want. 
+
+You can also use the shortcodes (with same flags) instead:
+
+* `artifact_gradle` to show the Gradle syntax
+* `artifact_tabs` to create a tabbed view, showing both Maven and Gradle syntax
 
 #### Back to Top
 

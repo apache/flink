@@ -24,7 +24,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -41,7 +40,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
@@ -61,13 +59,11 @@ import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
 public final class CsvFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 
-    public static final String IDENTIFIER = "csv";
-
     @Override
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        validateFormatOptions(formatOptions);
+        CsvCommons.validateFormatOptions(formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -93,7 +89,7 @@ public final class CsvFormatFactory
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        validateFormatOptions(formatOptions);
+        CsvCommons.validateFormatOptions(formatOptions);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -115,7 +111,7 @@ public final class CsvFormatFactory
 
     @Override
     public String factoryIdentifier() {
-        return IDENTIFIER;
+        return CsvCommons.IDENTIFIER;
     }
 
     @Override
@@ -125,63 +121,12 @@ public final class CsvFormatFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(FIELD_DELIMITER);
-        options.add(DISABLE_QUOTE_CHARACTER);
-        options.add(QUOTE_CHARACTER);
-        options.add(ALLOW_COMMENTS);
-        options.add(IGNORE_PARSE_ERRORS);
-        options.add(ARRAY_ELEMENT_DELIMITER);
-        options.add(ESCAPE_CHARACTER);
-        options.add(NULL_LITERAL);
-        return options;
+        return CsvCommons.optionalOptions();
     }
 
-    // ------------------------------------------------------------------------
-    //  Validation
-    // ------------------------------------------------------------------------
-
-    static void validateFormatOptions(ReadableConfig tableOptions) {
-        final boolean hasQuoteCharacter = tableOptions.getOptional(QUOTE_CHARACTER).isPresent();
-        final boolean isDisabledQuoteCharacter = tableOptions.get(DISABLE_QUOTE_CHARACTER);
-        if (isDisabledQuoteCharacter && hasQuoteCharacter) {
-            throw new ValidationException(
-                    "Format cannot define a quote character and disabled quote character at the same time.");
-        }
-        // Validate the option value must be a single char.
-        validateCharacterVal(tableOptions, FIELD_DELIMITER, true);
-        validateCharacterVal(tableOptions, ARRAY_ELEMENT_DELIMITER);
-        validateCharacterVal(tableOptions, QUOTE_CHARACTER);
-        validateCharacterVal(tableOptions, ESCAPE_CHARACTER);
-    }
-
-    /** Validates the option {@code option} value must be a Character. */
-    private static void validateCharacterVal(
-            ReadableConfig tableOptions, ConfigOption<String> option) {
-        validateCharacterVal(tableOptions, option, false);
-    }
-
-    /**
-     * Validates the option {@code option} value must be a Character.
-     *
-     * @param tableOptions the table options
-     * @param option the config option
-     * @param unescape whether to unescape the option value
-     */
-    private static void validateCharacterVal(
-            ReadableConfig tableOptions, ConfigOption<String> option, boolean unescape) {
-        if (tableOptions.getOptional(option).isPresent()) {
-            final String value =
-                    unescape
-                            ? StringEscapeUtils.unescapeJava(tableOptions.get(option))
-                            : tableOptions.get(option);
-            if (value.length() != 1) {
-                throw new ValidationException(
-                        String.format(
-                                "Option '%s.%s' must be a string with single character, but was: %s",
-                                IDENTIFIER, option.key(), tableOptions.get(option)));
-            }
-        }
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return CsvCommons.forwardOptions();
     }
 
     // ------------------------------------------------------------------------

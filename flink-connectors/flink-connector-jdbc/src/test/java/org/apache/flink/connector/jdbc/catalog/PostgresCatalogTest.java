@@ -159,7 +159,7 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
     }
 
     @Test
-    public void tesArrayDataTypes() throws TableNotExistException {
+    public void testArrayDataTypes() throws TableNotExistException {
         CatalogBaseTable table =
                 catalog.getTable(
                         new ObjectPath(PostgresCatalog.DEFAULT_DATABASE, TABLE_ARRAY_TYPE));

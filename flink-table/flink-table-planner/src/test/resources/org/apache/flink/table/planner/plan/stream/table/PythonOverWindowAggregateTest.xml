@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testPandasProcTimeBoundedPartitionedRangesOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedAggFunctions$PandasAggregateFunction$2d00a4b7889c065a728bf23f9cf0f0d2($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
@@ -35,7 +35,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasProcTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedAggFunctions$PandasAggregateFunction$2d00a4b7889c065a728bf23f9cf0f0d2($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
@@ -51,7 +51,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasRowTimeBoundedPartitionedRangesOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedAggFunctions$PandasAggregateFunction$2d00a4b7889c065a728bf23f9cf0f0d2($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>
@@ -67,7 +67,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasRowTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedAggFunctions$PandasAggregateFunction$2d00a4b7889c065a728bf23f9cf0f0d2($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>

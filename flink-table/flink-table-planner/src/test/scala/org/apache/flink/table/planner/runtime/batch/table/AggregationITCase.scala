@@ -128,14 +128,13 @@ class AggregationITCase extends BatchTestBase {
   def testSQLStyleAggregations(): Unit = {
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b ,c")
       .select(
-        """Sum( a) as a1, a.sum as a2,
-          |Min (a) as b1, a.min as b2,
-          |Max (a ) as c1, a.max as c2,
-          |Avg ( a ) as d1, a.avg as d2,
-          |Count(a) as e1, a.count as e2
-        """.stripMargin)
+        $"a".sum().as("a1"),
+        $"a".min().as("b1"),
+        $"a".max().as("c1"),
+        $"a".avg().as("d1"),
+        $"a".count().as("e1"))
 
-    val expected = "231,231,1,1,21,21,11,11,21,21"
+    val expected = "231,1,21,11,21"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

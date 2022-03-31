@@ -26,7 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for TableSchemaUtils. */
 public class TableSchemaUtilsTest {
@@ -44,7 +44,7 @@ public class TableSchemaUtilsTest {
                         .watermark("t", "t", DataTypes.TIMESTAMP(3))
                         .build();
         TableSchema newSchema = TableSchemaUtils.builderWithGivenSchema(oriSchema).build();
-        assertEquals(oriSchema, newSchema);
+        assertThat(newSchema).isEqualTo(oriSchema);
     }
 
     @Test
@@ -67,7 +67,7 @@ public class TableSchemaUtilsTest {
                         .field("t", DataTypes.TIMESTAMP(3))
                         .watermark("t", "t", DataTypes.TIMESTAMP(3))
                         .build();
-        assertEquals(expectedSchema, newSchema);
+        assertThat(newSchema).isEqualTo(expectedSchema);
 
         // Drop non-exist constraint.
         exceptionRule.expect(ValidationException.class);

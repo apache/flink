@@ -20,10 +20,9 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 
-/** IT Case for reading window state with the memory state backend. */
+/** IT Case for reading window state with the hashmap state backend. */
 public class HashMapStateBackendWindowITCase
         extends SavepointWindowReaderITCase<HashMapStateBackend> {
-
     @Override
     protected HashMapStateBackend getStateBackend() {
         return new HashMapStateBackend();

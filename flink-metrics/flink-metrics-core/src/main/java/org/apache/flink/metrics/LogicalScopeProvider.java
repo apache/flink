@@ -17,6 +17,8 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Extension for metric groups that support logical scopes.
  *
@@ -24,6 +26,7 @@ package org.apache.flink.metrics;
  * reporters to depend on flink-runtime in order to access the logical scope. Once the logical scope
  * is properly exposed this interface *will* be removed.
  */
+@Public
 public interface LogicalScopeProvider {
     /**
      * Returns the logical scope for the metric group, for example {@code "taskmanager.job.task"},

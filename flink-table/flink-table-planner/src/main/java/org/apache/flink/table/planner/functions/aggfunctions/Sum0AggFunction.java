@@ -29,6 +29,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import java.math.BigDecimal;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalMinus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
@@ -39,7 +41,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeL
 
 /** built-in sum0 aggregate function. */
 public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression sum0 = unresolvedRef("sum");
+
+    private final UnresolvedReferenceExpression sum0 = unresolvedRef("sum");
 
     @Override
     public int operandCount() {
@@ -59,7 +62,8 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum0 = */ adjustSumType(ifThenElse(isNull(operand(0)), sum0, plus(sum0, operand(0))))
+            /* sum0 = */ adjustSumType(
+                    ifThenElse(isNull(operand(0)), sum0, adjustedPlus(sum0, operand(0))))
         };
     }
 
@@ -67,13 +71,15 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     public Expression[] retractExpressions() {
         return new Expression[] {
             /* sum0 = */ adjustSumType(
-                    ifThenElse(isNull(operand(0)), sum0, minus(sum0, operand(0))))
+                    ifThenElse(isNull(operand(0)), sum0, adjustedMinus(sum0, operand(0))))
         };
     }
 
     @Override
     public Expression[] mergeExpressions() {
-        return new Expression[] {/* sum0 = */ adjustSumType(plus(sum0, mergeOperand(sum0)))};
+        return new Expression[] {
+            /* sum0 = */ adjustSumType(adjustedPlus(sum0, mergeOperand(sum0)))
+        };
     }
 
     private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
@@ -83,6 +89,16 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression getValueExpression() {
         return sum0;
+    }
+
+    protected UnresolvedCallExpression adjustedPlus(
+            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+        return plus(arg1, arg2);
+    }
+
+    protected UnresolvedCallExpression adjustedMinus(
+            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+        return minus(arg1, arg2);
     }
 
     /** Built-in Int Sum0 aggregate function. */
@@ -166,16 +182,16 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
     /** Built-in Decimal Sum0 aggregate function. */
     public static class DecimalSum0AggFunction extends Sum0AggFunction {
-        private DecimalType decimalType;
+        private final DataType returnType;
 
         public DecimalSum0AggFunction(DecimalType decimalType) {
-            this.decimalType = decimalType;
+            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
+            this.returnType = DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
         }
 
         @Override
         public DataType getResultType() {
-            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
-            return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
+            return returnType;
         }
 
         @Override
@@ -183,6 +199,18 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
             return new Expression[] {
                 /* sum0 = */ literal(new BigDecimal(0), getResultType().notNull())
             };
+        }
+
+        @Override
+        protected UnresolvedCallExpression adjustedPlus(
+                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+            return aggDecimalPlus(arg1, arg2);
+        }
+
+        @Override
+        protected UnresolvedCallExpression adjustedMinus(
+                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+            return aggDecimalMinus(arg1, arg2);
         }
     }
 }

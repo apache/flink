@@ -99,29 +99,27 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient
-      .get<Plan>(`${BASE_URL}/jars/${jarId}/plan`, { params })
-      .pipe(
-        map(data => {
-          const links: VerticesLink[] = [];
-          let nodes: NodesItemCorrect[] = [];
-          if (data.plan.nodes.length) {
-            nodes = data.plan.nodes.map(node => {
-              return {
-                ...node,
-                detail: undefined
-              };
-            });
-            nodes.forEach(node => {
-              if (node.inputs && node.inputs.length) {
-                node.inputs.forEach(input => {
-                  links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
-                });
-              }
-            });
-          }
-          return { nodes, links };
-        })
-      );
+    return this.httpClient.get<Plan>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+      map(data => {
+        const links: VerticesLink[] = [];
+        let nodes: NodesItemCorrect[] = [];
+        if (data.plan.nodes.length) {
+          nodes = data.plan.nodes.map(node => {
+            return {
+              ...node,
+              detail: undefined
+            };
+          });
+          nodes.forEach(node => {
+            if (node.inputs && node.inputs.length) {
+              node.inputs.forEach(input => {
+                links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
+              });
+            }
+          });
+        }
+        return { nodes, links };
+      })
+    );
   }
 }

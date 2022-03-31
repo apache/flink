@@ -25,6 +25,7 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
+import org.apache.flink.runtime.rest.RestService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -61,7 +62,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
     @Nonnull private final LeaderRetrievalService resourceManagerRetrievalService;
 
-    @Nonnull private final AutoCloseableAsync webMonitorEndpoint;
+    @Nonnull private final RestService webMonitorEndpoint;
 
     private final CompletableFuture<Void> terminationFuture;
 
@@ -78,7 +79,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
             @Nonnull ResourceManagerService resourceManagerService,
             @Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
             @Nonnull LeaderRetrievalService resourceManagerRetrievalService,
-            @Nonnull AutoCloseableAsync webMonitorEndpoint,
+            @Nonnull RestService webMonitorEndpoint,
             @Nonnull FatalErrorHandler fatalErrorHandler,
             @Nonnull DispatcherOperationCaches dispatcherOperationCaches) {
         this.dispatcherRunner = dispatcherRunner;
@@ -206,5 +207,9 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
     public CompletableFuture<Void> closeAsync() {
         return stopApplication(
                 ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
+    }
+
+    public int getRestPort() {
+        return webMonitorEndpoint.getRestPort();
     }
 }

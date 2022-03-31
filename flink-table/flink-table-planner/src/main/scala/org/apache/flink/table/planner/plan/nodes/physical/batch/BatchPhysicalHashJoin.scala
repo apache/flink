@@ -22,9 +22,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
@@ -166,18 +167,18 @@ class BatchPhysicalHashJoin(
     val rightRowCount = Util.first(mq.getRowCount(right), 200000).toLong
     val (leftEdge, rightEdge) = getInputProperties
     new BatchExecHashJoin(
-        joinSpec,
-        leftRowSize,
-        rightRowSize,
-        leftRowCount,
-        rightRowCount,
-        leftIsBuild,
-        tryDistinctBuildRow,
-        leftEdge,
-        rightEdge,
-        FlinkTypeFactory.toLogicalRowType(getRowType),
-        getRelDetailedDescription
-    )
+      unwrapTableConfig(this),
+      joinSpec,
+      leftRowSize,
+      rightRowSize,
+      leftRowCount,
+      rightRowCount,
+      leftIsBuild,
+      tryDistinctBuildRow,
+      leftEdge,
+      rightEdge,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 
   private def getInputProperties: (InputProperty, InputProperty) = {

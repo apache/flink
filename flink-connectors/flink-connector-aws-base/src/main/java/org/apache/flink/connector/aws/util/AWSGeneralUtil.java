@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.aws.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.util.ExceptionUtils;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -40,9 +41,11 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.utils.AttributeMap;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -83,8 +86,30 @@ public class AWSGeneralUtil {
                 return CredentialProvider.AUTO;
             }
         } else {
-            return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
+            try {
+                return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Invalid AWS Credential Provider Type %s.",
+                                configProps.getProperty(configPrefix)),
+                        e);
+            }
         }
+    }
+
+    /**
+     * Return a {@link AwsCredentialsProvider} instance corresponding to the configuration
+     * properties.
+     *
+     * @param configProps the configuration property map
+     * @return The corresponding AWS Credentials Provider instance
+     */
+    public static AwsCredentialsProvider getCredentialsProvider(final Map<String, ?> configProps) {
+        Properties properties = new Properties();
+        properties.putAll(configProps);
+
+        return getCredentialsProvider(properties);
     }
 
     /**
@@ -210,6 +235,12 @@ public class AWSGeneralUtil {
     }
 
     public static SdkAsyncHttpClient createAsyncHttpClient(final Properties configProperties) {
+        return createAsyncHttpClient(configProperties, NettyNioAsyncHttpClient.builder());
+    }
+
+    public static SdkAsyncHttpClient createAsyncHttpClient(
+            final Properties configProperties,
+            final NettyNioAsyncHttpClient.Builder httpClientBuilder) {
         final AttributeMap.Builder clientConfiguration =
                 AttributeMap.builder().put(SdkHttpConfigurationOption.TCP_KEEPALIVE, true);
 
@@ -245,8 +276,7 @@ public class AWSGeneralUtil {
                         protocol ->
                                 clientConfiguration.put(
                                         SdkHttpConfigurationOption.PROTOCOL, protocol));
-        return createAsyncHttpClient(
-                clientConfiguration.build(), NettyNioAsyncHttpClient.builder());
+        return createAsyncHttpClient(clientConfiguration.build(), httpClientBuilder);
     }
 
     public static SdkAsyncHttpClient createAsyncHttpClient(
@@ -293,20 +323,8 @@ public class AWSGeneralUtil {
      */
     public static void validateAwsConfiguration(Properties config) {
         if (config.containsKey(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER)) {
-            // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
-            // recognizable
-            try {
-                getCredentialsProvider(config);
-            } catch (IllegalArgumentException e) {
-                StringBuilder sb = new StringBuilder();
-                for (CredentialProvider type : CredentialProvider.values()) {
-                    sb.append(type.toString()).append(", ");
-                }
-                throw new IllegalArgumentException(
-                        "Invalid AWS Credential Provider Type set in config. Valid values are: "
-                                + sb.toString());
-            }
 
+            validateCredentialProvider(config);
             // if BASIC type is used, also check that the Access Key ID and Secret Key is supplied
             CredentialProvider credentialsProviderType =
                     getCredentialProviderType(config, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
@@ -334,6 +352,43 @@ public class AWSGeneralUtil {
                 throw new IllegalArgumentException(
                         "Invalid AWS region set in config. Valid values are: " + sb.toString());
             }
+        }
+    }
+
+    public static void closeResources(SdkAutoCloseable... resources) {
+        RuntimeException exception = null;
+        for (SdkAutoCloseable resource : resources) {
+            if (resource != null) {
+                try {
+                    resource.close();
+                } catch (RuntimeException e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+            }
+        }
+        if (exception != null) {
+            throw exception;
+        }
+    }
+
+    public static void validateAwsCredentials(Properties config) {
+        validateAwsConfiguration(config);
+        getCredentialsProvider(config).resolveCredentials();
+    }
+
+    private static void validateCredentialProvider(Properties config) {
+        // value specified for AWSConfigConstants.AWS_CREDENTIALS_PROVIDER needs to be
+        // recognizable
+        try {
+            getCredentialsProvider(config);
+        } catch (IllegalArgumentException e) {
+            StringBuilder sb = new StringBuilder();
+            for (CredentialProvider type : CredentialProvider.values()) {
+                sb.append(type.toString()).append(", ");
+            }
+            throw new IllegalArgumentException(
+                    "Invalid AWS Credential Provider Type set in config. Valid values are: "
+                            + sb.toString());
         }
     }
 }

@@ -62,7 +62,7 @@ class WebSubmissionExtensionTest {
                         Paths.get(System.getProperty("targetDir")).resolve(JAR_NAME),
                         tempDir.resolve("app.jar"));
 
-        final DispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder().build();
+        final DispatcherGateway dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
 
         final ThreadCapturingApplicationRunner threadCapturingApplicationRunner =
                 new ThreadCapturingApplicationRunner();

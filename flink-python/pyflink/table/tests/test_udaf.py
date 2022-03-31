@@ -17,6 +17,7 @@
 ################################################################################
 import collections
 import datetime
+import unittest
 from decimal import Decimal
 
 import pandas as pd
@@ -26,7 +27,7 @@ from pyflink.common import Row, RowKind
 from pyflink.fn_execution.state_impl import RemovableConcatIterator
 from pyflink.table import DataTypes
 from pyflink.table.data_view import ListView, MapView
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, call, lit, row_interval
 from pyflink.table.udf import AggregateFunction, udaf
 from pyflink.table.window import Tumble, Slide, Session
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
@@ -246,23 +247,28 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
         # trigger the finish bundle more frequently to ensure testing the communication
         # between RemoteKeyedStateBackend and the StateGrpcService.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
                                       (3, 'Hi2', 'hi'),
                                       (3, 'Hi', 'hi2'),
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select("my_count(a) as a, my_sum(a) as b, c") \
-            .select("my_count(a) as a, my_sum(b) as b, sum0(b) as c, sum0(b.cast(double)) as d")
+        result = t.group_by(t.c) \
+            .select(call("my_count", t.a).alias("a"),
+                    call("my_sum", t.a).alias("b"), t.c) \
+            .select(call("my_count", col("a")).alias("a"),
+                    call("my_sum", col("b")).alias("b"),
+                    call("sum0", col("b")).alias("c"),
+                    call("sum0", col("b").cast(DataTypes.DOUBLE())).alias("d"))
         assert_frame_equal(result.to_pandas(),
                            pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
 
     def test_mixed_with_built_in_functions_with_retract(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -310,7 +316,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_mixed_with_built_in_functions_without_retract(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -356,10 +362,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_list_view(self):
         my_concat = udaf(ListViewConcatAggregateFunction())
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "2")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
@@ -379,14 +385,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_map_view(self):
         my_count = udaf(CountDistinctAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.read-cache-size", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.write-cache-size", "1")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
@@ -413,10 +419,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_data_view_clear(self):
         my_count = udaf(CountDistinctAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
         t = self.t_env.from_elements(
             [(2, 'hello', 'hello'),
@@ -430,16 +436,16 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_map_view_iterate(self):
         test_iterate = udaf(TestIterateAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.read-cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.write-cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.iterate-response-batch-size", "2")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
@@ -505,6 +511,28 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                                          ["hello.hello2", "", "hello,hello2", "hello"]],
                                         columns=['a', 'b', 'c', 'd']))
 
+    def test_clean_state(self):
+        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.get_config().set("parallelism.default", "1")
+        self.t_env.get_config().set(
+            "python.fn-execution.bundle.size", "1")
+        self.t_env.get_config().set(
+            "python.state.cache-size", "0")
+        self.t_env.get_config().set(
+            "table.exec.state.ttl", "2ms")
+
+        self.t_env.execute_sql("""
+            CREATE TABLE test_source (
+                a BIGINT
+            ) WITH (
+              'connector' = 'datagen',
+              'number-of-rows' = '5',
+              'rows-per-second' = '1'
+            )
+        """)
+        t = self.t_env.from_path('test_source')
+        t.select(call("my_count", t.a).alias("a")).to_pandas()
+
     def test_tumbling_group_window_over_time(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -551,9 +579,13 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                 DataTypes.BIGINT(),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
-        t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, COUNT(c) as c, my_count(c) as d") \
+        t.window(Tumble.over(lit(1).hours).on(t.rowtime).alias("w")) \
+            .group_by(t.a, col("w")) \
+            .select(t.a,
+                    col("w").start,
+                    col("w").end,
+                    t.c.count.alias("c"),
+                    call("my_count", t.c).alias("d")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -564,7 +596,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 1, 1]"])
 
     def test_tumbling_group_window_over_count(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         tmp_dir = self.tempdir
         data = [
@@ -607,9 +639,9 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                 DataTypes.TINYINT(),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
-        t.window(Tumble.over("2.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, my_sum(c) as b") \
+        t.window(Tumble.over(row_interval(2)).on(t.protime).alias("w")) \
+            .group_by(t.a, col("w")) \
+            .select(t.a, call("my_sum", t.c).alias("b")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -660,9 +692,12 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                 DataTypes.TIMESTAMP(3),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
-        t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, my_sum(c) as c") \
+        t.window(Slide.over(lit(1).hours)
+                 .every(lit(30).minutes)
+                 .on(t.rowtime)
+                 .alias("w")) \
+            .group_by(t.a, col("w")) \
+            .select(t.a, col("w").start, col("w").end, call("my_sum", t.c).alias("c")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -678,7 +713,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 8]"])
 
     def test_sliding_group_window_over_count(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         tmp_dir = self.tempdir
         data = [
@@ -721,9 +756,9 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                 DataTypes.TINYINT(),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
-        t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, my_sum(c) as b") \
+        t.window(Slide.over(row_interval(2)).every(row_interval(1)).on(t.protime).alias("w")) \
+            .group_by(t.a, col("w")) \
+            .select(t.a, call("my_sum", t.c).alias("b")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -774,9 +809,9 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                 DataTypes.TIMESTAMP(3),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
-        t.window(Session.with_gap("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, w.start, w.end, my_count(c) as c") \
+        t.window(Session.with_gap(lit(30).minutes).on(t.rowtime).alias("w")) \
+            .group_by(t.a, t.b, col("w")) \
+            .select(t.a, col("w").start, col("w").end, call("my_count", t.c).alias("c")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -786,6 +821,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 03:10:00.0, 2018-03-11 04:10:00.0, 2]",
                             "+I[1, 2018-03-11 04:20:00.0, 2018-03-11 04:50:00.0, 1]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -818,12 +854,13 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, my_sum(b) FROM source_table "
-                                                   "GROUP BY a")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, my_sum(b) FROM source_table "
+                                                      "GROUP BY a")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_window_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -871,16 +908,18 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_count", CountAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, "
-                                                   "SESSION_START(rowtime, INTERVAL '30' MINUTE), "
-                                                   "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
-                                                   "my_count(c) "
-                                                   "FROM source_table "
-                                                   "GROUP BY "
-                                                   "a, b, SESSION(rowtime, INTERVAL '30' MINUTE)")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, "
+                                                      "SESSION_START("
+                                                      "rowtime, INTERVAL '30' MINUTE), "
+                                                      "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
+                                                      "my_count(c) "
+                                                      "FROM source_table "
+                                                      "GROUP BY "
+                                                      "a, b, "
+                                                      "SESSION(rowtime, INTERVAL '30' MINUTE)")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

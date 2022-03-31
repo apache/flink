@@ -67,7 +67,7 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         initializeFolderStructure();
 
         final TestingDispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder().build();
+                TestingDispatcherGateway.newBuilder().build();
         testInstance =
                 new JobManagerCustomLogHandler(
                         () -> CompletableFuture.completedFuture(dispatcherGateway),

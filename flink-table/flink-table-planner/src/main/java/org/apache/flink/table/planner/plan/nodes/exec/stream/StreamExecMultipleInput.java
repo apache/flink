@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 
 import java.util.List;
@@ -60,13 +63,23 @@ public class StreamExecMultipleInput extends ExecNodeBase<RowData>
     private final ExecNode<?> rootNode;
 
     public StreamExecMultipleInput(
-            List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
-        super(inputProperties, rootNode.getOutputType(), description);
+            ReadableConfig tableConfig,
+            List<InputProperty> inputProperties,
+            ExecNode<?> rootNode,
+            String description) {
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecMultipleInput.class),
+                ExecNodeContext.newPersistedConfig(StreamExecMultipleInput.class, tableConfig),
+                inputProperties,
+                rootNode.getOutputType(),
+                description);
         this.rootNode = rootNode;
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         throw new UnsupportedOperationException("This method is not implemented yet.");
     }
 }

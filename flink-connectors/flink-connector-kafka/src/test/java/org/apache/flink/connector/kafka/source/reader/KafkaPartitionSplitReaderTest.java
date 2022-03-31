@@ -24,7 +24,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -38,14 +38,19 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -63,7 +68,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -246,6 +251,54 @@ public class KafkaPartitionSplitReaderTest {
         // Fetch again and check empty split set is cleared
         recordsWithSplitIds = reader.fetch();
         assertTrue(recordsWithSplitIds.finishedSplits().isEmpty());
+    }
+
+    @Test
+    public void testUsingCommittedOffsetsWithNoneOffsetResetStrategy() {
+        final Properties props = new Properties();
+        props.setProperty(
+                ConsumerConfig.GROUP_ID_CONFIG, "using-committed-offset-with-none-offset-reset");
+        KafkaPartitionSplitReader reader =
+                createReader(props, UnregisteredMetricsGroup.createSourceReaderMetricGroup());
+        // We expect that there is a committed offset, but the group does not actually have a
+        // committed offset, and the offset reset strategy is none (Throw exception to the consumer
+        // if no previous offset is found for the consumer's group);
+        // So it is expected to throw an exception that missing the committed offset.
+        final KafkaException undefinedOffsetException =
+                Assertions.assertThrows(
+                        KafkaException.class,
+                        () ->
+                                reader.handleSplitsChanges(
+                                        new SplitsAddition<>(
+                                                Collections.singletonList(
+                                                        new KafkaPartitionSplit(
+                                                                new TopicPartition(TOPIC1, 0),
+                                                                KafkaPartitionSplit
+                                                                        .COMMITTED_OFFSET)))));
+        MatcherAssert.assertThat(
+                undefinedOffsetException.getMessage(),
+                CoreMatchers.containsString("Undefined offset with no reset policy for partition"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"earliest, 0", "latest, 10"})
+    public void testUsingCommittedOffsetsWithEarliestOrLatestOffsetResetStrategy(
+            String offsetResetStrategy, Long expectedOffset) {
+        final Properties props = new Properties();
+        props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, offsetResetStrategy);
+        props.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "using-committed-offset");
+        KafkaPartitionSplitReader reader =
+                createReader(props, UnregisteredMetricsGroup.createSourceReaderMetricGroup());
+        // Add committed offset split
+        final TopicPartition partition = new TopicPartition(TOPIC1, 0);
+        reader.handleSplitsChanges(
+                new SplitsAddition<>(
+                        Collections.singletonList(
+                                new KafkaPartitionSplit(
+                                        partition, KafkaPartitionSplit.COMMITTED_OFFSET))));
+
+        // Verify that the current offset of the consumer is the expected offset
+        assertEquals(expectedOffset, reader.consumer().position(partition));
     }
 
     // ------------------

@@ -25,10 +25,12 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
-import org.apache.flink.table.utils.DateTimeUtils
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
+import org.apache.flink.table.utils.DateTimeUtils
 
 import org.apache.calcite.rex.RexNode
 
@@ -73,7 +75,7 @@ object PartitionPruner {
     * @return Pruned partitions.
     */
   def prunePartitions(
-      config: TableConfig,
+      tableConfig: TableConfig,
       partitionFieldNames: Array[String],
       partitionFieldTypes: Array[LogicalType],
       allPartitions: JList[JMap[String, String]],
@@ -86,7 +88,7 @@ object PartitionPruner {
     val inputType = InternalTypeInfo.ofFields(partitionFieldTypes, partitionFieldNames).toRowType
     val returnType: LogicalType = new BooleanType(false)
 
-    val ctx = new ConstantCodeGeneratorContext(config)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig)
     val collectorTerm = DEFAULT_COLLECTOR_TERM
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -118,17 +120,15 @@ object PartitionPruner {
     val results: JList[Boolean] = new JArrayList[Boolean](allPartitions.size)
     val collector = new ListCollector[Boolean](results)
 
-    val parameters = if (config.getConfiguration != null) {
-      config.getConfiguration
-    } else {
-      new Configuration()
-    }
     try {
-      richMapFunction.open(parameters)
+      richMapFunction.open(new Configuration)
       // do filter against all partitions
       allPartitions.foreach { partition =>
         val row = convertPartitionToRow(
-          config.getLocalTimeZone, partitionFieldNames, partitionFieldTypes, partition)
+          TableConfigUtils.getLocalTimeZone(tableConfig),
+          partitionFieldNames,
+          partitionFieldTypes,
+          partition)
         collector.collect(richMapFunction.map(row))
       }
     } finally {
@@ -179,9 +179,14 @@ object PartitionPruner {
         DecimalDataUtils.castFrom(v, decimalType.getPrecision, decimalType.getScale)
       case DATE => DateTimeUtils.parseDate(v)
       case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.parseTime(v)
-      case TIMESTAMP_WITHOUT_TIME_ZONE => DateTimeUtils.parseTimestampData(v)
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        DateTimeUtils.parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
-        DateTimeUtils.parseTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
+        DateTimeUtils
+          .parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
+          .toLocalDateTime
+          .atZone(timeZone)
+          .toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }

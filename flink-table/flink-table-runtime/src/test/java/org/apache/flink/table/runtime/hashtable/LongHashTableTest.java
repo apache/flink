@@ -35,7 +35,6 @@ import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,8 +47,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test for {@link LongHashPartition}. */
 @RunWith(Parameterized.class)
@@ -133,10 +132,9 @@ public class LongHashTableTest {
         final MyHashTable table = new MyHashTable(500 * PAGE_SIZE);
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
@@ -161,10 +159,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
@@ -192,10 +189,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
 
@@ -243,15 +239,14 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -325,18 +320,18 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == repeatedValue1 || key == repeatedValue2)
-                            ? (probeValsPerKey + repeatedValueCountProbe)
-                                    * (buildValsPerKey + repeatedValueCountBuild)
-                            : probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(
+                            (key == repeatedValue1 || key == repeatedValue2)
+                                    ? (probeValsPerKey + repeatedValueCountProbe)
+                                            * (buildValsPerKey + repeatedValueCountBuild)
+                                    : probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -411,18 +406,18 @@ public class LongHashTableTest {
 
         table.close();
 
-        Assert.assertEquals("Wrong number of keys", numKeys, map.size());
+        assertThat(map).as("Wrong number of keys").hasSize(numKeys);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == repeatedValue1 || key == repeatedValue2)
-                            ? (probeValsPerKey + repeatedValueCountProbe)
-                                    * (buildValsPerKey + repeatedValueCountBuild)
-                            : probeValsPerKey * buildValsPerKey,
-                    val);
+            assertThat(val)
+                    .as("Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(
+                            (key == repeatedValue1 || key == repeatedValue2)
+                                    ? (probeValsPerKey + repeatedValueCountProbe)
+                                            * (buildValsPerKey + repeatedValueCountBuild)
+                                    : probeValsPerKey * buildValsPerKey);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -514,10 +509,9 @@ public class LongHashTableTest {
                         buildInput,
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         table.close();
 
@@ -544,10 +538,9 @@ public class LongHashTableTest {
                         buildInput,
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         table.close();
 
@@ -574,10 +567,9 @@ public class LongHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .as("Wrong number of records in join result.")
+                .isEqualTo(numKeys * buildValsPerKey * probeValsPerKey);
 
         table.close();
         table.free();
@@ -594,16 +586,18 @@ public class LongHashTableTest {
         if (buildSide.advanceNext()) {
             numBuildValues = 1;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertThat(record.getInt(0))
+                    .as("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
         } else {
             fail("No build side values found for a probe key.");
         }
         while (buildSide.advanceNext()) {
             numBuildValues++;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertThat(record.getInt(0))
+                    .as("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
         }
 
         Long contained = map.get(key);

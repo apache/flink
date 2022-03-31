@@ -26,7 +26,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -164,14 +163,16 @@ public class FlinkContainersBuilder {
         this.conf.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 CHECKPOINT_PATH.toAbsolutePath().toUri().toString());
+        this.conf.set(RestOptions.BIND_ADDRESS, "0.0.0.0");
 
-        final List<Path> temporaryPaths = new ArrayList<>();
+        this.conf.set(JobManagerOptions.BIND_HOST, "0.0.0.0");
+        this.conf.set(TaskManagerOptions.BIND_HOST, "0.0.0.0");
+        this.conf.removeConfig(TaskManagerOptions.HOST);
 
         // Create temporary directory for building Flink image
         final Path imageBuildingTempDir;
         try {
             imageBuildingTempDir = Files.createTempDirectory("flink-image-build");
-            temporaryPaths.add(imageBuildingTempDir);
         } catch (IOException e) {
             throw new RuntimeException("Failed to create temporary directory", e);
         }
@@ -185,22 +186,13 @@ public class FlinkContainersBuilder {
 
         // Mount HA storage to JobManager
         if (enableZookeeperHA) {
-            final Path haStorage =
-                    createTempDirAndMountToContainer("flink-recovery", HA_STORAGE_PATH, jobManager);
-            temporaryPaths.add(haStorage);
+            createTempDirAndMountToContainer("flink-recovery", HA_STORAGE_PATH, jobManager);
         }
 
         // Mount checkpoint storage to JobManager
-        final Path checkpointPath =
-                createTempDirAndMountToContainer("flink-checkpoint", CHECKPOINT_PATH, jobManager);
-        temporaryPaths.add(checkpointPath);
+        createTempDirAndMountToContainer("flink-checkpoint", CHECKPOINT_PATH, jobManager);
 
-        return new FlinkContainers(
-                jobManager,
-                taskManagers,
-                zookeeper,
-                conf,
-                () -> deleteTemporaryPaths(temporaryPaths));
+        return new FlinkContainers(jobManager, taskManagers, zookeeper, conf);
     }
 
     // --------------------------- Helper Functions -------------------------------------
@@ -259,7 +251,7 @@ public class FlinkContainersBuilder {
 
     private GenericContainer<?> buildZookeeperContainer() {
         return configureContainer(
-                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.4.14")),
+                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.5.9")),
                 ZOOKEEPER_HOSTNAME,
                 "Zookeeper");
     }
@@ -292,30 +284,15 @@ public class FlinkContainersBuilder {
         conf.set(HighAvailabilityOptions.HA_STORAGE_PATH, HA_STORAGE_PATH.toUri().toString());
     }
 
-    private Path createTempDirAndMountToContainer(
+    private void createTempDirAndMountToContainer(
             String tempDirPrefix, Path containerPath, GenericContainer<?> container) {
         try {
             Path tempDirPath = Files.createTempDirectory(tempDirPrefix);
             container.withFileSystemBind(
                     tempDirPath.toAbsolutePath().toString(),
                     containerPath.toAbsolutePath().toString());
-            return tempDirPath;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create temporary recovery directory", e);
         }
-    }
-
-    private void deleteTemporaryPaths(List<Path> temporaryPaths) {
-        temporaryPaths.forEach(
-                (path) -> {
-                    try {
-                        FileUtils.deleteDirectory(path.toFile());
-                    } catch (IOException e) {
-                        throw new RuntimeException(
-                                String.format(
-                                        "Failed to delete path \"%s\"", path.toAbsolutePath()),
-                                e);
-                    }
-                });
     }
 }

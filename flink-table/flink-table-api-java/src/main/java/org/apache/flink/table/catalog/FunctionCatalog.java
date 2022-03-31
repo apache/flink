@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -75,11 +74,6 @@ public final class FunctionCatalog {
      * planner.
      */
     private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
-
-    public FunctionCatalog(
-            TableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        this(checkNotNull(config).getConfiguration(), catalogManager, moduleManager);
-    }
 
     public FunctionCatalog(
             ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
@@ -333,13 +327,14 @@ public final class FunctionCatalog {
     public FunctionLookup asLookup(Function<String, UnresolvedIdentifier> parser) {
         return new FunctionLookup() {
             @Override
-            public Optional<Result> lookupFunction(String stringIdentifier) {
+            public Optional<ContextResolvedFunction> lookupFunction(String stringIdentifier) {
                 UnresolvedIdentifier unresolvedIdentifier = parser.apply(stringIdentifier);
                 return lookupFunction(unresolvedIdentifier);
             }
 
             @Override
-            public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
+            public Optional<ContextResolvedFunction> lookupFunction(
+                    UnresolvedIdentifier identifier) {
                 return FunctionCatalog.this.lookupFunction(identifier);
             }
 
@@ -353,7 +348,7 @@ public final class FunctionCatalog {
         };
     }
 
-    public Optional<FunctionLookup.Result> lookupFunction(UnresolvedIdentifier identifier) {
+    public Optional<ContextResolvedFunction> lookupFunction(UnresolvedIdentifier identifier) {
         // precise function reference
         if (identifier.getDatabaseName().isPresent()) {
             return resolvePreciseFunctionReference(catalogManager.qualifyIdentifier(identifier));
@@ -548,7 +543,7 @@ public final class FunctionCatalog {
         return result;
     }
 
-    private Optional<FunctionLookup.Result> resolvePreciseFunctionReference(ObjectIdentifier oi) {
+    private Optional<ContextResolvedFunction> resolvePreciseFunctionReference(ObjectIdentifier oi) {
         // resolve order:
         // 1. Temporary functions
         // 2. Catalog functions
@@ -557,7 +552,7 @@ public final class FunctionCatalog {
 
         if (potentialResult != null) {
             return Optional.of(
-                    new FunctionLookup.Result(
+                    ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
                             getFunctionDefinition(oi.getObjectName(), potentialResult)));
         }
@@ -582,7 +577,8 @@ public final class FunctionCatalog {
                     fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
                 }
 
-                return Optional.of(new FunctionLookup.Result(FunctionIdentifier.of(oi), fd));
+                return Optional.of(
+                        ContextResolvedFunction.permanent(FunctionIdentifier.of(oi), fd));
             } catch (FunctionNotExistException e) {
                 // Ignore
             }
@@ -591,7 +587,7 @@ public final class FunctionCatalog {
         return Optional.empty();
     }
 
-    private Optional<FunctionLookup.Result> resolveAmbiguousFunctionReference(String funcName) {
+    private Optional<ContextResolvedFunction> resolveAmbiguousFunctionReference(String funcName) {
         // resolve order:
         // 1. Temporary system functions
         // 2. System functions
@@ -601,7 +597,7 @@ public final class FunctionCatalog {
         String normalizedName = FunctionIdentifier.normalizeName(funcName);
         if (tempSystemFunctions.containsKey(normalizedName)) {
             return Optional.of(
-                    new FunctionLookup.Result(
+                    ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(funcName),
                             getFunctionDefinition(
                                     normalizedName, tempSystemFunctions.get(normalizedName))));
@@ -619,7 +615,7 @@ public final class FunctionCatalog {
                 .map(
                         fd ->
                                 Optional.of(
-                                        new FunctionLookup.Result(
+                                        ContextResolvedFunction.permanent(
                                                 FunctionIdentifier.of(funcName), fd)))
                 .orElseGet(() -> resolvePreciseFunctionReference(oi));
     }

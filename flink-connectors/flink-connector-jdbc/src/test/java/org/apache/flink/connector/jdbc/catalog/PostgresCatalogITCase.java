@@ -40,9 +40,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
     @Before
     public void setup() {
         this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         // use PG catalog
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
@@ -114,7 +112,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
         tEnv.executeSql(
                         String.format(
                                 "insert into `%s` "
-                                        + "select `int`, cast('A' as bytes), `short`, max(`long`), max(`real`), "
+                                        + "select `int`, cast('41' as bytes), `short`, max(`long`), max(`real`), "
                                         + "max(`double_precision`), max(`numeric`), max(`decimal`), max(`boolean`), "
                                         + "max(`text`), 'B', 'C', max(`character_varying`), max(`timestamp`), "
                                         + "max(`date`), max(`time`), max(`default_numeric`) "

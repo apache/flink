@@ -117,9 +117,17 @@ public final class LogicalTypeCasts {
 
         // cast specification
 
-        castTo(CHAR).implicitFrom(CHAR).explicitFromFamily(PREDEFINED).build();
+        castTo(CHAR)
+                .implicitFrom(CHAR)
+                .explicitFromFamily(PREDEFINED, CONSTRUCTED)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .build();
 
-        castTo(VARCHAR).implicitFromFamily(CHARACTER_STRING).explicitFromFamily(PREDEFINED).build();
+        castTo(VARCHAR)
+                .implicitFromFamily(CHARACTER_STRING)
+                .explicitFromFamily(PREDEFINED, CONSTRUCTED)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .build();
 
         castTo(BOOLEAN)
                 .implicitFrom(BOOLEAN)
@@ -318,12 +326,18 @@ public final class LogicalTypeCasts {
             // cast between interval and exact numeric is only supported if interval has a single
             // field
             return isSingleFieldInterval(targetType);
-        } else if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
-            return supportsConstructedCasting(sourceType, targetType, allowExplicit);
-        } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
+        } else if ((sourceType.is(CONSTRUCTED) || sourceType.is(STRUCTURED_TYPE))
+                && (targetType.is(CONSTRUCTED) || targetType.is(STRUCTURED_TYPE))) {
+            if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
+                return supportsConstructedCasting(sourceType, targetType, allowExplicit);
+            }
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
-        } else if (sourceRoot == RAW && !targetType.is(BINARY_STRING) || targetRoot == RAW) {
+
+        } else if (sourceRoot == RAW
+                        && !targetType.is(BINARY_STRING)
+                        && !targetType.is(CHARACTER_STRING)
+                || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {

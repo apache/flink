@@ -25,9 +25,11 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -40,7 +42,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
@@ -401,11 +402,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                         config.setUnalignedCheckpointsEnabled(
                                                 checkpointOptions.isUnalignedCheckpoint()
                                                         || checkpointOptions.isTimeoutable());
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
                                     })
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .setCheckpointResponder(checkpointResponder)
@@ -552,7 +548,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     private CheckpointBarrier createStopWithSavepointDrainBarrier() {
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.alignedNoTimeout(
-                        CheckpointType.SAVEPOINT_TERMINATE,
+                        SavepointType.terminate(SavepointFormatType.CANONICAL),
                         CheckpointStorageLocationReference.getDefault());
 
         return new CheckpointBarrier(

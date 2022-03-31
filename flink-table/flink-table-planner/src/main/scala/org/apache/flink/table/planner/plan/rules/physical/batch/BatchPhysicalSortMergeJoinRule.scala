@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortMergeJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OperatorType}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -53,7 +53,7 @@ class BatchPhysicalSortMergeJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = unwrapTableConfig(call)
     val isSortMergeJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)
     !joinInfo.pairs().isEmpty && isSortMergeJoinEnabled
   }
@@ -108,8 +108,8 @@ class BatchPhysicalSortMergeJoinRule
       call.transformTo(newJoin)
     }
 
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val candidates = if (tableConfig.getConfiguration.getBoolean(
+    val tableConfig = unwrapTableConfig(call)
+    val candidates = if (tableConfig.get(
       BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
@@ -127,7 +127,7 @@ class BatchPhysicalSortMergeJoinRule
     }
 
     // add more possibility to only shuffle by partial joinKeys, now only single one
-    val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+    val isShuffleByPartialKeyEnabled = tableConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
     if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
       joinInfo.pairs().foreach { pair =>
@@ -150,6 +150,7 @@ object BatchPhysicalSortMergeJoinRule {
   @Experimental
   val TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.smj.remove-sort-enabled")
+        .booleanType()
         .defaultValue(JBoolean.FALSE)
         .withDescription("When true, the optimizer will try to remove redundant sort " +
             "for sort merge join. However that will increase optimization time. " +

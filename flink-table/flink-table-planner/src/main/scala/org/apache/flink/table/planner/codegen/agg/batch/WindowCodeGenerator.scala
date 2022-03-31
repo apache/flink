@@ -46,8 +46,8 @@ import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrou
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.utils.DateTimeUtils
 
-import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.apache.commons.math3.util.ArithmeticUtils

@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.metrics.Gauge
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -30,7 +29,7 @@ import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHa
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, _}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
 /**
@@ -65,7 +64,6 @@ object LongHashJoinGenerator {
   }
 
   private def genGetLongKey(
-      ctx: CodeGeneratorContext,
       keyType: RowType,
       keyMapping: Array[Int],
       rowTerm: String): String = {
@@ -93,10 +91,10 @@ object LongHashJoinGenerator {
      """.stripMargin, anyNullTerm)
   }
 
-  def genProjection(conf: TableConfig, types: Array[LogicalType]): GeneratedProjection = {
+  def genProjection(tableConfig: ReadableConfig, types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
-      CodeGeneratorContext.apply(conf),
+      CodeGeneratorContext.apply(tableConfig),
       "Projection",
       rowType,
       rowType,
@@ -104,7 +102,7 @@ object LongHashJoinGenerator {
   }
 
   def gen(
-      conf: TableConfig,
+      tableConfig: ReadableConfig,
       hashJoinType: HashJoinType,
       keyType: RowType,
       buildType: RowType,
@@ -120,13 +118,13 @@ object LongHashJoinGenerator {
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
     val tableTerm = newName("LongHashTable")
-    val ctx = CodeGeneratorContext(conf)
+    val ctx = CodeGeneratorContext(tableConfig)
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
-    val bGenProj = genProjection(conf, buildType.getChildren.toArray(Array[LogicalType]()))
+    val bGenProj = genProjection(tableConfig, buildType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
-    val pGenProj = genProjection(conf, probeType.getChildren.toArray(Array[LogicalType]()))
+    val pGenProj = genProjection(tableConfig, probeType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
     ctx.addReusableInnerClass(condFunc.getClassName, condFunc.getCode)
 
@@ -186,12 +184,12 @@ object LongHashJoinGenerator {
          |
          |  @Override
          |  public long getBuildLongKey($ROW_DATA row) {
-         |    ${genGetLongKey(ctx, keyType, buildKeyMapping, "row")}
+         |    ${genGetLongKey(keyType, buildKeyMapping, "row")}
          |  }
          |
          |  @Override
          |  public long getProbeLongKey($ROW_DATA row) {
-         |    ${genGetLongKey(ctx, keyType, probeKeyMapping, "row")}
+         |    ${genGetLongKey(keyType, probeKeyMapping, "row")}
          |  }
          |
          |  @Override

@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -210,4 +211,26 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
+
+    /**
+     * Initialize the given execution job vertex, mainly includes creating execution vertices
+     * according to the parallelism, and connecting to the predecessors.
+     *
+     * @param ejv The execution job vertex that needs to be initialized.
+     * @param createTimestamp The timestamp for creating execution vertices, used to initialize the
+     *     first Execution with.
+     */
+    void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp) throws JobException;
+
+    /**
+     * Notify that some job vertices have been newly initialized, execution graph will try to update
+     * scheduling topology.
+     *
+     * @param vertices The execution job vertices that are newly initialized.
+     */
+    void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices);
+
+    Optional<String> findVertexWithAttempt(final ExecutionAttemptID attemptId);
+
+    Optional<AccessExecution> findExecution(final ExecutionAttemptID attemptId);
 }

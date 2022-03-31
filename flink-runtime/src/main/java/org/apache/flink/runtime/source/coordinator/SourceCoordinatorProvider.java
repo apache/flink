@@ -18,20 +18,20 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
-import org.apache.flink.util.FatalExitExceptionHandler;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
@@ -42,6 +42,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     private final String operatorName;
     private final Source<?, SplitT, ?> source;
     private final int numWorkerThreads;
+    private final WatermarkAlignmentParams alignmentParams;
 
     /**
      * Construct the {@link SourceCoordinatorProvider}.
@@ -58,52 +59,58 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             String operatorName,
             OperatorID operatorID,
             Source<?, SplitT, ?> source,
-            int numWorkerThreads) {
+            int numWorkerThreads,
+            WatermarkAlignmentParams alignmentParams) {
         super(operatorID);
         this.operatorName = operatorName;
         this.source = source;
         this.numWorkerThreads = numWorkerThreads;
+        this.alignmentParams = alignmentParams;
     }
 
     @Override
     public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
         final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-                new CoordinatorExecutorThreadFactory(
-                        coordinatorThreadName, context.getUserCodeClassloader());
-        ExecutorService coordinatorExecutor =
-                Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+                new CoordinatorExecutorThreadFactory(coordinatorThreadName, context);
 
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
                 new SourceCoordinatorContext<>(
-                        coordinatorExecutor,
-                        coordinatorThreadFactory,
-                        numWorkerThreads,
-                        context,
-                        splitSerializer);
+                        coordinatorThreadFactory, numWorkerThreads, context, splitSerializer);
         return new SourceCoordinator<>(
-                operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+                operatorName,
+                source,
+                sourceCoordinatorContext,
+                context.getCoordinatorStore(),
+                alignmentParams);
     }
 
     /** A thread factory class that provides some helper methods. */
     public static class CoordinatorExecutorThreadFactory
             implements ThreadFactory, Thread.UncaughtExceptionHandler {
 
+        private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorProvider.class);
         private final String coordinatorThreadName;
         private final ClassLoader cl;
         private final Thread.UncaughtExceptionHandler errorHandler;
 
         @Nullable private Thread t;
 
-        @Nullable private volatile Throwable previousFailureReason;
-
         CoordinatorExecutorThreadFactory(
-                final String coordinatorThreadName, final ClassLoader contextClassLoader) {
-            this(coordinatorThreadName, contextClassLoader, FatalExitExceptionHandler.INSTANCE);
+                final String coordinatorThreadName, final OperatorCoordinator.Context context) {
+            this(
+                    coordinatorThreadName,
+                    context.getUserCodeClassloader(),
+                    (t, e) -> {
+                        LOG.error(
+                                "Thread '{}' produced an uncaught exception. Failing the job.",
+                                t.getName(),
+                                e);
+                        context.failJob(e);
+                    });
         }
 
-        @VisibleForTesting
         CoordinatorExecutorThreadFactory(
                 final String coordinatorThreadName,
                 final ClassLoader contextClassLoader,
@@ -115,18 +122,6 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized Thread newThread(Runnable r) {
-            if (t != null && t.isAlive()) {
-                throw new Error(
-                        "Source Coordinator Thread already exists. There should never be more than one "
-                                + "thread driving the actions of a Source Coordinator. Existing Thread: "
-                                + t);
-            }
-            if (t != null && previousFailureReason != null) {
-                throw new Error(
-                        "The following fatal error has happened in a previously spawned "
-                                + "Source Coordinator thread. No new thread can be spawned.",
-                        previousFailureReason);
-            }
             t = new Thread(r, coordinatorThreadName);
             t.setContextClassLoader(cl);
             t.setUncaughtExceptionHandler(this);
@@ -135,9 +130,6 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized void uncaughtException(Thread t, Throwable e) {
-            if (previousFailureReason == null) {
-                previousFailureReason = e;
-            }
             errorHandler.uncaughtException(t, e);
         }
 

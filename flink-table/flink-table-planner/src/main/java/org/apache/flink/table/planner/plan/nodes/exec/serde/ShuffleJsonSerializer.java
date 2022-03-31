@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.HashShuffle;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.Shuffle;
@@ -28,11 +29,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/** JSON serializer for {@link Shuffle}. */
-public class ShuffleJsonSerializer extends StdSerializer<Shuffle> {
+/**
+ * JSON serializer for {@link Shuffle}.
+ *
+ * @see ShuffleJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ShuffleJsonSerializer extends StdSerializer<Shuffle> {
     private static final long serialVersionUID = 1L;
 
-    public ShuffleJsonSerializer() {
+    ShuffleJsonSerializer() {
         super(Shuffle.class);
     }
 

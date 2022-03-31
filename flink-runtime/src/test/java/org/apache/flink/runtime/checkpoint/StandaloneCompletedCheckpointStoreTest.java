@@ -107,9 +107,10 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
                             Collections.emptyMap(),
                             Collections.emptyList(),
                             CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                            new TestCompletedCheckpointStorageLocation()) {
+                            new TestCompletedCheckpointStorageLocation(),
+                            null) {
                         @Override
-                        public boolean discardOnSubsume() {
+                        public CompletedCheckpointDiscardObject markAsDiscardedOnSubsume() {
                             discardAttempted.countDown();
                             throw new RuntimeException();
                         }

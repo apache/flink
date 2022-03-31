@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
@@ -44,7 +45,7 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
-                                            text("yarn-per-job"),
+                                            text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
                                             text("kubernetes-session"))
                                     .text(
@@ -84,4 +85,36 @@ public class DeploymentOptions {
                     .withDescription(
                             "Whether a Flink Application cluster should shut down automatically after its application finishes"
                                     + " (either successfully or as result of a failure). Has no effect for other deployment modes.");
+
+    @Experimental
+    public static final ConfigOption<Boolean> SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR =
+            ConfigOptions.key("execution.submit-failed-job-on-application-error")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If a failed job should be submitted (in the application mode) when"
+                                                    + " there is an error in the application driver before an actual job"
+                                                    + " submission. This is intended for providing a clean way of reporting"
+                                                    + " failures back to the user and is especially useful in combination"
+                                                    + " with '%s'. This option only works when the single job submission is"
+                                                    + " enforced ('%s' is enabled). Please note that this is an experimental"
+                                                    + " option and may be changed in the future.",
+                                            TextElement.text(SHUTDOWN_ON_APPLICATION_FINISH.key()),
+                                            TextElement.text(HighAvailabilityOptions.HA_MODE.key()))
+                                    .build());
+
+    @Experimental
+    public static final ConfigOption<Boolean> ALLOW_CLIENT_JOB_CONFIGURATIONS =
+            ConfigOptions.key("execution.allow-client-job-configurations")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determines whether configurations in the user program are "
+                                    + "allowed. Depending on your deployment mode failing the job "
+                                    + "might have different affects. Either your client that is "
+                                    + "trying to submit the job to an external cluster (session "
+                                    + "cluster deployment) throws the exception or the Job "
+                                    + "manager (application mode deployment).");
 }

@@ -25,7 +25,6 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.expressions.Expression;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -36,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for {@link FieldInfoUtils}. */
 @RunWith(Enclosed.class)
@@ -69,7 +69,7 @@ public class FieldInfoUtilsTest {
                     FieldInfoUtils.getFieldsInfo(
                             typeInfo, new Expression[] {$("f2"), $("f1"), $("f0")});
 
-            Assert.assertArrayEquals(new String[] {"f2", "f1", "f0"}, schema.getFieldNames());
+            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"f2", "f1", "f0"});
         }
 
         @Test
@@ -81,7 +81,7 @@ public class FieldInfoUtilsTest {
                                 $("f1").as("aa"), $("f0").as("bb"), $("f2").as("cc")
                             });
 
-            Assert.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
+            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
         }
 
         /** Test Pojo class. */
@@ -107,7 +107,7 @@ public class FieldInfoUtilsTest {
                     FieldInfoUtils.getFieldsInfo(
                             rowTypeInfo, new Expression[] {$("aa"), $("bb"), $("cc")});
 
-            Assert.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
+            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
         }
 
         @Test
@@ -119,8 +119,8 @@ public class FieldInfoUtilsTest {
                                 $("aa"), $("bb"), $("cc"), $("cc").proctime().as("proctime")
                             });
 
-            Assert.assertArrayEquals(
-                    new String[] {"aa", "bb", "cc", "proctime"}, schema.getFieldNames());
+            assertThat(schema.getFieldNames())
+                    .isEqualTo(new String[] {"aa", "bb", "cc", "proctime"});
         }
     }
 }

@@ -365,6 +365,15 @@ public class PythonOperatorChainingOptimizer {
         if (upTransform.getSlotSharingGroup().isPresent()) {
             chainedTransformation.setSlotSharingGroup(upTransform.getSlotSharingGroup().get());
         }
+
+        if (upTransform.getDescription() != null && downTransform.getDescription() != null) {
+            chainedTransformation.setDescription(
+                    upTransform.getDescription() + ", " + downTransform.getDescription());
+        } else if (upTransform.getDescription() != null) {
+            chainedTransformation.setDescription(upTransform.getDescription());
+        } else if (downTransform.getDescription() != null) {
+            chainedTransformation.setDescription(downTransform.getDescription());
+        }
         return chainedTransformation;
     }
 

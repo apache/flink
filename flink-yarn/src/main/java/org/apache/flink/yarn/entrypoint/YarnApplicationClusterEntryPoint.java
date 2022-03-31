@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -132,9 +133,17 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
             throws FlinkException {
 
         final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
-        final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
+
+        // No need to do pipelineJars validation if it is a PyFlink job.
+        if (!(PackagedProgramUtils.isPython(jobClassName)
+                || PackagedProgramUtils.isPython(programArguments))) {
+            final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
+            return DefaultPackagedProgramRetriever.create(
+                    userLibDir, userApplicationJar, jobClassName, programArguments, configuration);
+        }
+
         return DefaultPackagedProgramRetriever.create(
-                userLibDir, userApplicationJar, jobClassName, programArguments, configuration);
+                userLibDir, jobClassName, programArguments, configuration);
     }
 
     private static File getUserApplicationJar(

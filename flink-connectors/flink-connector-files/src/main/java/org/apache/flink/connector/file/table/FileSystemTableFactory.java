@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.connector.file.table.factories.BulkWriterFormatFactory;
-import org.apache.flink.connector.file.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -45,6 +44,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.time.ZoneId.SHORT_IDS;
 
@@ -70,10 +70,12 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         validate(helper);
         return new FileSystemTableSource(
-                context,
+                context.getObjectIdentifier(),
+                context.getPhysicalRowDataType(),
+                context.getCatalogTable().getPartitionKeys(),
+                helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
-                discoverDecodingFormat(context, DeserializationFormatFactory.class),
-                discoverFormatFactory(context));
+                discoverDecodingFormat(context, DeserializationFormatFactory.class));
     }
 
     @Override
@@ -81,10 +83,12 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         validate(helper);
         return new FileSystemTableSink(
-                context,
+                context.getObjectIdentifier(),
+                context.getPhysicalRowDataType(),
+                context.getCatalogTable().getPartitionKeys(),
+                helper.getOptions(),
                 discoverDecodingFormat(context, BulkReaderFormatFactory.class),
                 discoverDecodingFormat(context, DeserializationFormatFactory.class),
-                discoverFormatFactory(context),
                 discoverEncodingFormat(context, BulkWriterFormatFactory.class),
                 discoverEncodingFormat(context, SerializationFormatFactory.class));
     }
@@ -101,12 +105,15 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FileSystemConnectorOptions.PARTITION_DEFAULT_NAME);
+        options.add(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL);
+        options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL);
         options.add(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS);
+        options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER);
         options.add(FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER);
         options.add(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY);
@@ -118,6 +125,24 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemConnectorOptions.COMPACTION_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_PARALLELISM);
         return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        FileSystemConnectorOptions.PATH,
+                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL,
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS,
+                        FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME,
+                        FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
+                .collect(Collectors.toSet());
     }
 
     private void validate(FactoryUtil.TableFactoryHelper helper) {
@@ -155,19 +180,6 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         if (formatFactoryExists(context, formatFactoryClass)) {
             return helper.discoverEncodingFormat(formatFactoryClass, FactoryUtil.FORMAT);
-        } else {
-            return null;
-        }
-    }
-
-    private FileSystemFormatFactory discoverFormatFactory(Context context) {
-        if (formatFactoryExists(context, FileSystemFormatFactory.class)) {
-            Configuration options = Configuration.fromMap(context.getCatalogTable().getOptions());
-            String identifier = options.get(FactoryUtil.FORMAT);
-            return FactoryUtil.discoverFactory(
-                    Thread.currentThread().getContextClassLoader(),
-                    FileSystemFormatFactory.class,
-                    identifier);
         } else {
             return null;
         }

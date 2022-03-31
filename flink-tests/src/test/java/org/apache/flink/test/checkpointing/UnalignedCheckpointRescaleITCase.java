@@ -47,7 +47,6 @@ import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -63,7 +62,6 @@ import static org.hamcrest.Matchers.equalTo;
 
 /** Integration test for performing rescale of unaligned checkpoint. */
 @RunWith(Parameterized.class)
-@Ignore("Test fails regularly on AZP. See FLINK-25426.")
 public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
     public static final int NUM_GROUPS = 100;
     private final Topology topology;

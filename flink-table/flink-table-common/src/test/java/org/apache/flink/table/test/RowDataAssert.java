@@ -18,16 +18,23 @@
 
 package org.apache.flink.table.test;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.LongAssert;
 import org.assertj.core.api.StringAssert;
 
+import java.util.Objects;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Assertions for {@link RowData}. */
+@Experimental
 public class RowDataAssert extends AbstractAssert<RowDataAssert, RowData> {
 
     public RowDataAssert(RowData rowData) {
@@ -70,5 +77,30 @@ public class RowDataAssert extends AbstractAssert<RowDataAssert, RowData> {
         isNotNull();
         assertThat(this.actual.isNullAt(index)).isFalse();
         return this;
+    }
+
+    public RowDataAssert asGeneric(DataType dataType) {
+        return asGeneric(dataType.getLogicalType());
+    }
+
+    public RowDataAssert asGeneric(LogicalType logicalType) {
+        GenericRowData actual = InternalDataUtils.toGenericRow(this.actual, logicalType);
+        return new RowDataAssert(actual)
+                .usingComparator(
+                        (x, y) -> {
+                            // Avoid converting actual again
+                            x = x == actual ? x : InternalDataUtils.toGenericRow(x, logicalType);
+                            y = y == actual ? y : InternalDataUtils.toGenericRow(y, logicalType);
+                            if (Objects.equals(x, y)) {
+                                return 0;
+                            }
+                            return Objects.hashCode(x) < Objects.hashCode(y) ? -1 : 1;
+                        });
+    }
+
+    /** In order to execute this assertion, you need flink-table-runtime in the classpath. */
+    public RowAssert asRow(DataType dataType) {
+        return new RowAssert(
+                InternalDataUtils.resolveToExternalOrNull(dataType).apply(this.actual));
     }
 }

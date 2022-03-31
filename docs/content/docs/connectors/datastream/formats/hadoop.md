@@ -50,7 +50,7 @@ a `hadoop-client` dependency such as:
 <dependency>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-client</artifactId>
-    <version>2.8.3</version>
+    <version>2.8.5</version>
     <scope>provided</scope>
 </dependency>
 ```

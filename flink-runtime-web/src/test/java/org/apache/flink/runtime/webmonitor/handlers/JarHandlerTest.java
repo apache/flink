@@ -51,7 +51,7 @@ public class JarHandlerTest extends TestLogger {
     private static void runTest(String expectedCapturedStdOut, String expectedCapturedStdErr)
             throws Exception {
         final TestingDispatcherGateway restfulGateway =
-                new TestingDispatcherGateway.Builder().build();
+                TestingDispatcherGateway.newBuilder().build();
 
         final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
 

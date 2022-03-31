@@ -20,35 +20,42 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.connectors.TransformationScanProvider;
-import org.apache.flink.table.planner.utils.JavaBatchTableTestUtil;
-import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
-import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.internal.CompiledPlanUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import java.util.List;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
  * Various tests to check {@link Transformation}s that have been generated from {@link ExecNode}s.
  */
-public class TransformationsTest extends TableTestBase {
+@Execution(ExecutionMode.CONCURRENT)
+class TransformationsTest {
 
     @Test
     public void testLegacyBatchSource() {
-        final JavaBatchTableTestUtil util = javaBatchTestUtil();
-        final StreamTableEnvironment env = util.tableEnv();
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inBatchMode().build());
 
         final Table table =
                 env.from(
@@ -61,13 +68,15 @@ public class TransformationsTest extends TableTestBase {
                 toLegacySourceTransformation(env, table);
 
         assertBoundedness(Boundedness.BOUNDED, sourceTransform);
-        assertFalse(sourceTransform.getOperator().emitsProgressiveWatermarks());
+        assertThat(sourceTransform.getOperator().emitsProgressiveWatermarks()).isFalse();
     }
 
     @Test
     public void testLegacyStreamSource() {
-        final JavaStreamTableTestUtil util = javaStreamTestUtil();
-        final StreamTableEnvironment env = util.tableEnv();
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
 
         final Table table =
                 env.from(
@@ -80,53 +89,15 @@ public class TransformationsTest extends TableTestBase {
                 toLegacySourceTransformation(env, table);
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
-        assertTrue(sourceTransform.getOperator().emitsProgressiveWatermarks());
-    }
-
-    @Test
-    public void testStreamTransformationScanProvider() {
-        final JavaStreamTableTestUtil util = javaStreamTestUtil();
-        final StreamTableEnvironment env = util.tableEnv();
-
-        final Table table =
-                env.from(
-                        TableDescriptor.forConnector("values")
-                                .option("bounded", "false")
-                                .schema(dummySchema())
-                                .build());
-
-        final Transformation<RowData> transformation =
-                env.toChangelogStream(table)
-                        .<RowData>map(r -> new GenericRowData(0))
-                        .getTransformation();
-
-        assertFalse(TransformationScanProvider.of(transformation).isBounded());
-    }
-
-    @Test
-    public void testBatchTransformationScanProvider() {
-        final JavaBatchTableTestUtil util = javaBatchTestUtil();
-        final StreamTableEnvironment env = util.tableEnv();
-
-        final Table table =
-                env.from(
-                        TableDescriptor.forConnector("values")
-                                .option("bounded", "true")
-                                .schema(dummySchema())
-                                .build());
-
-        final Transformation<RowData> transformation =
-                env.toChangelogStream(table)
-                        .<RowData>map(r -> new GenericRowData(0))
-                        .getTransformation();
-
-        assertTrue(TransformationScanProvider.of(transformation).isBounded());
+        assertThat(sourceTransform.getOperator().emitsProgressiveWatermarks()).isTrue();
     }
 
     @Test
     public void testLegacyBatchValues() {
-        final JavaBatchTableTestUtil util = javaBatchTestUtil();
-        final StreamTableEnvironment env = util.tableEnv();
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inBatchMode().build());
 
         final Table table = env.fromValues(1, 2, 3);
 
@@ -134,6 +105,41 @@ public class TransformationsTest extends TableTestBase {
                 toLegacySourceTransformation(env, table);
 
         assertBoundedness(Boundedness.BOUNDED, sourceTransform);
+    }
+
+    @Test
+    public void testLegacyUid() {
+        final TableEnvironment env =
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode().getConfiguration());
+        env.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
+
+        env.createTemporaryTable(
+                "source_table",
+                TableDescriptor.forConnector("values")
+                        .option("bounded", "true")
+                        .schema(dummySchema())
+                        .build());
+        env.createTemporaryTable(
+                "sink_table", TableDescriptor.forConnector("values").schema(dummySchema()).build());
+
+        final CompiledPlan compiledPlan =
+                env.from("source_table")
+                        .select($("i").abs())
+                        .insertInto("sink_table")
+                        .compilePlan();
+
+        // There should be 3 transformations in this list: sink -> calc -> source
+        final List<Transformation<?>> transformations =
+                CompiledPlanUtils.toTransformations(env, compiledPlan)
+                        .get(0)
+                        .getTransitivePredecessors();
+        assertThat(transformations).hasSize(3);
+
+        // As the sink and source might set the uid, we only check the calc transformation.
+        assertThat(transformations)
+                .element(1, type(Transformation.class))
+                .extracting(Transformation::getUid)
+                .isNull();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -146,13 +152,15 @@ public class TransformationsTest extends TableTestBase {
         while (transform.getInputs().size() == 1) {
             transform = transform.getInputs().get(0);
         }
-        assertTrue(transform instanceof LegacySourceTransformation);
+        assertThat(transform).isInstanceOf(LegacySourceTransformation.class);
         return (LegacySourceTransformation<?>) transform;
     }
 
     private static void assertBoundedness(Boundedness boundedness, Transformation<?> transform) {
-        assertTrue(transform instanceof WithBoundedness);
-        assertEquals(boundedness, ((WithBoundedness) transform).getBoundedness());
+        assertThat(transform)
+                .asInstanceOf(type(WithBoundedness.class))
+                .extracting(WithBoundedness::getBoundedness)
+                .isEqualTo(boundedness);
     }
 
     private static Schema dummySchema() {

@@ -452,9 +452,10 @@ public class JobGraph implements Serializable {
     private void addNodesThatHaveNoNewPredecessors(
             JobVertex start, List<JobVertex> target, Set<JobVertex> remaining) {
 
-        // forward traverse over all produced data sets and all their consumers
+        // forward traverse over all produced data sets
         for (IntermediateDataSet dataSet : start.getProducedDataSets()) {
-            for (JobEdge edge : dataSet.getConsumers()) {
+            JobEdge edge = dataSet.getConsumer();
+            if (edge != null) {
 
                 // a vertex can be added, if it has no predecessors that are still in the
                 // 'remaining' set

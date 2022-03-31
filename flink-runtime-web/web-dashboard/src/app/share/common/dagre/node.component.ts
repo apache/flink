@@ -53,7 +53,10 @@ export class NodeComponent {
 
   @Input()
   set node(value: NodesItemCorrect) {
-    const description = this.decodeHTML(value.description);
+    let description = this.decodeHTML(value.description);
+    if (value.detail) {
+      description = this.decodeHTML(value.detail.name);
+    }
     this.operator = this.decodeHTML(value.operator);
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;

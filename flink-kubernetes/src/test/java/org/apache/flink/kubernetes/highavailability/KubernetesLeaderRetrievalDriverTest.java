@@ -48,7 +48,7 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
                                     Collections.singletonList(getLeaderConfigMap()));
                             final String errMsg =
                                     "Error while watching the ConfigMap " + LEADER_CONFIGMAP_NAME;
-                            retrievalEventHandler.waitForError(TIMEOUT);
+                            retrievalEventHandler.waitForError();
                             assertThat(
                                     retrievalEventHandler.getError(),
                                     FlinkMatchers.containsMessage(errMsg));
@@ -69,15 +69,14 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
                                     callbackHandler = getLeaderRetrievalConfigMapCallback();
 
                             // Leader changed
-                            final String newLeader = LEADER_URL + "_" + 2;
+                            final String newLeader = LEADER_ADDRESS + "_" + 2;
                             getLeaderConfigMap()
                                     .getData()
                                     .put(Constants.LEADER_ADDRESS_KEY, newLeader);
                             callbackHandler.onModified(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            assertThat(
-                                    retrievalEventHandler.waitForNewLeader(TIMEOUT), is(newLeader));
+                            assertThat(retrievalEventHandler.waitForNewLeader(), is(newLeader));
                         });
             }
         };
@@ -98,6 +97,7 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
                             getLeaderConfigMap().getData().clear();
                             callbackHandler.onModified(
                                     Collections.singletonList(getLeaderConfigMap()));
+                            retrievalEventHandler.waitForEmptyLeaderInformation();
                             assertThat(retrievalEventHandler.getAddress(), is(nullValue()));
                         });
             }

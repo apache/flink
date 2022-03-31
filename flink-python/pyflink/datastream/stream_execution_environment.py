@@ -300,7 +300,7 @@ class StreamExecutionEnvironment(object):
 
         In contrast, the :class:`~pyflink.datastream.FsStateBackend` stores checkpoints of the state
         (also maintained as heap objects) in files. When using a replicated file system (like HDFS,
-        S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost upon failures of
+        S3, Alluxio, etc) this will guarantee that state is not lost upon failures of
         individual nodes and that streaming program can be executed highly available and strongly
         consistent(assuming that Flink is run in high-availability mode).
 
@@ -789,6 +789,22 @@ class StreamExecutionEnvironment(object):
         """
         j_stream_graph = self._generate_stream_graph(False)
         return j_stream_graph.getStreamingPlanAsJSON()
+
+    def register_cached_file(self, file_path: str, name: str, executable: bool = False):
+        """
+        Registers a file at the distributed cache under the given name. The file will be accessible
+        from any user-defined function in the (distributed) runtime under a local path. Files may be
+        local files (which will be distributed via BlobServer), or files in a distributed file
+        system. The runtime will copy the files temporarily to a local cache, if needed.
+
+        :param file_path: The path of the file, as a URI (e.g. "file:///some/path" or
+                         hdfs://host:port/and/path").
+        :param name: The name under which the file is registered.
+        :param executable: Flag indicating whether the file should be executable.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_stream_execution_environment.registerCachedFile(file_path, name, executable)
 
     @staticmethod
     def get_execution_environment() -> 'StreamExecutionEnvironment':

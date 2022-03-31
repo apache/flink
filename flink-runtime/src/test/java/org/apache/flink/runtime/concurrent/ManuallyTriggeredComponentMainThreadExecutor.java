@@ -38,7 +38,4 @@ public class ManuallyTriggeredComponentMainThreadExecutor
         assertRunningInMainThread();
         super.trigger();
     }
-
-    @Override
-    public void close() {}
 }

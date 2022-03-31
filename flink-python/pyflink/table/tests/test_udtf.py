@@ -19,6 +19,7 @@ import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
+from pyflink.table.expressions import col
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
@@ -37,9 +38,9 @@ class UserDefinedTableFunctionTests(object):
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
         t = t.join_lateral(multi_emit((t.a + t.a) / 2, multi_num(t.b)).alias('x', 'y'))
         t = t.left_outer_join_lateral(condition_multi_emit(t.x, t.y).alias('m')) \
-            .select("x, y, m")
+            .select(t.x, t.y, col("m"))
         t = t.left_outer_join_lateral(identity(t.m).alias('n')) \
-            .select("x, y, n")
+            .select(t.x, t.y, col("n"))
         actual = self._get_output(t)
         self.assert_equals(actual,
                            ["+I[1, 0, null]", "+I[1, 1, null]", "+I[2, 0, null]", "+I[2, 1, null]",
@@ -73,6 +74,8 @@ class UserDefinedTableFunctionTests(object):
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
                                             PyFlinkStreamTableTestCase):
+
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -110,13 +113,13 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
         self.t_env.create_temporary_system_function(
             "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, x, y FROM source_table "
-                                                   "LEFT JOIN LATERAL TABLE(multi_emit(a, b))"
-                                                   " as T(x, y)"
-                                                   " ON TRUE")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, x, y FROM source_table "
+                                                      "LEFT JOIN LATERAL TABLE(multi_emit(a, b))"
+                                                      " as T(x, y)"
+                                                      " ON TRUE")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

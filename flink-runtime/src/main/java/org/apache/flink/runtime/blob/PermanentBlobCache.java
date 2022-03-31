@@ -25,6 +25,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -82,10 +84,37 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
 
     private final BlobCacheSizeTracker blobCacheSizeTracker;
 
+    @VisibleForTesting
+    public PermanentBlobCache(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
+        this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
+    }
+
+    @VisibleForTesting
+    public PermanentBlobCache(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress,
+            BlobCacheSizeTracker blobCacheSizeTracker)
+            throws IOException {
+        this(
+                blobClientConfig,
+                Reference.owned(storageDir),
+                blobView,
+                serverAddress,
+                blobCacheSizeTracker);
+    }
+
     /**
      * Instantiates a new cache for permanent BLOBs which are also available in an HA store.
      *
      * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
      * @param blobView (distributed) HA blob store file system to retrieve files from first
      * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
      *     {@code null} if none yet
@@ -94,12 +123,13 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      */
     public PermanentBlobCache(
             final Configuration blobClientConfig,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress)
             throws IOException {
-
         this(
                 blobClientConfig,
+                storageDir,
                 blobView,
                 serverAddress,
                 new BlobCacheSizeTracker(MemorySize.ofMebiBytes(DEFAULT_SIZE_LIMIT_MB).getBytes()));
@@ -108,13 +138,14 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     @VisibleForTesting
     public PermanentBlobCache(
             final Configuration blobClientConfig,
+            final Reference<File> storageDir,
             final BlobView blobView,
             @Nullable final InetSocketAddress serverAddress,
             BlobCacheSizeTracker blobCacheSizeTracker)
             throws IOException {
-
         super(
                 blobClientConfig,
+                storageDir,
                 blobView,
                 LoggerFactory.getLogger(PermanentBlobCache.class),
                 serverAddress);
@@ -127,6 +158,30 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
                 new PermanentBlobCleanupTask(), cleanupInterval, cleanupInterval);
 
         this.blobCacheSizeTracker = blobCacheSizeTracker;
+
+        registerDetectedJobs();
+    }
+
+    private void registerDetectedJobs() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<JobID> jobIds =
+                    BlobUtils.listExistingJobs(storageDir.deref().toPath());
+
+            final long expiryTimeout = System.currentTimeMillis() + cleanupInterval;
+            for (JobID jobId : jobIds) {
+                registerJobWithExpiry(jobId, expiryTimeout);
+            }
+        }
+    }
+
+    private void registerJobWithExpiry(JobID jobId, long expiryTimeout) {
+        checkNotNull(jobId);
+        synchronized (jobRefCounters) {
+            final RefCount refCount =
+                    jobRefCounters.computeIfAbsent(jobId, ignored -> new RefCount());
+
+            refCount.keepUntil = expiryTimeout;
+        }
     }
 
     /**
@@ -236,7 +291,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         checkNotNull(jobId);
         checkNotNull(blobKey);
 
-        final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
         readWriteLock.readLock().lock();
 
         try {
@@ -339,7 +394,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         final File localFile =
                 new File(
                         BlobUtils.getStorageLocationPath(
-                                storageDir.getAbsolutePath(), jobId, blobKey));
+                                storageDir.deref().getAbsolutePath(), jobId, blobKey));
         if (!localFile.delete() && localFile.exists()) {
             log.warn(
                     "Failed to delete locally cached BLOB {} at {}",
@@ -361,7 +416,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     @VisibleForTesting
     public File getStorageLocation(JobID jobId, BlobKey key) throws IOException {
         checkNotNull(jobId);
-        return BlobUtils.getStorageLocation(storageDir, jobId, key);
+        return BlobUtils.getStorageLocation(storageDir.deref(), jobId, key);
     }
 
     /**
@@ -399,7 +454,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
                         final File localFile =
                                 new File(
                                         BlobUtils.getStorageLocationPath(
-                                                storageDir.getAbsolutePath(), jobId));
+                                                storageDir.deref().getAbsolutePath(), jobId));
 
                         /*
                          * NOTE: normally it is not required to acquire the write lock to delete the job's

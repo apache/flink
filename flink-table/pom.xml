@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,13 +39,16 @@ under the License.
 		<module>flink-table-api-bridge-base</module>
 		<module>flink-table-api-java-bridge</module>
 		<module>flink-table-api-scala-bridge</module>
+		<module>flink-table-api-java-uber</module>
 		<module>flink-table-planner</module>
+		<module>flink-table-planner-loader</module>
+		<module>flink-table-planner-loader-bundle</module>
 		<module>flink-table-runtime</module>
-		<module>flink-table-uber</module>
 		<module>flink-sql-client</module>
 		<module>flink-sql-parser</module>
 		<module>flink-sql-parser-hive</module>
 		<module>flink-table-code-splitter</module>
+		<module>flink-table-test-utils</module>
 	</modules>
 
 	<dependencyManagement>

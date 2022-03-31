@@ -117,9 +117,9 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
     }
 
     @Override
-    protected void cleanupDirectories() throws IOException {
+    protected void cleanupDirectories(ShutdownBehaviour shutdownBehaviour) throws IOException {
         // Close the packaged program explicitly to clean up temporary jars.
         program.close();
-        super.cleanupDirectories();
+        super.cleanupDirectories(shutdownBehaviour);
     }
 }

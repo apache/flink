@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -83,10 +84,8 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
         long checkpointId = 42L;
         long checkpointTimestamp = 1L;
 
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream1 =
-                mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 =
-                mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+        CheckpointStateOutputStream outputStream1 = mock(CheckpointStateOutputStream.class);
+        CheckpointStateOutputStream outputStream2 = mock(CheckpointStateOutputStream.class);
 
         CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
         when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE))
@@ -129,10 +128,8 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
         long checkpointId = 42L;
         long checkpointTimestamp = 1L;
 
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream1 =
-                mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-        CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 =
-                mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
+        CheckpointStateOutputStream outputStream1 = mock(CheckpointStateOutputStream.class);
+        CheckpointStateOutputStream outputStream2 = mock(CheckpointStateOutputStream.class);
 
         CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
         when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE))

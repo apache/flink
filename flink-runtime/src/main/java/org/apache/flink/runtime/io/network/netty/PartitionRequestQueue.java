@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
-import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -282,9 +281,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
                     Throwable cause = reader.getFailureCause();
                     if (cause != null) {
-                        ErrorResponse msg =
-                                new ErrorResponse(
-                                        new ProducerFailedException(cause), reader.getReceiverId());
+                        ErrorResponse msg = new ErrorResponse(cause, reader.getReceiverId());
 
                         ctx.writeAndFlush(msg);
                     }

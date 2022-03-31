@@ -16,7 +16,7 @@
         </tr>
         <tr>
             <td><h5>execution.checkpointing.checkpoints-after-tasks-finish.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Feature toggle for enabling checkpointing even if some of tasks have finished. Before you enable it, please take a look at <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta">the important considerations</a> </td>
         </tr>
@@ -66,7 +66,7 @@
             <td><h5>execution.checkpointing.tolerable-failed-checkpoints</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The tolerable checkpoint failure number. If set to 0, that means we do not tolerance any checkpoint failure.</td>
+            <td>The tolerable checkpoint consecutive failure number. If set to 0, that means we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.unaligned</h5></td>

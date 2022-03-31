@@ -74,7 +74,7 @@ a `hadoop-client` dependency such as:
 <dependency>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-client</artifactId>
-    <version>2.8.3</version>
+    <version>2.8.5</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -142,7 +142,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 
 ```java
 // Obtain the result we want to emit
-DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // Set up the Hadoop TextOutputFormat.
 HadoopOutputFormat<Text, IntWritable> hadoopOF =
@@ -198,7 +198,7 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
 ```java
 // Obtain data to process somehow.
-DataSet<Tuple2<LongWritable, Text>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...];
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction

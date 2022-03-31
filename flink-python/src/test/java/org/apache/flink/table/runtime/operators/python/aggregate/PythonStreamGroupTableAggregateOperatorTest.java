@@ -270,7 +270,7 @@ public class PythonStreamGroupTableAggregateOperatorTest
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughStreamTableAggregatePythonFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
                     userDefinedFunctionInputType,
                     outputType,
                     STREAM_GROUP_TABLE_AGGREGATE_URN,

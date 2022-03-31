@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -104,6 +107,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -271,6 +275,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     protected final MailboxProcessor mailboxProcessor;
 
+    /** Mailbox metrics measurement is timer triggered with the given interval in milliseconds. */
+    protected int mailboxMetricsInterval = 1000;
+
     final MailboxExecutor mainMailboxExecutor;
 
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
@@ -373,8 +380,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         try {
             this.environment = environment;
             this.configuration = new StreamConfig(environment.getTaskConfiguration());
+            Counter numMailsProcessedCounter =
+                    environment.getMetricGroup().getIOMetricGroup().getNumMailsProcessedCounter();
             this.mailboxProcessor =
-                    new MailboxProcessor(this::processInput, mailbox, actionExecutor);
+                    new MailboxProcessor(
+                            this::processInput, mailbox, actionExecutor, numMailsProcessedCounter);
+            environment
+                    .getMetricGroup()
+                    .getIOMetricGroup()
+                    .registerMailboxSizeSupplier(() -> mailbox.size());
+
             // Should be closed last.
             resourceCloser.registerCloseable(mailboxProcessor);
 
@@ -546,7 +561,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         PeriodTimer timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
-            timer = new GaugePeriodTimer(ioMetrics.getBackPressuredTimePerSecond());
+            timer = new GaugePeriodTimer(ioMetrics.getSoftBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
@@ -746,6 +761,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         scheduleBufferDebloater();
 
+        scheduleMailboxMetrics();
+
         // let the task do its work
         runMailboxLoop();
 
@@ -778,6 +795,29 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                     scheduleBufferDebloater();
                                 },
                                 "Buffer size recalculation"));
+    }
+
+    @VisibleForTesting
+    public void measureMailboxLatency() {
+        long startTime = SystemClock.getInstance().relativeTimeMillis();
+        mainMailboxExecutor.execute(
+                () -> {
+                    long endTime = SystemClock.getInstance().relativeTimeMillis();
+                    long latency = endTime - startTime;
+                    environment
+                            .getMetricGroup()
+                            .getIOMetricGroup()
+                            .getMailboxLatency()
+                            .update(latency);
+                    scheduleMailboxMetrics();
+                },
+                "Measure mailbox latency metric");
+    }
+
+    private void scheduleMailboxMetrics() {
+        systemTimerService.registerTimer(
+                systemTimerService.getCurrentProcessingTime() + mailboxMetricsInterval,
+                timestamp -> measureMailboxLatency());
     }
 
     @VisibleForTesting
@@ -1227,7 +1267,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetricsBuilder checkpointMetrics)
             throws Exception {
 
-        final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+        final SnapshotType checkpointType = checkpointOptions.getCheckpointType();
         LOG.debug(
                 "Starting checkpoint {} {} on task {}",
                 checkpointMetaData.getCheckpointId(),
@@ -1237,7 +1277,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         if (isRunning) {
             actionExecutor.runThrowing(
                     () -> {
-                        if (checkpointType.isSynchronous()) {
+                        if (isSynchronous(checkpointType)) {
                             setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
                         }
 
@@ -1276,8 +1316,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
     }
 
+    private boolean isSynchronous(SnapshotType checkpointType) {
+        return checkpointType.isSavepoint() && ((SavepointType) checkpointType).isSynchronous();
+    }
+
     private void checkForcedFullSnapshotSupport(CheckpointOptions checkpointOptions) {
-        if (checkpointOptions.getCheckpointType() == CheckpointType.FULL_CHECKPOINT
+        if (checkpointOptions.getCheckpointType().equals(CheckpointType.FULL_CHECKPOINT)
                 && !stateBackend.supportsNoClaimRestoreMode()) {
             throw new IllegalStateException(
                     String.format(
@@ -1288,6 +1332,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             RestoreMode.NO_CLAIM,
                             RestoreMode.CLAIM,
                             RestoreMode.LEGACY));
+        } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
+            SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
+            if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Configured state backend (%s) does not support %s savepoints",
+                                stateBackend, savepointType.getFormatType()));
+            }
         }
     }
 

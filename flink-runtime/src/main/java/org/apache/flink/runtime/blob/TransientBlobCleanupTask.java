@@ -23,13 +23,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.nio.file.Files;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.Lock;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,32 +38,24 @@ class TransientBlobCleanupTask extends TimerTask {
     /** The log object used for debugging. */
     private final Logger log;
 
+    private final BiConsumer<JobID, TransientBlobKey> cleanupCallback;
+
     /** Map to store the TTL of each element stored in the local storage. */
     private ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> blobExpiryTimes;
-
-    /** Lock to acquire before changing file contents. */
-    private Lock writeLock;
-
-    /** Local storage directory to work on. */
-    private File storageDir;
 
     /**
      * Creates a new cleanup timer task working with the given parameters from {@link BlobServer}
      * and {@link TransientBlobCache}.
      *
      * @param blobExpiryTimes map to store the TTL of each element stored in the local storage
-     * @param writeLock lock to acquire before changing file contents
-     * @param storageDir local storage directory to work on
      * @param log logger instance for debugging
      */
     TransientBlobCleanupTask(
             ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> blobExpiryTimes,
-            Lock writeLock,
-            File storageDir,
+            BiConsumer<JobID, TransientBlobKey> cleanupCallback,
             Logger log) {
         this.blobExpiryTimes = checkNotNull(blobExpiryTimes);
-        this.writeLock = checkNotNull(writeLock);
-        this.storageDir = checkNotNull(storageDir);
+        this.cleanupCallback = checkNotNull(cleanupCallback);
         this.log = checkNotNull(log);
     }
 
@@ -74,36 +65,14 @@ class TransientBlobCleanupTask extends TimerTask {
         // let's cache the current time - we do not operate on a millisecond precision anyway
         final long currentTimeMillis = System.currentTimeMillis();
         // iterate through all entries and remove those where the current time is past their expiry
-        Set<Map.Entry<Tuple2<JobID, TransientBlobKey>, Long>> entries = blobExpiryTimes.entrySet();
+        Set<Map.Entry<Tuple2<JobID, TransientBlobKey>, Long>> entries =
+                new HashSet<>(blobExpiryTimes.entrySet());
         for (Map.Entry<Tuple2<JobID, TransientBlobKey>, Long> entry : entries) {
             if (currentTimeMillis >= entry.getValue()) {
                 JobID jobId = entry.getKey().f0;
-                BlobKey blobKey = entry.getKey().f1;
+                TransientBlobKey blobKey = entry.getKey().f1;
 
-                final File localFile =
-                        new File(
-                                BlobUtils.getStorageLocationPath(
-                                        storageDir.getAbsolutePath(), jobId, blobKey));
-
-                // deleting the file or changing blobExpiryTimes' contents needs to be protected by
-                // the lock
-                writeLock.lock();
-
-                try {
-                    try {
-                        Files.delete(localFile.toPath());
-                    } catch (Exception e) {
-                        log.error("Failed to delete local blob " + localFile.getAbsolutePath(), e);
-                    }
-
-                    if (!localFile.exists()) {
-                        // this needs to happen inside the write lock in case of concurrent
-                        // getFile() calls
-                        entries.remove(entry);
-                    }
-                } finally {
-                    writeLock.unlock();
-                }
+                cleanupCallback.accept(jobId, blobKey);
             }
         }
     }

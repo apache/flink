@@ -78,7 +78,7 @@ def state_access_demo():
     # 3. define the execution logic
     ds = ds.map(lambda a: Row(a % 4, 1), output_type=Types.ROW([Types.LONG(), Types.LONG()])) \
            .key_by(lambda a: a[0]) \
-           .map(MyMapFunction(), output_type=Types.ROW([Types.LONG(), Types.LONG()]))
+           .map(MyMapFunction(), output_type=Types.TUPLE([Types.LONG(), Types.LONG()]))
 
     # 4. create sink and emit result to sink
     output_path = '/opt/output/'
@@ -265,9 +265,9 @@ It also supports to convert a `DataStream` to a `Table` and vice verse.
 table = t_env.from_data_stream(ds, 'a, b, c')
 
 # convert a Table to a DataStream
-ds = table.to_append_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
+ds = t_env.to_append_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 # or
-ds = table.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
+ds = t_env.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 ```
 
 {{< top >}}

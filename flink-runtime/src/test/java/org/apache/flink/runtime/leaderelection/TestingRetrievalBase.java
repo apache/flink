@@ -18,18 +18,15 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
@@ -45,51 +42,34 @@ public class TestingRetrievalBase {
     private String oldAddress;
     private Throwable error;
 
-    public String waitForNewLeader(long timeout) throws Exception {
+    public String waitForNewLeader() throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg =
-                "Listener was not notified about a new leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return leader != null
-                            && !leader.isEmpty()
-                            && !leader.getLeaderAddress().equals(oldAddress);
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+                    leader = leaderEventQueue.take();
+                    return !leader.isEmpty() && !leader.getLeaderAddress().equals(oldAddress);
+                });
 
         oldAddress = leader.getLeaderAddress();
 
         return leader.getLeaderAddress();
     }
 
-    public void waitForEmptyLeaderInformation(long timeout) throws Exception {
+    public void waitForEmptyLeaderInformation() throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg =
-                "Listener was not notified about an empty leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return leader != null && leader.isEmpty();
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+                    leader = leaderEventQueue.take();
+                    return leader.isEmpty();
+                });
 
         oldAddress = null;
     }
 
-    public void waitForError(long timeout) throws Exception {
-        final String errorMsg = "Listener did not see an exception with " + timeout + "ms";
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return error != null;
-                },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
-                errorMsg);
+    public void waitForError() throws Exception {
+        error = errorQueue.take();
     }
 
     public void handleError(Throwable ex) {
@@ -110,7 +90,6 @@ public class TestingRetrievalBase {
 
     public void offerToLeaderQueue(LeaderInformation leaderInformation) {
         leaderEventQueue.offer(leaderInformation);
-        this.leader = leaderInformation;
     }
 
     public int getLeaderEventQueueSize() {
@@ -124,7 +103,7 @@ public class TestingRetrievalBase {
      */
     @Nullable
     public Throwable getError() {
-        return this.error;
+        return error == null ? errorQueue.poll() : error;
     }
 
     private void throwExceptionIfNotNull() throws Exception {

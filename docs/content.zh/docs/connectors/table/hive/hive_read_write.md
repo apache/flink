@@ -73,7 +73,7 @@ of new files in the folder and read new files incrementally.
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>Time interval for consecutively monitoring partition/file.
-            Notes: The default interval for hive streaming reading is '1 m', the default interval for hive streaming temporal join is '60 m', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
+            Notes: The default interval for hive streaming reading is '1 min', the default interval for hive streaming temporal join is '60 min', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
@@ -165,6 +165,10 @@ following parameters in `TableConfig` (note that these parameters affect all sou
     </tr>
   </tbody>
 </table>
+
+### Load Partition Splits
+
+Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
 
 ## Temporal Table Join
 

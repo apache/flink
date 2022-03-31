@@ -312,6 +312,9 @@ mechanism for this.
 Savepoints are similar to checkpoints except that they are
 **triggered by the user** and **don't automatically expire** when newer
 checkpoints are completed.
+To make proper use of savepoints, it's important to understand the differences between
+[checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) and [savepoints]({{< ref "docs/ops/state/savepoints" >}})
+which is described in [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
 
 {{< top >}}
 

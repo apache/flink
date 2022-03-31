@@ -42,8 +42,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.assertLatestScheduledVerticesAreEqualTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -109,7 +109,8 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
                 new ArrayList<>();
         expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
         expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
-        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+        assertLatestScheduledVerticesAreEqualTo(
+                expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
@@ -129,7 +130,8 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
                 new ArrayList<>();
         expectedScheduledVertices.add(Arrays.asList(source.get(0), map.get(0)));
         expectedScheduledVertices.add(Arrays.asList(source.get(1), map.get(1)));
-        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+        assertLatestScheduledVerticesAreEqualTo(
+                expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
@@ -154,7 +156,8 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
                 new ArrayList<>();
         expectedScheduledVertices.add(Arrays.asList(sink.get(0)));
         expectedScheduledVertices.add(Arrays.asList(sink.get(1)));
-        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+        assertLatestScheduledVerticesAreEqualTo(
+                expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
@@ -176,7 +179,8 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices =
                 new ArrayList<>();
         expectedScheduledVertices.add(Arrays.asList(v1.get(0)));
-        assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+        assertLatestScheduledVerticesAreEqualTo(
+                expectedScheduledVertices, testingSchedulerOperation);
     }
 
     @Test
@@ -354,34 +358,5 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
                         testingSchedulerOperation, schedulingTopology);
         schedulingStrategy.startScheduling();
         return schedulingStrategy;
-    }
-
-    private void assertLatestScheduledVerticesAreEqualTo(
-            final List<List<TestingSchedulingExecutionVertex>> expected) {
-        final List<List<ExecutionVertexDeploymentOption>> deploymentOptions =
-                testingSchedulerOperation.getScheduledVertices();
-        final int expectedScheduledBulks = expected.size();
-        assertThat(expectedScheduledBulks, lessThanOrEqualTo(deploymentOptions.size()));
-        for (int i = 0; i < expectedScheduledBulks; i++) {
-            assertEquals(
-                    idsFromVertices(expected.get(expectedScheduledBulks - i - 1)),
-                    idsFromDeploymentOptions(
-                            deploymentOptions.get(deploymentOptions.size() - i - 1)));
-        }
-    }
-
-    private static List<ExecutionVertexID> idsFromVertices(
-            final List<TestingSchedulingExecutionVertex> vertices) {
-        return vertices.stream()
-                .map(TestingSchedulingExecutionVertex::getId)
-                .collect(Collectors.toList());
-    }
-
-    private static List<ExecutionVertexID> idsFromDeploymentOptions(
-            final List<ExecutionVertexDeploymentOption> deploymentOptions) {
-
-        return deploymentOptions.stream()
-                .map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-                .collect(Collectors.toList());
     }
 }

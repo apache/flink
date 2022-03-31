@@ -38,7 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MaterializedCollectStreamResult}. */
 public class MaterializedCollectStreamResultTest extends BaseMaterializedResultTest {
@@ -67,7 +67,7 @@ public class MaterializedCollectStreamResultTest extends BaseMaterializedResultT
             result.processRecord(Row.ofKind(RowKind.INSERT, "A", 1));
             result.processRecord(Row.ofKind(RowKind.INSERT, "C", 2));
 
-            assertEquals(TypedResult.payload(4), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(4));
 
             assertRowEquals(
                     Collections.singletonList(Row.of("A", 1)),
@@ -88,7 +88,7 @@ public class MaterializedCollectStreamResultTest extends BaseMaterializedResultT
 
             result.processRecord(Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1));
 
-            assertEquals(TypedResult.payload(3), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(3));
 
             assertRowEquals(
                     Collections.singletonList(Row.of("A", 1)),
@@ -107,7 +107,7 @@ public class MaterializedCollectStreamResultTest extends BaseMaterializedResultT
             result.processRecord(Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1));
             result.processRecord(Row.ofKind(RowKind.UPDATE_AFTER, "D", 1));
 
-            assertEquals(TypedResult.payload(2), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(2));
 
             assertRowEquals(
                     Collections.singletonList(Row.of("B", 1)),
@@ -157,7 +157,7 @@ public class MaterializedCollectStreamResultTest extends BaseMaterializedResultT
                     result.getMaterializedTable(),
                     rowConverter);
 
-            assertEquals(TypedResult.payload(2), result.snapshot(1));
+            assertThat(result.snapshot(1)).isEqualTo(TypedResult.payload(2));
 
             assertRowEquals(
                     Collections.singletonList(Row.ofKind(RowKind.INSERT, "B", 1)),

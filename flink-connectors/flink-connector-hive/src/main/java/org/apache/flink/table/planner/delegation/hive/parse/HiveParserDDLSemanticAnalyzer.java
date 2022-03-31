@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
@@ -40,6 +41,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -53,9 +55,9 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
@@ -836,14 +838,15 @@ public class HiveParserDDLSemanticAnalyzer {
                 String[] dbTblName = dbDotTab.split("\\.");
                 Table destTable = new Table(Table.getEmptyTable(dbTblName[0], dbTblName[1]));
                 destTable.getSd().setCols(cols);
-                // create the insert operation
-                CatalogSinkModifyOperation insertOperation =
-                        dmlHelper.createInsertOperation(
-                                queryRelNode,
-                                destTable,
-                                Collections.emptyMap(),
-                                Collections.emptyList(),
-                                false);
+
+                Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean>
+                        insertOperationInfo =
+                                dmlHelper.createInsertOperationInfo(
+                                        queryRelNode,
+                                        destTable,
+                                        Collections.emptyMap(),
+                                        Collections.emptyList(),
+                                        false);
 
                 CreateTableOperation createTableOperation =
                         convertCreateTable(
@@ -861,7 +864,11 @@ public class HiveParserDDLSemanticAnalyzer {
                                 primaryKeys,
                                 notNulls);
 
-                return new CreateTableASOperation(createTableOperation, insertOperation);
+                return new CreateTableASOperation(
+                        createTableOperation,
+                        insertOperationInfo.f2,
+                        insertOperationInfo.f1,
+                        insertOperationInfo.f3);
             default:
                 throw new ValidationException("Unrecognized command.");
         }
@@ -1924,7 +1931,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
     private CatalogBaseTable getCatalogBaseTable(
             ObjectIdentifier tableIdentifier, boolean ifExists) {
-        Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
+        Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
         if (!optionalCatalogTable.isPresent()) {
             if (ifExists) {

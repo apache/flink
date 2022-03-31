@@ -20,10 +20,9 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 
-/** IT Case for reading window state with the memory state backend. */
+/** IT Case for reading window state with the embedded rocksdb state backend. */
 public class EmbeddedRocksDBStateBackendWindowITCase
         extends SavepointWindowReaderITCase<EmbeddedRocksDBStateBackend> {
-
     @Override
     protected EmbeddedRocksDBStateBackend getStateBackend() {
         return new EmbeddedRocksDBStateBackend();

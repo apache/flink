@@ -127,6 +127,26 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
                 .doubleValue();
     }
 
+    public double getTaskManagerCPULimitFactor() {
+        final double limitFactor =
+                flinkConfig.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR);
+        checkArgument(
+                limitFactor >= 1,
+                "%s should be greater or equal to 1.",
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR.key());
+        return limitFactor;
+    }
+
+    public double getTaskManagerMemoryLimitFactor() {
+        final double limitFactor =
+                flinkConfig.getDouble(KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR);
+        checkArgument(
+                limitFactor >= 1,
+                "%s should be greater or equal to 1.",
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR.key());
+        return limitFactor;
+    }
+
     public Map<String, ExternalResource> getTaskManagerExternalResources() {
         return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getExtendedResources();
     }

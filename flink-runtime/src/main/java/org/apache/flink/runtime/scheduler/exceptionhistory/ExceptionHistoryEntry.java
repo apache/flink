@@ -67,6 +67,12 @@ public class ExceptionHistoryEntry extends ErrorInfo {
                 failedExecution.getAssignedResourceLocation());
     }
 
+    /** Creates an {@code ExceptionHistoryEntry} that is not based on an {@code Execution}. */
+    public static ExceptionHistoryEntry createGlobal(Throwable cause) {
+        return new ExceptionHistoryEntry(
+                cause, System.currentTimeMillis(), null, (ArchivedTaskManagerLocation) null);
+    }
+
     /**
      * Instantiates a {@code ExceptionHistoryEntry}.
      *

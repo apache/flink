@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ConfigConstants;
@@ -63,7 +62,6 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -102,10 +100,12 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.Executors;
@@ -266,7 +266,9 @@ public class TaskExecutorTest extends TestLogger {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        false, ioManager.getSpillingDirectories(), Executors.directExecutor());
+                        false,
+                        Reference.borrowed(ioManager.getSpillingDirectories()),
+                        Executors.directExecutor());
 
         nettyShuffleEnvironment.start();
 
@@ -354,7 +356,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGatewayBuilder testingJobMasterGatewayBuilder =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, taskManagerUnresolvedLocation, ignored) -> {
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) -> {
                                     registrationAttempts.countDown();
                                     return CompletableFuture.completedFuture(
                                             new JMTMRegistrationSuccess(jmResourceId));
@@ -486,7 +488,6 @@ public class TaskExecutorTest extends TestLogger {
                                     taskExecutorGateway.heartbeatFromResourceManager(rmResourceId);
                                     return taskExecutorDisconnectFuture.isDone();
                                 },
-                                Deadline.fromNow(TimeUtils.toDuration(timeout)),
                                 50L));
     }
 
@@ -2182,27 +2183,31 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test(timeout = 10000L)
     public void testLogNotFoundHandling() throws Throwable {
-        final int dataPort = NetUtils.getAvailablePort();
-        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            int dataPort = port.getPort();
 
-        try (TaskSubmissionTestEnvironment env =
-                new Builder(jobId)
-                        .setConfiguration(configuration)
-                        .setLocalCommunication(false)
-                        .build()) {
-            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-            try {
-                CompletableFuture<TransientBlobKey> logFuture =
-                        tmGateway.requestFileUploadByType(FileType.LOG, timeout);
-                logFuture.get();
-            } catch (Exception e) {
-                assertThat(
-                        e.getMessage(),
-                        containsString("The file LOG does not exist on the TaskExecutor."));
+            configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            configuration.setInteger(
+                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+            configuration.setInteger(
+                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+            configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+
+            try (TaskSubmissionTestEnvironment env =
+                    new Builder(jobId)
+                            .setConfiguration(configuration)
+                            .setLocalCommunication(false)
+                            .build()) {
+                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+                try {
+                    CompletableFuture<TransientBlobKey> logFuture =
+                            tmGateway.requestFileUploadByType(FileType.LOG, timeout);
+                    logFuture.get();
+                } catch (Exception e) {
+                    assertThat(
+                            e.getMessage(),
+                            containsString("The file LOG does not exist on the TaskExecutor."));
+                }
             }
         }
     }
@@ -2270,7 +2275,7 @@ public class TaskExecutorTest extends TestLogger {
                                         CompletableFuture.completedFuture(
                                                 new ArrayList<>(slotOffers)))
                         .setRegisterTaskManagerFunction(
-                                (ignoredA, ignoredB, ignoredC) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(jobManagerResourceId)))
                         .build();
@@ -2580,7 +2585,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationRejection("foobar")))
                         .build();
@@ -2650,7 +2655,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         new CompletableFuture<>())
                         .build();
 
@@ -2690,7 +2695,7 @@ public class TaskExecutorTest extends TestLogger {
                     jobMasterGateway.getAddress(),
                     resourceManagerGateway.getFencingToken());
 
-            taskExecutor.freeInactiveSlots(jobId, timeout);
+            taskExecutorGateway.freeInactiveSlots(jobId, timeout);
 
             // the slot should be freed
             assertThat(availableSlotFuture.get().f1, is(slotId));
@@ -2703,10 +2708,10 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
-                false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+                false, Reference.owned(new File[] {tmp.newFolder()}), Executors.directExecutor());
     }
 
-    private TaskExecutor createTaskExecutor(int numberOFSlots) {
+    private TaskExecutor createTaskExecutor(int numberOFSlots) throws IOException {
         final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(numberOFSlots);
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
@@ -2720,12 +2725,14 @@ public class TaskExecutorTest extends TestLogger {
     }
 
     @Nonnull
-    private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
+    private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices)
+            throws IOException {
         return createTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
     }
 
     private TaskExecutor createTaskExecutor(
-            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices)
+            throws IOException {
         return createTaskExecutor(
                 taskManagerServices,
                 heartbeatServices,
@@ -2735,13 +2742,15 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutor createTaskExecutor(
             TaskManagerServices taskManagerServices,
             HeartbeatServices heartbeatServices,
-            TaskExecutorPartitionTracker taskExecutorPartitionTracker) {
+            TaskExecutorPartitionTracker taskExecutorPartitionTracker)
+            throws IOException {
         return new TaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
                         TM_RESOURCE_SPEC,
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
@@ -2753,12 +2762,14 @@ public class TaskExecutorTest extends TestLogger {
                 taskExecutorPartitionTracker);
     }
 
-    private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
+    private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices)
+            throws IOException {
         return createTestingTaskExecutor(taskManagerServices, HEARTBEAT_SERVICES);
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(
-            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
+            TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices)
+            throws IOException {
         return createTestingTaskExecutor(
                 taskManagerServices, heartbeatServices, createUnregisteredTaskManagerMetricGroup());
     }
@@ -2766,13 +2777,15 @@ public class TaskExecutorTest extends TestLogger {
     private TestingTaskExecutor createTestingTaskExecutor(
             TaskManagerServices taskManagerServices,
             HeartbeatServices heartbeatServices,
-            TaskManagerMetricGroup metricGroup) {
+            TaskManagerMetricGroup metricGroup)
+            throws IOException {
         return new TestingTaskExecutor(
                 rpc,
                 TaskManagerConfiguration.fromConfiguration(
                         configuration,
                         TM_RESOURCE_SPEC,
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
@@ -2868,30 +2881,6 @@ public class TaskExecutorTest extends TestLogger {
         @Override
         public void close() throws ExecutionException, InterruptedException, TimeoutException {
             RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-        }
-    }
-
-    private static final class StartStopNotifyingLeaderRetrievalService
-            implements LeaderRetrievalService {
-        private final CompletableFuture<LeaderRetrievalListener> startFuture;
-
-        private final CompletableFuture<Void> stopFuture;
-
-        private StartStopNotifyingLeaderRetrievalService(
-                CompletableFuture<LeaderRetrievalListener> startFuture,
-                CompletableFuture<Void> stopFuture) {
-            this.startFuture = startFuture;
-            this.stopFuture = stopFuture;
-        }
-
-        @Override
-        public void start(LeaderRetrievalListener listener) {
-            startFuture.complete(listener);
-        }
-
-        @Override
-        public void stop() {
-            stopFuture.complete(null);
         }
     }
 

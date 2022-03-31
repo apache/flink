@@ -35,10 +35,11 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -97,14 +98,12 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     }
 
     public static Executor lookupExecutor(
-            ClassLoader classLoader,
-            String executorIdentifier,
-            StreamExecutionEnvironment executionEnvironment) {
+            ClassLoader classLoader, StreamExecutionEnvironment executionEnvironment) {
         final ExecutorFactory executorFactory;
         try {
             executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, executorIdentifier);
+                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
@@ -135,34 +134,35 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         }
 
         final CatalogManager catalogManager = getCatalogManager();
-        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
-
-        final UnresolvedIdentifier unresolvedIdentifier;
-        if (viewPath != null) {
-            unresolvedIdentifier = getParser().parseIdentifier(viewPath);
-        } else {
-            unresolvedIdentifier =
-                    UnresolvedIdentifier.of("Unregistered_DataStream_Source_" + dataStream.getId());
-        }
-        final ObjectIdentifier objectIdentifier =
-                catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
 
-        final ResolvedSchema resolvedSchema =
-                schemaTranslationResult.getSchema().resolve(schemaResolver);
+        final ResolvedCatalogTable resolvedCatalogTable =
+                catalogManager.resolveCatalogTable(
+                        new ExternalCatalogTable(schemaTranslationResult.getSchema()));
+
+        final ContextResolvedTable contextResolvedTable;
+        if (viewPath != null) {
+            UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(viewPath);
+            final ObjectIdentifier objectIdentifier =
+                    catalogManager.qualifyIdentifier(unresolvedIdentifier);
+            contextResolvedTable =
+                    ContextResolvedTable.temporary(objectIdentifier, resolvedCatalogTable);
+        } else {
+            contextResolvedTable =
+                    ContextResolvedTable.anonymous("datastream_source", resolvedCatalogTable);
+        }
 
         final QueryOperation scanOperation =
                 new ExternalQueryOperation<>(
-                        objectIdentifier,
+                        contextResolvedTable,
                         dataStream,
                         schemaTranslationResult.getPhysicalDataType(),
                         schemaTranslationResult.isTopLevelRecord(),
-                        changelogMode,
-                        resolvedSchema);
+                        changelogMode);
 
         final List<String> projections = schemaTranslationResult.getProjections();
         if (projections == null) {
@@ -184,7 +184,6 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
             SchemaTranslator.ProducingResult schemaTranslationResult,
             @Nullable ChangelogMode changelogMode) {
         final CatalogManager catalogManager = getCatalogManager();
-        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
 
         final QueryOperation projectOperation =
@@ -199,24 +198,22 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
                                                 table.getQueryOperation()))
                         .orElseGet(table::getQueryOperation);
 
-        final ResolvedSchema resolvedSchema =
-                schemaResolver.resolve(schemaTranslationResult.getSchema());
-
-        final UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(
-                        "Unregistered_DataStream_Sink_" + ExternalModifyOperation.getUniqueId());
-        final ObjectIdentifier objectIdentifier =
-                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        final ResolvedCatalogTable resolvedCatalogTable =
+                catalogManager.resolveCatalogTable(
+                        new ExternalCatalogTable(schemaTranslationResult.getSchema()));
 
         final ExternalModifyOperation modifyOperation =
                 new ExternalModifyOperation(
-                        objectIdentifier,
+                        ContextResolvedTable.anonymous("datastream_sink", resolvedCatalogTable),
                         projectOperation,
-                        resolvedSchema,
                         changelogMode,
                         schemaTranslationResult
                                 .getPhysicalDataType()
-                                .orElseGet(resolvedSchema::toPhysicalRowDataType));
+                                .orElseGet(
+                                        () ->
+                                                resolvedCatalogTable
+                                                        .getResolvedSchema()
+                                                        .toPhysicalRowDataType()));
 
         return toStreamInternal(table, modifyOperation);
     }
@@ -228,7 +225,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         final Transformation<T> transformation = getTransformation(table, transformations);
         executionEnvironment.addOperator(transformation);
 
-        // reconfigure whenever planner transformations are added
+        // Reconfigure whenever planner transformations are added
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         executionEnvironment.configure(tableConfig.getConfiguration());
 
         return new DataStream<>(executionEnvironment, transformation);

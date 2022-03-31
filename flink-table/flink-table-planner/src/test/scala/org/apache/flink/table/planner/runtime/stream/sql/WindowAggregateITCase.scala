@@ -168,7 +168,7 @@ class WindowAggregateITCase(
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
     tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
-    tEnv.getConfig.getConfiguration.setString(
+    tEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       aggPhase.toString)
   }

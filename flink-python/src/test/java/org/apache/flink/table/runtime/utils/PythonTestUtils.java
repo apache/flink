@@ -20,8 +20,7 @@ package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.python.env.PythonDependencyInfo;
-import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -86,7 +85,7 @@ public final class PythonTestUtils {
                         "root"));
     }
 
-    public static PythonEnvironmentManager createTestEnvironmentManager() {
+    public static ProcessPythonEnvironmentManager createTestProcessEnvironmentManager() {
         Map<String, String> env = new HashMap<>();
         env.put(PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR, "");
         return new ProcessPythonEnvironmentManager(

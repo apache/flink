@@ -19,6 +19,7 @@
 import {
   AfterContentInit,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
@@ -28,7 +29,6 @@ import {
   ViewChild
 } from '@angular/core';
 
-import * as d3 from 'd3';
 import { select, Selection } from 'd3-selection';
 import { zoom, ZoomBehavior } from 'd3-zoom';
 
@@ -60,10 +60,7 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
   @ViewChild('svgContainer', { static: true }) private readonly svgContainer: ElementRef<SVGAElement>;
 
   public zoomTo(zoomLevel: number): void {
-    this.svgSelect
-      .transition()
-      .duration(0)
-      .call(this.zoomController.scaleTo, zoomLevel);
+    this.svgSelect.transition().duration(0).call(this.zoomController.scaleTo, zoomLevel);
   }
 
   public setPositionByTransform(transform: { x: number; y: number; k: number }, animate = false): void {
@@ -73,20 +70,22 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
       .call(this.zoomController.transform, transform);
   }
 
-  constructor(private readonly el: ElementRef) {}
+  constructor(private readonly el: ElementRef, private cdr: ChangeDetectorRef) {}
 
   public ngOnInit(): void {
     this.svgSelect = select(this.svgContainer.nativeElement);
     this.zoomController = zoom()
       .scaleExtent([this.nzMinZoom, this.nzMaxZoom])
-      .on('zoom', () => {
-        this.containerTransform = d3.event.transform;
-        this.zoom = this.containerTransform.k;
-        if (!isNaN(this.containerTransform.x)) {
-          this.transform = `translate(${this.containerTransform.x} ,${this.containerTransform.y})scale(${this.containerTransform.k})`;
+      .on('zoom', ({ transform }: SafeAny) => {
+        const { x, y, k } = transform;
+        this.zoom = k;
+        this.containerTransform = transform;
+        if (!isNaN(x)) {
+          this.transform = `translate(${x} ,${y})scale(${k})`;
         }
-        this.zoomEvent.emit(this.zoom);
-        this.transformEvent.emit((this.containerTransform as unknown) as { x: number; y: number; scale: number });
+        this.zoomEvent.emit(k);
+        this.transformEvent.emit(transform);
+        this.cdr.markForCheck();
       });
     this.svgSelect.call(this.zoomController).on('wheel.zoom', null);
   }

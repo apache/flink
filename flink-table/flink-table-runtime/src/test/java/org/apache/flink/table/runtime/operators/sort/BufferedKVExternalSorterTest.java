@@ -36,7 +36,6 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +46,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** UT for BufferedKVExternalSorter. */
 @RunWith(Parameterized.class)
@@ -131,11 +132,11 @@ public class BufferedKVExternalSorterTest {
                 new Tuple2<>(keySerializer.createInstance(), valueSerializer.createInstance());
         int count = 0;
         while ((kv = iterator.next(kv)) != null) {
-            Assert.assertEquals((int) expected.get(count), kv.f0.getInt(0));
-            Assert.assertEquals(expected.get(count) * -3 + 177, kv.f1.getInt(0));
+            assertThat(kv.f0.getInt(0)).isEqualTo((int) expected.get(count));
+            assertThat(kv.f1.getInt(0)).isEqualTo(expected.get(count) * -3 + 177);
             count++;
         }
-        Assert.assertEquals(expected.size(), count);
+        assertThat(count).isEqualTo(expected.size());
         sorter.close();
     }
 

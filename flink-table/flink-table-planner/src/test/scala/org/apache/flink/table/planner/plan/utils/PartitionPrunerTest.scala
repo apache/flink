@@ -24,14 +24,14 @@ import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 
 import org.apache.calcite.rex.RexUtil
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.DATE
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 import java.math.BigDecimal
-import java.time.{ZoneId, ZoneOffset}
+import java.time.ZoneOffset
 import java.util.{List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
@@ -67,9 +67,9 @@ class PartitionPrunerTest extends RexNodeTestBase {
       Map("amount" -> "200", "name" -> "Test3", "flag" -> "false").asJava
     ).asJava
 
-    val config = new TableConfig
+    val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
-      config,
+      tableConfig,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -106,9 +106,9 @@ class PartitionPrunerTest extends RexNodeTestBase {
       Map("amount" -> "200", "name" -> "Test3").asJava
     ).asJava
 
-    val config = new TableConfig
+    val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
-      config,
+      tableConfig,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -176,10 +176,10 @@ class PartitionPrunerTest extends RexNodeTestBase {
         "f3" -> "2018-08-06 12:08:06.124").asJava
     ).asJava
 
-    val config = new TableConfig
-    config.setLocalTimeZone(ZoneOffset.ofHours(0))
+    val tableConfig = TableConfig.getDefault
+    tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0))
     val prunedPartitions = PartitionPruner.prunePartitions(
-      config,
+      tableConfig,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,

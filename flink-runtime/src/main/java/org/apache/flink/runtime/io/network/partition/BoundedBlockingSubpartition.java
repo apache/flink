@@ -30,6 +30,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -213,6 +214,10 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
             checkState(!isReleased, "data partition already released");
             checkState(isFinished, "writing of blocking partition not yet finished");
 
+            if (!Files.isReadable(data.getFilePath())) {
+                throw new PartitionNotFoundException(parent.getPartitionId());
+            }
+
             final ResultSubpartitionView reader;
             if (useDirectFileTransfer) {
                 reader =
@@ -277,12 +282,12 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    protected long getTotalNumberOfBuffers() {
+    protected long getTotalNumberOfBuffersUnsafe() {
         return numBuffersAndEventsWritten;
     }
 
     @Override
-    protected long getTotalNumberOfBytes() {
+    protected long getTotalNumberOfBytesUnsafe() {
         return data.getSize();
     }
 

@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Dict, Union
+from typing import Dict
 
 from pyflink.datastream import RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
     AggregatingStateDescriptor, AggregatingState
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.metrics import MetricGroup
 
 
@@ -37,7 +36,7 @@ class StreamingRuntimeContext(RuntimeContext):
                  attempt_number: int,
                  job_parameters: Dict[str, str],
                  metric_group: MetricGroup,
-                 keyed_state_backend: Union[RemoteKeyedStateBackend, None],
+                 keyed_state_backend,
                  in_batch_execution_mode: bool):
         self._task_name = task_name
         self._task_name_with_subtasks = task_name_with_subtasks

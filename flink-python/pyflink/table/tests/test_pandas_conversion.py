@@ -156,7 +156,7 @@ class PandasConversionITTests(PandasConversionTestBase):
         import numpy as np
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int16([2])}))
 
-        result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
+        result_pdf = table.group_by(table.f2).select(table.f1.max.alias('f2')).to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
     def assert_equal_field(self, expected_field, result_field):
@@ -181,7 +181,7 @@ class BatchPandasConversionTests(PandasConversionTests,
 class StreamPandasConversionTests(PandasConversionITTests,
                                   PyFlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         import tempfile
         import os
@@ -199,7 +199,7 @@ class StreamPandasConversionTests(PandasConversionITTests,
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
 
         source_table = """

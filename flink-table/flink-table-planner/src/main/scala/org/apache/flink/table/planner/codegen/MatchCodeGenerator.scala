@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.Function
 import org.apache.flink.cep.functions.PatternProcessFunction
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -293,7 +293,7 @@ class MatchCodeGenerator(
       """.stripMargin
 
     new GeneratedFunction[F](
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   private def generateOneRowPerMatchExpression(
@@ -372,8 +372,7 @@ class MatchCodeGenerator(
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
-          ctx.nullCheck)
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3))
 
       case MATCH_ROWTIME =>
         generateRowtimeAccess(
@@ -640,7 +639,7 @@ class MatchCodeGenerator(
       ctx.addReusablePerRecordStatement(codeForAgg)
 
       val defaultValue = primitiveDefaultValue(singleAggResultType)
-      val codeForSingleAgg = if (ctx.nullCheck) {
+      val codeForSingleAgg =
         j"""
            |boolean $singleAggNullTerm;
            |$primitiveSingleAggResultTypeTerm $singleAggResultTerm;
@@ -653,12 +652,6 @@ class MatchCodeGenerator(
            |  $singleAggResultTerm = $defaultValue;
            |}
            |""".stripMargin
-      } else {
-        j"""
-           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm =
-           |    ($boxedSingleAggResultTypeTerm) $allAggRowTerm.getField(${aggregates.size});
-           |""".stripMargin
-      }
 
       ctx.addReusablePerRecordStatement(codeForSingleAgg)
 
@@ -696,7 +689,7 @@ class MatchCodeGenerator(
         .map(expr => FlinkTypeFactory.toLogicalType(expr.getType))
 
       val aggsHandlerCodeGenerator = new AggsHandlerCodeGenerator(
-        CodeGeneratorContext(new TableConfig),
+        CodeGeneratorContext(new Configuration),
         relBuilder,
         inputFieldTypes,
         copyInputField = false).needAccumulate()

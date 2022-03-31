@@ -116,7 +116,7 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 你可以打开profile来分析性能瓶颈
 
 ```python
-t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+t_env.get_config().set("python.profile.enabled", "true")
 ``` 
 
 你可以在[日志](#查看日志)里面查看profile的结果

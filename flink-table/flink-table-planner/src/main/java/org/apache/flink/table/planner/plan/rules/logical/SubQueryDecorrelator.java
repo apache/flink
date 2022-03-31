@@ -134,8 +134,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
         }
 
         RelOptCluster cluster = rootRel.getCluster();
-        RelBuilder relBuilder =
-                new FlinkRelBuilder(cluster.getPlanner().getContext(), cluster, null);
+        RelBuilder relBuilder = FlinkRelBuilder.of(cluster, null);
         RexBuilder rexBuilder = cluster.getRexBuilder();
 
         final SubQueryDecorrelator decorrelator =

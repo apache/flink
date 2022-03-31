@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 
 /** Unified class to search for a {@link TableFactory} of provided type and properties. */
+@Deprecated
 @Internal
 public class TableFactoryService {
 

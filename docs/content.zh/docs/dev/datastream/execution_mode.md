@@ -201,11 +201,11 @@ Checkpointing 用于故障恢复的特点之一是，在发生故障时，Flink 
 
 `批`模式下的行为变化：
 
-* “滚动"操作，如 [reduce()]({{< ref "docs/dev/datastream/operators/overview" >}}#reduce) 或 [sum()]({{< ref "docs/dev/datastream/operators/overview" >}}#aggregations)，会对`流`模式下每一条新记录发出增量更新。在`批`模式下，这些操作不是"滚动”。它们只发出最终结果。
+* “滚动"操作，如 [reduce()]({{< ref "docs/dev/datastream/operators/overview" >}}#reduce) 或 sum()，会对`流`模式下每一条新记录发出增量更新。在`批`模式下，这些操作不是"滚动”。它们只发出最终结果。
 
 `批`模式下不支持的:
 
-* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#stateful-stream-processing) 和任何依赖于 checkpointing 的操作都不支持。
+* [Checkpointing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 和任何依赖于 checkpointing 的操作都不支持。
 * [迭代（Iterations）]({{< ref "docs/dev/datastream/operators/overview" >}}#iterate)
 
 自定义算子应谨慎执行，否则可能会有不恰当的行为。更多细节请参见下面的补充说明。
@@ -214,7 +214,7 @@ Checkpointing 用于故障恢复的特点之一是，在发生故障时，Flink 
 
 如[上文所述](#故障恢复)，批处理程序的故障恢复不使用检查点。
 
-重要的是要记住，因为没有 checkpoints，某些功能如 ({{< javadoc file="org/apache/flink/api/common/state/CheckpointListener.html" name="CheckpointListener">}})，以及因此，Kafka 的 [精确一次（EXACTLY_ONCE）]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) 模式或 `StreamingFileSink` 的 [OnCheckpointRollingPolicy]({{< ref "docs/connectors/datastream/streamfile_sink" >}}#rolling-policy) 将无法工作。
+重要的是要记住，因为没有 checkpoints，某些功能如 ({{< javadoc file="org/apache/flink/api/common/state/CheckpointListener.html" name="CheckpointListener">}})，以及因此，Kafka 的 [精确一次（EXACTLY_ONCE）]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) 模式或 `File Sink` 的 [OnCheckpointRollingPolicy]({{< ref "docs/connectors/datastream/filesystem" >}}#rolling-policy) 将无法工作。
 如果你需要一个在`批`模式下工作的事务型 sink，请确保它使用 [FLIP-143](https://cwiki.apache.org/confluence/x/KEJ4CQ) 中提出的统一 Sink API。
 
 你仍然可以使用所有的 [状态原语（state primitives）]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#working-with-state)，只是用于故障恢复的机制会有所不同。

@@ -326,9 +326,9 @@ export class NzGraph {
   generateLine(points: Array<{ x: number; y: number }>): string | null {
     const transformPoints = points;
     const lineFunction = line()
-      .x(d => ((d as unknown) as { x: number }).x)
-      .y(d => ((d as unknown) as { y: number }).y)
+      .x(d => (d as unknown as { x: number }).x)
+      .y(d => (d as unknown as { y: number }).y)
       .curve(curveLinear);
-    return lineFunction((transformPoints as unknown) as Array<[number, number]>);
+    return lineFunction(transformPoints as unknown as Array<[number, number]>);
   }
 }

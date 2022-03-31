@@ -35,6 +35,8 @@ the same semantics as a failure-free execution.
 See [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) for how to enable and
 configure checkpoints for your program.
 
+To understand the differences between checkpoints and [savepoints]({{< ref "docs/ops/state/savepoints" >}}) see [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
+
 ## Checkpoint Storage
 
 When checkpointing is enabled, managed state is persisted to ensure consistent recovery in case of failures.
@@ -98,7 +100,7 @@ This way, you will have a checkpoint around to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
 The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoints when you cancel the job:
@@ -156,17 +158,11 @@ env.getCheckpointConfig().setCheckpointStorage(
   new FileSystemCheckpointStorage("hdfs:///checkpoints-data/", FILE_SIZE_THESHOLD));
 ```
 
-### Difference to Savepoints
-
-Checkpoints have a few differences from [savepoints]({{< ref "docs/ops/state/savepoints" >}}). They
-- use a state backend specific (low-level) data format, may be incremental.
-- do not support Flink specific features like rescaling.
-
 ### Resuming from a retained checkpoint
 
 A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide]({{< ref "docs/deployment/cli" >}}#restore-a-savepoint)). Note that if the
+[savepoint restore guide]({{< ref "docs/ops/state/savepoints" >}}#resuming-from-savepoints)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).
@@ -174,7 +170,5 @@ above).
 ```shell
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 ```
-
-
 
 {{< top >}}

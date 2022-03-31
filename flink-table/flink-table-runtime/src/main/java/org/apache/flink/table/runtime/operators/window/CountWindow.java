@@ -110,7 +110,7 @@ public class CountWindow extends Window {
 
         @Override
         public int getLength() {
-            return 0;
+            return Long.BYTES;
         }
 
         @Override

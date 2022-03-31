@@ -74,12 +74,14 @@ public interface FlinkKubeClient extends AutoCloseable {
     void stopAndCleanupCluster(String clusterId);
 
     /**
-     * Get the kubernetes rest service of the given flink clusterId.
+     * Get the kubernetes service of the given flink clusterId.
      *
+     * @param serviceType Internal/Rest
      * @param clusterId cluster id
      * @return Return the optional rest service of the specified cluster id.
      */
-    Optional<KubernetesService> getRestService(String clusterId);
+    Optional<KubernetesService> getService(
+            KubernetesService.ServiceType serviceType, String clusterId);
 
     /**
      * Get the rest endpoint for access outside cluster.
@@ -169,7 +171,8 @@ public interface FlinkKubeClient extends AutoCloseable {
      * org.apache.flink.kubernetes.highavailability.KubernetesHaServices} to clean up all data.
      *
      * @param labels labels to filter the resources. e.g. type: high-availability
-     * @return Return the delete future.
+     * @return Return the delete future that only completes successfully, if the resources that are
+     *     subject to deletion are actually gone.
      */
     CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels);
 
@@ -200,6 +203,20 @@ public interface FlinkKubeClient extends AutoCloseable {
      * @return Return a Kubernetes pod loaded from the template.
      */
     KubernetesPod loadPodFromTemplateFile(File podTemplateFile);
+
+    /**
+     * Update the target ports of the given Kubernetes service.
+     *
+     * @param serviceType The service type which needs to be updated
+     * @param portName The port name which needs to be updated
+     * @param targetPort The updated target port
+     * @return Return the update service target port future
+     */
+    CompletableFuture<Void> updateServiceTargetPort(
+            KubernetesService.ServiceType serviceType,
+            String clusterId,
+            String portName,
+            int targetPort);
 
     /** Callback handler for kubernetes resources. */
     interface WatchCallbackHandler<T> {

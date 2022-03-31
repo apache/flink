@@ -149,7 +149,7 @@ public class JdbcTestFixture {
         return "CREATE TABLE "
                 + tableName
                 + " ("
-                + "id INT NOT NULL DEFAULT 0,"
+                + "id INT DEFAULT 0 NOT NULL,"
                 + "title VARCHAR(50) DEFAULT NULL,"
                 + "author VARCHAR(50) DEFAULT NULL,"
                 + "price FLOAT DEFAULT NULL,"

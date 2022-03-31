@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -30,15 +31,26 @@ import java.util.Set;
 
 /** Mocking {@link Module} for tests. */
 public class ModuleMock implements Module {
+
+    public static final String DUMMY_FUNCTION_NAME = "dummy";
+    public static final FunctionDefinition DUMMY_FUNCTION_DEFINITION =
+            new FunctionDefinitionMock(FunctionKind.SCALAR, null);
+
+    public static final String INTERNAL_FUNCTION_NAME = "internal";
+    public static final FunctionDefinition INTERNAL_FUNCTION_DEFINITION =
+            new FunctionDefinitionMock(FunctionKind.OTHER, null);
+
     private static final Set<String> BUILT_IN_FUNCTIONS =
-            Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("dummy")));
+            Collections.unmodifiableSet(
+                    new HashSet<>(Collections.singletonList(DUMMY_FUNCTION_NAME)));
+    private static final Set<String> BUILT_IN_FUNCTIONS_WITH_INTERNAL =
+            Collections.unmodifiableSet(
+                    new HashSet<>(Arrays.asList(DUMMY_FUNCTION_NAME, INTERNAL_FUNCTION_NAME)));
+
     private final String type;
-    private final FunctionDefinitionMock functionDef;
 
     public ModuleMock(String type) {
         this.type = type;
-        functionDef = new FunctionDefinitionMock();
-        functionDef.functionKind = FunctionKind.OTHER;
     }
 
     public String getType() {
@@ -47,14 +59,27 @@ public class ModuleMock implements Module {
 
     @Override
     public Set<String> listFunctions() {
-        return BUILT_IN_FUNCTIONS;
+        return listFunctions(false);
+    }
+
+    @Override
+    public Set<String> listFunctions(boolean includeHiddenFunctions) {
+        if (includeHiddenFunctions) {
+            return BUILT_IN_FUNCTIONS_WITH_INTERNAL;
+        } else {
+            return BUILT_IN_FUNCTIONS;
+        }
     }
 
     @Override
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-        if (BUILT_IN_FUNCTIONS.contains(name)) {
-            return Optional.of(functionDef);
+        switch (name) {
+            case DUMMY_FUNCTION_NAME:
+                return Optional.of(DUMMY_FUNCTION_DEFINITION);
+            case INTERNAL_FUNCTION_NAME:
+                return Optional.of(INTERNAL_FUNCTION_DEFINITION);
         }
+
         return Optional.empty();
     }
 }

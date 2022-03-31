@@ -60,6 +60,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
@@ -145,10 +147,25 @@ public class KafkaDynamicTableFactory
     }
 
     @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        PROPS_BOOTSTRAP_SERVERS,
+                        PROPS_GROUP_ID,
+                        TOPIC,
+                        TOPIC_PATTERN,
+                        SCAN_STARTUP_MODE,
+                        SCAN_STARTUP_SPECIFIC_OFFSETS,
+                        SCAN_TOPIC_PARTITION_DISCOVERY,
+                        SCAN_STARTUP_TIMESTAMP_MILLIS,
+                        SINK_PARTITIONER,
+                        SINK_PARALLELISM,
+                        TRANSACTIONAL_ID_PREFIX)
+                .collect(Collectors.toSet());
+    }
+
+    @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
         final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-
-        final ReadableConfig tableOptions = helper.getOptions();
 
         final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyDecodingFormat =
                 getKeyDecodingFormat(helper);
@@ -157,6 +174,8 @@ public class KafkaDynamicTableFactory
                 getValueDecodingFormat(helper);
 
         helper.validateExcept(PROPERTIES_PREFIX);
+
+        final ReadableConfig tableOptions = helper.getOptions();
 
         validateTableSourceOptions(tableOptions);
 
@@ -207,8 +226,6 @@ public class KafkaDynamicTableFactory
                 FactoryUtil.createTableFactoryHelper(
                         this, autoCompleteSchemaRegistrySubject(context));
 
-        final ReadableConfig tableOptions = helper.getOptions();
-
         final Optional<EncodingFormat<SerializationSchema<RowData>>> keyEncodingFormat =
                 getKeyEncodingFormat(helper);
 
@@ -216,6 +233,8 @@ public class KafkaDynamicTableFactory
                 getValueEncodingFormat(helper);
 
         helper.validateExcept(PROPERTIES_PREFIX);
+
+        final ReadableConfig tableOptions = helper.getOptions();
 
         final DeliveryGuarantee deliveryGuarantee = validateDeprecatedSemantic(tableOptions);
         validateTableSinkOptions(tableOptions);

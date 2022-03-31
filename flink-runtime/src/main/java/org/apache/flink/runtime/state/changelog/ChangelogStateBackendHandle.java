@@ -18,19 +18,21 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
 
-import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
@@ -48,34 +50,87 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
 
     List<ChangelogStateHandle> getNonMaterializedStateHandles();
 
+    long getMaterializationID();
+
     class ChangelogStateBackendHandleImpl implements ChangelogStateBackendHandle {
         private static final long serialVersionUID = 1L;
+
         private final List<KeyedStateHandle> materialized;
         private final List<ChangelogStateHandle> nonMaterialized;
         private final KeyGroupRange keyGroupRange;
 
+        private final long materializationID;
+        private final long persistedSizeOfThisCheckpoint;
+        private final StateHandleID stateHandleID;
+
         public ChangelogStateBackendHandleImpl(
                 List<KeyedStateHandle> materialized,
                 List<ChangelogStateHandle> nonMaterialized,
-                KeyGroupRange keyGroupRange) {
+                KeyGroupRange keyGroupRange,
+                long materializationID,
+                long persistedSizeOfThisCheckpoint) {
+            this(
+                    materialized,
+                    nonMaterialized,
+                    keyGroupRange,
+                    materializationID,
+                    persistedSizeOfThisCheckpoint,
+                    StateHandleID.randomStateHandleId());
+        }
+
+        private ChangelogStateBackendHandleImpl(
+                List<KeyedStateHandle> materialized,
+                List<ChangelogStateHandle> nonMaterialized,
+                KeyGroupRange keyGroupRange,
+                long materializationID,
+                long persistedSizeOfThisCheckpoint,
+                StateHandleID stateHandleId) {
             this.materialized = unmodifiableList(materialized);
             this.nonMaterialized = unmodifiableList(nonMaterialized);
             this.keyGroupRange = keyGroupRange;
+            this.persistedSizeOfThisCheckpoint = persistedSizeOfThisCheckpoint;
             checkArgument(keyGroupRange.getNumberOfKeyGroups() > 0);
+            this.materializationID = materializationID;
+            this.stateHandleID = stateHandleId;
+        }
+
+        public static ChangelogStateBackendHandleImpl restore(
+                List<KeyedStateHandle> materialized,
+                List<ChangelogStateHandle> nonMaterialized,
+                KeyGroupRange keyGroupRange,
+                long materializationID,
+                long persistedSizeOfThisCheckpoint,
+                StateHandleID stateHandleId) {
+            return new ChangelogStateBackendHandleImpl(
+                    materialized,
+                    nonMaterialized,
+                    keyGroupRange,
+                    materializationID,
+                    persistedSizeOfThisCheckpoint,
+                    stateHandleId);
         }
 
         @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
+            for (KeyedStateHandle keyedStateHandle : materialized) {
+                // Use the unique and invariant UUID as the state registry key for a specific keyed
+                // state handle. To avoid unexpected unregister, this registry key would not change
+                // even rescaled.
+                stateRegistry.registerReference(
+                        new SharedStateRegistryKey(keyedStateHandle.getStateHandleId().toString()),
+                        new StreamStateHandleWrapper(keyedStateHandle),
+                        checkpointID);
+            }
             stateRegistry.registerAll(materialized, checkpointID);
             stateRegistry.registerAll(nonMaterialized, checkpointID);
         }
 
         @Override
         public void discardState() throws Exception {
-            try (Closer closer = Closer.create()) {
-                materialized.forEach(h -> closer.register(asCloseable(h)));
-                nonMaterialized.forEach(h -> closer.register(asCloseable(h)));
-            }
+            // Do nothing: state will be discarded by SharedStateRegistry once JM receives it and a
+            // newer checkpoint completes without using it.
+            // if the checkpoints always failed, it would leave orphan files there.
+            // The above cases will be addressed by FLINK-23139 and/or FLINK-24852.
         }
 
         @Override
@@ -93,7 +148,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
             }
             List<KeyedStateHandle> basePart =
                     this.materialized.stream()
-                            .map(handle -> handle.getIntersection(keyGroupRange))
+                            .map(entry -> entry.getIntersection(keyGroupRange))
                             .filter(Objects::nonNull)
                             .collect(Collectors.toList());
             List<ChangelogStateHandle> deltaPart =
@@ -104,13 +159,28 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                                                     handle.getIntersection(keyGroupRange))
                             .filter(Objects::nonNull)
                             .collect(Collectors.toList());
-            return new ChangelogStateBackendHandleImpl(basePart, deltaPart, intersection);
+            return new ChangelogStateBackendHandleImpl(
+                    basePart,
+                    deltaPart,
+                    intersection,
+                    materializationID,
+                    persistedSizeOfThisCheckpoint);
+        }
+
+        @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleID;
         }
 
         @Override
         public long getStateSize() {
             return materialized.stream().mapToLong(StateObject::getStateSize).sum()
                     + nonMaterialized.stream().mapToLong(StateObject::getStateSize).sum();
+        }
+
+        @Override
+        public long getCheckpointedSize() {
+            return persistedSizeOfThisCheckpoint;
         }
 
         @Override
@@ -124,20 +194,73 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         }
 
         @Override
+        public long getMaterializationID() {
+            return materializationID;
+        }
+
+        @Override
         public String toString() {
             return String.format(
                     "keyGroupRange=%s, basePartSize=%d, deltaPartSize=%d",
                     keyGroupRange, materialized.size(), nonMaterialized.size());
         }
 
-        private static Closeable asCloseable(KeyedStateHandle h) {
-            return () -> {
-                try {
-                    h.discardState();
-                } catch (Exception e) {
-                    ExceptionUtils.rethrowIOException(e);
+        /**
+         * This wrapper class is introduced as current {@link SharedStateRegistry} only accept
+         * StreamStateHandle to register, remove it once FLINK-25862 is resolved.
+         */
+        private static class StreamStateHandleWrapper implements StreamStateHandle {
+            private static final long serialVersionUID = 1L;
+
+            private final KeyedStateHandle keyedStateHandle;
+
+            StreamStateHandleWrapper(KeyedStateHandle keyedStateHandle) {
+                this.keyedStateHandle = keyedStateHandle;
+            }
+
+            @Override
+            public void discardState() throws Exception {
+                keyedStateHandle.discardState();
+            }
+
+            @Override
+            public long getStateSize() {
+                return keyedStateHandle.getStateSize();
+            }
+
+            @Override
+            public FSDataInputStream openInputStream() throws IOException {
+                throw new UnsupportedOperationException("Should not call here.");
+            }
+
+            @Override
+            public Optional<byte[]> asBytesIfInMemory() {
+                throw new UnsupportedOperationException("Should not call here.");
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
                 }
-            };
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                StreamStateHandleWrapper that = (StreamStateHandleWrapper) o;
+                return Objects.equals(
+                        keyedStateHandle.getStateHandleId(),
+                        that.keyedStateHandle.getStateHandleId());
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(keyedStateHandle.getStateHandleId());
+            }
+
+            @Override
+            public String toString() {
+                return "Wrapped{" + keyedStateHandle + '}';
+            }
         }
     }
 }

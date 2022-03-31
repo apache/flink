@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.RuntimeContextInitializationContextAdapters;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kinesis.sink.KinesisStreamsSink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -61,7 +62,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The FlinkKinesisProducer allows to produce from a Flink DataStream into Kinesis.
  *
  * @param <OUT> Data type to produce into Kinesis Streams
+ * @deprecated This producer based on the Kinesis Producer Library KPL has been superseded. The new
+ *     sink can be found in the module {@code flink-connectors/flink-connector-aws-kinesis-streams}
+ *     and package {@link KinesisStreamsSink}. It is based on the AWS SDK for Java 2.x. The work to
+ *     replace this sink was carried out in FLINK-24227.
  */
+@Deprecated
 @PublicEvolving
 public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT>
         implements CheckpointedFunction {

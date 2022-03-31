@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -32,8 +33,11 @@ import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import java.util.ArrayList;
+import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.plan.RelTraitDef;
+
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -46,25 +50,37 @@ public class PlannerMocks {
     private final FlinkPlannerImpl planner;
     private final ParserImpl parser;
     private final CatalogManager catalogManager;
+    private final FunctionCatalog functionCatalog;
+    private final TableConfig tableConfig;
+    private final PlannerContext plannerContext;
 
-    private PlannerMocks() {
-        this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+    @SuppressWarnings("rawtypes")
+    private PlannerMocks(
+            boolean isBatchMode,
+            TableConfig tableConfig,
+            CatalogManager catalogManager,
+            List<RelTraitDef> traitDefs,
+            CalciteSchema rootSchema) {
+        this.catalogManager = catalogManager;
+        this.tableConfig = tableConfig;
 
-        final TableConfig tableConfig = new TableConfig();
         final ModuleManager moduleManager = new ModuleManager();
 
-        final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        this.functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final PlannerContext plannerContext =
+        this.plannerContext =
                 new PlannerContext(
-                        false,
+                        isBatchMode,
                         tableConfig,
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
-                        new ArrayList<>());
+                        rootSchema != null
+                                ? rootSchema
+                                : asRootSchema(
+                                        new CatalogManagerCalciteSchema(
+                                                catalogManager, !isBatchMode)),
+                        traitDefs);
 
         this.planner =
                 plannerContext.createFlinkPlanner(
@@ -100,6 +116,18 @@ public class PlannerMocks {
         return catalogManager;
     }
 
+    public FunctionCatalog getFunctionCatalog() {
+        return functionCatalog;
+    }
+
+    public TableConfig getTableConfig() {
+        return tableConfig;
+    }
+
+    public PlannerContext getPlannerContext() {
+        return plannerContext;
+    }
+
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
                 CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
@@ -116,7 +144,66 @@ public class PlannerMocks {
         return this;
     }
 
+    /** Builder for {@link PlannerMocks} to facilitate various test use cases. */
+    @SuppressWarnings("rawtypes")
+    public static class Builder {
+
+        private boolean batchMode = false;
+        private TableConfig tableConfig = TableConfig.getDefault();
+        private CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        private List<RelTraitDef> traitDefs = Collections.emptyList();
+        private CalciteSchema rootSchema;
+
+        private Builder() {}
+
+        public Builder withBatchMode(boolean batchMode) {
+            this.batchMode = batchMode;
+            return this;
+        }
+
+        public Builder withTableConfig(TableConfig tableConfig) {
+            this.tableConfig = tableConfig;
+            return this;
+        }
+
+        public Builder withConfiguration(Configuration configuration) {
+            tableConfig.addConfiguration(configuration);
+            return this;
+        }
+
+        public Builder withCatalogManager(CatalogManager catalogManager) {
+            this.catalogManager = catalogManager;
+            return this;
+        }
+
+        public Builder withTraitDefs(List<RelTraitDef> traitDefs) {
+            this.traitDefs = traitDefs;
+            return this;
+        }
+
+        public Builder withRootSchema(CalciteSchema rootSchema) {
+            this.rootSchema = rootSchema;
+            return this;
+        }
+
+        public PlannerMocks build() {
+            return new PlannerMocks(batchMode, tableConfig, catalogManager, traitDefs, rootSchema);
+        }
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     public static PlannerMocks create() {
-        return new PlannerMocks();
+        return new Builder().build();
+    }
+
+    public static PlannerMocks create(boolean batchMode) {
+        return new Builder().withBatchMode(batchMode).build();
+    }
+
+    public static PlannerMocks create(Configuration configuration) {
+        return new Builder().withConfiguration(configuration).build();
     }
 }

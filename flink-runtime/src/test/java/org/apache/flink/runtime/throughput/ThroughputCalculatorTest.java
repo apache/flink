@@ -69,7 +69,7 @@ public class ThroughputCalculatorTest extends TestCase {
 
         throughputCalculator.incomingDataSize(7);
         clock.advanceTime(Duration.ofMillis(1));
-        throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.pauseMeasurement();
         // This will be ignored because it is in idle now.
         clock.advanceTime(Duration.ofMillis(9));
         // This should resume the measurement time.
@@ -86,7 +86,7 @@ public class ThroughputCalculatorTest extends TestCase {
 
         throughputCalculator.incomingDataSize(10);
         clock.advanceTime(Duration.ofMillis(1));
-        throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.pauseMeasurement();
         // This will be ignored because it is in idle now.
         clock.advanceTime(Duration.ofMillis(9));
 
@@ -101,13 +101,13 @@ public class ThroughputCalculatorTest extends TestCase {
         throughputCalculator.incomingDataSize(10);
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.resumeMeasurement();
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.resumeMeasurement();
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.resumeMeasurement();
 
         clock.advanceTime(Duration.ofMillis(1));
 
@@ -120,7 +120,7 @@ public class ThroughputCalculatorTest extends TestCase {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
-        throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
+        throughputCalculator.pauseMeasurement();
 
         // Should not resume measurement.
         throughputCalculator.calculateThroughput();

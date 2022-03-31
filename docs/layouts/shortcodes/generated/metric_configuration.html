@@ -27,6 +27,12 @@
             <td>The thread priority used for Flink's internal metric query service. The thread is created by Akka's thread pool executor. The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). Warning, increasing this value may bring the main Flink components down.</td>
         </tr>
         <tr>
+            <td><h5>metrics.job.status.enable</h5></td>
+            <td style="word-wrap: break-word;">CURRENT_TIME</td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>The selection of job status metrics that should be reported.<br /><br />Possible values:<ul><li>"STATE": For a given state, return 1 if the job is currently in that state, otherwise return 0.</li><li>"CURRENT_TIME": For a given state, if the job is currently in that state, return the time since the job transitioned into that state, otherwise return 0.</li><li>"TOTAL_TIME": For a given state, return how much time the job has spent in that state in total.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>metrics.latency.granularity</h5></td>
             <td style="word-wrap: break-word;">"operator"</td>
             <td>String</td>
@@ -57,10 +63,34 @@
             <td>The reporter class to use for the reporter named &lt;name&gt;.</td>
         </tr>
         <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.factory.class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The reporter factory class to use for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
             <td>The reporter interval to use for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The delimiter used to assemble the metric identifier for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
         </tr>
         <tr>
             <td><h5>metrics.reporters</h5></td>

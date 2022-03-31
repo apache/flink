@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the local aggregate into a {@link SupportsAggregatePushDown}.
  */
 @JsonTypeName("AggregatePushDown")
-public class AggregatePushDownSpec extends SourceAbilitySpecBase {
+public final class AggregatePushDownSpec extends SourceAbilitySpecBase {
 
     public static final String FIELD_NAME_INPUT_TYPE = "inputType";
 
@@ -203,5 +204,27 @@ public class AggregatePushDownSpec extends SourceAbilitySpecBase {
             }
         }
         return aggExpressions;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        AggregatePushDownSpec that = (AggregatePushDownSpec) o;
+        return Objects.equals(inputType, that.inputType)
+                && Objects.equals(groupingSets, that.groupingSets)
+                && Objects.equals(aggregateCalls, that.aggregateCalls);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), inputType, groupingSets, aggregateCalls);
     }
 }

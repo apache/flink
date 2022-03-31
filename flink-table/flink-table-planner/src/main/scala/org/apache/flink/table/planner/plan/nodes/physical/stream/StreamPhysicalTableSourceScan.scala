@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpe
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -59,14 +59,12 @@ class StreamPhysicalTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
-      tableSourceTable.tableIdentifier,
-      tableSourceTable.catalogTable,
+      tableSourceTable.contextResolvedTable,
       util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)
 
     new StreamExecTableSourceScan(
+      unwrapTableConfig(this),
       tableSourceSpec,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

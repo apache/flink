@@ -20,9 +20,10 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.JList
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
@@ -30,15 +31,16 @@ import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
-import org.apache.calcite.util.{ControlFlowException, DateString, ImmutableBitSet, NlsString, Sarg, TimeString, TimestampString, Util}
+import org.apache.calcite.util._
 
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
 import java.util.function.Predicate
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -51,8 +53,9 @@ object FlinkRexUtil {
   @Experimental
   private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
     key("table.optimizer.cnf-nodes-limit")
-      .defaultValue(Integer.valueOf(-1))
-      .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
+       .intType()
+       .defaultValue(Integer.valueOf(-1))
+       .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
         " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
         "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
         "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
@@ -393,17 +396,6 @@ object FlinkRexUtil {
     rex.accept(shuttle)
   }
 
-  /** Expands the Sarg operands to literals. */
-  def expandSearchOperands(rexBuilder: RexBuilder, call: RexCall): JList[RexNode] = {
-    require(call.getKind == SqlKind.SEARCH)
-    val sargLiteral = call.getOperands.get(1).asInstanceOf[RexLiteral]
-    val sarg = sargLiteral.getValueAs(classOf[Sarg[_]])
-    require(sarg.isPoints)
-    val sargOperands = sarg.rangeSet.asRanges().map(range =>
-      rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
-    List(call.getOperands.head) ++ sargOperands
-  }
-
   /**
     * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
     *
@@ -531,7 +523,7 @@ object FlinkRexUtil {
           getExpressionString(_, inFields, localExprsTable, expressionFormat, expressionDetail))
         c.getOperator match {
           case _: SqlAsOperator => ops.head
-          case _: SqlCastFunction =>
+          case _: SqlCastFunction | _: SqlTryCastFunction =>
             val typeStr = expressionDetail match {
               case ExpressionDetail.Digest => c.getType.getFullTypeString
               case ExpressionDetail.Explain => c.getType.toString

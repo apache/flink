@@ -23,24 +23,35 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** TaskManagerRuntimeInfo implementation for testing purposes */
+/** TaskManagerRuntimeInfo implementation for testing purposes. */
 public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 
     private final Configuration configuration;
     private final String[] tmpDirectories;
     private final String taskManagerExternalAddress;
+    private final File tmpWorkingDirectory;
 
     public TestingTaskManagerRuntimeInfo() {
         this(
                 new Configuration(),
-                System.getProperty("java.io.tmpdir").split(",|" + File.pathSeparator));
+                EnvironmentInformation.getTemporaryFileDirectory()
+                        .split(",|" + File.pathSeparator));
     }
 
     public TestingTaskManagerRuntimeInfo(Configuration configuration) {
         this(configuration, EnvironmentInformation.getTemporaryFileDirectory());
+    }
+
+    public TestingTaskManagerRuntimeInfo(Configuration configuration, File tmpWorkingDirectory) {
+        this(
+                configuration,
+                new String[] {EnvironmentInformation.getTemporaryFileDirectory()},
+                InetAddress.getLoopbackAddress().getHostAddress(),
+                tmpWorkingDirectory);
     }
 
     public TestingTaskManagerRuntimeInfo(Configuration configuration, String tmpDirectory) {
@@ -48,16 +59,24 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
     }
 
     public TestingTaskManagerRuntimeInfo(Configuration configuration, String[] tmpDirectories) {
-        this(configuration, tmpDirectories, InetAddress.getLoopbackAddress().getHostAddress());
+        this(
+                configuration,
+                tmpDirectories,
+                InetAddress.getLoopbackAddress().getHostAddress(),
+                new File(
+                        EnvironmentInformation.getTemporaryFileDirectory(),
+                        "tmp_" + UUID.randomUUID()));
     }
 
     public TestingTaskManagerRuntimeInfo(
             Configuration configuration,
             String[] tmpDirectories,
-            String taskManagerExternalAddress) {
+            String taskManagerExternalAddress,
+            File tmpWorkingDirectory) {
         this.configuration = configuration;
         this.tmpDirectories = tmpDirectories;
         this.taskManagerExternalAddress = taskManagerExternalAddress;
+        this.tmpWorkingDirectory = tmpWorkingDirectory;
     }
 
     @Override
@@ -79,5 +98,10 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
     @Override
     public String getTaskManagerExternalAddress() {
         return taskManagerExternalAddress;
+    }
+
+    @Override
+    public File getTmpWorkingDirectory() {
+        return tmpWorkingDirectory;
     }
 }

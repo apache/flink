@@ -19,9 +19,9 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.BackPressuringExecutor;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.fs.s3.common.utils.BackPressuringExecutor;
-import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;

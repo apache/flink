@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -28,6 +29,7 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandChecker;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandInference;
@@ -50,13 +52,11 @@ import java.util.stream.Collectors;
 
 /** Utilities for bridging {@link FunctionDefinition} with Calcite's representation of functions. */
 final class BridgingUtils {
-    static String createName(
-            @Nullable FunctionIdentifier identifier, FunctionDefinition definition) {
-        if (identifier != null) {
-            return extractName(identifier);
-        } else {
-            return createInlineFunctionName(definition);
-        }
+    static String createName(ContextResolvedFunction resolvedFunction) {
+        return resolvedFunction
+                .getIdentifier()
+                .map(BridgingUtils::extractName)
+                .orElseGet(() -> createInlineFunctionName(resolvedFunction.getDefinition()));
     }
 
     private static String extractName(FunctionIdentifier identifier) {
@@ -74,7 +74,7 @@ final class BridgingUtils {
                 extractUserDefinedFunction(functionDefinition);
 
         return userDefinedFunction
-                .map(UserDefinedFunction::functionIdentifier)
+                .map(UserDefinedFunctionHelper::generateInlineFunctionName)
                 .orElseThrow(
                         () ->
                                 new TableException(
@@ -104,18 +104,25 @@ final class BridgingUtils {
         return Optional.empty();
     }
 
-    static @Nullable SqlIdentifier createSqlIdentifier(@Nullable FunctionIdentifier identifier) {
-        if (identifier == null) {
-            return null;
-        }
-
-        return identifier
+    static @Nullable SqlIdentifier createSqlIdentifier(ContextResolvedFunction resolvedFunction) {
+        return resolvedFunction
                 .getIdentifier()
-                .map(i -> new SqlIdentifier(i.toList(), SqlParserPos.ZERO))
-                .orElseGet(
-                        () ->
-                                new SqlIdentifier(
-                                        identifier.getSimpleName().get(), SqlParserPos.ZERO));
+                .map(
+                        fi ->
+                                fi.getIdentifier()
+                                        .map(
+                                                oi ->
+                                                        new SqlIdentifier(
+                                                                oi.toList(), SqlParserPos.ZERO))
+                                        .orElseGet(
+                                                () ->
+                                                        new SqlIdentifier(
+                                                                fi.getSimpleName()
+                                                                        .orElseThrow(
+                                                                                IllegalStateException
+                                                                                        ::new),
+                                                                SqlParserPos.ZERO)))
+                .orElse(null);
     }
 
     static SqlReturnTypeInference createSqlReturnTypeInference(
@@ -154,11 +161,11 @@ final class BridgingUtils {
                 .orElse(null);
     }
 
-    static SqlFunctionCategory createSqlFunctionCategory(@Nullable FunctionIdentifier identifier) {
-        if (identifier == null || identifier.getIdentifier().isPresent()) {
+    static SqlFunctionCategory createSqlFunctionCategory(ContextResolvedFunction resolvedFunction) {
+        final Optional<FunctionIdentifier> identifier = resolvedFunction.getIdentifier();
+        if (!identifier.isPresent() || identifier.get().getIdentifier().isPresent()) {
             return SqlFunctionCategory.USER_DEFINED_FUNCTION;
         }
-
         return SqlFunctionCategory.SYSTEM;
     }
 

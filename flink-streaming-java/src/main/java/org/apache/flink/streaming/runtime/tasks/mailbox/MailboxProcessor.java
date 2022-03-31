@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
@@ -58,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * up. For control flag changes by all other threads, that must happen through mailbox actions, this
  * is automatically the case.
  *
- * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the
+ * <p>This class has an open-prepareClose-close lifecycle that is connected with and maps to the
  * lifecycle of the encapsulated {@link TaskMailbox} (which is open-quiesce-close).
  */
 @Internal
@@ -99,6 +101,9 @@ public class MailboxProcessor implements Closeable {
 
     private final StreamTaskActionExecutor actionExecutor;
 
+    /** Counter that counts number of mails processed from mailbox. */
+    private final Counter numMailsProcessed;
+
     @VisibleForTesting
     public MailboxProcessor() {
         this(MailboxDefaultAction.Controller::suspendDefaultAction);
@@ -117,11 +122,20 @@ public class MailboxProcessor implements Closeable {
             MailboxDefaultAction mailboxDefaultAction,
             TaskMailbox mailbox,
             StreamTaskActionExecutor actionExecutor) {
+        this(mailboxDefaultAction, mailbox, actionExecutor, new SimpleCounter());
+    }
+
+    public MailboxProcessor(
+            MailboxDefaultAction mailboxDefaultAction,
+            TaskMailbox mailbox,
+            StreamTaskActionExecutor actionExecutor,
+            Counter numMailsProcessed) {
         this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
         this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
         this.mailbox = Preconditions.checkNotNull(mailbox);
         this.mailboxLoopRunning = true;
         this.suspendedDefaultAction = null;
+        this.numMailsProcessed = numMailsProcessed;
     }
 
     public MailboxExecutor getMainMailboxExecutor() {
@@ -135,6 +149,15 @@ public class MailboxProcessor implements Closeable {
      */
     public MailboxExecutor getMailboxExecutor(int priority) {
         return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
+    }
+
+    /**
+     * Returns attached {@link Counter} that counts number of mails processed.
+     *
+     * @return {@link Counter} that counts number of mails processed.
+     */
+    public Counter getNumMailsProcessedCounter() {
+        return numMailsProcessed;
     }
 
     /** Lifecycle method to close the mailbox for action submission. */
@@ -175,6 +198,7 @@ public class MailboxProcessor implements Closeable {
     public void drain() throws Exception {
         for (final Mail mail : mailbox.drain()) {
             mail.run();
+            numMailsProcessed.inc();
         }
     }
 
@@ -194,14 +218,14 @@ public class MailboxProcessor implements Closeable {
 
         assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
-        final MailboxController defaultActionContext = new MailboxController(this);
+        final MailboxController mailboxController = new MailboxController(this);
 
         while (isNextLoopPossible()) {
             // The blocking `processMail` call will not return until default action is available.
             processMail(localMailbox, false);
             if (isNextLoopPossible()) {
                 mailboxDefaultAction.runDefaultAction(
-                        defaultActionContext); // lock is acquired inside default action as needed
+                        mailboxController); // lock is acquired inside default action as needed
             }
         }
     }
@@ -336,6 +360,8 @@ public class MailboxProcessor implements Closeable {
             }
             maybePauseIdleTimer();
             maybeMail.get().run();
+            numMailsProcessed.inc();
+
             maybeRestartIdleTimer();
             processedSomething = true;
         }
@@ -351,6 +377,7 @@ public class MailboxProcessor implements Closeable {
                 maybePauseIdleTimer();
             }
             maybeMail.get().run();
+            numMailsProcessed.inc();
             if (singleStep) {
                 break;
             }

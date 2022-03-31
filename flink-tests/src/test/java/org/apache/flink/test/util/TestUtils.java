@@ -19,22 +19,31 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.client.JobInitializationException;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ExceptionUtils;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -84,21 +93,40 @@ public class TestUtils {
                 .toJobExecutionResult(classLoader);
     }
 
-    public static void waitUntilJobInitializationFinished(
-            JobID id, MiniClusterWithClientResource miniCluster, ClassLoader userCodeClassloader)
-            throws JobInitializationException {
-        ClusterClient<?> clusterClient = miniCluster.getClusterClient();
-        ClientUtils.waitUntilJobInitializationFinished(
-                () -> clusterClient.getJobStatus(id).get(),
-                () -> clusterClient.requestJobResult(id).get(),
-                userCodeClassloader);
+    public static CheckpointMetadata loadCheckpointMetadata(String savepointPath)
+            throws IOException {
+        CompletedCheckpointStorageLocation location =
+                AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(savepointPath);
+
+        try (DataInputStream stream =
+                new DataInputStream(location.getMetadataHandle().openInputStream())) {
+            return Checkpoints.loadCheckpointMetadata(
+                    stream, Thread.currentThread().getContextClassLoader(), savepointPath);
+        }
     }
 
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#getLatestCompletedCheckpointPath(JobID,
+     *     MiniCluster)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
     public static File getMostRecentCompletedCheckpoint(File checkpointDir) throws IOException {
+        return getMostRecentCompletedCheckpointMaybe(checkpointDir)
+                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+    }
+
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#getLatestCompletedCheckpointPath(JobID,
+     *     MiniCluster)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
+    public static Optional<File> getMostRecentCompletedCheckpointMaybe(File checkpointDir)
+            throws IOException {
         return Files.find(checkpointDir.toPath(), 2, TestUtils::isCompletedCheckpoint)
                 .max(Comparator.comparing(Path::toString))
-                .map(Path::toFile)
-                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+                .map(Path::toFile);
     }
 
     private static boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
@@ -116,9 +144,41 @@ public class TestUtils {
                                     path.getFileName().toString().equals(METADATA_FILE_NAME))
                     .findAny()
                     .isPresent();
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
+        } catch (UncheckedIOException uncheckedIOException) {
+            // return false when the metadata file is in progress due to subsumed checkpoint
+            if (ExceptionUtils.findThrowable(uncheckedIOException, NoSuchFileException.class)
+                    .isPresent()) {
+                return false;
+            }
+            throw uncheckedIOException;
+        } catch (IOException ioException) {
+            ExceptionUtils.rethrow(ioException);
             return false; // should never happen
+        }
+    }
+
+    /**
+     * @deprecated please use {@link
+     *     org.apache.flink.runtime.testutils.CommonTestUtils#waitForCheckpoint(JobID, MiniCluster,
+     *     Deadline)} which is less prone to {@link NoSuchFileException} and IO-intensive.
+     */
+    @Deprecated
+    public static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
+            throws InterruptedException, IOException {
+        while (true) {
+            Thread.sleep(50);
+            Optional<File> externalizedCheckpoint =
+                    getMostRecentCompletedCheckpointMaybe(checkpointDir);
+            if (externalizedCheckpoint.isPresent()) {
+                break;
+            }
+        }
+    }
+
+    public static void waitUntilJobCanceled(JobID jobId, ClusterClient<?> client)
+            throws ExecutionException, InterruptedException {
+        while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
+            Thread.sleep(50);
         }
     }
 }

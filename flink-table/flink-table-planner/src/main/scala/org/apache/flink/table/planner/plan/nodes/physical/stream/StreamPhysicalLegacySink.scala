@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.sinks._
 
@@ -61,12 +62,12 @@ class StreamPhysicalLegacySink[T](
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
 
     new StreamExecLegacySink(
+      unwrapTableConfig(this),
       sink,
       upsertKeys.orNull,
       needRetraction,
       InputProperty.DEFAULT,
       fromDataTypeToLogicalType(sink.getConsumedDataType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -134,11 +136,20 @@ public interface RestfulGateway extends RpcGateway {
             requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
     /**
+     * Requests the thread dump from the JobManager.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the thread dump information
+     */
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
+
+    /**
      * Triggers a savepoint with the given savepoint directory as a target, returning a future that
      * completes when the operation is started.
      *
      * @param operationKey the key of the operation, for deduplication purposes
      * @param targetDirectory Target directory for the savepoint.
+     * @param formatType Binary format of the savepoint.
      * @param savepointMode context of the savepoint operation
      * @param timeout Timeout for the asynchronous operation
      * @return Future which is completed once the operation is triggered successfully
@@ -146,6 +157,7 @@ public interface RestfulGateway extends RpcGateway {
     default CompletableFuture<Acknowledge> triggerSavepoint(
             AsynchronousJobOperationKey operationKey,
             String targetDirectory,
+            SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             @RpcTimeout Time timeout) {
         throw new UnsupportedOperationException();
@@ -157,6 +169,7 @@ public interface RestfulGateway extends RpcGateway {
      *
      * @param operationKey key of the operation, for deduplication
      * @param targetDirectory Target directory for the savepoint.
+     * @param formatType Binary format of the savepoint.
      * @param savepointMode context of the savepoint operation
      * @param timeout for the rpc call
      * @return Future which is completed once the operation is triggered successfully
@@ -164,13 +177,14 @@ public interface RestfulGateway extends RpcGateway {
     default CompletableFuture<Acknowledge> stopWithSavepoint(
             final AsynchronousJobOperationKey operationKey,
             final String targetDirectory,
+            SavepointFormatType formatType,
             final TriggerSavepointMode savepointMode,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * Get the status of of savepoint triggered under the specified operation key.
+     * Get the status of a savepoint triggered under the specified operation key.
      *
      * @param operationKey key of the operation
      * @return Future which completes immediately with the status, or fails if no operation is

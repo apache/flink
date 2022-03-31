@@ -33,7 +33,6 @@ import org.junit.Test;
 
 import java.util.UUID;
 
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -47,11 +46,10 @@ import static org.hamcrest.Matchers.notNullValue;
  */
 public class KubernetesStateHandleStoreITCase extends TestLogger {
 
+    private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
-
-    private static final long TIMEOUT = 120L * 1000L;
 
     private static final String KEY = "state-handle-test";
 
@@ -94,8 +92,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
             }
 
             // Wait for the leader
-            final String lockIdentity =
-                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears(TIMEOUT);
+            final String lockIdentity = TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
             Long expectedState = null;
 
             for (int i = 0; i < leaderNum; i++) {

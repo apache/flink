@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
@@ -35,43 +35,32 @@ import java.util.Map;
  *
  * <p>It contains all information necessary to perform a stream-to-table conversion.
  *
- * <p>This class needs to be kept in sync with {@code ScalaExternalQueryOperation} in the Scala
- * bridging module.
- *
  * @param <E> External type of data stream
  */
 @Internal
 public final class ExternalQueryOperation<E> implements QueryOperation {
 
-    private final ObjectIdentifier identifier;
-
+    private final ContextResolvedTable contextResolvedTable;
     private final DataStream<E> dataStream;
-
     private final DataType physicalDataType;
-
     private final boolean isTopLevelRecord;
-
     private final ChangelogMode changelogMode;
 
-    private final ResolvedSchema resolvedSchema;
-
     public ExternalQueryOperation(
-            ObjectIdentifier identifier,
+            ContextResolvedTable contextResolvedTable,
             DataStream<E> dataStream,
             DataType physicalDataType,
             boolean isTopLevelRecord,
-            ChangelogMode changelogMode,
-            ResolvedSchema resolvedSchema) {
-        this.identifier = identifier;
+            ChangelogMode changelogMode) {
+        this.contextResolvedTable = contextResolvedTable;
         this.dataStream = dataStream;
         this.physicalDataType = physicalDataType;
         this.isTopLevelRecord = isTopLevelRecord;
         this.changelogMode = changelogMode;
-        this.resolvedSchema = resolvedSchema;
     }
 
-    public ObjectIdentifier getIdentifier() {
-        return identifier;
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
     }
 
     public DataStream<E> getDataStream() {
@@ -93,12 +82,12 @@ public final class ExternalQueryOperation<E> implements QueryOperation {
     @Override
     public String asSummaryString() {
         final Map<String, Object> args = new LinkedHashMap<>();
-        args.put("identifier", identifier);
+        args.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         args.put("stream", dataStream.getId());
         args.put("type", physicalDataType);
         args.put("isTopLevelRecord", isTopLevelRecord);
         args.put("changelogMode", changelogMode);
-        args.put("fields", resolvedSchema.getColumnNames());
+        args.put("fields", getResolvedSchema().getColumnNames());
 
         return OperationUtils.formatWithChildren(
                 "DataStreamInput", args, getChildren(), Operation::asSummaryString);
@@ -111,7 +100,7 @@ public final class ExternalQueryOperation<E> implements QueryOperation {
 
     @Override
     public ResolvedSchema getResolvedSchema() {
-        return resolvedSchema;
+        return contextResolvedTable.getResolvedSchema();
     }
 
     @Override

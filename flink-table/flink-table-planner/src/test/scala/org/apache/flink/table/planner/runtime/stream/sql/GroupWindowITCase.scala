@@ -165,8 +165,8 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testMinMaxWithTumblingWindow(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean("table.exec.emit.early-fire.enabled", true)
-    tEnv.getConfig.getConfiguration.setString("table.exec.emit.early-fire.delay", "1000 ms")
+    tEnv.getConfig.set("table.exec.emit.early-fire.enabled", "true")
+    tEnv.getConfig.set("table.exec.emit.early-fire.delay", "1000 ms")
 
     val sql =
       """
@@ -318,8 +318,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       return
     }
     // wait 10 millisecond for late elements
-    tEnv.getConfig.getConfiguration.set(
-      TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofMillis(10))
+    tEnv.getConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofMillis(10))
     // emit result without delay after watermark
     withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
     val data = List(
@@ -426,8 +425,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
   @Test
   def testWindowAggregateOnUpsertSourceWithAllowLateness(): Unit = {
     // wait 15 second for late elements
-    tEnv.getConfig.getConfiguration.set(
-      TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(15))
+    tEnv.getConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(15))
     // emit result without delay after watermark
     withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
     val upsertSourceDataId = registerData(upsertSourceCurrencyData)
@@ -585,17 +583,15 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
-    val lateFireDelay: Duration = tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
-      .orElse(null)
+    val lateFireDelay: Duration =
+      tableConfig.getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).orElse(null)
     if (lateFireDelay != null && (lateFireDelay.toMillis != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
     }
-    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.set(
-      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
+    tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, Boolean.box(true))
+    tableConfig.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
   }
 
   private def localDateTime(epochSecond: Long): LocalDateTime = {

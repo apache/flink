@@ -62,12 +62,12 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, new TableConfig)
+    .create(settings, catalogManager = None, TableConfig.getDefault)
   val tEnv: TableEnvironment = testingTableEnv
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val env: StreamExecutionEnvironment = planner.getExecEnv
   env.getConfig.enableObjectReuse()
-  val conf: TableConfig = tEnv.getConfig
+  val tableConfig: TableConfig = tEnv.getConfig
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
@@ -75,7 +75,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @Before
   def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    BatchTestBase.configForMiniCluster(tableConfig)
   }
 
   @After
@@ -424,7 +424,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def registerRange(name: String, start: Long, end: Long): Unit = {
     BatchTableEnvUtil.registerBoundedStreamInternal(
-      tEnv, name, newRangeSource(start, end), Some[Array[String]](Array[String]("id")), None, None)
+      tEnv, name, newRangeSource(start, end), Some(Array($"id")), None, None)
   }
 
   def newRangeSource(start: Long, end: Long): DataStream[RowData] = {
@@ -517,9 +517,8 @@ object BatchTestBase {
     }
   }
 
-  def configForMiniCluster(conf: TableConfig): Unit = {
-    conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration
-      .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
+  def configForMiniCluster(tableConfig: TableConfig): Unit = {
+    tableConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(DEFAULT_PARALLELISM))
+    tableConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
   }
 }

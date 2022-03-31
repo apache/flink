@@ -20,14 +20,16 @@ package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.elasticsearch.sink.Elasticsearch6SinkBuilder;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.connector.elasticsearch.table.Elasticsearch6ConnectorOptions.DOCUMENT_TYPE_OPTION;
 
@@ -41,17 +43,14 @@ public class Elasticsearch6DynamicSinkFactory extends ElasticsearchDynamicSinkFa
     }
 
     @Override
-    ElasticsearchConfiguration getConfiguration(Context context) {
-        return new Elasticsearch6Configuration(
-                Configuration.fromMap(context.getCatalogTable().getOptions()));
+    ElasticsearchConfiguration getConfiguration(FactoryUtil.TableFactoryHelper helper) {
+        return new Elasticsearch6Configuration(helper.getOptions());
     }
 
     @Nullable
     @Override
-    String getDocumentType(Context context) {
-        Elasticsearch6Configuration config =
-                (Elasticsearch6Configuration) getConfiguration(context);
-        return config.getDocumentType();
+    String getDocumentType(ElasticsearchConfiguration configuration) {
+        return ((Elasticsearch6Configuration) configuration).getDocumentType();
     }
 
     @Override
@@ -68,5 +67,11 @@ public class Elasticsearch6DynamicSinkFactory extends ElasticsearchDynamicSinkFa
         Set<ConfigOption<?>> requiredOptions = super.requiredOptions();
         requiredOptions.add(DOCUMENT_TYPE_OPTION);
         return requiredOptions;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.concat(super.forwardOptions().stream(), Stream.of(DOCUMENT_TYPE_OPTION))
+                .collect(Collectors.toSet());
     }
 }

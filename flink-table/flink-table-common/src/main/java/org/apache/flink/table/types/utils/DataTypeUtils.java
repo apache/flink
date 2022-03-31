@@ -143,7 +143,18 @@ public final class DataTypeUtils {
 
     /** Checks whether a given data type is an internal data structure. */
     public static boolean isInternal(DataType dataType) {
-        final Class<?> clazz = primitiveToWrapper(dataType.getConversionClass());
+        return isInternal(dataType, true);
+    }
+
+    /** Checks whether a given data type is an internal data structure. */
+    public static boolean isInternal(DataType dataType, boolean autobox) {
+        final Class<?> clazz;
+        if (autobox) {
+            clazz = primitiveToWrapper(dataType.getConversionClass());
+        } else {
+            clazz = dataType.getConversionClass();
+        }
+
         return clazz == toInternalConversionClass(dataType.getLogicalType());
     }
 

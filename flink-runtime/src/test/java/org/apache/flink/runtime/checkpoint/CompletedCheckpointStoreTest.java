@@ -307,39 +307,13 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
                     operatorGroupState,
                     null,
                     props,
-                    new TestCompletedCheckpointStorageLocation());
+                    new TestCompletedCheckpointStorageLocation(),
+                    null);
         }
 
         @Override
-        public boolean discardOnSubsume() throws Exception {
-            if (super.discardOnSubsume()) {
-                discard();
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
-            if (super.discardOnShutdown(jobStatus)) {
-                discard();
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public void discard() throws Exception {
-            super.discard();
-            if (!isDiscarded) {
-                this.isDiscarded = true;
-
-                if (discardLatch != null) {
-                    discardLatch.countDown();
-                }
-            }
+        public CompletedCheckpointDiscardObject markAsDiscarded() {
+            return new TestCompletedCheckpointDiscardObject();
         }
 
         public boolean isDiscarded() {
@@ -374,6 +348,21 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         @Override
         public int hashCode() {
             return getJobId().hashCode() + (int) getCheckpointID();
+        }
+
+        /** */
+        public class TestCompletedCheckpointDiscardObject extends CompletedCheckpointDiscardObject {
+            @Override
+            public void discard() throws Exception {
+                super.discard();
+                if (!isDiscarded) {
+                    isDiscarded = true;
+
+                    if (discardLatch != null) {
+                        discardLatch.countDown();
+                    }
+                }
+            }
         }
     }
 

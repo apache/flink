@@ -45,7 +45,7 @@ public interface QueryOperationVisitor<T> {
 
     T visit(CalculatedQueryOperation calculatedTable);
 
-    T visit(CatalogQueryOperation catalogTable);
+    T visit(SourceQueryOperation catalogTable);
 
     T visit(ValuesQueryOperation values);
 

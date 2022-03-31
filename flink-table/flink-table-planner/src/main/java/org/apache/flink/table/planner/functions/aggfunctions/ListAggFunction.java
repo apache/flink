@@ -33,11 +33,12 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
 
 /** built-in listagg aggregate function. */
 public class ListAggFunction extends DeclarativeAggregateFunction {
-    private int operandCount;
-    private UnresolvedReferenceExpression acc = unresolvedRef("concatAcc");
-    private UnresolvedReferenceExpression accDelimiter = unresolvedRef("accDelimiter");
-    private Expression delimiter;
-    private Expression operand;
+
+    private final int operandCount;
+    private final UnresolvedReferenceExpression acc = unresolvedRef("concatAcc");
+    private final UnresolvedReferenceExpression accDelimiter = unresolvedRef("accDelimiter");
+    private final Expression delimiter;
+    private final Expression operand;
 
     public ListAggFunction(int operandCount) {
         this.operandCount = operandCount;

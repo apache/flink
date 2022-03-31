@@ -18,25 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecWindowTableFunction;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
 import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link ExecNode} which acts as a table-valued function to assign a window for each row of
@@ -44,25 +41,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * well additional 3 columns named {@code window_start}, {@code window_end}, {@code window_time} to
  * indicate the assigned window.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-window-table-function",
+        version = 1,
+        consumedOptions = "table.local-time-zone",
+        producedTransformations = CommonExecWindowTableFunction.WINDOW_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
         implements StreamExecNode<RowData> {
 
-    public static final String FIELD_NAME_EMIT_PER_RECORD = "emitPerRecord";
-
-    @JsonProperty(FIELD_NAME_EMIT_PER_RECORD)
-    private final Boolean emitPerRecord;
-
     public StreamExecWindowTableFunction(
+            ReadableConfig tableConfig,
             TimeAttributeWindowingStrategy windowingStrategy,
-            Boolean emitPerRecord,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecWindowTableFunction.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecWindowTableFunction.class, tableConfig),
                 windowingStrategy,
-                emitPerRecord,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -70,34 +70,20 @@ public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
 
     @JsonCreator
     public StreamExecWindowTableFunction(
-            @JsonProperty(FIELD_NAME_WINDOWING) TimeAttributeWindowingStrategy windowingStrategy,
-            @JsonProperty(FIELD_NAME_EMIT_PER_RECORD) Boolean emitPerRecord,
             @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_WINDOWING) TimeAttributeWindowingStrategy windowingStrategy,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(windowingStrategy, id, inputProperties, outputType, description);
-        this.emitPerRecord = checkNotNull(emitPerRecord);
-    }
-
-    @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final ExecEdge inputEdge = getInputEdges().get(0);
-        final RowType inputRowType = (RowType) inputEdge.getOutputType();
-        String[] inputFieldNames = inputRowType.getFieldNames().toArray(new String[0]);
-        String windowSummary = windowingStrategy.toSummaryString(inputFieldNames);
-
-        if (!emitPerRecord) {
-            throw new TableException(
-                    String.format(
-                            "Currently Flink doesn't support individual window table-valued function %s.\n "
-                                    + "Please use window table-valued function with the following computations:\n"
-                                    + "1. aggregate using window_start and window_end as group keys.\n"
-                                    + "2. topN using window_start and window_end as partition key.\n"
-                                    + "3. join with join condition contains window starts equality of input tables "
-                                    + "and window ends equality of input tables.\n",
-                            windowSummary));
-        }
-        return super.translateToPlanInternal(planner);
+        super(
+                id,
+                context,
+                persistedConfig,
+                windowingStrategy,
+                inputProperties,
+                outputType,
+                description);
     }
 }

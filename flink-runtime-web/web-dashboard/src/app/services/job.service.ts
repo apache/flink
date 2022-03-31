@@ -185,7 +185,7 @@ export class JobService {
   private convertJob(job: JobDetail): JobDetailCorrect {
     const links: VerticesLink[] = [];
     let nodes: NodesItemCorrect[] = [];
-    if (job.plan.nodes.length) {
+    if (job.plan?.nodes.length) {
       nodes = job.plan.nodes.map(node => {
         let detail;
         if (job.vertices && job.vertices.length) {

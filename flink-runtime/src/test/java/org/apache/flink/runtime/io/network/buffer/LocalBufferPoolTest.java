@@ -127,6 +127,65 @@ public class LocalBufferPoolTest extends TestLogger {
         }
     }
 
+    @Test(timeout = 10000) // timeout can indicate a potential deadlock
+    public void testReserveSegmentsAndCancel() throws Exception {
+        int totalSegments = 4;
+        int segmentsToReserve = 2;
+
+        NetworkBufferPool globalPool = new NetworkBufferPool(totalSegments, memorySegmentSize);
+        BufferPool localPool1 = globalPool.createBufferPool(segmentsToReserve, totalSegments);
+        List<MemorySegment> segments = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < totalSegments; ++i) {
+                segments.add(localPool1.requestMemorySegmentBlocking());
+            }
+
+            BufferPool localPool2 = globalPool.createBufferPool(segmentsToReserve, totalSegments);
+            // the segment reserve thread will be blocked for no buffer is available
+            Thread reserveThread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    localPool2.reserveSegments(segmentsToReserve);
+                                } catch (Throwable ignored) {
+                                }
+                            });
+            reserveThread.start();
+            Thread.sleep(100); // wait to be blocked
+
+            // the cancel thread can be blocked when redistributing buffers
+            Thread cancelThread =
+                    new Thread(
+                            () -> {
+                                localPool1.lazyDestroy();
+                                localPool2.lazyDestroy();
+                            });
+            cancelThread.start();
+
+            // it is expected that the segment reserve thread can be cancelled successfully
+            Thread interruptThread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    do {
+                                        reserveThread.interrupt();
+                                        Thread.sleep(100);
+                                    } while (reserveThread.isAlive() || cancelThread.isAlive());
+                                } catch (Throwable ignored) {
+                                }
+                            });
+            interruptThread.start();
+
+            interruptThread.join();
+        } finally {
+            segments.forEach(localPool1::recycle);
+            localPool1.lazyDestroy();
+            assertEquals(0, globalPool.getNumberOfUsedMemorySegments());
+            globalPool.destroy();
+        }
+    }
+
     @Test
     public void testRequestMoreThanAvailable() {
         localBufferPool.setNumBuffers(numBuffers);
@@ -547,11 +606,11 @@ public class LocalBufferPoolTest extends TestLogger {
 
         @Nullable
         @Override
-        public MemorySegment requestMemorySegment() {
+        public MemorySegment requestPooledMemorySegment() {
             if (requestCounter++ == 1) {
                 return null;
             }
-            return super.requestMemorySegment();
+            return super.requestPooledMemorySegment();
         }
     }
 }

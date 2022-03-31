@@ -26,9 +26,9 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironment;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
@@ -109,8 +109,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private final String taskName;
 
-    /** The Python execution environment manager. */
-    private final PythonEnvironmentManager environmentManager;
+    /** The Python process execution environment manager. */
+    private final ProcessPythonEnvironmentManager environmentManager;
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
@@ -177,7 +177,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     public BeamPythonFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,

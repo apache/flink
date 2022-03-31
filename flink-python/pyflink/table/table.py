@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import warnings
-
 from py4j.java_gateway import get_method
 from typing import Union
 
@@ -134,7 +132,7 @@ class Table(object):
         extra_fields = to_jarray(gateway.jvm.String, fields)
         return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
 
-    def filter(self, predicate: Union[str, Expression[bool]]) -> 'Table':
+    def filter(self, predicate: Expression[bool]) -> 'Table':
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -150,7 +148,7 @@ class Table(object):
         """
         return Table(self._j_table.filter(_get_java_expression(predicate)), self._t_env)
 
-    def where(self, predicate: Union[str, Expression[bool]]) -> 'Table':
+    def where(self, predicate: Expression[bool]) -> 'Table':
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -200,7 +198,7 @@ class Table(object):
         """
         return Table(self._j_table.distinct(), self._t_env)
 
-    def join(self, right: 'Table', join_predicate: Union[str, Expression[bool]] = None):
+    def join(self, right: 'Table', join_predicate: Expression[bool] = None):
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
@@ -260,7 +258,7 @@ class Table(object):
 
     def right_outer_join(self,
                          right: 'Table',
-                         join_predicate: Union[str, Expression[bool]]) -> 'Table':
+                         join_predicate: Expression[bool]) -> 'Table':
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL right outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -286,7 +284,7 @@ class Table(object):
 
     def full_outer_join(self,
                         right: 'Table',
-                        join_predicate: Union[str, Expression[bool]]) -> 'Table':
+                        join_predicate: Expression[bool]) -> 'Table':
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL full outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -311,8 +309,8 @@ class Table(object):
             right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
     def join_lateral(self,
-                     table_function_call: Union[str, Expression, UserDefinedTableFunctionWrapper],
-                     join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
+                     table_function_call: Union[Expression, UserDefinedTableFunctionWrapper],
+                     join_predicate: Expression[bool] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
         join but works with a table function. Each row of the table is joined with the rows
@@ -358,9 +356,9 @@ class Table(object):
                 self._t_env)
 
     def left_outer_join_lateral(self,
-                                table_function_call: Union[str, Expression,
+                                table_function_call: Union[Expression,
                                                            UserDefinedTableFunctionWrapper],
-                                join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
+                                join_predicate: Expression[bool] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to
         a SQL left outer join but works with a table function. Each row of the table is joined
@@ -952,29 +950,6 @@ class Table(object):
                 func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
-    def insert_into(self, table_path: str):
-        """
-        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
-        registered under the specified name. For the path resolution algorithm see
-        :func:`~TableEnvironment.use_database`.
-
-        Example:
-        ::
-
-            >>> tab.insert_into("sink")
-
-        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-               the :class:`~pyflink.table.Table` is written.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
-                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
-                  for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
-                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
-                      DeprecationWarning)
-        self._j_table.insertInto(table_path)
-
     def to_pandas(self):
         """
         Converts the table to a pandas DataFrame. It will collect the content of the table to
@@ -994,8 +969,8 @@ class Table(object):
         """
         self._t_env._before_execute()
         gateway = get_gateway()
-        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
-            .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
+        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig()\
+            .get(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
         batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
         if batches_iterator.hasNext():

@@ -28,7 +28,6 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -196,7 +195,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
         return new PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
-                PythonTestUtils.createTestEnvironmentManager(),
+                PythonTestUtils.createTestProcessEnvironmentManager(),
                 userDefinedFunctionInputType,
                 userDefinedFunctionOutputType,
                 STREAM_GROUP_WINDOW_AGGREGATE_URN,
@@ -376,7 +375,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                                 .collect(Collectors.toList()));
         final GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         name,
                         inputType,
                         forwardedFieldType,

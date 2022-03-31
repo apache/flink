@@ -641,7 +641,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -651,7 +651,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -690,7 +690,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "id" : ,
     "type" : "WindowTableFunction[]",
     "pact" : "Operator",
-    "contents" : "[]:WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "contents" : "[]:WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -2650,16 +2650,16 @@ Calc(select=[a, w0$o0])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734($0)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
 == Optimized Execution Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
@@ -2684,9 +2684,9 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     } ]
   }, {
     "id" : ,
-    "type" : "GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "type" : "GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "pact" : "Operator",
-    "contents" : "GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "contents" : "GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -2701,16 +2701,16 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734($0)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
 == Optimized Physical Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
 == Optimized Execution Plan ==
-GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MySource]], fields=[f0])
 
@@ -2737,7 +2737,7 @@ GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c
     "id" : ,
     "type" : "GroupTableAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:GroupTableAggregate(select=[org$apache$flink$table$planner$utils$Top3$3b7f784b4c3a67151e3462287356c734(f0) AS (f0, f1)])",
+    "contents" : "[]:GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (f0, f1)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -3495,7 +3495,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -3505,7 +3505,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowDeduplicate(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], keep=[LastRow], partitionKeys=[a], orderKey=[rowtime], order=[ROWTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -3542,9 +3542,9 @@ Calc(select=[window_start, window_end, a, b, c])
     } ]
   }, {
     "id" : ,
-    "type" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "type" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "pact" : "Operator",
-    "contents" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "contents" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -3985,7 +3985,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -3995,7 +3995,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -4034,7 +4034,7 @@ Calc(select=[window_start, window_end, a, b, c])
     "id" : ,
     "type" : "WindowTableFunction[]",
     "pact" : "Operator",
-    "contents" : "[]:WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "contents" : "[]:WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -4095,7 +4095,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -4105,7 +4105,7 @@ Calc(select=[window_start, window_end, a, b, c])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, window_start, window_end])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, window_start, window_end])
-         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
                +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
                   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -4142,9 +4142,9 @@ Calc(select=[window_start, window_end, a, b, c])
     } ]
   }, {
     "id" : ,
-    "type" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "type" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "pact" : "Operator",
-    "contents" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])",
+    "contents" : "WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

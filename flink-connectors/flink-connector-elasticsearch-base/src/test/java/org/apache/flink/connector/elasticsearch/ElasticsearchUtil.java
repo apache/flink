@@ -19,6 +19,10 @@
 package org.apache.flink.connector.elasticsearch;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.slf4j.Logger;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
@@ -60,5 +64,29 @@ public class ElasticsearchUtil {
                 .withEnv("ES_JAVA_OPTS", "-Xms2g -Xmx2g")
                 .withEnv("logger.org.elasticsearch", logLevel)
                 .withLogConsumer(new Slf4jLogConsumer(log));
+    }
+
+    /** A mock {@link DynamicTableSink.Context} for Elasticsearch tests. */
+    public static class MockContext implements DynamicTableSink.Context {
+        @Override
+        public boolean isBounded() {
+            return false;
+        }
+
+        @Override
+        public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+            return null;
+        }
+
+        @Override
+        public TypeInformation<?> createTypeInformation(LogicalType consumedLogicalType) {
+            return null;
+        }
+
+        @Override
+        public DynamicTableSink.DataStructureConverter createDataStructureConverter(
+                DataType consumedDataType) {
+            return null;
+        }
     }
 }

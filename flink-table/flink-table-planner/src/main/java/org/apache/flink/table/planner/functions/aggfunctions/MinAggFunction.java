@@ -35,7 +35,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullO
 
 /** built-in min aggregate function. */
 public abstract class MinAggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression min = unresolvedRef("min");
+
+    private final UnresolvedReferenceExpression min = unresolvedRef("min");
 
     @Override
     public int operandCount() {
@@ -145,15 +146,15 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 
     /** Built-in Decimal Min aggregate function. */
     public static class DecimalMinAggFunction extends MinAggFunction {
-        private DecimalType decimalType;
+        private final DataType resultType;
 
         public DecimalMinAggFunction(DecimalType decimalType) {
-            this.decimalType = decimalType;
+            this.resultType = DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
         }
 
         @Override
         public DataType getResultType() {
-            return DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
+            return resultType;
         }
     }
 

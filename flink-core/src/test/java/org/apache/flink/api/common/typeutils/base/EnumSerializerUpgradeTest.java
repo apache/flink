@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.ClassRelocator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -51,17 +51,17 @@ public class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Tes
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             SPEC_NAME,
-                            migrationVersion,
+                            flinkVersion,
                             EnumSerializerSetup.class,
                             EnumSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             SPEC_NAME + "reconfig",
-                            migrationVersion,
+                            flinkVersion,
                             EnumSerializerReconfigSetup.class,
                             EnumSerializerReconfigVerifier.class));
         }
@@ -127,7 +127,7 @@ public class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Tes
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<TestEnum>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -191,7 +191,7 @@ public class EnumSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Tes
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<EnumAfter>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
         }
     }

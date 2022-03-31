@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
@@ -58,7 +59,7 @@ import static org.junit.Assert.fail;
  * A helper class to control {@link TestJobWithDescription} execution using {@link
  * TestCommandDispatcher} and {@link TestEventQueue}.
  */
-class TestJobExecutor {
+public class TestJobExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(TestJobExecutor.class);
     private final MiniClusterWithClientResource miniClusterResource;
     private final TestJobWithDescription testJob;
@@ -99,7 +100,12 @@ class TestJobExecutor {
             throws Exception {
         LOG.debug("stopWithSavepoint: {} (withDrain: {})", folder, withDrain);
         ClusterClient<?> client = miniClusterResource.getClusterClient();
-        client.stopWithSavepoint(jobID, withDrain, folder.newFolder().toString()).get();
+        client.stopWithSavepoint(
+                        jobID,
+                        withDrain,
+                        folder.newFolder().toString(),
+                        SavepointFormatType.CANONICAL)
+                .get();
         return this;
     }
 
@@ -110,12 +116,13 @@ class TestJobExecutor {
         return this;
     }
 
-    public void triggerFailover() throws Exception {
+    public void triggerFailover(String operatorID) throws Exception {
         LOG.debug("sendCommand: {}", FAIL);
         BlockingQueue<TestEvent> queue = new LinkedBlockingQueue<>();
         Consumer<TestEvent> listener = queue::add;
         testJob.eventQueue.addListener(listener);
-        testJob.commandQueue.broadcast(FAIL, SINGLE_SUBTASK);
+        // only fail a single subtask to avoid failing more subtasks after recovery
+        testJob.commandQueue.dispatch(FAIL, SINGLE_SUBTASK, operatorID);
         try {
             waitForFailover(queue);
         } catch (TimeoutException e) {

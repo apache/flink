@@ -50,6 +50,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
     public ResourceManagerProcessContext createResourceManagerProcessContext(
             Configuration configuration,
+            ResourceID resourceId,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
@@ -77,6 +78,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
         return new ResourceManagerProcessContext(
                 rmConfig,
+                resourceId,
                 runtimeServiceConfig,
                 rpcService,
                 highAvailabilityServices,
@@ -90,8 +92,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
     }
 
     public ResourceManager<T> createResourceManager(
-            ResourceManagerProcessContext context, UUID leaderSessionId, ResourceID resourceId)
-            throws Exception {
+            ResourceManagerProcessContext context, UUID leaderSessionId) throws Exception {
 
         final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
                 createResourceManagerRuntimeServices(
@@ -102,7 +103,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
         return createResourceManager(
                 context.getRmConfig(),
-                resourceId,
+                context.getResourceId(),
                 context.getRpcService(),
                 leaderSessionId,
                 context.getHeartbeatServices(),
@@ -112,6 +113,11 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 context.getResourceManagerMetricGroup(),
                 resourceManagerRuntimeServices,
                 context.getIoExecutor());
+    }
+
+    /** This indicates whether the process should be terminated after losing leadership. */
+    protected boolean supportMultiLeaderSession() {
+        return true;
     }
 
     /**

@@ -18,27 +18,25 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
+import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
 import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -47,19 +45,18 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
+
 import scala.collection.JavaConversions._
 
 /**
-  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
-  * It can also generate type conversion codes for the result converter.
-  */
+ * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
+ * It can also generate type conversion codes for the result converter.
+ */
 class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   extends RexVisitor[GeneratedExpression] {
-
-  // check if nullCheck is enabled when inputs can be null
-  if (nullableInput && !ctx.nullCheck) {
-    throw new CodeGenException("Null check must be enabled if entire rows can be null.")
-  }
 
   /**
     * term of the [[ProcessFunction]]'s context, can be changed when needed
@@ -189,8 +186,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
-          ctx.nullCheck)
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3))
       case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
         // attribute is proctime field in a batch query.
         // it is initialized with the current time.
@@ -214,7 +210,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           input2Term.get,
           idx,
           nullableInput,
-          ctx.nullCheck)
+          true)
         ).toSeq
       case None => Seq() // add nothing
     }
@@ -328,7 +324,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
     val code = if (returnTypeClazz == classOf[BinaryRowData] && outRowWriter.isDefined) {
       val writer = outRowWriter.get
-      val resetWriter = if (ctx.nullCheck) s"$writer.reset();" else s"$writer.resetCursor();"
+      val resetWriter = s"$writer.reset();"
       val completeWriter: String = s"$writer.complete();"
       s"""
          |$outRowInitCode
@@ -364,7 +360,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       inputRef.getIndex - input1Arity
     }
 
-    generateInputAccess(ctx, input._1, input._2, index, nullableInput, ctx.nullCheck)
+    generateInputAccess(ctx, input._1, input._2, index, nullableInput, true)
   }
 
   override def visitTableInputRef(rexTableInputRef: RexTableInputRef): GeneratedExpression =
@@ -379,13 +375,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       refExpr.resultTerm,
       index)
 
-    val resultTypeTerm = primitiveTypeTermForType(fieldAccessExpr.resultType)
-    val defaultValue = primitiveDefaultValue(fieldAccessExpr.resultType)
+    val resultType = fieldAccessExpr.resultType
+
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
     val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),
       ("boolean", "isNull"))
 
-    val resultCode = if (ctx.nullCheck) {
+    val resultCode =
       s"""
          |${refExpr.code}
          |if (${refExpr.nullTerm}) {
@@ -398,27 +396,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
          |  $nullTerm = ${fieldAccessExpr.nullTerm};
          |}
          |""".stripMargin
-    } else {
-      s"""
-         |${refExpr.code}
-         |${fieldAccessExpr.code}
-         |$resultTerm = ${fieldAccessExpr.resultTerm};
-         |""".stripMargin
-    }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
-    val resultType = FlinkTypeFactory.toLogicalType(literal.getType)
-    val value = resultType.getTypeRoot match {
-      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE |
-           LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        literal.getValueAs(classOf[TimestampString])
-      case _ =>
-        literal.getValue3
-    }
-    generateLiteral(ctx, resultType, value)
+    val res = RexLiteralUtil.toFlinkInternalValue(literal)
+    generateLiteral(ctx, res.f0, res.f1)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
@@ -470,19 +454,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
     if (call.getKind == SqlKind.SEARCH) {
-      val sarg = call.getOperands.get(1).asInstanceOf[RexLiteral]
-          .getValueAs(classOf[Sarg[_]])
-      val rexBuilder = new FlinkRexBuilder(FlinkTypeFactory.INSTANCE)
-      if (sarg.isPoints) {
-        val operands = FlinkRexUtil.expandSearchOperands(rexBuilder, call)
-            .map(operand => operand.accept(this))
-        return generateCallExpression(ctx, call, operands, resultType)
-      } else {
-        return RexUtil.expandSearch(
-          rexBuilder,
-          null,
-          call).accept(this)
-      }
+      return generateSearch(
+        ctx,
+        generateExpression(call.getOperands.get(0)),
+        call.getOperands.get(1).asInstanceOf[RexLiteral])
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -493,7 +468,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (operandLiteral: RexLiteral, 0) if
       operandLiteral.getType.getSqlTypeName == SqlTypeName.NULL &&
         call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
-        generateNullLiteral(resultType, ctx.nullCheck)
+        generateNullLiteral(resultType)
 
       case (o@_, _) => o.accept(this)
     }
@@ -641,25 +616,25 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case IS_NULL =>
         val operand = operands.head
-        generateIsNull(ctx, operand)
+        generateIsNull(operand)
 
       case IS_NOT_NULL =>
         val operand = operands.head
-        generateIsNotNull(ctx, operand)
+        generateIsNotNull(operand)
 
       // logic
       case AND =>
         operands.reduceLeft { (left: GeneratedExpression, right: GeneratedExpression) =>
           requireBoolean(left)
           requireBoolean(right)
-          generateAnd(ctx, left, right)
+          generateAnd(left, right)
         }
 
       case OR =>
         operands.reduceLeft { (left: GeneratedExpression, right: GeneratedExpression) =>
           requireBoolean(left)
           requireBoolean(right)
-          generateOr(ctx, left, right)
+          generateOr(left, right)
         }
 
       case NOT =>
@@ -690,20 +665,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         requireBoolean(operand)
         generateIsNotFalse(operand)
 
-      case SEARCH | IN =>
-        val left = operands.head
-        val right = operands.tail
-        generateIn(ctx, left, right)
-
-      case NOT_IN =>
-        val left = operands.head
-        val right = operands.tail
-        generateNot(ctx, generateIn(ctx, left, right))
-
       // casting
       case CAST =>
-        val operand = operands.head
-        generateCast(ctx, operand, resultType)
+        generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
+          .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
+
+      case TRY_CAST =>
+        generateCast(ctx, operands.head, resultType, nullOnFailure = true)
 
       // Reinterpret
       case REINTERPRET =>
@@ -732,7 +700,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
-            generateArrayElementAt(ctx, array, index)
+            generateArrayElementAt(array, index)
 
           case LogicalTypeRoot.MAP =>
             val key = operands(1)
@@ -760,7 +728,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case ELEMENT =>
         val array = operands.head
         requireArray(array)
-        generateArrayElement(ctx, array)
+        generateArrayElement(array)
 
       case DOT =>
         generateDot(ctx, operands)
@@ -769,8 +737,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
-          ctx.nullCheck)
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3))
 
       case PROCTIME_MATERIALIZE =>
         generateProctimeTimestamp(ctx, contextTerm)
@@ -785,7 +752,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
 
       case _: SqlThrowExceptionFunction =>
-        val nullValue = generateNullLiteral(resultType, nullCheck = true)
+        val nullValue = generateNullLiteral(resultType)
         val code =
           s"""
              |${operands.map(_.code).mkString("\n")}
@@ -808,6 +775,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
+
           case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
 
@@ -830,6 +798,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_MINUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
 
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
@@ -866,8 +839,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case None => null
         case Some(literal) =>
           getConverterForDataType(fromLogicalTypeToDataType(expr.resultType))
-              .asInstanceOf[DataFormatConverter[AnyRef, AnyRef]
-              ].toExternal(literal.asInstanceOf[AnyRef])
+            .asInstanceOf[DataFormatConverter[AnyRef, AnyRef]]
+            .toExternal(literal.asInstanceOf[AnyRef])
       }
     }.toArray
   }

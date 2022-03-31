@@ -21,18 +21,16 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
-import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -40,7 +38,6 @@ import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
-import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -49,11 +46,11 @@ import scala.collection.JavaConversions._
 
 class BatchPlanner(
     executor: Executor,
-    config: TableConfig,
+    tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
     isStreamingMode = false) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
@@ -70,15 +67,15 @@ class BatchPlanner(
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
-    if (getTableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
+    processors.add(new ForwardHashExchangeProcessor)
     processors
   }
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val planner = createDummyPlanner()
 
     val transformations = execGraph.getRootNodes.map {
@@ -87,42 +84,12 @@ class BatchPlanner(
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
-    require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration()
-    val sinkRelNodes = operations.map {
-      case queryOperation: QueryOperation =>
-        val relNode = getRelBuilder.queryOperation(queryOperation).build()
-        relNode match {
-          // SQL: explain plan for insert into xx
-          case modify: LogicalTableModify =>
-            // convert LogicalTableModify to CatalogSinkModifyOperation
-            val qualifiedName = modify.getTable.getQualifiedName
-            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
-            val modifyOperation = new CatalogSinkModifyOperation(
-              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
-              new PlannerQueryOperation(modify.getInput)
-            )
-            translateToRel(modifyOperation)
-          case _ =>
-            relNode
-        }
-      case modifyOperation: ModifyOperation =>
-        translateToRel(modifyOperation)
-      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
-    }
-    val optimizedRelNodes = optimize(sinkRelNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
-      .asInstanceOf[StreamGraph]
+    val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -163,16 +130,30 @@ class BatchPlanner(
   private def createDummyPlanner(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
+    new BatchPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
-    throw new TableException("This method is not supported for batch planner now.")
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
+    throw new UnsupportedOperationException(
+      "The compiled plan feature is not supported in batch mode.")
   }
 
-  override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration()
-    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+  override def compilePlan(
+     modifyOperations: util.List[ModifyOperation]): InternalPlan =
+    throw new UnsupportedOperationException(
+      "The compiled plan feature is not supported in batch mode.")
+
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] =
+    throw new UnsupportedOperationException(
+      "The compiled plan feature is not supported in batch mode.")
+
+  override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String =
+    throw new UnsupportedOperationException(
+      "The compiled plan feature is not supported in batch mode.")
+
+  override def beforeTranslation(): Unit = {
+    super.beforeTranslation()
+    val runtimeMode = getTableConfig.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +

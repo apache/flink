@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -296,7 +298,8 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
             int savepointId)
             throws Exception {
         final CompletableFuture<CompletedCheckpoint> savepointFuture =
-                checkpointCoordinator.triggerSavepoint(temporaryFolder.newFolder().getPath());
+                checkpointCoordinator.triggerSavepoint(
+                        temporaryFolder.newFolder().getPath(), SavepointFormatType.CANONICAL);
         manuallyTriggeredScheduledExecutor.triggerAll();
         checkpointCoordinator.receiveAcknowledgeMessage(
                 new AcknowledgeCheckpoint(graph.getJobID(), attemptID, savepointId),
@@ -833,7 +836,9 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         public void start() {}
 
         @Override
-        public void shutdown(JobStatus jobStatus) throws Exception {}
+        public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+            return FutureUtils.completedVoidFuture();
+        }
 
         @Override
         public long getAndIncrement() {

@@ -55,26 +55,24 @@ public class TestJobDataFlowValidator {
 
         for (JobVertex upstream : testJob.jobGraph.getVertices()) {
             for (IntermediateDataSet produced : upstream.getProducedDataSets()) {
-                for (JobEdge edge : produced.getConsumers()) {
-                    Optional<String> upstreamIDOptional =
-                            getTrackedOperatorID(upstream, true, testJob);
-                    Optional<String> downstreamIDOptional =
-                            getTrackedOperatorID(edge.getTarget(), false, testJob);
-                    if (upstreamIDOptional.isPresent() && downstreamIDOptional.isPresent()) {
-                        final String upstreamID = upstreamIDOptional.get();
-                        final String downstreamID = downstreamIDOptional.get();
-                        if (testJob.sources.contains(upstreamID)) {
-                            // TODO: if we add tests for FLIP-27 sources we might need to adjust
-                            // this condition
-                            LOG.debug(
-                                    "Legacy sources do not have the finish() method and thus do not"
-                                            + " emit FinishEvent");
-                        } else {
-                            checkDataFlow(upstreamID, downstreamID, edge, finishEvents, withDrain);
-                        }
+                JobEdge edge = produced.getConsumer();
+                Optional<String> upstreamIDOptional = getTrackedOperatorID(upstream, true, testJob);
+                Optional<String> downstreamIDOptional =
+                        getTrackedOperatorID(edge.getTarget(), false, testJob);
+                if (upstreamIDOptional.isPresent() && downstreamIDOptional.isPresent()) {
+                    final String upstreamID = upstreamIDOptional.get();
+                    final String downstreamID = downstreamIDOptional.get();
+                    if (testJob.sources.contains(upstreamID)) {
+                        // TODO: if we add tests for FLIP-27 sources we might need to adjust
+                        // this condition
+                        LOG.debug(
+                                "Legacy sources do not have the finish() method and thus do not"
+                                        + " emit FinishEvent");
                     } else {
-                        LOG.debug("Ignoring edge (untracked operator): {}", edge);
+                        checkDataFlow(upstreamID, downstreamID, edge, finishEvents, withDrain);
                     }
+                } else {
+                    LOG.debug("Ignoring edge (untracked operator): {}", edge);
                 }
             }
         }

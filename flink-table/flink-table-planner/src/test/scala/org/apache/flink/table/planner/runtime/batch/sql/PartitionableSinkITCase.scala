@@ -67,9 +67,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     env.setParallelism(3)
-    tEnv.getConfig
-      .getConfiguration
-      .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3)
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(3))
     registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
     registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
     registerCollection("starTable", testData2, type_int_string, "b, c", Array(true, true))

@@ -26,8 +26,6 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -57,7 +55,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -454,10 +451,7 @@ public class Execution
 
         for (IntermediateResultPartition partition : partitions) {
             PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
-            int maxParallelism =
-                    getPartitionMaxParallelism(
-                            partition,
-                            vertex.getExecutionGraphAccessor()::getExecutionVertexOrThrow);
+            int maxParallelism = getPartitionMaxParallelism(partition);
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
@@ -486,17 +480,10 @@ public class Execution
                         });
     }
 
-    private static int getPartitionMaxParallelism(
-            IntermediateResultPartition partition,
-            Function<ExecutionVertexID, ExecutionVertex> getVertexById) {
-        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
-        Preconditions.checkArgument(
-                consumerVertexGroups.size() == 1,
-                "Currently there has to be exactly one consumer in real jobs");
-        final ConsumerVertexGroup consumerVertexGroup = consumerVertexGroups.get(0);
-        return getVertexById
-                .apply(consumerVertexGroup.getFirst())
-                .getJobVertex()
+    private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
+        return partition
+                .getIntermediateResult()
+                .getConsumerExecutionJobVertex()
                 .getMaxParallelism();
     }
 
@@ -522,9 +509,8 @@ public class Execution
         }
 
         // make sure exactly one deployment call happens from the correct state
-        // note: the transition from CREATED to DEPLOYING is for testing purposes only
         ExecutionState previous = this.state;
-        if (previous == SCHEDULED || previous == CREATED) {
+        if (previous == SCHEDULED) {
             if (!transitionState(previous, DEPLOYING)) {
                 // race condition, someone else beat us to the deploying call.
                 // this should actually not happen and indicates a race somewhere else
@@ -534,7 +520,7 @@ public class Execution
         } else {
             // vertex may have been cancelled, or it was already scheduled
             throw new IllegalStateException(
-                    "The vertex must be in CREATED or SCHEDULED state to be deployed. Found state "
+                    "The vertex must be in SCHEDULED state to be deployed. Found state "
                             + previous);
         }
 
@@ -559,10 +545,11 @@ public class Execution
             }
 
             LOG.info(
-                    "Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}",
+                    "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
                     vertex.getTaskNameWithSubtaskIndex(),
                     attemptNumber,
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
+                    vertex.getID(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
@@ -715,20 +702,12 @@ public class Execution
     }
 
     private void updatePartitionConsumers(final IntermediateResultPartition partition) {
-
-        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
-
-        if (consumerVertexGroups.size() == 0) {
+        final Optional<ConsumerVertexGroup> consumerVertexGroup =
+                partition.getConsumerVertexGroupOptional();
+        if (!consumerVertexGroup.isPresent()) {
             return;
         }
-        if (consumerVertexGroups.size() > 1) {
-            fail(
-                    new IllegalStateException(
-                            "Currently, only a single consumer group per partition is supported."));
-            return;
-        }
-
-        for (ExecutionVertexID consumerVertexId : consumerVertexGroups.get(0)) {
+        for (ExecutionVertexID consumerVertexId : consumerVertexGroup.get()) {
             final ExecutionVertex consumerVertex =
                     vertex.getExecutionGraphAccessor().getExecutionVertexOrThrow(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
@@ -861,13 +840,6 @@ public class Execution
 
     private CompletableFuture<Acknowledge> triggerCheckpointHelper(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-
-        final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-        if (checkpointType.getPostCheckpointAction() == PostCheckpointAction.TERMINATE
-                && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
-            throw new IllegalArgumentException(
-                    "Only synchronous savepoints are allowed to advance the watermark to MAX.");
-        }
 
         final LogicalSlot slot = assignedResource;
 
@@ -1464,7 +1436,7 @@ public class Execution
             // make sure that the state transition completes normally.
             // potential errors (in listeners may not affect the main logic)
             try {
-                vertex.notifyStateTransition(this, targetState);
+                vertex.notifyStateTransition(this, currentState, targetState);
             } catch (Throwable t) {
                 LOG.error(
                         "Error while notifying execution graph of execution state transition.", t);

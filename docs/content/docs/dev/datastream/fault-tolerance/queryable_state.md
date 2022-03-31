@@ -125,7 +125,7 @@ In a program like the following, all records of the keyed stream will be used to
 `ValueState.update(value)`:
 
 ```java
-stream.keyBy(value -> value.f0).asQueryableState("query-name")
+stream.keyBy(value -> value.f0).asQueryableState("query-name");
 ```
 
 This acts like the Scala API's `flatMapWithState`.
@@ -173,7 +173,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 </dependency>
 ```
 
-For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/datastream/project-configuration" >}}).
+For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/configuration/overview" >}}).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 

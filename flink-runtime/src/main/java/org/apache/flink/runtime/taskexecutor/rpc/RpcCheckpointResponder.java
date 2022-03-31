@@ -28,6 +28,8 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.runtime.checkpoint.TaskStateSnapshot.serializeTaskStateSnapshot;
+
 public class RpcCheckpointResponder implements CheckpointResponder {
 
     private final CheckpointCoordinatorGateway checkpointCoordinatorGateway;
@@ -44,9 +46,12 @@ public class RpcCheckpointResponder implements CheckpointResponder {
             long checkpointId,
             CheckpointMetrics checkpointMetrics,
             TaskStateSnapshot subtaskState) {
-
         checkpointCoordinatorGateway.acknowledgeCheckpoint(
-                jobID, executionAttemptID, checkpointId, checkpointMetrics, subtaskState);
+                jobID,
+                executionAttemptID,
+                checkpointId,
+                checkpointMetrics,
+                serializeTaskStateSnapshot(subtaskState));
     }
 
     @Override

@@ -124,20 +124,25 @@ public class JMXReporter implements MetricReporter {
             return;
         }
 
-        if (metric instanceof Gauge) {
-            jmxMetric = new JmxGauge((Gauge<?>) metric);
-        } else if (metric instanceof Counter) {
-            jmxMetric = new JmxCounter((Counter) metric);
-        } else if (metric instanceof Histogram) {
-            jmxMetric = new JmxHistogram((Histogram) metric);
-        } else if (metric instanceof Meter) {
-            jmxMetric = new JmxMeter((Meter) metric);
-        } else {
-            LOG.error(
-                    "Cannot add unknown metric type: {}. This indicates that the metric type "
-                            + "is not supported by this reporter.",
-                    metric.getClass().getName());
-            return;
+        switch (metric.getMetricType()) {
+            case GAUGE:
+                jmxMetric = new JmxGauge((Gauge<?>) metric);
+                break;
+            case COUNTER:
+                jmxMetric = new JmxCounter((Counter) metric);
+                break;
+            case HISTOGRAM:
+                jmxMetric = new JmxHistogram((Histogram) metric);
+                break;
+            case METER:
+                jmxMetric = new JmxMeter((Meter) metric);
+                break;
+            default:
+                LOG.error(
+                        "Cannot add unknown metric type: {}. This indicates that the metric type "
+                                + "is not supported by this reporter.",
+                        metric.getClass().getName());
+                return;
         }
 
         try {

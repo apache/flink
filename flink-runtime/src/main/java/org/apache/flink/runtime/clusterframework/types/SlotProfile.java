@@ -122,4 +122,20 @@ public class SlotProfile {
                 priorAllocations,
                 reservedAllocations);
     }
+
+    @Override
+    public String toString() {
+        return "SlotProfile{"
+                + "taskResourceProfile="
+                + taskResourceProfile
+                + ", physicalSlotResourceProfile="
+                + physicalSlotResourceProfile
+                + ", preferredLocations="
+                + preferredLocations
+                + ", preferredAllocations="
+                + preferredAllocations
+                + ", reservedAllocations="
+                + reservedAllocations
+                + '}';
+    }
 }

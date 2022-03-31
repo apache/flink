@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.runtime.CopyableSerializerUpgradeTest.SimpleCopyable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.CopyableValue;
 
 import org.hamcrest.Matcher;
@@ -53,11 +53,11 @@ public class CopyableSerializerUpgradeTest
     @Parameterized.Parameters(name = "Test Specification = {0}")
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "copyable-value-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             CopyableSerializerSetup.class,
                             CopyableSerializerVerifier.class));
         }
@@ -162,7 +162,7 @@ public class CopyableSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<SimpleCopyable>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

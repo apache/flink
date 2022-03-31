@@ -21,12 +21,14 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -40,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -69,10 +72,9 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -107,12 +109,15 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -153,7 +158,7 @@ import static org.junit.Assert.fail;
 public class RestClusterClientTest extends TestLogger {
 
     private final DispatcherGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 
@@ -718,6 +723,45 @@ public class RestClusterClientTest extends TestLogger {
         }
     }
 
+    @Test(timeout = 120_000)
+    public void testJobSubmissionWithoutUserArtifact() throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                restClusterClient.submitJob(jobGraph).get();
+            }
+        }
+    }
+
+    @Test(timeout = 120_000)
+    public void testJobSubmissionWithUserArtifact() throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                TemporaryFolder temporaryFolder = new TemporaryFolder();
+                temporaryFolder.create();
+                File file = temporaryFolder.newFile();
+                Files.write(file.toPath(), "hello world".getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+                // Add file path with scheme
+                jobGraph.addUserArtifact(
+                        "file",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().toString(), false));
+
+                // Add file path without scheme
+                jobGraph.addUserArtifact(
+                        "file2",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().getPath(), false));
+
+                restClusterClient.submitJob(jobGraph).get();
+            }
+        }
+    }
+
     @Test
     public void testJobSubmissionFailureCauseForwardedToClient() throws Exception {
         try (final TestRestServerEndpoint restServerEndpoint =
@@ -880,11 +924,11 @@ public class RestClusterClientTest extends TestLogger {
      */
     @Test
     public void testNotShowSuspendedJobStatus() throws Exception {
-        final List<JobDetailsInfo> jobDetails = new ArrayList<>();
-        jobDetails.add(buildJobDetail(JobStatus.SUSPENDED));
-        jobDetails.add(buildJobDetail(JobStatus.RUNNING));
+        final List<JobStatusInfo> jobStatusInfo = new ArrayList<>();
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.SUSPENDED));
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.RUNNING));
         final TestJobStatusHandler jobStatusHandler =
-                new TestJobStatusHandler(jobDetails.iterator());
+                new TestJobStatusHandler(jobStatusInfo.iterator());
 
         try (TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(jobStatusHandler)) {
@@ -897,23 +941,6 @@ public class RestClusterClientTest extends TestLogger {
                 restClusterClient.close();
             }
         }
-    }
-
-    private JobDetailsInfo buildJobDetail(JobStatus jobStatus) {
-        return new JobDetailsInfo(
-                jobId,
-                "testJob",
-                true,
-                jobStatus,
-                1L,
-                2L,
-                1L,
-                8888L,
-                1984L,
-                new HashMap<>(),
-                new ArrayList<>(),
-                new HashMap<>(),
-                "{\"id\":\"1234\"}");
     }
 
     private class TestClientCoordinationHandler
@@ -1051,25 +1078,25 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     private class TestJobStatusHandler
-            extends TestHandler<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+            extends TestHandler<EmptyRequestBody, JobStatusInfo, JobMessageParameters> {
 
-        private final Iterator<JobDetailsInfo> jobDetailsInfo;
+        private final Iterator<JobStatusInfo> jobStatusInfo;
 
-        private TestJobStatusHandler(@Nonnull Iterator<JobDetailsInfo> jobDetailsInfo) {
-            super(JobDetailsHeaders.getInstance());
-            checkState(jobDetailsInfo.hasNext(), "Job details are empty");
-            this.jobDetailsInfo = checkNotNull(jobDetailsInfo);
+        private TestJobStatusHandler(@Nonnull Iterator<JobStatusInfo> jobStatusInfo) {
+            super(JobStatusInfoHeaders.getInstance());
+            checkState(jobStatusInfo.hasNext(), "Job status are empty");
+            this.jobStatusInfo = checkNotNull(jobStatusInfo);
         }
 
         @Override
-        protected CompletableFuture<JobDetailsInfo> handleRequest(
+        protected CompletableFuture<JobStatusInfo> handleRequest(
                 @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
-            if (!jobDetailsInfo.hasNext()) {
-                throw new IllegalStateException("More job details were requested than configured");
+            if (!jobStatusInfo.hasNext()) {
+                throw new IllegalStateException("More job status were requested than configured");
             }
-            return CompletableFuture.completedFuture(jobDetailsInfo.next());
+            return CompletableFuture.completedFuture(jobStatusInfo.next());
         }
     }
 

@@ -18,8 +18,10 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
@@ -28,6 +30,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -38,9 +41,11 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.util.ResourceManagerUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -66,6 +71,8 @@ public class KubernetesResourceManagerDriver
 
     private final String clusterId;
 
+    private final String webInterfaceUrl;
+
     private final FlinkKubeClient flinkKubeClient;
 
     /** Request resource futures, keyed by pod names. */
@@ -89,6 +96,7 @@ public class KubernetesResourceManagerDriver
             KubernetesResourceManagerDriverConfiguration configuration) {
         super(flinkConfig, GlobalConfiguration.loadConfiguration());
         this.clusterId = Preconditions.checkNotNull(configuration.getClusterId());
+        this.webInterfaceUrl = configuration.getWebInterfaceUrl();
         this.flinkKubeClient = Preconditions.checkNotNull(flinkKubeClient);
         this.requestResourceFutures = new HashMap<>();
         this.running = false;
@@ -109,6 +117,7 @@ public class KubernetesResourceManagerDriver
         } else {
             taskManagerPodTemplate = new FlinkPod.Builder().build();
         }
+        updateKubernetesServiceTargetPortIfNecessary();
         recoverWorkerNodesFromPreviousAttempts();
         this.running = true;
     }
@@ -238,6 +247,39 @@ public class KubernetesResourceManagerDriver
         // Should not invoke resource event handler on the main thread executor.
         // We are in the initializing thread. The main thread executor is not yet ready.
         getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
+    }
+
+    private void updateKubernetesServiceTargetPortIfNecessary() throws Exception {
+        if (!KubernetesUtils.isHostNetwork(flinkConfig)) {
+            return;
+        }
+        final int restPort =
+                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(webInterfaceUrl);
+        Preconditions.checkArgument(
+                restPort > 0, "Failed to parse rest port from " + webInterfaceUrl);
+        flinkKubeClient
+                .updateServiceTargetPort(
+                        KubernetesService.ServiceType.REST_SERVICE,
+                        clusterId,
+                        Constants.REST_PORT_NAME,
+                        restPort)
+                .get();
+        if (!HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+            flinkKubeClient
+                    .updateServiceTargetPort(
+                            KubernetesService.ServiceType.INTERNAL_SERVICE,
+                            clusterId,
+                            Constants.BLOB_SERVER_PORT_NAME,
+                            Integer.parseInt(flinkConfig.getString(BlobServerOptions.PORT)))
+                    .get();
+            flinkKubeClient
+                    .updateServiceTargetPort(
+                            KubernetesService.ServiceType.INTERNAL_SERVICE,
+                            clusterId,
+                            Constants.JOB_MANAGER_RPC_PORT_NAME,
+                            flinkConfig.getInteger(JobManagerOptions.PORT))
+                    .get();
+        }
     }
 
     private KubernetesTaskManagerParameters createKubernetesTaskManagerParameters(

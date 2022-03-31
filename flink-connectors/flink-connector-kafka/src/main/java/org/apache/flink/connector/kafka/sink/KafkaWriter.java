@@ -19,9 +19,11 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.MetricUtil;
 import org.apache.flink.metrics.Counter;
@@ -45,13 +47,17 @@ import org.apache.kafka.common.errors.UnknownProducerIdException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Consumer;
 
@@ -65,7 +71,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <IN> The type of the input elements.
  */
-class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterState> {
+class KafkaWriter<IN>
+        implements StatefulSink.StatefulSinkWriter<IN, KafkaWriterState>,
+                TwoPhaseCommittingSink.PrecommittingSinkWriter<IN, KafkaCommittable> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriter.class);
     private static final String KAFKA_PRODUCER_METRIC_NAME = "KafkaProducer";
@@ -81,12 +89,16 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final KafkaRecordSerializationSchema<IN> recordSerializer;
     private final Callback deliveryCallback;
     private final KafkaRecordSerializationSchema.KafkaSinkContext kafkaSinkContext;
+
     private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
     private final SinkWriterMetricGroup metricGroup;
-    private final Counter numBytesOutCounter;
-    private final Sink.ProcessingTimeService timeService;
     private final boolean disabledMetrics;
-    private final Counter numRecordsOutCounter;
+    private final Counter numRecordsSendCounter;
+    private final Counter numBytesSendCounter;
+    // deprecated, use numRecordsSendErrorsCounter instead.
+    @Deprecated private final Counter numRecordsOutErrorsCounter;
+    private final Counter numRecordsSendErrorsCounter;
+    private final ProcessingTimeService timeService;
 
     // Number of outgoing bytes at the latest metric sync
     private long latestOutgoingByteTotal;
@@ -124,12 +136,15 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
             Sink.InitContext sinkInitContext,
             KafkaRecordSerializationSchema<IN> recordSerializer,
             SerializationSchema.InitializationContext schemaContext,
-            List<KafkaWriterState> recoveredStates) {
+            Collection<KafkaWriterState> recoveredStates) {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
         this.kafkaProducerConfig = checkNotNull(kafkaProducerConfig, "kafkaProducerConfig");
         this.transactionalIdPrefix = checkNotNull(transactionalIdPrefix, "transactionalIdPrefix");
         this.recordSerializer = checkNotNull(recordSerializer, "recordSerializer");
-        this.deliveryCallback = new WriterCallback(sinkInitContext.getMailboxExecutor());
+        this.deliveryCallback =
+                new WriterCallback(
+                        sinkInitContext.getMailboxExecutor(),
+                        sinkInitContext.<RecordMetadata>metadataConsumer().orElse(null));
         this.disabledMetrics =
                 kafkaProducerConfig.containsKey(KEY_DISABLE_METRICS)
                                 && Boolean.parseBoolean(
@@ -140,8 +155,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         checkNotNull(sinkInitContext, "sinkInitContext");
         this.timeService = sinkInitContext.getProcessingTimeService();
         this.metricGroup = sinkInitContext.metricGroup();
-        this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
-        this.numRecordsOutCounter = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+        this.numBytesSendCounter = metricGroup.getNumBytesSendCounter();
+        this.numRecordsSendCounter = metricGroup.getNumRecordsSendCounter();
+        this.numRecordsOutErrorsCounter = metricGroup.getNumRecordsOutErrorsCounter();
+        this.numRecordsSendErrorsCounter = metricGroup.getNumRecordsSendErrorsCounter();
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -181,19 +198,24 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         final ProducerRecord<byte[], byte[]> record =
                 recordSerializer.serialize(element, kafkaSinkContext, context.timestamp());
         currentProducer.send(record, deliveryCallback);
-        numRecordsOutCounter.inc();
+        numRecordsSendCounter.inc();
     }
 
     @Override
-    public List<KafkaCommittable> prepareCommit(boolean flush) {
-        if (deliveryGuarantee != DeliveryGuarantee.NONE || flush) {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
+        if (deliveryGuarantee != DeliveryGuarantee.NONE || endOfInput) {
+            LOG.debug("final flush={}", endOfInput);
             currentProducer.flush();
         }
+    }
+
+    @Override
+    public Collection<KafkaCommittable> prepareCommit() {
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             final List<KafkaCommittable> committables =
                     Collections.singletonList(
                             KafkaCommittable.of(currentProducer, producerPool::add));
-            LOG.debug("Committing {} committables, final commit={}.", committables, flush);
+            LOG.debug("Committing {} committables.", committables);
             return committables;
         }
         return Collections.emptyList();
@@ -244,11 +266,12 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     }
 
     void abortLingeringTransactions(
-            List<KafkaWriterState> recoveredStates, long startCheckpointId) {
+            Collection<KafkaWriterState> recoveredStates, long startCheckpointId) {
         List<String> prefixesToAbort = Lists.newArrayList(transactionalIdPrefix);
 
-        if (!recoveredStates.isEmpty()) {
-            KafkaWriterState lastState = recoveredStates.get(0);
+        final Optional<KafkaWriterState> lastStateOpt = recoveredStates.stream().findFirst();
+        if (lastStateOpt.isPresent()) {
+            KafkaWriterState lastState = lastStateOpt.get();
             if (!lastState.getTransactionalIdPrefix().equals(transactionalIdPrefix)) {
                 prefixesToAbort.add(lastState.getTransactionalIdPrefix());
                 LOG.warn(
@@ -359,7 +382,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     }
 
     private void registerMetricSync() {
-        timeService.registerProcessingTimer(
+        timeService.registerTimer(
                 lastSync + METRIC_UPDATE_INTERVAL_MILLIS,
                 (time) -> {
                     if (closed) {
@@ -368,7 +391,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     long outgoingBytesUntilNow = ((Number) byteOutMetric.metricValue()).longValue();
                     long outgoingBytesSinceLastUpdate =
                             outgoingBytesUntilNow - latestOutgoingByteTotal;
-                    numBytesOutCounter.inc(outgoingBytesSinceLastUpdate);
+                    numBytesSendCounter.inc(outgoingBytesSinceLastUpdate);
                     latestOutgoingByteTotal = outgoingBytesUntilNow;
                     lastSync = time;
                     registerMetricSync();
@@ -377,9 +400,13 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     private class WriterCallback implements Callback {
         private final MailboxExecutor mailboxExecutor;
+        @Nullable private final Consumer<RecordMetadata> metadataConsumer;
 
-        public WriterCallback(MailboxExecutor mailboxExecutor) {
+        public WriterCallback(
+                MailboxExecutor mailboxExecutor,
+                @Nullable Consumer<RecordMetadata> metadataConsumer) {
             this.mailboxExecutor = mailboxExecutor;
+            this.metadataConsumer = metadataConsumer;
         }
 
         @Override
@@ -388,8 +415,16 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 FlinkKafkaInternalProducer<byte[], byte[]> producer =
                         KafkaWriter.this.currentProducer;
                 mailboxExecutor.execute(
-                        () -> throwException(metadata, exception, producer),
+                        () -> {
+                            numRecordsOutErrorsCounter.inc();
+                            numRecordsSendErrorsCounter.inc();
+                            throwException(metadata, exception, producer);
+                        },
                         "Failed to send data to Kafka");
+            }
+
+            if (metadataConsumer != null) {
+                metadataConsumer.accept(metadata);
             }
         }
 

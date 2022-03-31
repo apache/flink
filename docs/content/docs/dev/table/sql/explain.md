@@ -284,8 +284,16 @@ JSON_EXECUTION_PLAN: generates the execution plan in json format of the program.
 ## Syntax
 
 ```sql
-EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_insert_statement>
+EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_insert_statement_or_statement_set>
+
+statement_set:
+EXECUTE STATEMENT SET
+BEGIN
+insert_statement;
+...
+insert_statement;
+END;
 ```
 
 For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}) page.
-For INSERT, please refer to [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) page.
+For insert syntax, please refer to [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) page.

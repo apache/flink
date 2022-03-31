@@ -42,15 +42,14 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
         File sinkPath =
                 createTestCsvSinkTable("MySink", "a bigint", "a1 varchar", "b int", "c1 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select "
                                 + "a, "
                                 + "cast(a as varchar) as a1, "
                                 + "b, "
                                 + "substring(c, 1, 8) as c1 "
-                                + "from MyTable where b > 1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "from MyTable where b > 1")
+                .await();
 
         assertResult(Collections.singletonList("3,3,2,hello wo"), sinkPath);
     }
@@ -71,8 +70,7 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
                 createTestCsvSinkTable(
                         "MySink", "a int", "a1 varchar", "b bigint", "c1 varchar", "c2 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select "
                                 + "a, "
                                 + "cast(a as varchar) as a1, "
@@ -80,8 +78,8 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
                                 + "udf2(c, a) as c1, "
                                 + "udf3(substring(c, 1, 8)) as c2 "
                                 + "from MyTable where "
-                                + "(udf1(a) > 2 or (a * b) > 1) and b > 0");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "(udf1(a) > 2 or (a * b) > 1) and b > 0")
+                .await();
 
         assertResult(
                 Arrays.asList("2,2,2,Hello2,$Hello", "3,3,2,Hello world3,$Hello wo"), sinkPath);

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.function.QuadConsumer;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -69,6 +70,9 @@ public class TestingDeclarativeSlotPoolBuilder {
     private LongConsumer returnIdleSlotsConsumer = ignored -> {};
     private Consumer<ResourceCounter> setResourceRequirementsConsumer = ignored -> {};
     private Function<AllocationID, Boolean> containsFreeSlotFunction = ignored -> false;
+    private QuadConsumer<
+                    Collection<? extends SlotOffer>, TaskManagerLocation, TaskManagerGateway, Long>
+            registerSlotsFunction = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -103,6 +107,17 @@ public class TestingDeclarativeSlotPoolBuilder {
                             Collection<SlotOffer>>
                     offerSlotsFunction) {
         this.offerSlotsFunction = offerSlotsFunction;
+        return this;
+    }
+
+    public TestingDeclarativeSlotPoolBuilder setRegisterSlotsFunction(
+            QuadConsumer<
+                            Collection<? extends SlotOffer>,
+                            TaskManagerLocation,
+                            TaskManagerGateway,
+                            Long>
+                    registerSlotsFunction) {
+        this.registerSlotsFunction = registerSlotsFunction;
         return this;
     }
 
@@ -167,6 +182,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 decreaseResourceRequirementsByConsumer,
                 getResourceRequirementsSupplier,
                 offerSlotsFunction,
+                registerSlotsFunction,
                 getFreeSlotsInformationSupplier,
                 getAllSlotsInformationSupplier,
                 releaseSlotsFunction,

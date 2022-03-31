@@ -66,6 +66,8 @@ public class NettyShuffleEnvironmentBuilder {
 
     private boolean blockingShuffleCompressionEnabled = false;
 
+    private boolean connectionReuseEnabled = true;
+
     private String compressionCodec = "LZ4";
 
     private ResourceID taskManagerLocation = ResourceID.generate();
@@ -80,6 +82,8 @@ public class NettyShuffleEnvironmentBuilder {
     private Executor ioExecutor = Executors.directExecutor();
     private BufferDebloatConfiguration debloatConfiguration =
             BufferDebloatConfiguration.fromConfiguration(new Configuration());
+
+    private int maxNumberOfConnections = 1;
 
     public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
@@ -148,6 +152,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setConnectionReuseEnabled(
+            boolean connectionReuseEnabled) {
+        this.connectionReuseEnabled = connectionReuseEnabled;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
@@ -180,6 +190,11 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setMaxNumberOfConnections(int maxNumberOfConnections) {
+        this.maxNumberOfConnections = maxNumberOfConnections;
+        return this;
+    }
+
     public NettyShuffleEnvironment build() {
         return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
                 new NettyShuffleEnvironmentConfiguration(
@@ -200,7 +215,9 @@ public class NettyShuffleEnvironmentBuilder {
                         batchShuffleReadMemoryBytes,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism,
-                        debloatConfiguration),
+                        debloatConfiguration,
+                        maxNumberOfConnections,
+                        connectionReuseEnabled),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,

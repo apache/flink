@@ -135,20 +135,18 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                                     String elementIsNullTerm = newName("elementIsNull");
 
                                     CastCodeBlock codeBlock =
-                                            CastRuleProvider.generateCodeBlock(
+                                            // Null check is done at the array access level
+                                            CastRuleProvider.generateAlwaysNonNullCodeBlock(
                                                     context,
                                                     elementTerm,
-                                                    "false",
-                                                    // Null check is done at the array
-                                                    // access level
-                                                    innerInputType.copy(false),
+                                                    innerInputType,
                                                     STRING_TYPE);
 
                                     if (!context.legacyBehaviour() && couldTrim(length)) {
                                         // Break if the target length is already exceeded
                                         loopBodyWriter.ifStmt(
                                                 stringExceedsLength(builderTerm, length),
-                                                thenBodyWriter -> thenBodyWriter.stmt("break"));
+                                                CastRuleUtils.CodeWriter::breakStmt);
                                     }
                                     loopBodyWriter
                                             // Write the comma

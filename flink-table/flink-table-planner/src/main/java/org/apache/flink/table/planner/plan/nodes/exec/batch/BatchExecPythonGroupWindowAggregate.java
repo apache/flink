@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.Projection;
@@ -38,6 +38,8 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
@@ -74,6 +76,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final NamedWindowProperty[] namedWindowProperties;
 
     public BatchExecPythonGroupWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -83,7 +86,14 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecPythonGroupWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecPythonGroupWindowAggregate.class, tableConfig),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.grouping = grouping;
         this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
@@ -94,7 +104,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -102,11 +113,10 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         final RowType outputRowType = InternalTypeInfo.of(getOutputType()).toRowType();
 
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
-        final TableConfig tableConfig = planner.getTableConfig();
-        final Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        final Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         int groupBufferLimitSize =
-                mergedConfig.getInteger(
+                pythonConfig.getInteger(
                         ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
 
         OneInputTransformation<RowData, RowData> transform =
@@ -117,9 +127,9 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         groupBufferLimitSize,
                         windowSizeAndSlideSize.f0,
                         windowSizeAndSlideSize.f1,
-                        mergedConfig,
-                        planner.getTableConfig());
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
+                        pythonConfig,
+                        config);
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -132,8 +142,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             int maxLimitSize,
             long windowSize,
             long slideSize,
-            Configuration mergedConfig,
-            TableConfig tableConfig) {
+            Configuration pythonConfig,
+            ExecNodeConfig config) {
         int[] namePropertyTypeArray =
                 Arrays.stream(namedWindowProperties)
                         .mapToInt(
@@ -157,8 +167,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonGroupWindowAggregateFunctionOperator(
-                        tableConfig,
-                        mergedConfig,
+                        config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         maxLimitSize,
@@ -169,8 +179,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -178,8 +188,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonGroupWindowAggregateFunctionOperator(
-            TableConfig tableConfig,
-            Configuration mergedConfig,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
             int maxLimitSize,
@@ -219,7 +229,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            mergedConfig,
+                            pythonConfig,
                             pythonFunctionInfos,
                             inputRowType,
                             udfInputType,
@@ -230,19 +240,19 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             slideSize,
                             namePropertyTypeArray,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config),
                                     "UdafInputProjection",
                                     inputRowType,
                                     udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config),
                                     "GroupKey",
                                     inputRowType,
                                     (RowType) Projection.of(grouping).project(inputRowType),
                                     grouping),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config),
                                     "GroupSet",
                                     inputRowType,
                                     (RowType) Projection.of(auxGrouping).project(inputRowType),

@@ -67,6 +67,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
 
   public readonly sortAckTimestampFn = createSortFn(item => item.ack_timestamp);
   public readonly sortEndToEndDurationFn = createSortFn(item => item.end_to_end_duration);
+  public readonly sortCheckpointedSizeFn = createSortFn(item => item.checkpointed_size);
   public readonly sortStateSizeFn = createSortFn(item => item.state_size);
   public readonly sortCpSyncFn = createSortFn(item => item.checkpoint?.sync);
   public readonly sortCpAsyncFn = createSortFn(item => item.checkpoint?.async);

@@ -39,8 +39,8 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.util.Set;
 
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
 /** A dynamic table factory implementation for Hive catalog. */
 public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {

@@ -33,6 +33,8 @@ import java.time.format.ResolverStyle;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;
@@ -79,29 +81,49 @@ public class DefaultPartTimeExtractor implements PartitionTimeExtractor {
                     .toFormatter()
                     .withResolverStyle(ResolverStyle.LENIENT);
 
-    @Nullable private final String pattern;
+    @Nullable private final String extractorPattern;
+    @Nullable private final String formatterPattern;
 
-    public DefaultPartTimeExtractor(@Nullable String pattern) {
-        this.pattern = pattern;
+    public DefaultPartTimeExtractor(
+            @Nullable String extractorPattern, @Nullable String formatterPattern) {
+        this.extractorPattern = extractorPattern;
+        this.formatterPattern = formatterPattern;
     }
 
     @Override
     public LocalDateTime extract(List<String> partitionKeys, List<String> partitionValues) {
         String timestampString;
-        if (pattern == null) {
+        if (extractorPattern == null) {
             timestampString = partitionValues.get(0);
         } else {
-            timestampString = pattern;
+            timestampString = extractorPattern;
             for (int i = 0; i < partitionKeys.size(); i++) {
                 timestampString =
                         timestampString.replaceAll(
                                 "\\$" + partitionKeys.get(i), partitionValues.get(i));
             }
         }
-        return toLocalDateTime(timestampString);
+        return toLocalDateTime(timestampString, this.formatterPattern);
     }
 
-    public static LocalDateTime toLocalDateTime(String timestampString) {
+    public static LocalDateTime toLocalDateTime(
+            String timestampString, @Nullable String formatterPattern) {
+
+        if (formatterPattern == null) {
+            return DefaultPartTimeExtractor.toLocalDateTimeDefault(timestampString);
+        }
+        DateTimeFormatter dateTimeFormatter =
+                DateTimeFormatter.ofPattern(Objects.requireNonNull(formatterPattern), Locale.ROOT);
+        try {
+            return LocalDateTime.parse(timestampString, Objects.requireNonNull(dateTimeFormatter));
+        } catch (DateTimeParseException e) {
+            return LocalDateTime.of(
+                    LocalDate.parse(timestampString, Objects.requireNonNull(dateTimeFormatter)),
+                    LocalTime.MIDNIGHT);
+        }
+    }
+
+    public static LocalDateTime toLocalDateTimeDefault(String timestampString) {
         try {
             return LocalDateTime.parse(timestampString, TIMESTAMP_FORMATTER);
         } catch (DateTimeParseException e) {
@@ -112,9 +134,5 @@ public class DefaultPartTimeExtractor implements PartitionTimeExtractor {
 
     public static long toMills(LocalDateTime dateTime) {
         return TimestampData.fromLocalDateTime(dateTime).getMillisecond();
-    }
-
-    public static long toMills(String timestampString) {
-        return toMills(toLocalDateTime(timestampString));
     }
 }

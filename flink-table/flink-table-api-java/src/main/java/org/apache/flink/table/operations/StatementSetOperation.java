@@ -18,14 +18,41 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * A {@link Operation} that describes the statement set, e.g.
  *
  * <pre>
- * BEGIN STATEMENT SET;
+ * STATEMENT SET BEGIN
  *   INSERT INTO xxxx;
  *   INSERT INTO xxxx;
  * END;
  * </pre>
  */
-public interface StatementSetOperation extends Operation {}
+@Internal
+public final class StatementSetOperation implements Operation {
+
+    private final List<ModifyOperation> operations;
+
+    public StatementSetOperation(List<ModifyOperation> operations) {
+        this.operations = Preconditions.checkNotNull(operations);
+    }
+
+    @Override
+    public String asSummaryString() {
+        return String.format(
+                "StatementSet[%s]",
+                operations.stream()
+                        .map(Operation::asSummaryString)
+                        .collect(Collectors.joining(",")));
+    }
+
+    public List<ModifyOperation> getOperations() {
+        return operations;
+    }
+}

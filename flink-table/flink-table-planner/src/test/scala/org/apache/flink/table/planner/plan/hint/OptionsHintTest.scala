@@ -19,13 +19,15 @@
 package org.apache.flink.table.planner.plan.hint
 
 import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.api.internal.StatementSetImpl
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet}
+import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.hamcrest.Matchers._
 import org.junit.Assert.{assertEquals, assertThat}
 import org.junit.runner.RunWith
@@ -74,9 +76,9 @@ class OptionsHintTest(param: Param)
 
   @Test
   def testOptionsWithGlobalConfDisabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
+    util.tableEnv.getConfig.set(
       TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED,
-      false)
+      Boolean.box(false))
     expectedException.expect(isA(classOf[ValidationException]))
     expectedException.expectMessage(s"OPTIONS hint is allowed only when "
       + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} is set to true")
@@ -92,7 +94,7 @@ class OptionsHintTest(param: Param)
          |""".stripMargin
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
-    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+    val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
     val relNodes = testStmtSet.getOperations.map(util.getPlanner.translateToRel)
     assertThat(relNodes.length, is(1))
     assert(relNodes.head.isInstanceOf[LogicalLegacySink])
@@ -141,9 +143,12 @@ class OptionsHintTest(param: Param)
   def testOptionsHintOnTableApiView(): Unit = {
     val view1 = util.tableEnv.sqlQuery("select * from t1 join t2 on t1.a = t2.d")
     util.tableEnv.createTemporaryView("view1", view1)
-    // The table hints on view expect to be ignored.
+    // The table hints on view expect to be prohibited
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyExecPlan(sql)
+    assertThatThrownBy(() =>  util.verifyExecPlan(sql))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`view1`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -174,9 +179,12 @@ class OptionsHintTest(param: Param)
       new ObjectPath(util.tableEnv.getCurrentDatabase, "view1"),
       view1,
       false)
-    // The table hints on view expect to be ignored.
+    // The table hints on view expect to be prohibited
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyExecPlan(sql)
+    assertThatThrownBy(() =>  util.verifyExecPlan(sql))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`view1`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf[ValidationException]
   }
 }
 

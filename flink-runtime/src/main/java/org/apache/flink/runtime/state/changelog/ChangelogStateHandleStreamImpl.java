@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -31,9 +32,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.runtime.state.StateUtil.bestEffortDiscardAllStateObjects;
+import java.util.UUID;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -45,21 +44,48 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     /** NOTE: order is important as it reflects the order of changes. */
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 
-    private transient SharedStateRegistry stateRegistry;
     private final long size;
+    private final long incrementalSize;
+    private final StateHandleID stateHandleID;
 
     public ChangelogStateHandleStreamImpl(
             List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
             KeyGroupRange keyGroupRange,
-            long size) {
+            long size,
+            long incrementalSize) {
+        this(
+                handlesAndOffsets,
+                keyGroupRange,
+                size,
+                incrementalSize,
+                new StateHandleID(UUID.randomUUID().toString()));
+    }
+
+    private ChangelogStateHandleStreamImpl(
+            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
+            KeyGroupRange keyGroupRange,
+            long size,
+            long incrementalSize,
+            StateHandleID stateHandleId) {
         this.handlesAndOffsets = handlesAndOffsets;
         this.keyGroupRange = keyGroupRange;
         this.size = size;
+        this.incrementalSize = incrementalSize;
+        this.stateHandleID = stateHandleId;
+    }
+
+    public static ChangelogStateHandleStreamImpl restore(
+            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
+            KeyGroupRange keyGroupRange,
+            long size,
+            long incrementalSize,
+            StateHandleID stateHandleID) {
+        return new ChangelogStateHandleStreamImpl(
+                handlesAndOffsets, keyGroupRange, size, incrementalSize, stateHandleID);
     }
 
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
-        this.stateRegistry = stateRegistry;
         handlesAndOffsets.forEach(
                 handleAndOffset ->
                         stateRegistry.registerReference(
@@ -74,25 +100,37 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     @Nullable
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-        KeyGroupRange offsets = keyGroupRange.getIntersection(keyGroupRange);
+        KeyGroupRange offsets = this.keyGroupRange.getIntersection(keyGroupRange);
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L, 0L /* unknown */);
+    }
+
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleID;
     }
 
     @Override
     public void discardState() throws Exception {
-        // discard only on TM; on JM, shared state is removed on subsumption
-        if (stateRegistry == null) {
-            bestEffortDiscardAllStateObjects(
-                    handlesAndOffsets.stream().map(t2 -> t2.f0).collect(Collectors.toList()));
-        }
+        // Do nothing: state will be discarded by SharedStateRegistry once JM receives it and a
+        // newer checkpoint completes without using it. JM might not receive the handle in the
+        // following cases:
+        // 1. hard TM failure
+        // 2. job termination
+        // 3. materialization of changes written pre-emptively
+        // The above cases will be addressed by FLINK-23139 and/or FLINK-24852
     }
 
     @Override
     public long getStateSize() {
         return size;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return incrementalSize;
     }
 
     private static SharedStateRegistryKey getKey(StreamStateHandle stateHandle) {

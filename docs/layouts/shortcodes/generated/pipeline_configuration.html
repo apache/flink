@@ -116,5 +116,17 @@
             <td>List&lt;String&gt;</td>
             <td>Semicolon separated list of types to be registered with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written.</td>
         </tr>
+        <tr>
+            <td><h5>pipeline.vertex-description-mode</h5></td>
+            <td style="word-wrap: break-word;">TREE</td>
+            <td><p>Enum</p></td>
+            <td>The mode how we organize description of a job vertex.<br /><br />Possible values:<ul><li>"TREE"</li><li>"CASCADING"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.vertex-name-include-index-prefix</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether name of vertex includes topological index or not. When it is true, the name will have a prefix of index of the vertex, like '[vertex-0]Source: source'. It is false by default</td>
+        </tr>
     </tbody>
 </table>

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{CatalogTable, Column, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.module.ModuleManager
@@ -278,13 +278,14 @@ object MetadataTestUtil {
       Seq(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of("default_catalog", "default_database", "projected_table_source_table"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      flinkContext
-      )
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of(
+          "default_catalog", "default_database", "projected_table_source_table"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)),
+      flinkContext)
   }
 
   private def createTableSourceTable1(): Table = {
@@ -319,11 +320,13 @@ object MetadataTestUtil {
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable1"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable1"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
       flinkContext)
   }
 
@@ -345,11 +348,13 @@ object MetadataTestUtil {
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable2"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable2"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
       flinkContext)
   }
 
@@ -371,11 +376,13 @@ object MetadataTestUtil {
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable3"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable3"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
       flinkContext)
   }
 
@@ -395,14 +402,16 @@ object MetadataTestUtil {
       Seq(new BigIntType(false)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of(
-        "default_catalog",
-        "default_database",
-        "projected_table_source_table_with_partial_pk"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of(
+          "default_catalog",
+          "default_database",
+          "projected_table_source_table_with_partial_pk"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
       flinkContext)
   }
 
@@ -468,20 +477,18 @@ class TestTableSource extends ScanTableSource {
 }
 
 class MockTableSourceTable(
-    tableIdentifier: ObjectIdentifier,
     rowType: RelDataType,
     tableSource: DynamicTableSource,
     isStreamingMode: Boolean,
-    catalogTable: ResolvedCatalogTable,
+    contextResolvedTable: ContextResolvedTable,
     flinkContext: FlinkContext)
   extends TableSourceTable(
     null,
-    tableIdentifier,
     rowType,
     FlinkStatistic.UNKNOWN,
     tableSource,
     isStreamingMode,
-    catalogTable,
+    contextResolvedTable,
     flinkContext)
   with Table {
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType

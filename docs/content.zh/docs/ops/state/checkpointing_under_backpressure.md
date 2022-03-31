@@ -3,8 +3,8 @@ title: "Checkpointing under backpressure"
 weight: 9
 type: docs
 aliases:
-- /ops/state/unalgined_checkpoints.html
-- /ops/state/checkpointing_under_backpressure.html
+- /zh/ops/state/unalgined_checkpoints.html
+- /zh/ops/state/checkpointing_under_backpressure.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,59 +26,49 @@ under the License.
 -->
 # Checkpointing under backpressure
 
-Normally aligned checkpointing time is dominated by the synchronous and asynchronous parts of the 
-checkpointing process. However, when a Flink job is running under heavy backpressure, the dominant 
-factor in the end-to-end time of a checkpoint can be the time to propagate checkpoint barriers to 
-all operators/subtasks. This is explained in the overview of the
-[checkpointing process]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing)).
-and can be observed by high
-[alignment time and start delay metrics]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}#history-tab).
-When this happens and becomes an issue, there are three ways to address the problem:
-1. Remove the backpressure source by optimizing the Flink job, by adjusting Flink or JVM configurations, or by scaling up.
-2. Reduce the amount of buffered in-flight data in the Flink job.
-3. Enable unaligned checkpoints.
+通常情况下，对齐 Checkpoint 的时长主要受 Checkpointing 过程中的同步和异步两个部分的影响。
+然而，当 Flink 作业正运行在严重的背压下时，Checkpoint 端到端延迟的主要影响因子将会是传递 Checkpoint Barrier 到
+所有的算子/子任务的时间。这在 [checkpointing process]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing))
+的概述中有说明原因。并且可以通过高 [alignment time and start delay metrics]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}#history-tab) 
+观察到。
+当这种情况发生并成为一个问题时，有三种方法可以解决这个问题：
+1. 消除背压源头，通过优化 Flink 作业，通过调整 Flink 或 JVM 参数，抑或是通过扩容。
+2. 减少 Flink 作业中缓冲在 In-flight 数据的数据量。
+3. 启用非对齐 Checkpoints。
+这些选项并不是互斥的，可以组合在一起。本文档重点介绍后两个选项。
 
-These options are not mutually exclusive and can be combined together. This document
-focuses on the latter two options.
+## 缓冲区 Debloating
 
-## Buffer debloating
+Flink 1.14 引入了一个新的工具，用于自动控制在 Flink 算子/子任务之间缓冲的 In-flight 数据的数据量。缓冲区 Debloating 机
+制可以通过将属性`taskmanager.network.memory.buffer-debloat.enabled`设置为`true`来启用。
 
-Flink 1.14 introduced a new tool to automatically control the amount of buffered in-flight data
-between Flink operators/subtasks. The buffer debloating mechanism can be enabled by setting the property
-`taskmanager.network.memory.buffer-debloat.enabled` to `true`. 
+此特性对对齐和非对齐 Checkpoint 都生效，并且在这两种情况下都能缩短 Checkpointing 的时间，不过 Debloating 的效果对于
+对齐 Checkpoint 最明显。
+当在非对齐 Checkpoint 情况下使用缓冲区 Debloating 时，额外的好处是 Checkpoint 大小会更小，并且恢复时间更快 (需要保存
+和恢复的 In-flight 数据更少)。
 
-This feature works with both aligned and unaligned checkpoints and can improve checkpointing times
-in both cases, but the effect of the debloating is most visible with aligned checkpoints.
-When using buffer debloating with unaligned checkpoints, the added benefit will be smaller checkpoint
-sizes and quicker recovery times (there will be less in-flight data to persist and recover). 
+有关缓冲区 Debloating 功能如何工作以及如何配置的更多信息，可以参考 [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}})。
+请注意，您仍然可以继续使用在前面调优指南中介绍过的方式来手动减少缓冲在 In-flight 数据的数据量。
 
-For more information on how the buffer debloating feature works and how to configure it, please refer to the 
-[network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}).
-Keep in mind that you can also manually reduce the amount of buffered in-flight data which is also
-described in the aforementioned tuning guide.
+## 非对齐 Checkpoints
 
-## Unaligned checkpoints
-
-Starting with Flink 1.11, checkpoints can be unaligned.
+从Flink 1.11开始，Checkpoint 可以是非对齐的。
 [Unaligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) 
-contain in-flight data (i.e., data stored in buffers) as part of the checkpoint state, allowing
-checkpoint barriers to overtake these buffers. Thus, the checkpoint duration becomes independent of
-the current throughput as checkpoint barriers are effectively not embedded into the stream of data
-anymore.
+包含 In-flight 数据(例如，存储在缓冲区中的数据)作为 Checkpoint State的一部分，允许 Checkpoint Barrier 跨越这些缓冲区。因此，
+Checkpoint 时长变得与当前吞吐量无关，因为 Checkpoint Barrier 实际上已经不再嵌入到数据流当中。
 
-You should use unaligned checkpoints if your checkpointing durations are very high due to
-backpressure. Then, checkpointing time becomes mostly independent of the end-to-end latency. Be
-aware unaligned checkpointing adds to I/O to the state storage, so you shouldn't use it when the
-I/O to the state storage is actually the bottleneck during checkpointing.
+如果您的 Checkpointing 由于背压导致周期非常的长，您应该使用非对齐 Checkpoint。这样，Checkpointing 时间基本上就与
+端到端延迟无关。请注意，非对齐 Checkpointing 会增加状态存储的 I/O，因此当状态存储的 I/O 是 整个 Checkpointing 过程当中真
+正的瓶颈时，您不应当使用非对齐 Checkpointing。
 
-In order to enable unaligned checkpoints you can:
+为了启用非对齐 Checkpoint，您可以：
 
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-// enables the unaligned checkpoints
+// 启用非对齐 Checkpoint
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 ```
 {{< /tab >}}
@@ -86,7 +76,7 @@ env.getCheckpointConfig().enableUnalignedCheckpoints();
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-// enables the unaligned checkpoints
+// 启用非对齐 Checkpoint
 env.getCheckpointConfig.enableUnalignedCheckpoints()
 ```
 {{< /tab >}}
@@ -94,108 +84,107 @@ env.getCheckpointConfig.enableUnalignedCheckpoints()
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
 
-# enables the unaligned checkpoints
+# 启用非对齐 Checkpoint
 env.get_checkpoint_config().enable_unaligned_checkpoints()
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-or in the `flink-conf.yml` configuration file:
+或者在 `flink-conf.yml` 配置文件中增加配置：
 
 ```
 execution.checkpointing.unaligned: true
 ```
 
-### Aligned checkpoint timeout
+### 对齐 Checkpoint 的超时
 
-After enabling unaligned checkpoints, you can also specify the aligned checkpoint timeout
-programmatically:
+在启用非对齐 Checkpoint 后，你依然可以通过编程的方式指定对齐 Checkpoint 的超时：
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 ```
 
-or in the `flink-conf.yml` configuration file:
+或是在 `flink-conf.yml` 配置文件中配置：
 
 ```
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
-When activated, each checkpoint will still begin as an aligned checkpoint, but if the time between
-the start of the global checkpoint and the start of the checkpoint on a subtask exceeds the aligned
-checkpoint timeout, then the checkpoint will proceed as an unaligned checkpoint.
+在启动时，每个 Checkpoint 仍将作为对齐 Checkpoint 开始，但是如果全局 Checkpoint 开始的时间和某个子任务上 Checkpoint
+开始的时间相差超过了对齐 Checkpoint 的超时时间，那么 Checkpoint 将会作为非对齐 Checkpoint 处理。
 
-### Limitations
+### 限制
 
-#### Concurrent checkpoints
+#### 并发 Checkpoint
 
-Flink currently does not support concurrent unaligned checkpoints. However, due to the more
-predictable and shorter checkpointing times, concurrent checkpoints might not be needed at all.
-However, savepoints can also not happen concurrently to unaligned checkpoints, so they will take
-slightly longer.
+Flink 当前并不支持并发的非对齐 Checkpoint。然而，由于更可预测的和更短的 Checkpointing 时长，可能也根本就不需要并发的
+Checkpoint。此外，Savepoint 也不能与非对齐 Checkpoint 同时发生，因此它们将会花费稍长的时间。
 
-#### Interplay with watermarks
+#### 与 Watermark 的相互影响
 
-Unaligned checkpoints break with an implicit guarantee in respect to watermarks during recovery.
-Currently, Flink generates the watermark as the first step of recovery instead of storing the latest
-watermark in the operators to ease rescaling. In unaligned checkpoints, that means on recovery,
-**Flink generates watermarks after it restores in-flight data**. If your pipeline uses an
-**operator that applies the latest watermark on each record** will produce **different results** than for
-aligned checkpoints. If your operator depends on the latest watermark being always available, the
-workaround is to store the watermark in the operator state. In that case, watermarks should be
-stored per key group in a union state to support rescaling.
+非对齐 Checkpoint 在恢复的过程中改变了关于 Watermark 的一个隐式保证。目前，Flink 确保了 Watermark 作为恢复的第一步，
+而不是将最近的 Watermark 存放在 Operator 中，以方便扩缩容。在非对齐 Checkpoint 中，这意味着当恢复时，** Flink 会在恢复
+In-flight 数据后再生成 Watermark **。如果您的 Pipeline 中使用了**对每条记录都应用最新的 Watermark 的算子**将会相对于
+使用对齐 Checkpoint产生**不同的结果**。如果您的 Operator 依赖于最新的 Watermark 始终可用，解决办法是将 Watermark 
+存放在 OperatorState 中。在这种情况下，Watermark 应该使用单键 group 存放在 UnionState 以方便扩缩容。
+
+#### Interplay with long-running record processing
+
+Despite that unaligned checkpoints barriers are able to overtake all other records in the queue.
+The handling of this barrier still can be delayed if the current record takes a lot of time to be processed.
+This situation can occur when firing many timers all at once, for example in windowed operations.
+Second problematic scenario might occur when system is being blocked waiting for more than one
+network buffer availability when processing a single input record. Flink can not interrupt processing of
+a single input record, and unaligned checkpoints have to wait for the currently processed record to be
+fully processed. This can cause problems in two scenarios. Either as a result of serialisation of a large
+record that doesn't fit into single network buffer or in a flatMap operation, that produces many output
+records for one input record. In such scenarios back pressure can block unaligned checkpoints until all
+the network buffers required to process the single input record are available.
+It also can happen in any other situation when the processing of the single record takes a while.
+As result, the time of the checkpoint can be higher than expected or it can vary.
 
 #### Certain data distribution patterns are not checkpointed
 
-There are types of connections with properties that are impossible to keep with channel data stored
-in checkpoints. To preserve these characteristics and ensure no state corruption or unexpected
-behaviour, unaligned checkpoints are disabled for such connections. All other exchanges still
-perform unaligned checkpoints.
+有一部分包含属性的的连接无法与 Channel 中的数据一样保存在 Checkpoint 中。为了保留这些特性并且确保没有状态冲突或
+非预期的行为，非对齐 Checkpoint 对于这些类型的连接是禁用的。所有其他的交换仍然执行非对齐 Checkpoint。
 
-**Pointwise connections**
+**点对点连接**
 
-We currently do not have any hard guarantees on pointwise connections regarding data orderliness.
-However, since data was structured implicitly in the same way as any preceding source or keyby, some
-users relied on this behaviour to divide compute-intensive tasks into smaller chunks while depending
-on orderliness guarantees.
+我们目前没有任何对于点对点连接中有关数据有序性的强保证。然而，由于数据已经被以前置的 Source 或是 KeyBy 相同的方式隐式
+组织，一些用户会依靠这种特性在提供的有序性保证的同时将计算敏感型的任务划分为更小的块。
 
-As long as the parallelism does not change, unaligned checkpoints (UC) retain these properties. With
-the addition of rescaling of UC that has changed.
+只要并行度不变，非对齐 Checkpoint(UC) 将会保留这些特性。但是如果加上UC的伸缩容，这些特性将会被改变。
 
-Consider a job 
+针对如下任务
 
 {{< img src="/fig/uc_pointwise.svg" alt="Pointwise connection" width="60%" >}}
 
-If we want to rescale from parallelism p = 2 to p = 3, suddenly the records inside the keyby
-channels need to be divided into three channels according to the key groups. That is easily possible by
-using the key group ranges of the operators and a way to determine the key(group) of the record (
-independent of the actual approach). For the forward channels, we lack the key context entirely. No
-record in the forward channel has any key group assigned; it's also impossible to calculate it as
-there is no guarantee that the key is still present.
+如果我们想将并行度从 p=2 扩容到 p=3，那么需要根据 KeyGroup 将 KeyBy 的 Channel 中的数据突然的划分到3个 Channel 中去。这
+很容易做到，通过使用 Operator 的 KeyGroup 范围和确定记录属于某个 Key(group) 的方法(不管实际使用的是什么方法)。对于 Forward 
+的 Channel，我们根本没有 KeyContext。Forward Channel 里也没有任何记录被分配了任何 KeyGroup；也无法计算它，因为无法保证
+Key仍然存在。
 
-**Broadcast connections**
+**广播 Connections**
 
-Broadcast connections bring another problem to the table. There are no guarantees that records are
-consumed at the same rate in all channels. This can result in some tasks applying state changes
-corresponding to a specific broadcasted event while others don't, as depicted in the figure.
+广播 Connection 带来了另一个问题。无法保证所有 Channel 中的记录都以相同的速率被消费。这可能导致某些 Task 已经应用了与
+特定广播事件对应的状态变更，而其他任务则没有，如图所示。
 
 {{< img src="/fig/uc_broadcast.svg" alt="Broadcast connection" width="40%" >}}
 
-Broadcast partitioning is often used to implement a broadcast state which should be equal across all
-operators. Flink implements the broadcast state by checkpointing only a single copy of the state
-from subtask 0 of the stateful operator. Upon restore, we send that copy to all of the
-operators. Therefore it might happen that an operator will get the state with changes applied for a
-record that it will soon consume from its checkpointed channels.
+广播分区通常用于实现广播状态，它应该跨所有 Operator 都相同。Flink 实现广播状态，通过仅 Checkpointing 有状态算子的 SubTask 0
+中状态的单份副本。在恢复时，我们将该份副本发往所有的 Operator。因此，可能会发生以下情况：某个算子将很快从它的 Checkpointed Channel 
+消费数据并将修改应有于记录来获得状态。
+
 
 ### Troubleshooting
 
 #### Corrupted in-flight data
 {{< hint warning >}}
-Actions described below are a last resort as they will lead to data loss.
+以下描述的操作是最后采取的手段，因为它们将会导致数据的丢失。
 {{< /hint >}}
-In case of the in-flight data corrupted or by another reason when the job should be restored without the in-flight data, 
-it is possible to use  [recover-without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-checkpointing-recover-without-channel-state-checkpoint) property.
-This property requires to specify a checkpoint id for which in-flight data will be ignored.
-Do not set this property, unless a corruption inside the persisted in-flight data has lead to an otherwise unrecoverable situation.
-The property can be applied only after the job will be redeployed which means this operation makes sense only if [externalized checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#enabling-and-configuring-checkpointing) is enabled.
+为了防止 In-flight 数据损坏，或者由于其他原因导致作业应该在没有 In-flight 数据的情况下恢复，可以使用
+[recover-without-channel-state.checkpoint-id]({{< ref "docs/deployment/config" >}}#execution-checkpointing-recover-without-channel-state-checkpoint)
+属性。该属性需要指定一个 Checkpoint Id，对它来说 In-flight 中的数据将会被忽略。除非已经持久化的 In-flight 数据内部的损坏导致无
+法恢复的情况，否则不要设置该属性。只有在重新部署作业后该属性才会生效，这就意味着只有启用 [externalized checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#enabling-and-configuring-checkpointing)  
+时，此操作才有意义。

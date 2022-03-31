@@ -20,21 +20,19 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.SchemaTranslator;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,6 +44,17 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
 
     protected StatementSetImpl(E tableEnvironment) {
         this.tableEnvironment = tableEnvironment;
+    }
+
+    @VisibleForTesting
+    public List<ModifyOperation> getOperations() {
+        return operations;
+    }
+
+    @Override
+    public StatementSet add(TablePipeline tablePipeline) {
+        operations.add(((TablePipelineImpl) tablePipeline).getOperation());
+        return this;
     }
 
     @Override
@@ -67,48 +76,23 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
 
     @Override
     public StatementSet addInsert(String targetPath, Table table) {
-        return addInsert(targetPath, table, false);
+        return add(table.insertInto(targetPath));
     }
 
     @Override
     public StatementSet addInsert(String targetPath, Table table, boolean overwrite) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                tableEnvironment.getParser().parseIdentifier(targetPath);
-        ObjectIdentifier objectIdentifier =
-                tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-
-        operations.add(
-                new CatalogSinkModifyOperation(
-                        objectIdentifier,
-                        table.getQueryOperation(),
-                        Collections.emptyMap(),
-                        overwrite,
-                        Collections.emptyMap()));
-
-        return this;
+        return add(table.insertInto(targetPath, overwrite));
     }
 
     @Override
     public StatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
-        return addInsert(targetDescriptor, table, false);
+        return add(table.insertInto(targetDescriptor));
     }
 
     @Override
     public StatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-
-        final SchemaTranslator.ConsumingResult schemaTranslationResult =
-                SchemaTranslator.createConsumingResult(
-                        tableEnvironment.getCatalogManager().getDataTypeFactory(),
-                        table.getResolvedSchema().toSourceRowDataType(),
-                        targetDescriptor.getSchema().orElse(null),
-                        false);
-        final TableDescriptor updatedDescriptor =
-                targetDescriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
-
-        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
-        return addInsert(path, table, overwrite);
+        return add(table.insertInto(targetDescriptor, overwrite));
     }
 
     @Override
@@ -127,22 +111,8 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         }
     }
 
-    /**
-     * Get the json plan of the all statements and Tables as a batch.
-     *
-     * <p>The json plan is the string json representation of an optimized ExecNode plan for the
-     * statements and Tables. An ExecNode plan can be serialized to json plan, and a json plan can
-     * be deserialized to an ExecNode plan.
-     *
-     * <p>The added statements and Tables will NOT be cleared when executing this method.
-     *
-     * <p><b>NOTES</b>: This is an experimental feature now.
-     *
-     * @return the string json representation of an optimized ExecNode plan for the statements and
-     *     Tables.
-     */
     @Experimental
-    public String getJsonPlan() {
-        return tableEnvironment.getJsonPlan(operations);
+    public CompiledPlan compilePlan() {
+        return tableEnvironment.compilePlan(operations);
     }
 }

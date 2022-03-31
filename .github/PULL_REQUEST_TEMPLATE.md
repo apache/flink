@@ -57,7 +57,7 @@ This change added tests and can be verified as follows:
   - *Added integration tests for end-to-end deployment with large payloads (100MB)*
   - *Extended integration test for recovery after master (JobManager) failure*
   - *Added test that validates that TaskInfo is transferred only once across recoveries*
-  - *Manually verified the change by running a 4 node cluser with 2 JobManagers and 4 TaskManagers, a stateful streaming program, and killing one JobManager and two TaskManagers during the execution, verifying that recovery happens correctly.*
+  - *Manually verified the change by running a 4 node cluster with 2 JobManagers and 4 TaskManagers, a stateful streaming program, and killing one JobManager and two TaskManagers during the execution, verifying that recovery happens correctly.*
 
 ## Does this pull request potentially affect one of the following parts:
 

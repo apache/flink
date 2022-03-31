@@ -188,7 +188,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
          |FROM ($sql2) AS T
          |GROUP BY b
       """.stripMargin
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig)
     programs.remove(FlinkBatchProgram.PHYSICAL)
     testUtil.replaceBatchProgram(programs)
     testUtil.verifyRelPlan(sql)
@@ -196,7 +196,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testLogicalPlanWithImplicitTypeCast(): Unit = {
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig)
     programs.remove(FlinkBatchProgram.PHYSICAL)
     testUtil.replaceBatchProgram(programs)
 
@@ -329,8 +329,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testReusing(): Unit = {
-    testUtil.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    testUtil.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, Boolean.box(true))
     val sql1 =
       """
         |SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime

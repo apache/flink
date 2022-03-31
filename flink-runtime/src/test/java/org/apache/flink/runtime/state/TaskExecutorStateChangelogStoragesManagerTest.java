@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -166,7 +167,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
 
         @Override
         public StateChangelogWriter<ChangelogStateHandle> createWriter(
-                String operatorID, KeyGroupRange keyGroupRange) {
+                String operatorID, KeyGroupRange keyGroupRange, MailboxExecutor mailboxExecutor) {
             return null;
         }
 

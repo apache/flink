@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
@@ -38,13 +37,6 @@ class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
 
     private static boolean isIdentityCast(
             LogicalType inputLogicalType, LogicalType targetLogicalType) {
-        // TODO string to string casting now behaves like string casting.
-        //  the discussion in FLINK-24413 will address it
-        if (inputLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)
-                && targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            return true;
-        }
-
         // INTERVAL_YEAR_MONTH and INTEGER uses the same primitive int type
         if ((inputLogicalType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
                         && targetLogicalType.is(LogicalTypeRoot.INTEGER))

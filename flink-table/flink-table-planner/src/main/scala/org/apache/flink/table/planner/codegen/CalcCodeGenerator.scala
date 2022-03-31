@@ -19,7 +19,8 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
+import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -74,8 +75,8 @@ object CalcCodeGenerator {
       outRowClass: Class[_ <: RowData],
       calcProjection: Seq[RexNode],
       calcCondition: Option[RexNode],
-      config: TableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
-    val ctx = CodeGeneratorContext(config)
+      tableConfig: ReadableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+    val ctx = CodeGeneratorContext(tableConfig)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
     val processCode = generateProcessCode(

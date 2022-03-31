@@ -91,13 +91,13 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidSubstring1(): Unit = {
     // Must fail. Parameter of substring must be an Integer not a Double.
-    testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
+    testTableApi("test".substring(2.0.toExpr), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidSubstring2(): Unit = {
     // Must fail. Parameter of substring must be an Integer not a String.
-    testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
+    testTableApi("test".substring("test".toExpr), "FAIL")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -105,17 +105,17 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampInterval(): Unit ={
+  def testTimestampAddWithWrongTimestampInterval(): Unit = {
     testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampFormat(): Unit ={
+  def testTimestampAddWithWrongTimestampFormat(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithWrongQuantity(): Unit ={
+  def testTimestampAddWithWrongQuantity(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
@@ -125,46 +125,23 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInValidationExceptionMoreThanOneTypes(): Unit = {
-    testTableApi(
-      'f2.in('f3, 'f8),
-      "f2.in(f3, f8)",
-      "TRUE"
-    )
-    testTableApi(
-      'f2.in('f3, 'f4, 4),
-      "f2.in(f3, f4, 4)",
-      "FALSE"  // OK if all numeric
-    )
+    testTableApi('f2.in('f3, 'f8), "TRUE")
+    testTableApi('f2.in('f3, 'f4, 4), "FALSE")
   }
 
   @Test(expected = classOf[ValidationException])
   def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
-      'f1.in("Hi", "Hello world", "Comment#1"),
-      "true",
-      "TRUE"
-    )
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def javaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
-      true,
-      "f1.in('Hi','Hello world','Comment#1')",
-      "TRUE"
-    )
+    testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "TRUE")
   }
 
   @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTime(): Unit = {
-    testTableApi(
-      timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+    testTableApi(timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTimeAndUnit(): Unit = {
-    testTableApi(
-      timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+    testTableApi(timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL")
   }
 
   @Test

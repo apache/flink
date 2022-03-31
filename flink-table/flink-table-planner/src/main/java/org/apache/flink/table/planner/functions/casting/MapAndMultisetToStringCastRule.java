@@ -176,23 +176,13 @@ class MapAndMultisetToStringCastRule
                                     String valueIsNullTerm = newName("valueIsNull");
 
                                     CastCodeBlock keyCast =
-                                            CastRuleProvider.generateCodeBlock(
-                                                    context,
-                                                    keyTerm,
-                                                    keyIsNullTerm,
-                                                    // Null check is done at the key array
-                                                    // access level
-                                                    keyType.copy(false),
-                                                    STRING_TYPE);
+                                            // Null check is done at the key array access level
+                                            CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                                                    context, keyTerm, keyType, STRING_TYPE);
                                     CastCodeBlock valueCast =
-                                            CastRuleProvider.generateCodeBlock(
-                                                    context,
-                                                    valueTerm,
-                                                    valueIsNullTerm,
-                                                    // Null check is done at the value array
-                                                    // access level
-                                                    valueType.copy(false),
-                                                    STRING_TYPE);
+                                            // Null check is done at the value array access level
+                                            CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                                                    context, valueTerm, valueType, STRING_TYPE);
 
                                     Consumer<CastRuleUtils.CodeWriter> appendNonNullValue =
                                             bodyWriter ->
@@ -219,7 +209,7 @@ class MapAndMultisetToStringCastRule
                                                 // exceeded
                                                 .ifStmt(
                                                 stringExceedsLength(builderTerm, length),
-                                                thenBodyWriter -> thenBodyWriter.stmt("break"));
+                                                CastRuleUtils.CodeWriter::breakStmt);
                                     }
                                     loopBodyWriter
                                             // Write the comma

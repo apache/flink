@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
@@ -60,6 +62,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
     private final boolean tryDistinctBuildRow;
 
     public BatchExecHashJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             int estimatedLeftAvgRowSize,
             int estimatedRightAvgRowSize,
@@ -71,7 +74,13 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
             InputProperty rightInputProperty,
             RowType outputType,
             String description) {
-        super(Arrays.asList(leftInputProperty, rightInputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecHashJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashJoin.class, tableConfig),
+                Arrays.asList(leftInputProperty, rightInputProperty),
+                outputType,
+                description);
         this.joinSpec = joinSpec;
         this.leftIsBuild = leftIsBuild;
         this.estimatedLeftAvgRowSize = estimatedLeftAvgRowSize;
@@ -83,7 +92,8 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge leftInputEdge = getInputEdges().get(0);
         ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -103,7 +113,6 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
         RowType keyType = RowType.of(keyFieldTypes);
 
-        TableConfig config = planner.getTableConfig();
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
                         config, joinSpec.getNonEquiCondition().orElse(null), leftType, rightType);
@@ -206,15 +215,13 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         }
 
         long managedMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)
-                        .getBytes();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes();
 
         return ExecNodeUtil.createTwoInputTransformation(
                 buildTransform,
                 probeTransform,
-                getOperatorName(config),
-                getOperatorDescription(config),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 probeTransform.getParallelism(),

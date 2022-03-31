@@ -29,10 +29,14 @@ under the License.
 # Text files format
 
 Flink supports reading from text lines from a file using `TextLineInputFormat`. This format uses Java's built-in InputStreamReader to decode the byte stream using various supported charset encodings.
-To use the format you need to add the Flink Parquet dependency to your project:
+To use the format you need to add the Flink Connector Files dependency to your project:
 
 ```xml
-{{< artifact flink-connector-files >}}
+<dependency>
+	<groupId>org.apache.flink</groupId>
+	<artifactId>flink-connector-files</artifactId>
+	<version>{{< version >}}</version>
+</dependency>
 ```
 
 This format is compatible with the new Source that can be used in both batch and streaming modes.

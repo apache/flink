@@ -19,7 +19,11 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -30,7 +34,7 @@ import org.junit.Test;
 import java.util.Collections;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for describing {@link Operation}s. */
 public class QueryOperationTest {
@@ -45,8 +49,16 @@ public class QueryOperationTest {
                 new ProjectQueryOperation(
                         Collections.singletonList(
                                 new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
-                        new CatalogQueryOperation(
-                                ObjectIdentifier.of("cat1", "db1", "tab1"), schema),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
                         schema);
 
         SetQueryOperation unionQueryOperation =
@@ -57,13 +69,13 @@ public class QueryOperationTest {
                         true,
                         schema);
 
-        assertEquals(
-                "Union: (all: [true])\n"
-                        + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])\n"
-                        + "    Project: (projections: [a])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
-                unionQueryOperation.asSummaryString());
+        assertThat(unionQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Union: (all: [true])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])\n"
+                                + "    Project: (projections: [a])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
     }
 
     @Test
@@ -76,25 +88,33 @@ public class QueryOperationTest {
                 new WindowAggregateQueryOperation(
                         Collections.singletonList(field),
                         Collections.singletonList(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.SUM,
                                         Collections.singletonList(field),
                                         DataTypes.INT())),
                         Collections.emptyList(),
                         WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow(
                                 "w", field, intervalOfMillis(10)),
-                        new CatalogQueryOperation(
-                                ObjectIdentifier.of("cat1", "db1", "tab1"), schema),
+                        new SourceQueryOperation(
+                                ContextResolvedTable.temporary(
+                                        ObjectIdentifier.of("cat1", "db1", "tab1"),
+                                        new ResolvedCatalogTable(
+                                                CatalogTable.of(
+                                                        Schema.newBuilder().build(),
+                                                        null,
+                                                        Collections.emptyList(),
+                                                        Collections.emptyMap()),
+                                                schema))),
                         schema);
 
         DistinctQueryOperation distinctQueryOperation = new DistinctQueryOperation(tableOperation);
 
-        assertEquals(
-                "Distinct:\n"
-                        + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
-                        + " window: [SessionWindow(field: [a], gap: [10])])\n"
-                        + "        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
-                distinctQueryOperation.asSummaryString());
+        assertThat(distinctQueryOperation.asSummaryString())
+                .isEqualTo(
+                        "Distinct:\n"
+                                + "    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: [],"
+                                + " window: [SessionWindow(field: [a], gap: [10])])\n"
+                                + "        CatalogTable: (identifier: [cat1.db1.tab1], fields: [a])");
     }
 
     @Test
@@ -109,13 +129,13 @@ public class QueryOperationTest {
 
         String indentedInput = OperationUtils.indent(input);
 
-        assertEquals(
-                "\n"
-                        + "    firstLevel\n"
-                        + "        secondLevel0\n"
-                        + "            thirdLevel0\n"
-                        + "        secondLevel1\n"
-                        + "            thirdLevel1",
-                indentedInput);
+        assertThat(indentedInput)
+                .isEqualTo(
+                        "\n"
+                                + "    firstLevel\n"
+                                + "        secondLevel0\n"
+                                + "            thirdLevel0\n"
+                                + "        secondLevel1\n"
+                                + "            thirdLevel1");
     }
 }

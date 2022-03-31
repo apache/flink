@@ -22,6 +22,30 @@ package org.apache.flink.runtime.operators.lifecycle.command;
  * {@link org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent Ack} event.
  */
 public interface TestCommand {
+    TestCommand DELAY_SNAPSHOT =
+            new TestCommand() {
+                @Override
+                public boolean isTerminal() {
+                    return false;
+                }
+
+                @Override
+                public String toString() {
+                    return "DELAY_SNAPSHOT";
+                }
+            };
+    TestCommand FAIL_SNAPSHOT =
+            new TestCommand() {
+                @Override
+                public boolean isTerminal() {
+                    return true;
+                }
+
+                @Override
+                public String toString() {
+                    return "FAIL_SNAPSHOT";
+                }
+            };
     TestCommand FAIL =
             new TestCommand() {
                 @Override

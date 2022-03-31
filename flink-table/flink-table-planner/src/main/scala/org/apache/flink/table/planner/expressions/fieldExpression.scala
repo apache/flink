@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory._
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -150,9 +149,6 @@ case class RowtimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr)
     }
   }
 
-  override def toNamedWindowProperty(name: String): NamedWindowProperty =
-    NamedWindowProperty(name, this)
-
   override def toString: String = s"rowtime($child)"
 }
 
@@ -173,9 +169,6 @@ case class ProctimeAttribute(expr: PlannerExpression) extends TimeAttribute(expr
 
   override def resultType: TypeInformation[_] =
     TimeIndicatorTypeInfo.PROCTIME_INDICATOR
-
-  override def toNamedWindowProperty(name: String): NamedWindowProperty =
-    NamedWindowProperty(name, this)
 
   override def toString: String = s"proctime($child)"
 }

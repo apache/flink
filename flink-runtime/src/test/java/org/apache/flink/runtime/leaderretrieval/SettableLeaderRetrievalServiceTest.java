@@ -47,6 +47,7 @@ public class SettableLeaderRetrievalServiceTest extends TestLogger {
         final TestingListener listener = new TestingListener();
         settableLeaderRetrievalService.start(listener);
 
+        listener.waitForNewLeader();
         assertThat(listener.getAddress(), equalTo(localhost));
         assertThat(
                 listener.getLeaderSessionID(), equalTo(HighAvailabilityServices.DEFAULT_LEADER_ID));
@@ -61,6 +62,7 @@ public class SettableLeaderRetrievalServiceTest extends TestLogger {
         settableLeaderRetrievalService.notifyListener(
                 localhost, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
+        listener.waitForNewLeader();
         assertThat(listener.getAddress(), equalTo(localhost));
         assertThat(
                 listener.getLeaderSessionID(), equalTo(HighAvailabilityServices.DEFAULT_LEADER_ID));

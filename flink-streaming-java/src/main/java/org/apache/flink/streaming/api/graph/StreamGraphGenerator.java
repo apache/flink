@@ -93,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -309,7 +310,7 @@ public class StreamGraphGenerator {
         shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
-        alreadyTransformed = new HashMap<>();
+        alreadyTransformed = new IdentityHashMap<>();
 
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
@@ -347,6 +348,9 @@ public class StreamGraphGenerator {
         graph.setChaining(chaining);
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
+        graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
+        graph.setVertexNameIncludeIndexPrefix(
+                configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
@@ -922,6 +926,11 @@ public class StreamGraphGenerator {
         @Override
         public ReadableConfig getGraphGeneratorConfig() {
             return config;
+        }
+
+        @Override
+        public Collection<Integer> transform(Transformation<?> transformation) {
+            return streamGraphGenerator.transform(transformation);
         }
     }
 }

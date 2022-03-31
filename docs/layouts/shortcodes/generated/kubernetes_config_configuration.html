@@ -76,15 +76,21 @@
         </tr>
         <tr>
             <td><h5>kubernetes.flink.log.dir</h5></td>
-            <td style="word-wrap: break-word;">"/opt/flink/log"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The directory that logs of jobmanager and taskmanager be saved in the pod.</td>
+            <td>The directory that logs of jobmanager and taskmanager be saved in the pod. The default value is $FLINK_HOME/log.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.hadoop.conf.config-map.name</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify the name of an existing ConfigMap that contains custom Hadoop configuration to be mounted on the JobManager(s) and TaskManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.hostnetwork.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable HostNetwork mode. The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.annotations</h5></td>
@@ -99,10 +105,22 @@
             <td>The number of cpu used by job manager</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.jobmanager.cpu.limit-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The limit factor of cpu used by job manager. The resources limit cpu will be set to cpu * limit-factor.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.jobmanager.labels</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.jobmanager.memory.limit-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The limit factor of memory used by job manager. The resources limit memory will be set to memory * limit-factor.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.node-selector</h5></td>
@@ -174,7 +192,7 @@
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">ClusterIP</td>
             <td><p>Enum</p></td>
-            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li></ul></td>
+            <td>The exposed type of the rest service. The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.<br /><br />Possible values:<ul><li>"ClusterIP"</li><li>"NodePort"</li><li>"LoadBalancer"</li><li>"Headless_ClusterIP"</li></ul></td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>
@@ -201,10 +219,22 @@
             <td>The number of cpu used by task manager. By default, the cpu is set to the number of slots per TaskManager</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.taskmanager.cpu.limit-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The limit factor of cpu used by task manager. The resources limit cpu will be set to cpu * limit-factor.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.labels</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, version:alphav1,deploy:test.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.taskmanager.memory.limit-factor</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Double</td>
+            <td>The limit factor of memory used by task manager. The resources limit memory will be set to memory * limit-factor.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.taskmanager.node-selector</h5></td>

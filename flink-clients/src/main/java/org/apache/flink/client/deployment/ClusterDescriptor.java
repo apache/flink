@@ -79,8 +79,11 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
      * @param detached true if the cluster should be stopped after the job completion without
      *     serving the result, otherwise false
      * @return Cluster client to talk to the Flink cluster
+     * @deprecated Per-job mode has been deprecated in Flink 1.15 and will be removed in the future.
+     *     Please use application mode instead.
      * @throws ClusterDeploymentException if the cluster could not be deployed
      */
+    @Deprecated
     ClusterClientProvider<T> deployJobCluster(
             final ClusterSpecification clusterSpecification,
             final JobGraph jobGraph,

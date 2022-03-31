@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -90,8 +89,8 @@ public class HiveTemporalJoinITCase extends TableTestBase {
                                 + " z int, "
                                 + " primary key(x,y) disable novalidate rely)"
                                 + " tblproperties ('%s' = 'true', '%s'='5min')",
-                        FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE.key(),
-                        FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
+                        HiveOptions.STREAMING_SOURCE_ENABLE.key(),
+                        HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
 
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
     }

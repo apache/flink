@@ -43,7 +43,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
   @Before
   override def before(): Unit = {
     super.before()
-    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
       .getOrElse(throw new TableException(s"${FlinkBatchProgram.LOGICAL} does not exist"))
@@ -79,7 +79,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
     tEnv.getConfig.setPlannerConfig(calciteConfig)
 
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)
 
     registerCollection("MyTable",

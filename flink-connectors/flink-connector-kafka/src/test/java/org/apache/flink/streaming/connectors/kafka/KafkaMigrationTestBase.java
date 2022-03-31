@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -25,7 +26,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -48,7 +48,7 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(KafkaMigrationTestBase.class);
     protected static final String TOPIC = "flink-kafka-producer-migration-test";
 
-    protected final MigrationVersion testMigrateVersion;
+    protected final FlinkVersion testMigrateVersion;
     protected final TypeInformationSerializationSchema<Integer> integerSerializationSchema =
             new TypeInformationSerializationSchema<>(
                     BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
@@ -57,13 +57,13 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
 
     /**
      * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * MigrationVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
+     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
      * methods to generate savepoints TODO Note: You should generate the savepoint based on the
      * release branch instead of the master.
      */
-    protected final Optional<MigrationVersion> flinkGenerateSavepointVersion = Optional.empty();
+    protected final Optional<FlinkVersion> flinkGenerateSavepointVersion = Optional.empty();
 
-    public KafkaMigrationTestBase(MigrationVersion testMigrateVersion) {
+    public KafkaMigrationTestBase(FlinkVersion testMigrateVersion) {
         this.testMigrateVersion = checkNotNull(testMigrateVersion);
     }
 
@@ -71,7 +71,7 @@ public abstract class KafkaMigrationTestBase extends KafkaTestBase {
         return getOperatorSnapshotPath(testMigrateVersion);
     }
 
-    public String getOperatorSnapshotPath(MigrationVersion version) {
+    public String getOperatorSnapshotPath(FlinkVersion version) {
         return "src/test/resources/kafka-migration-kafka-producer-flink-" + version + "-snapshot";
     }
 

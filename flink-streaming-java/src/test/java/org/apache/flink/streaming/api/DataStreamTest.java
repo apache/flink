@@ -69,6 +69,8 @@ import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -1102,6 +1104,56 @@ public class DataStreamTest extends TestLogger {
                         // do nothing
                     }
                 });
+    }
+
+    /** Tests that verifies window operator has different name and description. */
+    @Test
+    public void testWindowOperatorDescription() {
+        // global window
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<Long> dataStream1 =
+                env.generateSequence(0, 0)
+                        .windowAll(GlobalWindows.create())
+                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) throws Exception {
+                                        return null;
+                                    }
+                                });
+        // name is simplified
+        assertEquals("GlobalWindows", dataStream1.getTransformation().getName());
+        // description contains detail of function:
+        // TriggerWindow(GlobalWindows(), ReducingStateDescriptor{name=window-contents,
+        // defaultValue=null,
+        // serializer=org.apache.flink.api.common.typeutils.base.LongSerializer@6af9fcb2},
+        // PurgingTrigger(CountTrigger(10)), AllWindowedStream.reduce(AllWindowedStream.java:229))
+        assertTrue(dataStream1.getTransformation().getDescription().contains("PurgingTrigger"));
+
+        // keyed window
+        DataStream<Long> dataStream2 =
+                env.generateSequence(0, 0)
+                        .keyBy(value -> value)
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                        .reduce(
+                                new ReduceFunction<Long>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Long reduce(Long value1, Long value2) throws Exception {
+                                        return null;
+                                    }
+                                });
+        // name is simplified
+        assertEquals("TumblingEventTimeWindows", dataStream2.getTransformation().getName());
+        // description contains detail of function:
+        // Window(TumblingEventTimeWindows(1000), PurgingTrigger, ReduceFunction$36,
+        // PassThroughWindowFunction)
+        assertTrue(dataStream2.getTransformation().getDescription().contains("PurgingTrigger"));
     }
 
     /**

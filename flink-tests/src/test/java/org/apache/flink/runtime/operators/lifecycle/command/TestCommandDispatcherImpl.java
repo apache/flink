@@ -27,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class TestCommandDispatcherImpl implements TestCommandDispatcher {
     private final Map<String, List<CommandExecutor>> subscribers = new ConcurrentHashMap<>();
@@ -53,6 +54,7 @@ class TestCommandDispatcherImpl implements TestCommandDispatcher {
 
     private void executeInternal(
             TestCommand command, TestCommandScope scope, List<CommandExecutor> executors) {
+        checkState(!executors.isEmpty(), "no executors for command: " + command);
         Set<CommandExecutor> toRemove = new HashSet<>();
         for (CommandExecutor executor : executors) {
             executor.execute(command);

@@ -22,15 +22,23 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 
 import org.apache.pulsar.client.api.SubscriptionType;
 
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Pulsar external context that will create multiple topics with only one partitions as source
  * splits.
  */
 public class MultipleTopicConsumingContext extends MultipleTopicTemplateContext {
-    private static final long serialVersionUID = -3855336888090886528L;
 
     public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
-        super(environment);
+        this(environment, Collections.emptyList());
+    }
+
+    public MultipleTopicConsumingContext(
+            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+        super(environment, connectorJarPaths);
     }
 
     @Override

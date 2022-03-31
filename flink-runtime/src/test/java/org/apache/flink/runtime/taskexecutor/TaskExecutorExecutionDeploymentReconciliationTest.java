@@ -54,6 +54,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -219,7 +220,8 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 configuration),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
@@ -243,7 +245,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             ResourceID jobManagerResourceId) {
         return new TestingJobMasterGatewayBuilder()
                 .setRegisterTaskManagerFunction(
-                        (s, location, ignored) ->
+                        (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                 CompletableFuture.completedFuture(
                                         new JMTMRegistrationSuccess(jobManagerResourceId)))
                 .setOfferSlotsFunction(

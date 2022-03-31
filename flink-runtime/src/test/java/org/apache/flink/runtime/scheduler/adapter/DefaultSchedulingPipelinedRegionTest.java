@@ -73,7 +73,11 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
                         Collections.emptyList(),
-                        () -> ExecutionState.CREATED);
+                        () -> ExecutionState.CREATED,
+                        Collections.emptyList(),
+                        partitionID -> {
+                            throw new UnsupportedOperationException();
+                        });
 
         final Set<DefaultExecutionVertex> vertices = Collections.singleton(vertex);
         final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =

@@ -107,6 +107,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      */
     private final long stateSize;
 
+    private final long checkpointedSize;
+
     private OperatorSubtaskState(
             StateObjectCollection<OperatorStateHandle> managedOperatorState,
             StateObjectCollection<OperatorStateHandle> rawOperatorState,
@@ -133,6 +135,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         calculateStateSize += inputChannelState.getStateSize();
         calculateStateSize += resultSubpartitionState.getStateSize();
         stateSize = calculateStateSize;
+
+        long calculateCheckpointedSize = managedOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += rawOperatorState.getCheckpointedSize();
+        calculateCheckpointedSize += managedKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += rawKeyedState.getCheckpointedSize();
+        calculateCheckpointedSize += inputChannelState.getCheckpointedSize();
+        calculateCheckpointedSize += resultSubpartitionState.getCheckpointedSize();
+        this.checkpointedSize = calculateCheckpointedSize;
     }
 
     @VisibleForTesting
@@ -222,6 +232,11 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return checkpointedSize;
+    }
+
+    @Override
     public long getStateSize() {
         return stateSize;
     }
@@ -281,6 +296,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         result = 31 * result + getInputRescalingDescriptor().hashCode();
         result = 31 * result + getOutputRescalingDescriptor().hashCode();
         result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
+        result = 31 * result + (int) (getCheckpointedSize() ^ (getCheckpointedSize() >>> 32));
         return result;
     }
 
@@ -301,6 +317,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 + resultSubpartitionState
                 + ", stateSize="
                 + stateSize
+                + ", checkpointedSize="
+                + checkpointedSize
                 + '}';
     }
 

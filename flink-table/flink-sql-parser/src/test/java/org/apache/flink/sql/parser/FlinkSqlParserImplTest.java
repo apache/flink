@@ -29,13 +29,17 @@ import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
+@Execution(CONCURRENT)
 public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Override
@@ -64,7 +68,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      * Here we override the super method to avoid test error from `describe schema` supported in
      * original calcite.
      */
-    @Ignore
+    @Disabled
     @Test
     public void testDescribeSchema() {}
 
@@ -189,6 +193,38 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowTables() {
         sql("show tables").ok("SHOW TABLES");
+        sql("show tables not like '%'").ok("SHOW TABLES NOT LIKE '%'");
+
+        sql("show tables from db1").ok("SHOW TABLES FROM `DB1`");
+        sql("show tables in db1").ok("SHOW TABLES IN `DB1`");
+
+        sql("show tables from catalog1.db1").ok("SHOW TABLES FROM `CATALOG1`.`DB1`");
+        sql("show tables in catalog1.db1").ok("SHOW TABLES IN `CATALOG1`.`DB1`");
+
+        sql("show tables from db1 like '%'").ok("SHOW TABLES FROM `DB1` LIKE '%'");
+        sql("show tables in db1 like '%'").ok("SHOW TABLES IN `DB1` LIKE '%'");
+
+        sql("show tables from catalog1.db1 like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` LIKE '%'");
+        sql("show tables in catalog1.db1 like '%'").ok("SHOW TABLES IN `CATALOG1`.`DB1` LIKE '%'");
+
+        sql("show tables from db1 not like '%'").ok("SHOW TABLES FROM `DB1` NOT LIKE '%'");
+        sql("show tables in db1 not like '%'").ok("SHOW TABLES IN `DB1` NOT LIKE '%'");
+
+        sql("show tables from catalog1.db1 not like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show tables in catalog1.db1 not like '%'")
+                .ok("SHOW TABLES IN `CATALOG1`.`DB1` NOT LIKE '%'");
+
+        sql("show tables ^db1^").fails("(?s).*Encountered \"db1\" at line 1, column 13.\n.*");
+        sql("show tables ^catalog1^.db1")
+                .fails("(?s).*Encountered \"catalog1\" at line 1, column 13.\n.*");
+
+        sql("show tables ^search^ db1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 13.\n.*");
+
+        sql("show tables from db1 ^likes^ '%t'")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 22.\n.*");
     }
 
     @Test
@@ -254,7 +290,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      * Here we override the super method to avoid test error from `describe statement` supported in
      * original calcite.
      */
-    @Ignore
+    @Disabled
     @Test
     public void testDescribeStatement() {}
 
@@ -285,6 +321,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("ALTER TABLE `T1` RESET (\n  'key1',\n  'key2'\n)");
 
         sql("alter table t1 reset()").ok("ALTER TABLE `T1` RESET (\n)");
+    }
+
+    @Test
+    public void testAlterTableCompact() {
+        sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
+
+        sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");
+
+        sql("alter table cat1.db1.t1 compact").ok("ALTER TABLE `CAT1`.`DB1`.`T1` COMPACT");
+
+        sql("alter table t1 partition(x='y',m='n') compact")
+                .ok("ALTER TABLE `T1` PARTITION (`X` = 'y', `M` = 'n') COMPACT");
+
+        sql("alter table t1 partition(^)^ compact")
+                .fails("(?s).*Encountered \"\\)\" at line 1, column 26.\n.*");
     }
 
     @Test
@@ -1043,13 +1094,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("insert into emps(z boolean) partition (z='ab') (x,y) select * from emps").ok(expected);
     }
 
-    @Test(expected = SqlParseException.class)
+    @Test
     public void testInsertExtendedColumnAsStaticPartition2() {
-        sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "Extended columns not allowed under the current SQL conformance level"));
+        assertThatThrownBy(
+                        () ->
+                                sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
+                                        .node(
+                                                new ValidationMatcher()
+                                                        .fails(
+                                                                "Extended columns not allowed under the current SQL conformance level")))
+                .isInstanceOf(SqlParseException.class);
     }
 
     @Test
@@ -1331,9 +1385,48 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testExecuteStatementSet() {
+        sql("execute statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXECUTE STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    public void testExplainStatementSet() {
+        sql("explain statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXPLAIN STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
     public void testExplain() {
         String sql = "explain select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExecuteSelect() {
+        String sql = "execute select * from emps";
+        String expected = "EXECUTE SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
@@ -1423,6 +1516,83 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testExecuteInsert() {
+        String expected = "EXECUTE INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("execute insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExecutePlan() {
+        sql("execute plan './test.json'").ok("EXECUTE PLAN './test.json'");
+        sql("execute plan '/some/absolute/dir/plan.json'")
+                .ok("EXECUTE PLAN '/some/absolute/dir/plan.json'");
+    }
+
+    @Test
+    public void testCompilePlan() {
+        sql("compile plan './test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN './test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+        sql("compile plan './test.json' if not exists for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE PLAN './test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+
+        sql("compile plan './test.json' for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+        sql("compile plan './test.json' if not exists for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    public void testCompileAndExecutePlan() {
+        sql("compile and execute plan './test.json' for insert into t1 select * from t2")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN './test.json' FOR INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)");
+
+        sql("compile and execute plan './test.json' for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE AND EXECUTE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
     public void testExplainUpsert() {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
@@ -1467,6 +1637,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
         sql("RESET").ok("RESET");
         sql("RESET 'test-key'").ok("RESET 'test-key'");
+    }
+
+    @Test
+    public void testTryCast() {
+        // Simple types
+        expr("try_cast(a as timestamp)").ok("TRY_CAST(`A` AS TIMESTAMP)");
+        expr("try_cast('abc' as timestamp)").ok("TRY_CAST('abc' AS TIMESTAMP)");
+
+        // Complex types
+        expr("try_cast(a as row(f0 int, f1 varchar))")
+                .ok("TRY_CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))");
+        expr("try_cast(a as row(f0 int array, f1 map<string, decimal(10, 2)>, f2 STRING NOT NULL))")
+                .ok(
+                        "TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL))");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
@@ -1528,12 +1712,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                         createTable.validate();
                         fail("expected exception");
                     } catch (SqlValidateException e) {
-                        assertEquals(failMsg, e.getMessage());
+                        assertThat(e).hasMessage(failMsg);
                     }
                 }
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
-                    assertEquals(
-                            expectedColumnSql, ((SqlCreateTable) createTable).getColumnSqlString());
+                    assertThat(((SqlCreateTable) createTable).getColumnSqlString())
+                            .isEqualTo(expectedColumnSql);
                 }
                 return true;
             } else {

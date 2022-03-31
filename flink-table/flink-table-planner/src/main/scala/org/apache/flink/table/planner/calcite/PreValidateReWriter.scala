@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql.SqlRichExplain
+import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{appendPartitionAndNullsProjects, notSupported}
 import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
@@ -30,12 +31,12 @@ import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
-import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
-import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
 import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
@@ -391,8 +392,21 @@ object PreValidateReWriter {
       == desiredType)) {
       node
     } else {
-      SqlStdOperatorTable.CAST.createCall(SqlParserPos.ZERO,
-        node, SqlTypeUtil.convertTypeToSpec(desiredType))
+      // See FLINK-26460 for more details
+      val sqlDataTypeSpec =
+        if (SqlTypeUtil.isNull(currentType) && SqlTypeUtil.isMap(desiredType)) {
+          val keyType = desiredType.getKeyType
+          val valueType = desiredType.getValueType
+          new SqlDataTypeSpec(
+            new SqlMapTypeNameSpec(
+              SqlTypeUtil.convertTypeToSpec(keyType).withNullable(keyType.isNullable),
+              SqlTypeUtil.convertTypeToSpec(valueType).withNullable(valueType.isNullable),
+              SqlParserPos.ZERO),
+            SqlParserPos.ZERO)
+        } else {
+          SqlTypeUtil.convertTypeToSpec(desiredType)
+        }
+      SqlStdOperatorTable.CAST.createCall(SqlParserPos.ZERO, node, sqlDataTypeSpec)
     }
   }
 }

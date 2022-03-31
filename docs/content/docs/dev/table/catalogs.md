@@ -46,7 +46,7 @@ The `GenericInMemoryCatalog` is an in-memory implementation of a catalog. All ob
 
 ### JdbcCatalog
 
-The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol. `PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
+The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol. Postgres Catalog and MySQL Catalog are the only two implementations of JDBC Catalog at the moment.
 See [JdbcCatalog documentation]({{< ref "docs/connectors/table/jdbc" >}}) for more details on setting up the catalog.
 
 ### HiveCatalog
@@ -76,7 +76,7 @@ Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
 {{< tabs "b462513f-2da9-4bd0-a55d-ca9a5e4cf512" >}}
 {{< tab "Java" >}}
 ```java
-TableEnvironment tableEnv = ...
+TableEnvironment tableEnv = ...;
 
 // Create a HiveCatalog 
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");

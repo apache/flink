@@ -505,15 +505,6 @@ object FlinkStreamRuleSets {
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
-    // simplify window tvf
-    SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_RANK,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_RANK,
-    SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_DEDUPLICATE,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_DEDUPLICATE,
-    SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN,
     // optimize ChangelogNormalize
     PushFilterPastChangelogNormalizeRule.INSTANCE
   )

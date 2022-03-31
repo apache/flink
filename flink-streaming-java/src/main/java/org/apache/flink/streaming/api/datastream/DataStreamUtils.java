@@ -122,7 +122,7 @@ public final class DataStreamUtils {
         final ClientAndIterator<E> clientAndIterator = collectWithClient(stream, jobName);
         final List<E> result = collectRecordsFromUnboundedStream(clientAndIterator, numElements);
 
-        // cancel the job not that we have received enough elements
+        // cancel the job now that we have received enough elements
         clientAndIterator.client.cancel().get();
 
         return result;

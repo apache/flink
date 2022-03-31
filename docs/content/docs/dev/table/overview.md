@@ -40,78 +40,13 @@ and later use the DataStream API to build alerting based on the matched patterns
 
 ## Table Program Dependencies
 
-Depending on the target programming language, you need to add the Java or Scala API to a project
-in order to use the Table API & SQL for defining pipelines.
+You will need to add the Table API as a dependency to a project in order to use Table API & SQL for 
+defining data pipelines.
 
-{{< tabs "94f8aceb-507f-4c8f-977e-df00fe903203" >}}
-{{< tab "Java" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-scala-bridge{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-{{< stable >}}
-```bash
-$ python -m pip install apache-flink {{< version >}}
-```
-{{< /stable >}}
-{{< unstable >}}
-```bash
-$ python -m pip install apache-flink
-```
-{{< /unstable >}}
-{{< /tab >}}
-{{< /tabs >}}
+For more information on how to configure these dependencies for Java and Scala, please refer to the 
+[project configuration]({{< ref "docs/dev/configuration/overview" >}}) section.
 
-Additionally, if you want to run the Table API & SQL programs locally within your IDE, you must add the
-following set of modules.
-
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-### Extension Dependencies
-
-If you want to implement a [custom format or connector]({{< ref "docs/dev/table/sourcesSinks" >}}) 
-for (de)serializing rows or a set of [user-defined functions]({{< ref "docs/dev/table/functions/udfs" >}}),
-the following dependency is sufficient and can be used for JAR files for the SQL Client:
-
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-common</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-{{< top >}}
+If you are using Python, please refer to the documentation on the [Python API]({{< ref "docs/dev/python/overview" >}})
 
 Where to go next?
 -----------------

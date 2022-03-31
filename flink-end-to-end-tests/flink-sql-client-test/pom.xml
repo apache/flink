@@ -22,7 +22,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
@@ -141,7 +141,7 @@ under the License.
 						</goals>
 						<configuration>
 							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
-							<!-- List of currently provided SQL jars. 
+							<!-- List of currently provided SQL jars.
 								When extending this list please also add a dependency
 								for the respective module. -->
 							<artifactItems>

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
@@ -39,6 +40,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -123,6 +125,7 @@ import java.util.stream.Collectors;
 import scala.collection.Seq;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a
@@ -825,8 +828,14 @@ public final class TestValuesTableFactory
                         return new DataStreamScanProvider() {
                             @Override
                             public DataStream<RowData> produceDataStream(
+                                    ProviderContext providerContext,
                                     StreamExecutionEnvironment execEnv) {
-                                return execEnv.addSource(function);
+                                DataStreamSource<RowData> sourceStream =
+                                        execEnv.addSource(function);
+                                providerContext
+                                        .generateUid("source-function")
+                                        .ifPresent(sourceStream::uid);
+                                return sourceStream;
                             }
 
                             @Override
@@ -1644,10 +1653,14 @@ public final class TestValuesTableFactory
                         return new DataStreamSinkProvider() {
                             @Override
                             public DataStreamSink<?> consumeDataStream(
+                                    ProviderContext providerContext,
                                     DataStream<RowData> dataStream) {
-                                return dataStream.addSink(
-                                        new AppendingSinkFunction(
-                                                tableName, converter, rowtimeIndex));
+                                DataStreamSink<RowData> sink =
+                                        dataStream.addSink(
+                                                new AppendingSinkFunction(
+                                                        tableName, converter, rowtimeIndex));
+                                providerContext.generateUid("sink-function").ifPresent(sink::uid);
+                                return sink;
                             }
 
                             @Override
@@ -1662,7 +1675,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 // we don't support OutputFormat for updating query in the TestValues connector
-                assert runtimeSink.equals("SinkFunction");
+                assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     sinkFunction =

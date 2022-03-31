@@ -20,9 +20,8 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
-import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper}
 import org.apache.flink.table.data._
-import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.binary.{BinaryRowData, BinaryStringData}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -30,19 +29,12 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, 
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
-import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
+import org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToCommon
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
-import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
-
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior}
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
-
-import java.math.{BigDecimal => JBigDecimal}
-import java.time.ZoneOffset
+import org.apache.flink.table.utils.EncodingUtils
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -63,9 +55,10 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable) {
+    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable, wrapTryCatch) {
       args => ("", call(args))
     }
   }
@@ -77,7 +70,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => (String, String)): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -88,7 +82,7 @@ object GenerateUtils {
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val defaultValue = primitiveDefaultValue(returnType)
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
-    val nullTermCode = if (ctx.nullCheck && isResultNullable) {
+    val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
     } else {
       ""
@@ -96,31 +90,39 @@ object GenerateUtils {
 
     val (stmt, result) = call(operands.map(_.resultTerm))
 
-    val resultCode = if (ctx.nullCheck && operands.nonEmpty) {
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $stmt
+         |  $resultTerm = $result;
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$stmt
+         |$resultTerm = $result;
+         |""".stripMargin
+    }
+
+    val resultCode = if (operands.nonEmpty) {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
          |$resultTerm = $defaultValue;
          |if (!$nullTerm) {
-         |  $stmt
-         |  $resultTerm = $result;
+         |  $wrappedResultAssignment
          |  $nullTermCode
          |}
          |""".stripMargin
-    } else if (ctx.nullCheck && operands.isEmpty) {
-      s"""
-         |${operands.map(_.code).mkString("\n")}
-         |$nullTerm = false;
-         |$stmt
-         |$resultTerm = $result;
-         |$nullTermCode
-         |""".stripMargin
     } else {
       s"""
-         |$nullTerm = false;
          |${operands.map(_.code).mkString("\n")}
-         |$stmt
-         |$resultTerm = $result;
+         |$nullTerm = false;
+         |$wrappedResultAssignment
+         |$nullTermCode
          |""".stripMargin
     }
 
@@ -149,7 +151,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -160,7 +163,7 @@ object GenerateUtils {
     val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
-    val nullTermCode = if (ctx.nullCheck && isResultNullable) {
+    val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
     } else {
       s"$nullTerm = false;"
@@ -174,10 +177,26 @@ object GenerateUtils {
         x.resultTerm
       })
 
-    val resultCode = if (ctx.nullCheck) {
+
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $resultTerm = ${call(parameters)};
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$resultTerm = ${call(parameters)};
+         |""".stripMargin
+    }
+
+    val resultCode = if (resultNullable) {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
          |if ($nullTerm) {
          |  $resultTerm = $defaultValue;
@@ -186,11 +205,10 @@ object GenerateUtils {
     } else {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
        """.stripMargin
     }
-
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
   }
@@ -252,12 +270,7 @@ object GenerateUtils {
       s"$recordTerm = new $typeTerm();"
   }
 
-  def generateNullLiteral(
-      resultType: LogicalType,
-      nullCheck: Boolean): GeneratedExpression = {
-    if (!nullCheck) {
-      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
-    }
+  def generateNullLiteral(resultType: LogicalType): GeneratedExpression = {
     val defaultValue = primitiveDefaultValue(resultType)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     GeneratedExpression(
@@ -281,163 +294,52 @@ object GenerateUtils {
       literalValue = Some(literalValue))
   }
 
+  /**
+   * This function accepts the Flink's internal data structures.
+   *
+   * Check [[org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalValue]] to
+   * convert RexLiteral value to Flink's internal data structures.
+   */
   @tailrec
   def generateLiteral(
       ctx: CodeGeneratorContext,
-      literalType: LogicalType,
-      literalValue: Any): GeneratedExpression = {
+      literalValue: Any,
+      literalType: LogicalType): GeneratedExpression = {
     if (literalValue == null) {
-      return generateNullLiteral(literalType, ctx.nullCheck)
+      return generateNullLiteral(literalType)
     }
-    // non-null values
     literalType.getTypeRoot match {
-      // ordered by type root definition
+      // For strings, binary and decimal, we add the literal as reusable field,
+      // as they're not cheap to construct. For the other types, the return term is directly
+      // the literal value
       case CHAR | VARCHAR =>
-        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
-        val field = ctx.addReusableStringConstants(escapedValue)
-        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
-
-      case BOOLEAN =>
-        generateNonNullLiteral(literalType, literalValue.toString, literalValue)
+        val str = literalValue.asInstanceOf[BinaryStringData]
+        val field = ctx.addReusableEscapedStringConstant(EncodingUtils.escapeJava(str.toString))
+        generateNonNullLiteral(literalType, field, str)
 
       case BINARY | VARBINARY =>
-        val bytesVal = literalValue.asInstanceOf[ByteString].getBytes
+        val bytesVal = literalValue.asInstanceOf[Array[Byte]]
         val fieldTerm = ctx.addReusableObject(
           bytesVal, "binary", bytesVal.getClass.getCanonicalName)
         generateNonNullLiteral(literalType, fieldTerm, bytesVal)
 
       case DECIMAL =>
-        val dt = literalType.asInstanceOf[DecimalType]
-        val precision = dt.getPrecision
-        val scale = dt.getScale
         val fieldTerm = newName("decimal")
-        val decimalClass = className[DecimalData]
-        val fieldDecimal =
-          s"""
-             |$decimalClass $fieldTerm =
-             |    $DECIMAL_UTIL.castFrom("${literalValue.toString}", $precision, $scale);
-             |""".stripMargin
-        ctx.addReusableMember(fieldDecimal)
-        val value = DecimalData.fromBigDecimal(
-          literalValue.asInstanceOf[JBigDecimal], precision, scale)
-        if (value == null) {
-          generateNullLiteral(literalType, ctx.nullCheck)
-        } else {
-          generateNonNullLiteral(literalType, fieldTerm, value)
-        }
-
-      case TINYINT =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        generateNonNullLiteral(literalType, decimal.byteValue().toString, decimal.byteValue())
-
-      case SMALLINT =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        generateNonNullLiteral(literalType, decimal.shortValue().toString, decimal.shortValue())
-
-      case INTEGER =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        generateNonNullLiteral(literalType, decimal.intValue().toString, decimal.intValue())
-
-      case BIGINT =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        generateNonNullLiteral(
-          literalType, decimal.longValue().toString + "L", decimal.longValue())
-
-      case FLOAT =>
-        val floatValue = literalValue.asInstanceOf[JBigDecimal].floatValue()
-        floatValue match {
-          case Float.NegativeInfinity =>
-            generateNonNullLiteral(
-              literalType,
-              "java.lang.Float.NEGATIVE_INFINITY",
-              Float.NegativeInfinity)
-          case Float.PositiveInfinity => generateNonNullLiteral(
-            literalType,
-            "java.lang.Float.POSITIVE_INFINITY",
-            Float.PositiveInfinity)
-          case _ => generateNonNullLiteral(
-            literalType, floatValue.toString + "f", floatValue)
-        }
-
-      case DOUBLE =>
-        val doubleValue = literalValue.asInstanceOf[JBigDecimal].doubleValue()
-        doubleValue match {
-          case Double.NegativeInfinity =>
-            generateNonNullLiteral(
-              literalType,
-              "java.lang.Double.NEGATIVE_INFINITY",
-              Double.NegativeInfinity)
-          case Double.PositiveInfinity =>
-            generateNonNullLiteral(
-              literalType,
-              "java.lang.Double.POSITIVE_INFINITY",
-              Double.PositiveInfinity)
-          case _ => generateNonNullLiteral(
-            literalType, doubleValue.toString + "d", doubleValue)
-        }
-
-      case DATE =>
-        generateNonNullLiteral(literalType, literalValue.toString, literalValue)
-
-      case TIME_WITHOUT_TIME_ZONE =>
-        generateNonNullLiteral(literalType, literalValue.toString, literalValue)
-
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val fieldTerm = newName("timestamp")
-        val ldt = toLocalDateTime(literalValue.asInstanceOf[TimestampString])
-        val ts = TimestampData.fromLocalDateTime(ldt)
-        val fieldTimestamp =
-          s"""
-             |$TIMESTAMP_DATA $fieldTerm =
-             |  $TIMESTAMP_DATA.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
-           """.stripMargin
-        ctx.addReusableMember(fieldTimestamp)
-        generateNonNullLiteral(literalType, fieldTerm, ts)
-
-      case TIMESTAMP_WITH_TIME_ZONE =>
-        throw new UnsupportedOperationException("Unsupported type: " + literalType)
-
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val fieldTerm = newName("timestampWithLocalZone")
-        val ins =
-          toLocalDateTime(literalValue.asInstanceOf[TimestampString])
-            .atOffset(ZoneOffset.UTC)
-            .toInstant
-        val ts = TimestampData.fromInstant(ins)
-        val fieldTimestampWithLocalZone =
-          s"""
-             |$TIMESTAMP_DATA $fieldTerm =
-             |  $TIMESTAMP_DATA.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
-           """.stripMargin
-        ctx.addReusableMember(fieldTimestampWithLocalZone)
+        ctx.addReusableMember(s"""
+           |${className[DecimalData]} $fieldTerm = ${primitiveLiteralForType(literalValue)};
+           |""".stripMargin)
         generateNonNullLiteral(literalType, fieldTerm, literalValue)
 
-      case INTERVAL_YEAR_MONTH =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        if (decimal.isValidInt) {
-          generateNonNullLiteral(literalType, decimal.intValue().toString, decimal.intValue())
-        } else {
-          throw new CodeGenException(
-            s"Decimal '$decimal' can not be converted to interval of months.")
-        }
-
-      case INTERVAL_DAY_TIME =>
-        val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
-        if (decimal.isValidLong) {
-          generateNonNullLiteral(
-            literalType,
-            decimal.longValue().toString + "L",
-            decimal.longValue())
-        } else {
-          throw new CodeGenException(
-            s"Decimal '$decimal' can not be converted to interval of milliseconds.")
-        }
-
       case DISTINCT_TYPE =>
-        generateLiteral(ctx, literalType.asInstanceOf[DistinctType].getSourceType, literalValue)
+        generateLiteral(ctx, literalValue, literalType.asInstanceOf[DistinctType].getSourceType)
 
       case SYMBOL =>
         generateSymbol(literalValue.asInstanceOf[Enum[_]])
+
+      case BOOLEAN | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE |
+           TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE |
+           INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
+        generateNonNullLiteral(literalType, primitiveLiteralForType(literalValue), literalValue)
 
       case ARRAY | MULTISET | MAP | ROW | STRUCTURED_TYPE | NULL | UNRESOLVED =>
         throw new CodeGenException(s"Type not supported: $literalType")
@@ -445,27 +347,7 @@ object GenerateUtils {
   }
 
   def generateSymbol(value: Enum[_]): GeneratedExpression = {
-    // Make sure to convert calcite enum types to flink types
-    val convertedValue = value match {
-      case tu: org.apache.calcite.avatica.util.TimeUnit =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
-      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
-      case jeeb: SqlJsonExistsErrorBehavior =>
-        JsonExistsOnError.valueOf(jeeb.name())
-      case jqeeb: SqlJsonQueryEmptyOrErrorBehavior =>
-        JsonQueryOnEmptyOrError.valueOf(jqeeb.name())
-      case jqwb: SqlJsonQueryWrapperBehavior => jqwb match {
-        case SqlJsonQueryWrapperBehavior.WITHOUT_ARRAY =>
-          JsonQueryWrapper.WITHOUT_ARRAY
-        case SqlJsonQueryWrapperBehavior.WITH_CONDITIONAL_ARRAY =>
-          JsonQueryWrapper.CONDITIONAL_ARRAY
-        case SqlJsonQueryWrapperBehavior.WITH_UNCONDITIONAL_ARRAY =>
-          JsonQueryWrapper.UNCONDITIONAL_ARRAY
-      }
-      case _ => value
-    }
-
+    val convertedValue = calciteToCommon(value, true)
     GeneratedExpression(
       qualifyEnum(convertedValue),
       NEVER_NULL,
@@ -663,7 +545,7 @@ object GenerateUtils {
       (resultTypeTerm, "result"),
       ("boolean", "isNull"))
 
-    val wrappedCode = if (ctx.nullCheck) {
+    val wrappedCode =
       s"""
          |$nullTerm = $inputTerm == null;
          |$resultTerm = $defaultValue;
@@ -671,11 +553,6 @@ object GenerateUtils {
          |  $resultTerm = $inputUnboxingTerm;
          |}
          |""".stripMargin.trim
-    } else {
-      s"""
-         |$resultTerm = $inputUnboxingTerm;
-         |""".stripMargin.trim
-    }
 
     GeneratedExpression(resultTerm, nullTerm, wrappedCode, inputType)
   }
@@ -719,7 +596,7 @@ object GenerateUtils {
           (resultTypeTerm, "field"),
           ("boolean", "isNull"))
 
-        val inputCode = if (ctx.nullCheck) {
+        val inputCode =
           s"""
              |$nullTerm = $inputTerm.isNullAt($index);
              |$fieldTerm = $defaultValue;
@@ -727,12 +604,7 @@ object GenerateUtils {
              |  $fieldTerm = $readCode;
              |}
            """.stripMargin.trim
-        } else {
-          s"""
-             |$nullTerm = false;
-             |$fieldTerm = $readCode;
-           """.stripMargin
-        }
+
         GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
 
       case DISTINCT_TYPE =>

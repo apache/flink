@@ -41,6 +41,7 @@ import java.util.OptionalInt;
  */
 @PublicEvolving
 @SuppressWarnings("WeakerAccess")
+@Deprecated
 public class KeyedOperatorTransformation<K, T> {
 
     /** The data set containing the data to bootstrap the operator state with. */

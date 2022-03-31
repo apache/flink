@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -188,7 +189,8 @@ public class FileSinkMigrationITCase extends TestLogger {
             waitForAllTaskRunning(miniCluster, jobId, false);
 
             CompletableFuture<String> savepointResultFuture =
-                    miniCluster.triggerSavepoint(jobId, savepointBasePath, true);
+                    miniCluster.triggerSavepoint(
+                            jobId, savepointBasePath, true, SavepointFormatType.CANONICAL);
             return savepointResultFuture.get();
         }
     }

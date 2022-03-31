@@ -36,14 +36,14 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.CreateBuilder;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
-import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.ACLProvider;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CreateBuilder;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.NodeCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -69,7 +69,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,9 +101,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
     private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-    private static final String TEST_URL = "akka//user/jobmanager";
-    private static final LeaderInformation TEST_LEADER =
-            LeaderInformation.known(UUID.randomUUID(), TEST_URL);
+    private static final String LEADER_ADDRESS = "akka//user/jobmanager";
     private static final long timeout = 200L * 1000L;
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionTest.class);
@@ -150,7 +147,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     public void testZooKeeperLeaderElectionRetrieval() throws Exception {
 
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
         LeaderElectionDriver leaderElectionDriver = null;
@@ -166,15 +163,19 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError);
 
-            electionEventHandler.waitForLeader(timeout);
-            assertThat(electionEventHandler.getConfirmedLeaderInformation(), is(TEST_LEADER));
+            electionEventHandler.waitForLeader();
+            final LeaderInformation confirmedLeaderInformation =
+                    electionEventHandler.getConfirmedLeaderInformation();
+            assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
 
-            retrievalEventHandler.waitForNewLeader(timeout);
+            retrievalEventHandler.waitForNewLeader();
 
             assertThat(
                     retrievalEventHandler.getLeaderSessionID(),
-                    is(TEST_LEADER.getLeaderSessionID()));
-            assertThat(retrievalEventHandler.getAddress(), is(TEST_LEADER.getLeaderAddress()));
+                    is(confirmedLeaderInformation.getLeaderSessionID()));
+            assertThat(
+                    retrievalEventHandler.getAddress(),
+                    is(confirmedLeaderInformation.getLeaderAddress()));
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {
@@ -224,14 +225,14 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                 leaderElectionService[i].start(contenders[i]);
             }
 
-            String pattern = TEST_URL + "_" + "(\\d+)";
+            String pattern = LEADER_ADDRESS + "_" + "(\\d+)";
             Pattern regex = Pattern.compile(pattern);
 
             int numberSeenLeaders = 0;
 
             while (deadline.hasTimeLeft() && numberSeenLeaders < num) {
                 LOG.debug("Wait for new leader #{}.", numberSeenLeaders);
-                String address = listener.waitForNewLeader(deadline.timeLeft().toMillis());
+                String address = listener.waitForNewLeader();
 
                 Matcher m = regex.matcher(address);
 
@@ -276,7 +277,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
     @Nonnull
     private String createAddress(int i) {
-        return TEST_URL + "_" + i;
+        return LEADER_ADDRESS + "_" + i;
     }
 
     /**
@@ -308,16 +309,17 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                         ZooKeeperUtils.createLeaderElectionService(
                                 curatorFrameworkWrapper.asCuratorFramework());
                 contenders[i] =
-                        new TestingContender(TEST_URL + "_" + i + "_0", leaderElectionService[i]);
+                        new TestingContender(
+                                LEADER_ADDRESS + "_" + i + "_0", leaderElectionService[i]);
 
                 leaderElectionService[i].start(contenders[i]);
             }
 
-            String pattern = TEST_URL + "_" + "(\\d+)" + "_" + "(\\d+)";
+            String pattern = LEADER_ADDRESS + "_" + "(\\d+)" + "_" + "(\\d+)";
             Pattern regex = Pattern.compile(pattern);
 
             for (int i = 0; i < numTries; i++) {
-                listener.waitForNewLeader(timeout);
+                listener.waitForNewLeader();
 
                 String address = listener.getAddress();
 
@@ -338,7 +340,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                                     curatorFrameworkWrapper.asCuratorFramework());
                     contenders[index] =
                             new TestingContender(
-                                    TEST_URL + "_" + index + "_" + (lastTry + 1),
+                                    LEADER_ADDRESS + "_" + index + "_" + (lastTry + 1),
                                     leaderElectionService[index]);
 
                     leaderElectionService[index].start(contenders[index]);
@@ -370,7 +372,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         final String faultyContenderUrl = "faultyContender";
 
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
 
@@ -385,8 +387,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                     createAndInitLeaderElectionDriver(
                             curatorFrameworkWrapper.asCuratorFramework(), electionEventHandler);
 
-            electionEventHandler.waitForLeader(timeout);
-            assertThat(electionEventHandler.getConfirmedLeaderInformation(), is(TEST_LEADER));
+            electionEventHandler.waitForLeader();
+            final LeaderInformation confirmedLeaderInformation =
+                    electionEventHandler.getConfirmedLeaderInformation();
+            assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
 
             anotherCuratorFrameworkWrapper =
                     ZooKeeperUtils.startCuratorFramework(
@@ -431,14 +435,16 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError);
 
-            if (retrievalEventHandler.waitForNewLeader(timeout).equals(faultyContenderUrl)) {
-                retrievalEventHandler.waitForNewLeader(timeout);
+            if (retrievalEventHandler.waitForNewLeader().equals(faultyContenderUrl)) {
+                retrievalEventHandler.waitForNewLeader();
             }
 
             assertThat(
                     retrievalEventHandler.getLeaderSessionID(),
-                    is(TEST_LEADER.getLeaderSessionID()));
-            assertThat(retrievalEventHandler.getAddress(), is(TEST_LEADER.getLeaderAddress()));
+                    is(confirmedLeaderInformation.getLeaderSessionID()));
+            assertThat(
+                    retrievalEventHandler.getAddress(),
+                    is(confirmedLeaderInformation.getLeaderAddress()));
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {
@@ -461,7 +467,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     public void testExceptionForwarding() throws Exception {
         LeaderElectionDriver leaderElectionDriver = null;
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
 
         CuratorFramework client = null;
         final CreateBuilder mockCreateBuilder =
@@ -484,7 +490,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
             leaderElectionDriver = createAndInitLeaderElectionDriver(client, electionEventHandler);
 
-            electionEventHandler.waitForError(timeout);
+            electionEventHandler.waitForError();
 
             assertNotNull(electionEventHandler.getError());
             assertThat(
@@ -513,7 +519,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         ZooKeeperLeaderElectionDriver leaderElectionDriver = null;
         LeaderRetrievalDriver leaderRetrievalDriver = null;
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
 
@@ -549,9 +555,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             cache.getListenable().addListener(existsListener);
             cache.start();
 
-            electionEventHandler.waitForLeader(timeout);
+            electionEventHandler.waitForLeader();
 
-            retrievalEventHandler.waitForNewLeader(timeout);
+            retrievalEventHandler.waitForNewLeader();
 
             Future<Boolean> existsFuture = existsListener.nodeExists();
 
@@ -569,15 +575,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             // make sure that the leader node has been deleted
             deletedFuture.get(timeout, TimeUnit.MILLISECONDS);
 
-            try {
-                retrievalEventHandler.waitForNewLeader(1000L);
-
-                fail(
-                        "TimeoutException was expected because there is no leader registered and "
-                                + "thus there shouldn't be any leader information in ZooKeeper.");
-            } catch (TimeoutException e) {
-                // that was expected
-            }
+            retrievalEventHandler.waitForEmptyLeaderInformation();
         } finally {
             electionEventHandler.close();
             if (leaderRetrievalDriver != null) {
@@ -598,7 +596,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     public void testNotLeaderShouldNotCleanUpTheLeaderInformation() throws Exception {
 
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
         final TestingLeaderRetrievalEventHandler retrievalEventHandler =
                 new TestingLeaderRetrievalEventHandler();
         ZooKeeperLeaderElectionDriver leaderElectionDriver = null;
@@ -609,12 +607,14 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                     createAndInitLeaderElectionDriver(
                             curatorFrameworkWrapper.asCuratorFramework(), electionEventHandler);
 
-            electionEventHandler.waitForLeader(timeout);
-            assertThat(electionEventHandler.getConfirmedLeaderInformation(), is(TEST_LEADER));
+            electionEventHandler.waitForLeader();
+            final LeaderInformation confirmedLeaderInformation =
+                    electionEventHandler.getConfirmedLeaderInformation();
+            assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
 
             // Leader is revoked
             leaderElectionDriver.notLeader();
-            electionEventHandler.waitForRevokeLeader(timeout);
+            electionEventHandler.waitForRevokeLeader();
             assertThat(
                     electionEventHandler.getConfirmedLeaderInformation(),
                     is(LeaderInformation.empty()));
@@ -625,12 +625,14 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                             .createLeaderRetrievalDriver(
                                     retrievalEventHandler, retrievalEventHandler::handleError);
 
-            retrievalEventHandler.waitForNewLeader(timeout);
+            retrievalEventHandler.waitForNewLeader();
 
             assertThat(
                     retrievalEventHandler.getLeaderSessionID(),
-                    is(TEST_LEADER.getLeaderSessionID()));
-            assertThat(retrievalEventHandler.getAddress(), is(TEST_LEADER.getLeaderAddress()));
+                    is(confirmedLeaderInformation.getLeaderSessionID()));
+            assertThat(
+                    retrievalEventHandler.getAddress(),
+                    is(confirmedLeaderInformation.getLeaderAddress()));
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {
@@ -650,7 +652,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     public void testUnExpectedErrorForwarding() throws Exception {
         LeaderElectionDriver leaderElectionDriver = null;
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(TEST_LEADER);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
 
         final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
         final FlinkRuntimeException testException =
@@ -749,7 +751,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         final ZooKeeperLeaderElectionDriver leaderElectionDriver =
                 ZooKeeperUtils.createLeaderElectionDriverFactory(client)
                         .createLeaderElectionDriver(
-                                electionEventHandler, electionEventHandler::handleError, TEST_URL);
+                                electionEventHandler,
+                                electionEventHandler::handleError,
+                                LEADER_ADDRESS);
         electionEventHandler.init(leaderElectionDriver);
         return leaderElectionDriver;
     }

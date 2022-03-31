@@ -19,36 +19,26 @@
 package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
-import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
@@ -60,12 +50,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private static final long serialVersionUID = 1L;
 
     protected Configuration config;
-
-    /**
-     * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
-     * execution.
-     */
-    protected transient PythonFunctionRunner pythonFunctionRunner;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
@@ -83,15 +67,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private transient long maxBundleTimeMills;
 
     /** Time that the last bundle was finished. */
-    private transient long lastFinishBundleTime;
+    protected transient long lastFinishBundleTime;
 
     /** A timer that finishes the current bundle after a fixed amount of time. */
     private transient ScheduledFuture<?> checkFinishBundleTimer;
 
     /** Callback to be executed after the current bundle was finished. */
-    private transient Runnable bundleFinishedCallback;
-
-    private transient ExecutorService flushThreadPool;
+    protected transient Runnable bundleFinishedCallback;
 
     public AbstractPythonFunctionOperator(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
@@ -127,9 +109,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                         this.maxBundleTimeMills);
             }
 
-            this.pythonFunctionRunner = createPythonFunctionRunner();
-            this.pythonFunctionRunner.open(pythonConfig);
-
             this.elementCount = 0;
             this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
@@ -143,7 +122,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                                     timestamp -> checkInvokeFinishBundleByTime(),
                                     bundleCheckPeriod,
                                     bundleCheckPeriod);
-            this.flushThreadPool = Executors.newSingleThreadExecutor();
         } finally {
             super.open();
         }
@@ -164,14 +142,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             if (checkFinishBundleTimer != null) {
                 checkFinishBundleTimer.cancel(true);
                 checkFinishBundleTimer = null;
-            }
-            if (pythonFunctionRunner != null) {
-                pythonFunctionRunner.close();
-                pythonFunctionRunner = null;
-            }
-            if (flushThreadPool != null) {
-                flushThreadPool.shutdown();
-                flushThreadPool = null;
             }
         } finally {
             super.close();
@@ -296,24 +266,12 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return config;
     }
 
-    /**
-     * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined
-     * function execution.
-     */
-    public abstract PythonFunctionRunner createPythonFunctionRunner() throws Exception;
-
     /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager.. */
     public abstract PythonEnv getPythonEnv();
 
-    /** Sends the execution result to the downstream operator. */
-    public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
+    protected abstract void invokeFinishBundle() throws Exception;
 
-    protected void emitResults() throws Exception {
-        Tuple2<byte[], Integer> resultTuple;
-        while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f1 != 0) {
-            emitResult(resultTuple);
-        }
-    }
+    protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
 
     /** Checks whether to invoke finishBundle by elements count. Called in processElement. */
     protected void checkInvokeFinishBundleByCount() throws Exception {
@@ -327,66 +285,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         long now = getProcessingTimeService().getCurrentProcessingTime();
         if (now - lastFinishBundleTime >= maxBundleTimeMills) {
             invokeFinishBundle();
-        }
-    }
-
-    protected void invokeFinishBundle() throws Exception {
-        if (elementCount > 0) {
-            AtomicBoolean flushThreadFinish = new AtomicBoolean(false);
-            AtomicReference<Throwable> exceptionReference = new AtomicReference<>();
-            flushThreadPool.submit(
-                    () -> {
-                        try {
-                            pythonFunctionRunner.flush();
-                        } catch (Throwable e) {
-                            exceptionReference.set(e);
-                        } finally {
-                            flushThreadFinish.set(true);
-                            // interrupt the progress of takeResult to avoid the main thread is
-                            // blocked forever.
-                            ((BeamPythonFunctionRunner) pythonFunctionRunner).notifyNoMoreResults();
-                        }
-                    });
-            Tuple2<byte[], Integer> resultTuple;
-            while (!flushThreadFinish.get()) {
-                resultTuple = pythonFunctionRunner.takeResult();
-                if (resultTuple.f1 != 0) {
-                    emitResult(resultTuple);
-                    emitResults();
-                }
-            }
-            emitResults();
-            Throwable flushThreadThrowable = exceptionReference.get();
-            if (flushThreadThrowable != null) {
-                throw new RuntimeException(
-                        "Error while waiting for BeamPythonFunctionRunner flush",
-                        flushThreadThrowable);
-            }
-            elementCount = 0;
-            lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-            // callback only after current bundle was fully finalized
-            if (bundleFinishedCallback != null) {
-                bundleFinishedCallback.run();
-                bundleFinishedCallback = null;
-            }
-        }
-    }
-
-    protected PythonEnvironmentManager createPythonEnvironmentManager() {
-        PythonDependencyInfo dependencyInfo =
-                PythonDependencyInfo.create(
-                        pythonConfig, getRuntimeContext().getDistributedCache());
-        PythonEnv pythonEnv = getPythonEnv();
-        if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-            return new ProcessPythonEnvironmentManager(
-                    dependencyInfo,
-                    getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-                    new HashMap<>(System.getenv()),
-                    getRuntimeContext().getJobId());
-        } else {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "Execution type '%s' is not supported.", pythonEnv.getExecType()));
         }
     }
 

@@ -135,7 +135,7 @@ public class PushProjectIntoTableSourceScanRule
         }
 
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
-        final ResolvedSchema schema = sourceTable.catalogTable().getResolvedSchema();
+        final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
         final RowType producedType = createProducedType(schema, sourceTable.tableSource());
         final NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
@@ -202,15 +202,18 @@ public class PushProjectIntoTableSourceScanRule
         return projections;
     }
 
-    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig config) {
-        return DynamicSourceUtils.isUpsertSource(table.catalogTable(), table.tableSource())
+    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
+        return DynamicSourceUtils.isUpsertSource(
+                        table.contextResolvedTable().getResolvedSchema(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(
-                        table.catalogTable(), table.tableSource(), config);
+                        table.contextResolvedTable().getResolvedSchema(),
+                        table.tableSource(),
+                        tableConfig);
     }
 
     private List<RexNode> getPrimaryKeyProjections(LogicalTableScan scan) {
         final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
-        final ResolvedSchema schema = source.catalogTable().getResolvedSchema();
+        final ResolvedSchema schema = source.contextResolvedTable().getResolvedSchema();
         if (!schema.getPrimaryKey().isPresent()) {
             return Collections.emptyList();
         }
@@ -247,7 +250,8 @@ public class PushProjectIntoTableSourceScanRule
         if (supportsMetadata(source.tableSource())) {
             final List<String> declaredMetadataKeys =
                     createRequiredMetadataKeys(
-                            source.catalogTable().getResolvedSchema(), source.tableSource());
+                            source.contextResolvedTable().getResolvedSchema(),
+                            source.tableSource());
 
             numPhysicalColumns = producedType.getFieldCount() - declaredMetadataKeys.size();
 

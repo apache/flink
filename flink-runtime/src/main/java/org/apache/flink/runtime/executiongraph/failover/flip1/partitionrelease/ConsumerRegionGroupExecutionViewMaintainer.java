@@ -42,9 +42,8 @@ class ConsumerRegionGroupExecutionViewMaintainer {
     private final Map<SchedulingPipelinedRegion, Set<ConsumerRegionGroupExecutionView>>
             executionViewByRegion = new HashMap<>();
 
-    ConsumerRegionGroupExecutionViewMaintainer(
+    void notifyNewRegionGroupExecutionViews(
             Iterable<ConsumerRegionGroupExecutionView> executionViews) {
-
         for (ConsumerRegionGroupExecutionView executionView : executionViews) {
             for (SchedulingPipelinedRegion region : executionView) {
                 executionViewByRegion

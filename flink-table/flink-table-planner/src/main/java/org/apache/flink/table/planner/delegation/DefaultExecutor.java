@@ -95,6 +95,11 @@ public class DefaultExecutor implements Executor {
         return executionEnvironment.executeAsync((StreamGraph) pipeline);
     }
 
+    @Override
+    public boolean isCheckpointingEnabled() {
+        return executionEnvironment.getCheckpointConfig().isCheckpointingEnabled();
+    }
+
     private void configureBatchSpecificProperties() {
         executionEnvironment.getConfig().enableObjectReuse();
     }

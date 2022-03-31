@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.over
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GenerateUtils}
@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.RowType
   * RANGE allow the compound ORDER BY and the random type when the bound is current row.
   */
 class MultiFieldRangeBoundComparatorCodeGenerator(
-    conf: TableConfig,
+    tableConfig: ReadableConfig,
     inputType: RowType,
     sortSpec: SortSpec,
     isLowerBound: Boolean = true) {
@@ -45,7 +45,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       if (isLowerBound) s"return $comp >= 0 ? 1 : -1;" else s"return $comp > 0 ? 1 : -1;"
     }
 
-    val ctx = CodeGeneratorContext(conf)
+    val ctx = CodeGeneratorContext(tableConfig)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, input, current)
 
     val code =
@@ -76,7 +76,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       """.stripMargin
 
     new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, code, ctx.references.toArray, ctx.tableConfig)
   }
 }
 

@@ -45,6 +45,9 @@ public class DeclarativeSlotPoolBridgeBuilder {
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
+    private RequestSlotMatchingStrategy requestSlotMatchingStrategy =
+            SimpleRequestSlotMatchingStrategy.INSTANCE;
+
     public DeclarativeSlotPoolBridgeBuilder setResourceManagerGateway(
             @Nullable ResourceManagerGateway resourceManagerGateway) {
         this.resourceManagerGateway = resourceManagerGateway;
@@ -71,6 +74,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setRequestSlotMatchingStrategy(
+            RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
+        this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridge build() {
         return new DeclarativeSlotPoolBridge(
                 jobId,
@@ -78,7 +87,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 clock,
                 TestingUtils.infiniteTime(),
                 idleSlotTimeout,
-                batchSlotTimeout);
+                batchSlotTimeout,
+                requestSlotMatchingStrategy);
     }
 
     public DeclarativeSlotPoolBridge buildAndStart(

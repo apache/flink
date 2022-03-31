@@ -28,8 +28,8 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{Broadcast
 object JoinITCaseHelper {
 
   def disableBroadcastHashJoin(tEnv: TableEnvironment): Unit = {
-    tEnv.getConfig.getConfiguration.setLong(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
   }
 
   def disableOtherJoinOpForJoin(tEnv: TableEnvironment, expected: JoinType): Unit = {
@@ -37,8 +37,10 @@ object JoinITCaseHelper {
       case BroadcastHashJoin =>
         // set up the broadcast join threshold to Long.MaxValue
         // so that the threshold constraints are always met.
-        tEnv.getConfig.getConfiguration.setLong(
-          OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.MaxValue)
+        tEnv.getConfig
+          .set(
+            OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD,
+            Long.box(Long.MaxValue))
         "ShuffleHashJoin, NestedLoopJoin, SortMergeJoin"
       case HashJoin =>
         disableBroadcastHashJoin(tEnv)
@@ -46,8 +48,7 @@ object JoinITCaseHelper {
       case SortMergeJoin => "HashJoin, NestedLoopJoin"
       case NestedLoopJoin => "HashJoin, SortMergeJoin"
     }
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, disabledOperators)
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, disabledOperators)
   }
 
 }

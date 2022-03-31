@@ -44,6 +44,8 @@ Avro Schema Registry 格式只能与 [Apache Kafka SQL 连接器]({{< ref "docs/
 
 {{< sql_download_table "avro-confluent" >}}
 
+For Maven, SBT, Gradle, or other build automation tools, please also ensure that Confluent's maven repository at `https://packages.confluent.io/maven/` is configured in your project's build files.
+
 如何创建使用 Avro-Confluent 格式的表
 ----------------
 

@@ -29,7 +29,10 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
@@ -422,6 +425,21 @@ public class ConnectedStreams<IN1, IN2> {
             String functionName,
             TypeInformation<R> outTypeInfo,
             TwoInputStreamOperator<IN1, IN2, R> operator) {
+        return doTransform(functionName, outTypeInfo, SimpleOperatorFactory.of(operator));
+    }
+
+    @PublicEvolving
+    public <R> SingleOutputStreamOperator<R> transform(
+            String functionName,
+            TypeInformation<R> outTypeInfo,
+            TwoInputStreamOperatorFactory<IN1, IN2, R> operatorFactory) {
+        return doTransform(functionName, outTypeInfo, operatorFactory);
+    }
+
+    private <R> SingleOutputStreamOperator<R> doTransform(
+            String functionName,
+            TypeInformation<R> outTypeInfo,
+            StreamOperatorFactory<R> operatorFactory) {
 
         // read the output type of the input Transforms to coax out errors about MissingTypeInfo
         inputStream1.getType();
@@ -432,7 +450,7 @@ public class ConnectedStreams<IN1, IN2> {
                         inputStream1.getTransformation(),
                         inputStream2.getTransformation(),
                         functionName,
-                        operator,
+                        operatorFactory,
                         outTypeInfo,
                         environment.getParallelism());
 

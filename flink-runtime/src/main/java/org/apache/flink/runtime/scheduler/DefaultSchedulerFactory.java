@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -134,7 +135,14 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getAllocatorFactory(),
                 initializationTimestamp,
                 mainThreadExecutor,
-                jobStatusListener,
+                (jobId, jobStatus, timestamp) -> {
+                    if (jobStatus == JobStatus.RESTARTING) {
+                        slotPool.setIsJobRestarting(true);
+                    } else {
+                        slotPool.setIsJobRestarting(false);
+                    }
+                    jobStatusListener.jobStatusChanges(jobId, jobStatus, timestamp);
+                },
                 executionGraphFactory,
                 shuffleMaster,
                 rpcTimeout);

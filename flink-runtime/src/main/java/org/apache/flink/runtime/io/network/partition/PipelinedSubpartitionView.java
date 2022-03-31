@@ -91,7 +91,11 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
 
     @Override
     public Throwable getFailureCause() {
-        return parent.getFailureCause();
+        Throwable cause = parent.getFailureCause();
+        if (cause != null) {
+            return new ProducerFailedException(cause);
+        }
+        return null;
     }
 
     @Override

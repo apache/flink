@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
@@ -27,7 +31,6 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
@@ -39,9 +42,15 @@ import java.util.List;
 import java.util.Map;
 
 /** {@link StreamExecNode} for temporal table join that implemented by lookup. */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-lookup-join",
+        version = 1,
+        producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
     public StreamExecLookupJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             @Nullable RexNode joinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
@@ -52,13 +61,15 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecLookupJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecLookupJoin.class, tableConfig),
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -66,6 +77,9 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
 
     @JsonCreator
     public StreamExecLookupJoin(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
             @JsonProperty(FIELD_NAME_JOIN_CONDITION) @Nullable RexNode joinCondition,
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
@@ -75,18 +89,19 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
                     RexNode filterOnTemporalTable,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
+                id,
+                context,
+                persistedConfig,
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                id,
                 inputProperties,
                 outputType,
                 description);

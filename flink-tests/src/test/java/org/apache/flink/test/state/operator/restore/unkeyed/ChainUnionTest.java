@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.state.operator.restore.unkeyed;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
@@ -35,8 +35,8 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  */
 public class ChainUnionTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-    public ChainUnionTest(MigrationVersion migrationVersion) {
-        super(migrationVersion);
+    public ChainUnionTest(FlinkVersion flinkVersion) {
+        super(flinkVersion);
     }
 
     @Override

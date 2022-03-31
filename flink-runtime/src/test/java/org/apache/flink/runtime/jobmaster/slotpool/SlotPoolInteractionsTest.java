@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -96,9 +94,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            CommonTestUtils.waitUntilCondition(
-                    () -> pool.getNumPendingRequests() == 0,
-                    Deadline.fromNow(TestingUtils.TESTING_DURATION));
+            CommonTestUtils.waitUntilCondition(() -> pool.getNumPendingRequests() == 0);
         }
     }
 
@@ -123,9 +119,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            CommonTestUtils.waitUntilCondition(
-                    () -> pool.getNumPendingRequests() == 0,
-                    Deadline.fromNow(TestingUtils.TESTING_DURATION));
+            CommonTestUtils.waitUntilCondition(() -> pool.getNumPendingRequests() == 0);
         }
     }
 

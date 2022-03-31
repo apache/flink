@@ -504,7 +504,7 @@ class TableSinkTest extends TableTestBase {
 
   @Test def testAppendStreamToSinkWithPkNoKeyBy(): Unit = {
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
       ExecutionConfigOptions.SinkKeyedShuffle.NONE)
     tEnv.executeSql(
       """
@@ -535,7 +535,8 @@ class TableSinkTest extends TableTestBase {
   @Test def testAppendStreamToSinkWithPkForceKeyBy(): Unit = {
     util.getStreamEnv.setParallelism(4)
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
       ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
     tEnv.executeSql(
       """
@@ -566,7 +567,8 @@ class TableSinkTest extends TableTestBase {
   @Test def testSingleParallelismAppendStreamToSinkWithPkForceKeyBy(): Unit = {
     util.getStreamEnv.setParallelism(1)
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
       ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
     tEnv.executeSql(
       """
@@ -597,7 +599,8 @@ class TableSinkTest extends TableTestBase {
   @Test def testAppendStreamToSinkWithoutPkForceKeyBy(): Unit = {
     util.getStreamEnv.setParallelism(4)
     val tEnv = util.tableEnv
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
       ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
     tEnv.executeSql(
       """
@@ -622,6 +625,172 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql("insert into sink select * from source")
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test def testAppendStreamToSinkWithoutPkForceKeyBySingleParallelism(): Unit = {
+    util.getStreamEnv.setParallelism(4)
+    val tEnv = util.tableEnv
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
+    tEnv.executeSql(
+      """
+        |create table source (
+        | id varchar,
+        | city_name varchar
+        |) with (
+        | 'connector' = 'test_source'
+        |)""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |create table sink (
+        | id varchar,
+        | city_name varchar
+        |) with (
+        | 'connector' = 'values',
+        | 'sink-insert-only' = 'false',
+        | 'sink.parallelism' = '1'
+        |)""".stripMargin)
+    val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
+    stmtSet.addInsertSql("insert into sink select * from source")
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test def testChangelogStreamToSinkWithPkDifferentParallelism(): Unit = {
+    util.getStreamEnv.setParallelism(1)
+    val tEnv = util.tableEnv
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.AUTO)
+    tEnv.executeSql(
+      """
+        |create table source (
+        | id varchar,
+        | city_name varchar,
+        | primary key(id) not enforced
+        |) with (
+        | 'connector' = 'values',
+        | 'changelog-mode' = 'I,UB,UA,D'
+        |)""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |create table sink (
+        | id varchar,
+        | city_name varchar,
+        | primary key(id) not enforced
+        |) with (
+        | 'connector' = 'values',
+        | 'sink-insert-only' = 'false',
+        | 'sink.parallelism' = '2'
+        |)""".stripMargin)
+    val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
+    stmtSet.addInsertSql("insert into sink select * from source")
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testChangelogStreamToSinkWithPkSingleParallelism(): Unit = {
+    util.getStreamEnv.setParallelism(4)
+    val tEnv = util.tableEnv
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+      ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
+    tEnv.executeSql(
+      """
+        |create table source (
+        | id varchar,
+        | city_name varchar,
+        | ts bigint
+        |) with (
+        | 'connector' = 'test_source'
+        |)""".stripMargin)
+
+    tEnv.executeSql(
+      """
+        |create table sink (
+        | id varchar,
+        | city_name varchar,
+        | ts bigint,
+        | rn bigint,
+        | primary key(id) not enforced
+        |) with (
+        | 'connector' = 'values',
+        | 'sink-insert-only' = 'false',
+        | 'sink.parallelism' = '1'
+        |)""".stripMargin)
+    val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
+    stmtSet.addInsertSql(
+      s"""
+         |insert into sink
+         |select * from (
+         |  select *, row_number() over (partition by id order by ts desc) rn
+         |  from source
+         |) where rn=1""".stripMargin)
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @Test
+  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      s"You should enable the checkpointing for sinking to managed table " +
+        s"'default_catalog.default_database.sink', " +
+        s"managed table relies on checkpoint to commit and " +
+        s"the data is visible only after commit.")
+    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
+    util.getStreamEnv.enableCheckpointing(10)
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testInsertPartColumn(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE zm_test (
+         |  `a` BIGINT,
+         |  `m1` MAP<STRING, BIGINT>,
+         |  `m2` MAP<STRING NOT NULL, BIGINT>,
+         |  `m3` MAP<STRING, BIGINT NOT NULL>,
+         |  `m4` MAP<STRING NOT NULL, BIGINT NOT NULL>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO zm_test(`a`) SELECT `a` FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 }
 

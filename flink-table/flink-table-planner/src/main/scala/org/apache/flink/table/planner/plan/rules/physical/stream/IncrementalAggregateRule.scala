@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -52,10 +53,10 @@ class IncrementalAggregateRule
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
 
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = unwrapTableConfig(call)
 
     // whether incremental aggregate is enabled
-    val incrementalAggEnabled = tableConfig.getConfiguration.getBoolean(
+    val incrementalAggEnabled = tableConfig.get(
       IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
@@ -152,6 +153,7 @@ object IncrementalAggregateRule {
   @Experimental
   val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
   key("table.optimizer.incremental-agg-enabled")
+      .booleanType()
       .defaultValue(JBoolean.valueOf(true))
       .withDescription("When both local aggregation and distinct aggregation splitting " +
           "are enabled, a distinct aggregation will be optimized into four aggregations, " +

@@ -18,14 +18,13 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import akka.actor.ActorSystem;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,12 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link AkkaBootstrapTools}. */
-public class AkkaBootstrapToolsTest extends TestLogger {
+class AkkaBootstrapToolsTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AkkaBootstrapToolsTest.class);
 
@@ -56,7 +53,7 @@ public class AkkaBootstrapToolsTest extends TestLogger {
      * FLINK-10580 for more details.
      */
     @Test
-    public void testConcurrentActorSystemCreation() throws Exception {
+    void testConcurrentActorSystemCreation() throws Exception {
         final int concurrentCreations = 10;
         final ExecutorService executorService = Executors.newFixedThreadPool(concurrentCreations);
         final CyclicBarrier cyclicBarrier = new CyclicBarrier(concurrentCreations);
@@ -97,16 +94,19 @@ public class AkkaBootstrapToolsTest extends TestLogger {
      * instantiated due to an occupied port.
      */
     @Test
-    public void testActorSystemInstantiationFailureWhenPortOccupied() throws Exception {
+    void testActorSystemInstantiationFailureWhenPortOccupied() throws Exception {
         final ServerSocket portOccupier = new ServerSocket(0, 10, InetAddress.getByName("0.0.0.0"));
 
         try {
             final int port = portOccupier.getLocalPort();
-            AkkaBootstrapTools.startRemoteActorSystem(
-                    new Configuration(), "0.0.0.0", String.valueOf(port), LOG);
-            fail("Expected to fail with a BindException");
-        } catch (Exception e) {
-            assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));
+            assertThatThrownBy(
+                            () ->
+                                    AkkaBootstrapTools.startRemoteActorSystem(
+                                            new Configuration(),
+                                            "0.0.0.0",
+                                            String.valueOf(port),
+                                            LOG))
+                    .satisfies(FlinkAssertions.anyCauseMatches(BindException.class));
         } finally {
             portOccupier.close();
         }

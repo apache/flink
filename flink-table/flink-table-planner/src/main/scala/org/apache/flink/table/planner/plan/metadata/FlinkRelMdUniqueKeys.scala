@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.catalog.CatalogTable
+import org.apache.flink.table.catalog.{CatalogTable, ResolvedCatalogBaseTable, ResolvedCatalogTable}
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
@@ -62,7 +62,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   private def getTableUniqueKeys(relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
     relOptTable match {
       case sourceTable: TableSourceTable =>
-        val catalogTable = sourceTable.catalogTable
+        val catalogTable =
+          sourceTable.contextResolvedTable.getResolvedTable[ResolvedCatalogBaseTable[_]]
         catalogTable match {
           case act: CatalogTable =>
             val builder = ImmutableSet.builder[ImmutableBitSet]()

@@ -18,66 +18,28 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContext;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
 public class LookupKeySerdeTest {
 
     @Test
-    public void testLookupKey() throws JsonProcessingException {
-        TableConfig tableConfig = TableConfig.getDefault();
-        ModuleManager moduleManager = new ModuleManager();
-        CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        .classLoader(Thread.currentThread().getContextClassLoader())
-                        .config(tableConfig.getConfiguration())
-                        .defaultCatalog("default_catalog", new GenericInMemoryCatalog("default_db"))
-                        .build();
-        FlinkContext flinkContext =
-                new FlinkContextImpl(
-                        false,
-                        tableConfig,
-                        moduleManager,
-                        new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-                        catalogManager,
-                        null);
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        flinkContext,
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new LogicalTypeJsonSerializer());
-        module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        mapper.registerModule(module);
+    public void testLookupKey() throws IOException {
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
         LookupJoinUtil.LookupKey[] lookupKeys =
                 new LookupJoinUtil.LookupKey[] {
@@ -88,9 +50,10 @@ public class LookupKeySerdeTest {
                 };
         for (LookupJoinUtil.LookupKey lookupKey : lookupKeys) {
             LookupJoinUtil.LookupKey result =
-                    mapper.readValue(
-                            mapper.writeValueAsString(lookupKey), LookupJoinUtil.LookupKey.class);
-            assertEquals(lookupKey, result);
+                    objectReader.readValue(
+                            objectWriter.writeValueAsString(lookupKey),
+                            LookupJoinUtil.LookupKey.class);
+            assertThat(result).isEqualTo(lookupKey);
         }
     }
 }

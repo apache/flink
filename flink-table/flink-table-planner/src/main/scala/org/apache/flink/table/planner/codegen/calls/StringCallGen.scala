@@ -54,6 +54,10 @@ object StringCallGen {
       new MethodCallGen(method).generate(ctx, operands, returnType)
     }
 
+    def fallibleMethodGen(method: Method): GeneratedExpression = {
+      new MethodCallGen(method, wrapTryCatch = true).generate(ctx, operands, returnType)
+    }
+
     val generator = operator match {
 
       case LIKE =>
@@ -186,12 +190,12 @@ object StringCallGen {
         methodGen(BuiltInMethods.STRING_TO_DATE_WITH_FORMAT)
 
       case TO_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
+        fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP)
 
       case TO_TIMESTAMP if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
+        fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
 
       case UNIX_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_STR)

@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
@@ -38,8 +39,10 @@ import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -66,9 +69,10 @@ import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link YarnClusterDescriptor}. */
@@ -695,7 +699,33 @@ public class YarnClusterDescriptorTest extends TestLogger {
             fail();
         } catch (IllegalArgumentException exception) {
             assertThat(
-                    exception.getMessage(), containsString("This is an illegal ship directory :"));
+                    exception.getMessage(),
+                    containsString("User-shipped directories configured via :"));
+        }
+    }
+
+    /** Tests that the usrlib will be automatically shipped. */
+    @Test
+    public void testShipUsrLib() throws IOException {
+        final Map<String, String> oldEnv = System.getenv();
+        final Map<String, String> env = new HashMap<>(1);
+        final File homeFolder = temporaryFolder.newFolder().getAbsoluteFile();
+        final File libFolder = new File(homeFolder.getAbsolutePath(), "lib");
+        assertTrue(libFolder.createNewFile());
+        final File usrLibFolder =
+                new File(homeFolder.getAbsolutePath(), ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+        assertTrue(usrLibFolder.mkdirs());
+        final File usrLibFile = new File(usrLibFolder, "usrLibFile.jar");
+        assertTrue(usrLibFile.createNewFile());
+        env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+        CommonTestUtils.setEnv(env);
+
+        try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
+            final Set<File> effectiveShipFiles = new HashSet<>();
+            descriptor.addUsrLibFolderToShipFiles(effectiveShipFiles);
+            assertThat(effectiveShipFiles, containsInAnyOrder(usrLibFolder));
+        } finally {
+            CommonTestUtils.setEnv(oldEnv);
         }
     }
 
@@ -802,5 +832,69 @@ public class YarnClusterDescriptorTest extends TestLogger {
                 .setYarnConfiguration(yarnConfiguration)
                 .setYarnClusterInformationRetriever(() -> YARN_MAX_VCORES)
                 .build();
+    }
+
+    @Test
+    public void testGenerateApplicationMasterEnv() throws IOException {
+        final File flinkHomeDir = temporaryFolder.newFolder();
+        final String fakeLocalFlinkJar = "./lib/flink_dist.jar";
+        final String fakeClassPath = fakeLocalFlinkJar + ":./usrlib/user.jar";
+        final ApplicationId appId = ApplicationId.newInstance(0, 0);
+        final Map<String, String> masterEnv =
+                getTestMasterEnv(
+                        new Configuration(), flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
+
+        assertEquals("./lib", masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR));
+        assertEquals(appId.toString(), masterEnv.get(YarnConfigKeys.ENV_APP_ID));
+        assertEquals(
+                YarnApplicationFileUploader.getApplicationDirPath(
+                                new Path(flinkHomeDir.getPath()), appId)
+                        .toString(),
+                masterEnv.get(YarnConfigKeys.FLINK_YARN_FILES));
+        assertEquals(fakeClassPath, masterEnv.get(YarnConfigKeys.ENV_FLINK_CLASSPATH));
+        assertEquals("", masterEnv.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES));
+        assertEquals(fakeLocalFlinkJar, masterEnv.get(YarnConfigKeys.FLINK_DIST_JAR));
+        assertEquals(flinkHomeDir.getPath(), masterEnv.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR));
+    }
+
+    @Test
+    public void testEnvFlinkLibDirVarNotOverriddenByContainerEnv() throws IOException {
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.setString(
+                ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX
+                        + ConfigConstants.ENV_FLINK_LIB_DIR,
+                "fake_path");
+        final Map<String, String> masterEnv =
+                getTestMasterEnv(
+                        flinkConfig,
+                        temporaryFolder.newFolder(),
+                        "",
+                        "./lib/flink_dist.jar",
+                        ApplicationId.newInstance(0, 0));
+        assertEquals("./lib", masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR));
+    }
+
+    private Map<String, String> getTestMasterEnv(
+            Configuration flinkConfig,
+            File flinkHomeDir,
+            String fakeClassPath,
+            String fakeLocalFlinkJar,
+            ApplicationId appId)
+            throws IOException {
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+            final YarnApplicationFileUploader yarnApplicationFileUploader =
+                    YarnApplicationFileUploader.from(
+                            FileSystem.get(new YarnConfiguration()),
+                            new Path(flinkHomeDir.getPath()),
+                            new ArrayList<>(),
+                            appId,
+                            DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+            return yarnClusterDescriptor.generateApplicationMasterEnv(
+                    yarnApplicationFileUploader,
+                    fakeClassPath,
+                    fakeLocalFlinkJar,
+                    appId.toString());
+        }
     }
 }

@@ -39,8 +39,7 @@ public final class KeyedStateCheckpointOutputStream
     private final KeyGroupRangeOffsets keyGroupRangeOffsets;
 
     public KeyedStateCheckpointOutputStream(
-            CheckpointStreamFactory.CheckpointStateOutputStream delegate,
-            KeyGroupRange keyGroupRange) {
+            CheckpointStateOutputStream delegate, KeyGroupRange keyGroupRange) {
 
         super(delegate);
         Preconditions.checkNotNull(keyGroupRange);

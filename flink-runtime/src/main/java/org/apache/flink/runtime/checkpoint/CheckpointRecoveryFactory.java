@@ -34,7 +34,6 @@ public interface CheckpointRecoveryFactory {
      *
      * @param jobId Job ID to recover checkpoints for
      * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
-     * @param userClassLoader User code class loader of the job
      * @param sharedStateRegistryFactory Simple factory to produce {@link SharedStateRegistry}
      *     objects.
      * @param ioExecutor Executor used to run (async) deletes.
@@ -43,7 +42,6 @@ public interface CheckpointRecoveryFactory {
     CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor)
             throws Exception;

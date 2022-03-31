@@ -75,7 +75,7 @@ public final class ConfigConstants {
      */
     @Deprecated @PublicEvolving
     public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY =
-            key("restart-strategy.fixed-delay.delay").defaultValue("0 s");
+            key("restart-strategy.fixed-delay.delay").stringType().defaultValue("0 s");
 
     /**
      * Maximum number of restarts in given time interval {@link
@@ -1113,28 +1113,24 @@ public final class ConfigConstants {
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
 
-    /** The class of the reporter to use. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
+    /** @deprecated use {@link MetricOptions#REPORTER_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 
-    /**
-     * The class of the reporter factory to use. This is used as a suffix in an actual reporter
-     * config
-     */
-    public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
+    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
 
-    /** The interval between reports. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
+    /** @deprecated use {@link MetricOptions#REPORTER_INTERVAL} */
+    @Deprecated public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
-    /**
-     * The delimiter used to assemble the metric identifier. This is used as a suffix in an actual
-     * reporter config.
-     */
-    public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
+    /** @deprecated use {@link MetricOptions#REPORTER_SCOPE_DELIMITER} */
+    @Deprecated public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
-    /** The set of variables that should be excluded. */
+    /** @deprecated use {@link MetricOptions#REPORTER_EXCLUDED_VARIABLES} */
+    @Deprecated
     public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
 
-    /** The map of additional variables that should be included. */
+    /** @deprecated use {@link MetricOptions#REPORTER_ADDITIONAL_VARIABLES} */
+    @Deprecated
     public static final String METRICS_REPORTER_ADDITIONAL_VARIABLES = "scope.variables.additional";
 
     /** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
@@ -1460,7 +1456,7 @@ public final class ConfigConstants {
      */
     @Deprecated
     public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
-            key("jobmanager.web.address").noDefaultValue();
+            key("jobmanager.web.address").stringType().noDefaultValue();
 
     /**
      * The config key for the port of the JobManager web frontend. Setting this value to {@code -1}
@@ -1729,8 +1725,18 @@ public final class ConfigConstants {
     /** The environment variable name which contains the location of the lib folder. */
     public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
 
+    /**
+     * The default Flink lib directory if none has been specified via {@link #ENV_FLINK_LIB_DIR}.
+     */
+    public static final String DEFAULT_FLINK_LIB_DIR = "lib";
+
     /** The environment variable name which contains the location of the opt directory. */
     public static final String ENV_FLINK_OPT_DIR = "FLINK_OPT_DIR";
+
+    /**
+     * The default Flink opt directory if none has been specified via {@link #ENV_FLINK_OPT_DIR}.
+     */
+    public static final String DEFAULT_FLINK_OPT_DIR = "opt";
 
     /** The environment variable name which contains the location of the plugins folder. */
     public static final String ENV_FLINK_PLUGINS_DIR = "FLINK_PLUGINS_DIR";

@@ -24,16 +24,16 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.util.Optional;
 
 /**
- * Sources that implement this interface do not trigger checkpoints when receiving a trigger message
- * from the checkpoint coordinator, but when their input data/events indicate that a checkpoint
+ * Sources that implement this interface delay checkpoints when receiving a trigger message from the
+ * checkpoint coordinator to the point when their input data/events indicate that a checkpoint
  * should be triggered.
  *
  * <p>The ExternallyInducedSourceReader tells the Flink runtime that a checkpoint needs to be made
- * by returning a checkpointId when shouldTriggerCheckpoint() is invoked.
+ * by returning a checkpointId when {@link #shouldTriggerCheckpoint()} is invoked.
  *
- * <p>The implementations typically works together with the SplitEnumerator which informs the
- * external system to trigger a checkpoint. The external system also needs to forward the Checkpoint
- * ID to the source, so the source knows which checkpoint to trigger.
+ * <p>The implementations typically works together with the {@link SplitEnumerator} which informs
+ * the external system to trigger a checkpoint. The external system also needs to forward the
+ * Checkpoint ID to the source, so the source knows which checkpoint to trigger.
  *
  * <p><b>Important:</b> It is crucial that all parallel source tasks trigger their checkpoints at
  * roughly the same time. Otherwise this leads to performance issues due to long checkpoint

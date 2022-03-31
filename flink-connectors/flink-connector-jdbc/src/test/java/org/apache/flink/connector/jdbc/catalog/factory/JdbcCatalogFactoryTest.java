@@ -23,12 +23,16 @@ import org.apache.flink.connector.jdbc.catalog.PostgresCatalog;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.util.DockerImageVersions;
 
-import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
-import com.opentable.db.postgres.junit.SingleInstancePostgresRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -39,7 +43,8 @@ import static org.junit.Assert.assertTrue;
 
 /** Test for {@link JdbcCatalogFactory}. */
 public class JdbcCatalogFactoryTest {
-    @ClassRule public static SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance();
+
+    public static final Logger LOG = LoggerFactory.getLogger(JdbcCatalogFactoryTest.class);
 
     protected static String baseUrl;
     protected static JdbcCatalog catalog;
@@ -48,12 +53,22 @@ public class JdbcCatalogFactoryTest {
     protected static final String TEST_USERNAME = "postgres";
     protected static final String TEST_PWD = "postgres";
 
+    protected static final DockerImageName POSTGRES_IMAGE =
+            DockerImageName.parse(DockerImageVersions.POSTGRES);
+
+    @ClassRule
+    public static final PostgreSQLContainer<?> POSTGRES_CONTAINER =
+            new PostgreSQLContainer<>(POSTGRES_IMAGE)
+                    .withUsername(TEST_USERNAME)
+                    .withPassword(TEST_PWD)
+                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+
     @BeforeClass
     public static void setup() throws SQLException {
         // jdbc:postgresql://localhost:50807/postgres?user=postgres
-        String embeddedJdbcUrl = pg.getEmbeddedPostgres().getJdbcUrl(TEST_USERNAME, TEST_PWD);
+        String jdbcUrl = POSTGRES_CONTAINER.getJdbcUrl();
         // jdbc:postgresql://localhost:50807/
-        baseUrl = embeddedJdbcUrl.substring(0, embeddedJdbcUrl.lastIndexOf("/") + 1);
+        baseUrl = jdbcUrl.substring(0, jdbcUrl.lastIndexOf("/"));
 
         catalog =
                 new JdbcCatalog(

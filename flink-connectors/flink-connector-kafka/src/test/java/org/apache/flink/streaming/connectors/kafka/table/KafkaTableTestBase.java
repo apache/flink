@@ -26,11 +26,13 @@ import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
@@ -39,7 +41,6 @@ import org.junit.ClassRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -52,6 +53,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** Base class for Kafka Table IT Cases. */
@@ -60,7 +62,6 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaTableTestBase.class);
 
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
-    private static final Network NETWORK = Network.newNetwork();
     private static final int zkTimeoutMills = 30000;
 
     @ClassRule
@@ -74,7 +75,6 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
                     }
                 }
             }.withEmbeddedZookeeper()
-                    .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withEnv(
                             "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
@@ -137,6 +137,19 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
             admin.createTopics(
                     Collections.singletonList(
                             new NewTopic(topic, numPartitions, (short) replicationFactor)));
+        }
+    }
+
+    public Map<TopicPartition, OffsetAndMetadata> getConsumerOffset(String groupId) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
+        try (AdminClient admin = AdminClient.create(properties)) {
+            ListConsumerGroupOffsetsResult result = admin.listConsumerGroupOffsets(groupId);
+            return result.partitionsToOffsetAndMetadata().get(20, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format("Fail to get consumer offsets with the group id [%s].", groupId),
+                    e);
         }
     }
 

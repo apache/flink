@@ -65,8 +65,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
         createTestCsvSourceTable("T2", dataT2, "a int", "b bigint", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM (\n"
@@ -75,8 +74,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "JOIN (\n"
                                 + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T2\n"
                                 + ") as t2\n"
-                                + "ON t1.a = t2.a AND t1.b > t2.b");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "ON t1.a = t2.a AND t1.b > t2.b")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "1,HiHi,Hi2",
@@ -99,8 +98,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
         createTestCsvSourceTable("T2", dataT2, "a int", "b bigint", "c varchar");
         createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM (\n"
@@ -112,8 +110,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "ON \n"
                                 + "  ((t1.a is null AND t2.a is null) OR\n"
                                 + "  (t1.a = t2.a))\n"
-                                + "  AND t1.b > t2.b");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "  AND t1.b > t2.b")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, HiHi, Hi2]",
@@ -129,10 +127,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testJoin() throws Exception {
         createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink \n" + "SELECT a3, b4 FROM A, B WHERE a2 = b2");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink \n" + "SELECT a3, b4 FROM A, B WHERE a2 = b2")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[Hello world, Hallo Welt]", "+I[Hello, Hallo Welt]", "+I[Hi, Hallo]");
@@ -142,10 +138,8 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testInnerJoin() throws Exception {
         createTestValuesSinkTable("MySink", "a1 int", "b1 int");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1")
+                .await();
         List<String> expected = Arrays.asList("+I[1, 1]", "+I[2, 2]", "+I[2, 2]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -153,11 +147,10 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testJoinWithFilter() throws Exception {
         createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
-                                + "SELECT a3, b4 FROM A, B where a2 = b2 and a2 < 2");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "SELECT a3, b4 FROM A, B where a2 = b2 and a2 < 2")
+                .await();
         List<String> expected = Arrays.asList("+I[Hi, Hallo]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -165,11 +158,10 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testInnerJoinWithDuplicateKey() throws Exception {
         createTestValuesSinkTable("MySink", "a1 int", "b1 int", "b3 int");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
-                                + "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3")
+                .await();
         List<String> expected = Arrays.asList("+I[2, 2, 2]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }

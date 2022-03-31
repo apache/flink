@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{TEMPORAL_JOIN_CONDITION, TEMPORAL_JOIN_CONDITION_PRIMARY_KEY}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -115,6 +116,7 @@ class StreamPhysicalTemporalJoin(
       }
 
     new StreamExecTemporalJoin(
+      unwrapTableConfig(this),
       temporalJoinSpec,
       isTemporalFunctionJoin,
       leftTimeAttributeInputRef,

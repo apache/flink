@@ -492,10 +492,7 @@ object HashAggCodeGenHelper {
              |""".stripMargin.trim
 
         if (filterArg >= 0) {
-          var filterTerm = s"$inputTerm.getBoolean($filterArg)"
-          if (ctx.nullCheck) {
-            filterTerm = s"!$inputTerm.isNullAt($filterArg) && " + filterTerm
-          }
+          val filterTerm = s"!$inputTerm.isNullAt($filterArg) && $inputTerm.getBoolean($filterArg)"
           s"""
              |if ($filterTerm) {
              | $innerCode

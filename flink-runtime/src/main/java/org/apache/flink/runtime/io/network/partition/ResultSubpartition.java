@@ -48,9 +48,9 @@ public abstract class ResultSubpartition {
     }
 
     /** Gets the total numbers of buffers (data buffers plus events). */
-    protected abstract long getTotalNumberOfBuffers();
+    protected abstract long getTotalNumberOfBuffersUnsafe();
 
-    protected abstract long getTotalNumberOfBytes();
+    protected abstract long getTotalNumberOfBytesUnsafe();
 
     public int getSubPartitionIndex() {
         return subpartitionInfo.getSubPartitionIdx();

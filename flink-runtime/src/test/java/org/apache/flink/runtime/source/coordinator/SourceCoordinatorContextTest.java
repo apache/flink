@@ -33,6 +33,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
@@ -152,7 +153,39 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                     }
                 },
                 "assignSplits() should fail to assign the splits to a reader that is not registered.",
-                "Cannot assign splits");
+                "Cannot assign splits " + splitsAssignment.assignment().get(0));
+    }
+
+    @Test
+    public void testExceptionInRunnableFailsTheJob()
+            throws InterruptedException, ExecutionException {
+        ManuallyTriggeredScheduledExecutorService manualWorkerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        // need the factory to have the exception handler set
+        final ManuallyTriggeredScheduledExecutorService coordinatorExecutorWithExceptionHandler =
+                new ManuallyTriggeredScheduledExecutorService();
+        SourceCoordinatorContext<MockSourceSplit> testingContext =
+                new SourceCoordinatorContext<>(
+                        coordinatorExecutorWithExceptionHandler,
+                        manualWorkerExecutor,
+                        coordinatorThreadFactory,
+                        operatorCoordinatorContext,
+                        new MockSourceSplitSerializer(),
+                        splitSplitAssignmentTracker);
+
+        testingContext.runInCoordinatorThread(
+                () -> {
+                    throw new RuntimeException();
+                });
+
+        manualWorkerExecutor.triggerAll();
+        // shutdown coordinatorExecutor and blocks until tasks are finished
+        testingContext.close();
+        coordinatorExecutorWithExceptionHandler.triggerAll();
+        // blocks until the job is failed: wait that the uncaught exception handler calls
+        // operatorCoordinatorContext#failJob() which completes the future
+        operatorCoordinatorContext.getJobFailedFuture().get();
+        assertTrue(operatorCoordinatorContext.isJobFailed());
     }
 
     @Test
@@ -169,7 +202,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                         manualCoordinatorExecutor,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-                                TEST_OPERATOR_ID.toHexString(), getClass().getClassLoader()),
+                                TEST_OPERATOR_ID.toHexString(), operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker);

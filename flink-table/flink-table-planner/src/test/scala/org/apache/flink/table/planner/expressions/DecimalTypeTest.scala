@@ -50,13 +50,11 @@ class DecimalTypeTest extends ExpressionTestBase {
     // explicit decimal (high precision, not SQL compliant)
     testTableApi(
       BigDecimal("123456789123456789123456789"),
-      "123456789123456789123456789p",
       "123456789123456789123456789")
 
     // explicit decimal (high precision, not SQL compliant)
     testTableApi(
       BigDecimal("12.3456789123456789123456789"),
-      "12.3456789123456789123456789p",
       "12.3456789123456789123456789")
   }
 
@@ -181,7 +179,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       12.toExpr > 'f1,
       "12 > f1",
-      "12 > f1",
       "FALSE")
 
     testAllApis(
@@ -268,18 +265,17 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testUnaryPlusMinus(): Unit = {
 
     testAllApis(
-      + 'f6,
+      +'f6,
       "+f6",
       "123")
 
     testAllApis(
-      - 'f7,
-      "-f7",
+      -'f7,
       "-f7",
       "-123.45")
 
     testAllApis(
-      - (( + 'f6) - ( - 'f7)),
+      -(( + 'f6) - (- 'f7)),
       "- (( + f6) - ( - f7))",
       "-246.45")
   }
@@ -456,7 +452,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f31 / 'f34,
       "f31 / f34",
-      "f31 / f34",
       "0.3333333333")
 
     testAllApis(
@@ -481,12 +476,12 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f36 / 'f38,
       "f36 / f38",
-      (1.0/3.0).toString)
+      (1.0 / 3.0).toString)
 
     testAllApis(
       'f38 / 'f36,
       "f38 / f36",
-      (3.0/1.0).toString)
+      (3.0 / 1.0).toString)
 
     // result overflow, because result type integral part is reduced
     testAllApis(
@@ -522,22 +517,22 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f44 % 'f45,
       "mod(f44, f45)",
-      (3%5).toString)
+      (3 % 5).toString)
 
     testAllApis(
       -'f44 % 'f45,
       "mod(-f44, f45)",
-      ((-3)%5).toString)
+      ((-3) % 5).toString)
 
     testAllApis(
       'f44 % -'f45,
       "mod(f44, -f45)",
-      (3%(-5)).toString)
+      (3 % (-5)).toString)
 
     testAllApis(
       -'f44 % -'f45,
       "mod(-f44, -f45)",
-      ((-3)%(-5)).toString)
+      ((-3) % (-5)).toString)
 
     // rounding in case s1>s2. note that SQL2003 requires s1=s2=0.
     // (In T-SQL, s2 is expanded to s1, so that there's no rounding.)
@@ -547,7 +542,7 @@ class DecimalTypeTest extends ExpressionTestBase {
       "3.1234")
   }
 
-  @Test  // functions that treat Decimal as exact value
+  @Test // functions that treat Decimal as exact value
   def testExactionFunctions(): Unit = {
 
     testAllApis(
@@ -615,7 +610,6 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis(
       'f50.round(2),
-      "f50.round(2)",
       "round(f50,2)",
       "646.65")
 
@@ -687,7 +681,7 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     // result type: SQL2003 $9.23, calcite RelDataTypeFactory.leastRestrictive()
     testSqlApi(
-       "case f53 when 0 then f53 else f54 end",
+      "case f53 when 0 then f53 else f54 end",
       "0.0100")
 
     testSqlApi(

@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import warnings
+
 from pyflink.java_gateway import get_gateway
 
 from pyflink.common import Configuration
@@ -51,54 +52,13 @@ class EnvironmentSettings(object):
             gateway = get_gateway()
             self._j_builder = gateway.jvm.EnvironmentSettings.Builder()
 
-        def use_old_planner(self) -> 'EnvironmentSettings.Builder':
+        def with_configuration(self, config: Configuration) -> 'EnvironmentSettings.Builder':
             """
-            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
-                      planner left (previously called the 'blink' planner), this setting will
-                      throw an exception.
+            Creates the EnvironmentSetting with specified Configuration.
+
+            :return: EnvironmentSettings.
             """
-            warnings.warn(
-                "Deprecated in 1.13. Please update to the new planner (i.e. Blink planner).",
-                DeprecationWarning)
-            self._j_builder = self._j_builder.useOldPlanner()
-            return self
-
-        def use_blink_planner(self) -> 'EnvironmentSettings.Builder':
-            """
-            Sets the Blink planner as the required module.
-
-            This is the default behavior.
-
-            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
-                      planner left (previously called the 'blink' planner), this setting is
-                      obsolete and will be removed in future versions.
-
-            :return: This object.
-            """
-            warnings.warn(
-                "Deprecated in 1.14. A planner declaration is not required anymore.",
-                DeprecationWarning)
-            self._j_builder = self._j_builder.useBlinkPlanner()
-            return self
-
-        def use_any_planner(self) -> 'EnvironmentSettings.Builder':
-            """
-            Does not set a planner requirement explicitly.
-
-            A planner will be discovered automatically, if there is only one planner available.
-
-            By default, :func:`use_blink_planner` is enabled.
-
-            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
-                      planner left (previously called the 'blink' planner), this setting is
-                      obsolete and will be removed in future versions.
-
-            :return: This object.
-            """
-            warnings.warn(
-                "Deprecated in 1.14. A planner declaration is not required anymore.",
-                DeprecationWarning)
-            self._j_builder = self._j_builder.useAnyPlanner()
+            self._j_builder = self._j_builder.withConfiguration(config._j_configuration)
             return self
 
         def in_batch_mode(self) -> 'EnvironmentSettings.Builder':
@@ -192,22 +152,6 @@ class EnvironmentSettings(object):
         """
         return self._j_environment_settings.getBuiltInDatabaseName()
 
-    def is_blink_planner(self) -> bool:
-        """
-        Tells if :class:`~pyflink.table.TableEnvironment` should work in a blink or old
-        planner.
-
-        .. note:: The old planner has been removed in Flink 1.14. Since there is only one
-                  planner left (previously called the 'blink' planner), this method is
-                  obsolete and will be removed in future versions.
-
-        :return: True if the TableEnvironment should work in a blink planner, false otherwise.
-        """
-        warnings.warn(
-            "Deprecated in 1.14. There is only one planner anymore.",
-            DeprecationWarning)
-        return self._j_environment_settings.isBlinkPlanner()
-
     def is_streaming_mode(self) -> bool:
         """
         Tells if the :class:`~pyflink.table.TableEnvironment` should work in a batch or streaming
@@ -221,20 +165,26 @@ class EnvironmentSettings(object):
         """
         Convert to `pyflink.common.Configuration`.
 
-        It sets the `table.planner` and `execution.runtime-mode` according to the current
-        EnvironmentSetting.
+        :return: Configuration with specified value.
+
+        .. note:: Deprecated in 1.15. Please use
+                :func:`EnvironmentSettings.get_configuration` instead.
+        """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+        return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
+
+    def get_configuration(self) -> Configuration:
+        """
+        Get the underlying `pyflink.common.Configuration`.
 
         :return: Configuration with specified value.
         """
-        return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
+        return Configuration(j_configuration=self._j_environment_settings.getConfiguration())
 
     @staticmethod
     def new_instance() -> 'EnvironmentSettings.Builder':
         """
         Creates a builder for creating an instance of EnvironmentSettings.
-
-        By default, it does not specify a required planner and will use the one that is available
-        on the classpath via discovery.
 
         :return: A builder of EnvironmentSettings.
         """
@@ -246,7 +196,11 @@ class EnvironmentSettings(object):
         Creates the EnvironmentSetting with specified Configuration.
 
         :return: EnvironmentSettings.
+
+        .. note:: Deprecated in 1.15. Please use
+                :func:`EnvironmentSettings.Builder.with_configuration` instead.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
         return EnvironmentSettings(
             get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))
 

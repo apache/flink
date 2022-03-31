@@ -52,7 +52,7 @@ The parallelism of an individual operator, data source, or data sink can be defi
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = [...]
+DataStream<String> text = [...];
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
@@ -99,8 +99,8 @@ of `3`, set the default parallelism of the execution environment as follows:
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setParallelism(3);
 
-DataStream<String> text = [...]
-DataStream<Tuple2<String, Integer>> wordCounts = [...]
+DataStream<String> text = [...];
+DataStream<Tuple2<String, Integer>> wordCounts = [...];
 wordCounts.print();
 
 env.execute("Word Count Example");

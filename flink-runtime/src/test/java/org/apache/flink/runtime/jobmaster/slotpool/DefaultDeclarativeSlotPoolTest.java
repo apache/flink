@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -63,6 +64,7 @@ import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -519,6 +521,30 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     }
 
     @Test
+    public void testRegisterSlotsAcceptsAllSlots() {
+        final DefaultDeclarativeSlotPool declarativeSlotPool = createDefaultDeclarativeSlotPool();
+        final int numberSlots = 10;
+        final Collection<SlotOffer> slots =
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(RESOURCE_PROFILE_1, numberSlots));
+
+        declarativeSlotPool.registerSlots(
+                slots,
+                new LocalTaskManagerLocation(),
+                SlotPoolTestUtils.createTaskManagerGateway(null),
+                0);
+
+        final Collection<? extends SlotInfo> allSlotsInformation =
+                declarativeSlotPool.getAllSlotsInformation();
+
+        assertThat(allSlotsInformation, hasSize(numberSlots));
+
+        for (SlotInfo slotInfo : allSlotsInformation) {
+            assertThat(slotInfo.getResourceProfile(), is(RESOURCE_PROFILE_1));
+        }
+    }
+
+    @Test
     public void testFreedSlotWillRemainAssignedToMatchedResourceProfile() {
         final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
 
@@ -625,6 +651,33 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
         assertThat(
                 slotPool.getResourceRequirements(),
                 is(toResourceRequirements(resourceRequirements)));
+    }
+
+    @Test
+    public void testRegisterSlotsDoesNotAffectRequirements() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        final ResourceProfile slotProfile = RESOURCE_PROFILE_1;
+        final ResourceProfile requestedProfile = ResourceProfile.UNKNOWN;
+
+        slotPool.registerSlots(
+                createSlotOffersForResourceRequirements(
+                        ResourceCounter.withResource(slotProfile, 1)),
+                new LocalTaskManagerLocation(),
+                SlotPoolTestUtils.createTaskManagerGateway(null),
+                0L);
+
+        final AllocationID allocationId =
+                slotPool.getFreeSlotsInformation().iterator().next().getAllocationId();
+
+        assertThat(slotPool.getResourceRequirements(), is(empty()));
+
+        slotPool.increaseResourceRequirementsBy(ResourceCounter.withResource(requestedProfile, 1));
+        slotPool.reserveFreeSlot(allocationId, requestedProfile);
+        slotPool.freeReservedSlot(allocationId, null, 1L);
+        slotPool.decreaseResourceRequirementsBy(ResourceCounter.withResource(requestedProfile, 1));
+
+        assertThat(slotPool.getResourceRequirements(), is(empty()));
     }
 
     @Nonnull

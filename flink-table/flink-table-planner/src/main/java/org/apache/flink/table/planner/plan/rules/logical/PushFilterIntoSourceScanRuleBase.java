@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -57,10 +58,9 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        TableConfig config = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
-        return config.getConfiguration()
-                .getBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
+        TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
+        return tableConfig.get(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
     }
 
     protected List<RexNode> convertExpressionToRexNode(
@@ -135,7 +135,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                         inputNames,
                         context.getFunctionCatalog(),
                         context.getCatalogManager(),
-                        TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                        TimeZone.getTimeZone(
+                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
 
         return RexNodeExtractor.extractConjunctiveConditions(
                 filterExpression, maxCnfNodeCount, rexBuilder, converter);

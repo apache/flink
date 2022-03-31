@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -175,6 +176,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_SORT_DEFAULT_LIMIT =
             key("table.exec.sort.default-limit")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "Default limit when user don't set a limit after order by. -1 indicates that this configuration is ignored.");
@@ -182,6 +184,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES =
             key("table.exec.sort.max-num-file-handles")
+                    .intType()
                     .defaultValue(128)
                     .withDescription(
                             "The maximal fan-in for external merge sort. It limits the number of file handles per operator. "
@@ -191,6 +194,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED =
             key("table.exec.sort.async-merge-enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription("Whether to asynchronously merge sorted spill files.");
 
@@ -200,6 +204,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Boolean> TABLE_EXEC_SPILL_COMPRESSION_ENABLED =
             key("table.exec.spill-compression.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Whether to compress spilled data. "
@@ -221,6 +226,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM =
             key("table.exec.resource.default-parallelism")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "Sets default parallelism for all operators "
@@ -293,6 +299,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<Integer> TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
             key("table.exec.window-agg.buffer-size-limit")
+                    .intType()
                     .defaultValue(100 * 1000)
                     .withDescription(
                             "Sets the window elements buffer size limit used in group window agg operator.");
@@ -303,6 +310,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
+                    .intType()
                     .defaultValue(100)
                     .withDescription(
                             "The max number of async i/o operation that the async lookup join can trigger.");
@@ -321,6 +329,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_EXEC_MINIBATCH_ENABLED =
             key("table.exec.mini-batch.enabled")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Specifies whether to enable MiniBatch optimization. "
@@ -345,6 +354,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_MINIBATCH_SIZE =
             key("table.exec.mini-batch.size")
+                    .longType()
                     .defaultValue(-1L)
                     .withDescription(
                             "The maximum number of input records can be buffered for MiniBatch. "
@@ -360,6 +370,7 @@ public class ExecutionConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_DISABLED_OPERATORS =
             key("table.exec.disabled-operators")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Mainly for testing. A comma-separated list of operator names, each name "
@@ -407,12 +418,78 @@ public class ExecutionConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
-            key("table.exec.sink.legacy-cast-behaviour")
+            key("table.exec.legacy-cast-behaviour")
                     .enumType(LegacyCastBehaviour.class)
-                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .defaultValue(LegacyCastBehaviour.DISABLED)
                     .withDescription(
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_RANK_TOPN_CACHE_SIZE =
+            ConfigOptions.key("table.exec.rank.topn-cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDeprecatedKeys("table.exec.topn-cache-size")
+                    .withDescription(
+                            "Rank operators have a cache which caches partial state contents "
+                                    + "to reduce state access. Cache size is the number of records "
+                                    + "in each ranking task.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED =
+            key("table.exec.simplify-operator-name-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED =
+                    key("table.exec.deduplicate.insert-update-after-sensitive-enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDeprecatedKeys(
+                                    "table.exec.deduplicate.insert-and-updateafter-sensitive.enabled")
+                            .withDescription(
+                                    "Set whether the job (especially the sinks) is sensitive to "
+                                            + "INSERT messages and UPDATE_AFTER messages. "
+                                            + "If false, Flink may, sometimes (e.g. deduplication "
+                                            + "for last row), send UPDATE_AFTER instead of INSERT "
+                                            + "for the first row. If true, Flink will guarantee to "
+                                            + "send INSERT for the first row, in that case there "
+                                            + "will be additional overhead. Default is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED =
+                    ConfigOptions.key("table.exec.deduplicate.mini-batch.compact-changes-enabled")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDeprecatedKeys(
+                                    "table.exec.deduplicate.mini-batch.compact-changes.enabled")
+                            .withDescription(
+                                    "Set whether to compact the changes sent downstream in row-time "
+                                            + "mini-batch. If true, Flink will compact changes and send "
+                                            + "only the latest change downstream. Note that if the "
+                                            + "downstream needs the details of versioned data, this "
+                                            + "optimization cannot be applied. If false, Flink will send "
+                                            + "all changes to downstream just like when the mini-batch is "
+                                            + "not enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Deprecated
+    public static final ConfigOption<Boolean> TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS =
+            key("table.exec.legacy-transformation-uids")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "In Flink 1.15 Transformation UIDs are generated deterministically starting from the metadata available after the planning phase. "
+                                    + "This new behaviour allows a safe restore of persisted plan, remapping the plan execution graph to the correct operators state. "
+                                    + "Setting this flag to true enables the previous \"legacy\" behavior, which is generating uids from the Transformation graph topology. "
+                                    + "We strongly suggest to keep this flag disabled, as this flag is going to be removed in the next releases. "
+                                    + "If you have a pipeline relying on the old behavior, please create a new pipeline and regenerate the operators state.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types

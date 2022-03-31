@@ -601,14 +601,14 @@ public class ElasticsearchSinkBaseTest {
                                                 if (mockItemFailure == null) {
                                                     // the mock response for the item is success
                                                     mockResponses[i] =
-                                                            BulkItemResponse.success(
+                                                            new BulkItemResponse(
                                                                     i,
                                                                     DocWriteRequest.OpType.INDEX,
                                                                     mock(DocWriteResponse.class));
                                                 } else {
                                                     // the mock response for the item is failure
                                                     mockResponses[i] =
-                                                            BulkItemResponse.failure(
+                                                            new BulkItemResponse(
                                                                     i,
                                                                     DocWriteRequest.OpType.INDEX,
                                                                     new BulkItemResponse.Failure(

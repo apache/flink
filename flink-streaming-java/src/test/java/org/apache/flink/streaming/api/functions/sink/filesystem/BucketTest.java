@@ -117,6 +117,33 @@ public class BucketTest {
         assertThat(recoverableWriter, hasCalledDiscard(0)); // we have no in-progress file.
     }
 
+    @Test
+    public void shouldCleanupOutdatedResumablesAfterResumed() throws Exception {
+        final File outDir = TEMP_FOLDER.newFolder();
+        final Path path = new Path(outDir.toURI());
+
+        final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
+        final Bucket<String, String> bucketUnderTest =
+                createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
+
+        bucketUnderTest.write("test-element", 0L);
+        final BucketState<String> state0 = bucketUnderTest.onReceptionOfCheckpoint(0L);
+        assertThat(state0, hasActiveInProgressFile());
+        bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
+        assertThat(recoverableWriter, hasCalledDiscard(0));
+
+        final File newOutDir = TEMP_FOLDER.newFolder();
+        final Path newPath = new Path(newOutDir.toURI());
+        final TestRecoverableWriter newRecoverableWriter = getRecoverableWriter(newPath);
+        final Bucket<String, String> bucketAfterResume =
+                restoreBucket(
+                        newRecoverableWriter, 0, 0, state0, OutputFileConfig.builder().build());
+        final BucketState<String> state1 = bucketAfterResume.onReceptionOfCheckpoint(1L);
+        assertThat(state1, hasActiveInProgressFile());
+        bucketAfterResume.onSuccessfulCompletionOfCheckpoint(1L);
+        assertThat(newRecoverableWriter, hasCalledDiscard(1));
+    }
+
     // --------------------------- Checking Restore ---------------------------
 
     @Test

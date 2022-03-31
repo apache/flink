@@ -474,8 +474,8 @@ public class PipelinedSubpartition extends ResultSubpartition
         final boolean hasReadView;
 
         synchronized (buffers) {
-            numBuffers = getTotalNumberOfBuffers();
-            numBytes = getTotalNumberOfBytes();
+            numBuffers = getTotalNumberOfBuffersUnsafe();
+            numBytes = getTotalNumberOfBytesUnsafe();
             finished = isFinished;
             hasReadView = readView != null;
         }
@@ -517,12 +517,12 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
-    protected long getTotalNumberOfBuffers() {
+    protected long getTotalNumberOfBuffersUnsafe() {
         return totalNumberOfBuffers;
     }
 
     @Override
-    protected long getTotalNumberOfBytes() {
+    protected long getTotalNumberOfBytesUnsafe() {
         return totalNumberOfBytes;
     }
 

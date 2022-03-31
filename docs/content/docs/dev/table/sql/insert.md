@@ -188,7 +188,7 @@ Query Results can be inserted into tables by using the insert clause.
 
 ```sql
 
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
+[EXECUTE] INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
 
 part_spec:
   (part_col_name1=val1 [, part_col_name2=val2, ...])
@@ -221,6 +221,11 @@ WITH (...)
 -- Appends rows into the static partition (date='2019-8-30', country='China')
 INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
   SELECT user, cnt FROM page_view_source;
+  
+-- Key word EXECUTE can be added at the beginning of Insert to indicate explicitly that we are going to execute the statement,
+-- it is equivalent to Statement without the key word. 
+EXECUTE INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China')
+  SELECT user, cnt FROM page_view_source;
 
 -- Appends rows into partition (date, country), where date is static partition with value '2019-8-30',
 -- country is dynamic partition whose value is dynamic determined by each row.
@@ -250,10 +255,10 @@ The INSERT...VALUES statement can be used to insert data into tables directly fr
 ### Syntax
 
 ```sql
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name VALUES values_row [, values_row ...]
+[EXECUTE] INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name VALUES values_row [, values_row ...]
 
 values_row:
-    : (val1 [, val2, ...])
+    (val1 [, val2, ...])
 ```
 
 **OVERWRITE**
@@ -271,4 +276,37 @@ INSERT INTO students
 
 ```
 
+## Insert into multiple tables
+The `STATEMENT SET` can be used to insert data into multiple tables  in a statement.
+
+### Syntax
+
+```sql
+EXECUTE STATEMENT SET
+BEGIN
+insert_statement;
+...
+insert_statement;
+END;
+
+insert_statement:
+   <insert_from_select>|<insert_from_values>
+```
+
+### Examples
+
+```sql
+
+CREATE TABLE students (name STRING, age INT, gpa DECIMAL(3, 2)) WITH (...);
+
+EXECUTE STATEMENT SET
+BEGIN
+INSERT INTO students
+  VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+INSERT INTO students
+  VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+END;
+```
+
 {{< top >}}
+

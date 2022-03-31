@@ -74,7 +74,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
       "a, b, c, nt",
       MultipleInputITCase.nullables)
 
-    tEnv.getConfig.getConfiguration.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
+    tEnv.getConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
   }
 
   @Test
@@ -206,11 +206,11 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
   }
 
   def checkMultipleInputResult(sql: String): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, Boolean.box(false))
     val expected = executeQuery(sql)
-    tEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, true)
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, Boolean.box(true))
     checkResult(sql, expected)
   }
 }

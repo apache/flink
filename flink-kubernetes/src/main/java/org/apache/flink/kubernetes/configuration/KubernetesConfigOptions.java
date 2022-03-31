@@ -24,6 +24,11 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.kubernetes.kubeclient.services.ClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
+import org.apache.flink.kubernetes.kubeclient.services.LoadBalancerService;
+import org.apache.flink.kubernetes.kubeclient.services.NodePortService;
+import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -141,6 +146,22 @@ public class KubernetesConfigOptions {
                     .defaultValue(1.0)
                     .withDescription("The number of cpu used by job manager");
 
+    public static final ConfigOption<Double> JOB_MANAGER_CPU_LIMIT_FACTOR =
+            key("kubernetes.jobmanager.cpu.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of cpu used by job manager. "
+                                    + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Double> JOB_MANAGER_MEMORY_LIMIT_FACTOR =
+            key("kubernetes.jobmanager.memory.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of memory used by job manager. "
+                                    + "The resources limit memory will be set to memory * limit-factor.");
+
     public static final ConfigOption<Double> TASK_MANAGER_CPU =
             key("kubernetes.taskmanager.cpu")
                     .doubleType()
@@ -148,6 +169,22 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The number of cpu used by task manager. By default, the cpu is set "
                                     + "to the number of slots per TaskManager");
+
+    public static final ConfigOption<Double> TASK_MANAGER_CPU_LIMIT_FACTOR =
+            key("kubernetes.taskmanager.cpu.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of cpu used by task manager. "
+                                    + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Double> TASK_MANAGER_MEMORY_LIMIT_FACTOR =
+            key("kubernetes.taskmanager.memory.limit-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The limit factor of memory used by task manager. "
+                                    + "The resources limit memory will be set to memory * limit-factor.");
 
     public static final ConfigOption<ImagePullPolicy> CONTAINER_IMAGE_PULL_POLICY =
             key("kubernetes.container.image.pull-policy")
@@ -265,9 +302,10 @@ public class KubernetesConfigOptions {
     public static final ConfigOption<String> FLINK_LOG_DIR =
             key("kubernetes.flink.log.dir")
                     .stringType()
-                    .defaultValue("/opt/flink/log")
+                    .noDefaultValue()
                     .withDescription(
-                            "The directory that logs of jobmanager and taskmanager be saved in the pod.");
+                            "The directory that logs of jobmanager and taskmanager be saved in the pod. "
+                                    + "The default value is $FLINK_HOME/log.");
 
     public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
             key("kubernetes.hadoop.conf.config-map.name")
@@ -452,6 +490,14 @@ public class KubernetesConfigOptions {
                                     + "It will help to achieve faster recovery. "
                                     + "Notice that high availability should be enabled when starting standby JobManagers.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_HOSTNETWORK_ENABLED =
+            key("kubernetes.hostnetwork.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable HostNetwork mode. "
+                                    + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.
@@ -470,9 +516,25 @@ public class KubernetesConfigOptions {
 
     /** The flink rest service exposed type. */
     public enum ServiceExposedType {
-        ClusterIP,
-        NodePort,
-        LoadBalancer
+        ClusterIP(ClusterIPService.INSTANCE),
+        NodePort(NodePortService.INSTANCE),
+        LoadBalancer(LoadBalancerService.INSTANCE),
+        Headless_ClusterIP(HeadlessClusterIPService.INSTANCE);
+
+        private final ServiceType serviceType;
+
+        ServiceExposedType(ServiceType serviceType) {
+            this.serviceType = serviceType;
+        }
+
+        public ServiceType serviceType() {
+            return serviceType;
+        }
+
+        /** Check whether it is ClusterIP type. */
+        public boolean isClusterIP() {
+            return this == ClusterIP || this == Headless_ClusterIP;
+        }
     }
 
     /** The flink rest service exposed type. */

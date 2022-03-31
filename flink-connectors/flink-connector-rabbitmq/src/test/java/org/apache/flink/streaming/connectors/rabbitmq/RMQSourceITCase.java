@@ -23,8 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -53,7 +53,6 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -131,10 +130,15 @@ public class RMQSourceITCase {
                                                 info ->
                                                         info.getExecutionState()
                                                                 == ExecutionState.RUNNING),
-                Deadline.fromNow(Duration.ofSeconds(10)),
                 5L);
 
-        clusterClient.stopWithSavepoint(JOB_ID, false, tmp.newFolder().getAbsolutePath()).get();
+        clusterClient
+                .stopWithSavepoint(
+                        JOB_ID,
+                        false,
+                        tmp.newFolder().getAbsolutePath(),
+                        SavepointFormatType.CANONICAL)
+                .get();
     }
 
     @Test
@@ -149,10 +153,7 @@ public class RMQSourceITCase {
         source.addSink(CountingSink.getInstance());
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         JobID jobId = clusterClient.submitJob(jobGraph).get();
-        CommonTestUtils.waitUntilCondition(
-                () -> CountingSink.getCount() == msgs.size(),
-                Deadline.fromNow(Duration.ofSeconds(30)),
-                5L);
+        CommonTestUtils.waitUntilCondition(() -> CountingSink.getCount() == msgs.size(), 5L);
         clusterClient.cancel(jobId);
     }
 
@@ -183,10 +184,7 @@ public class RMQSourceITCase {
         source.addSink(CountingSink.getInstance());
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         JobID jobId = clusterClient.submitJob(jobGraph).get();
-        CommonTestUtils.waitUntilCondition(
-                () -> CountingSink.getCount() == msgs.size(),
-                Deadline.fromNow(Duration.ofSeconds(60)),
-                5L);
+        CommonTestUtils.waitUntilCondition(() -> CountingSink.getCount() == msgs.size(), 5L);
         clusterClient.cancel(jobId);
     }
 

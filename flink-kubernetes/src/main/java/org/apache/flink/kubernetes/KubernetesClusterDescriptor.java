@@ -44,6 +44,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -125,15 +126,16 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
     private String getWebMonitorAddress(Configuration configuration) throws Exception {
         AddressResolution resolution = AddressResolution.TRY_ADDRESS_RESOLUTION;
-        if (configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE)
-                == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
+        final KubernetesConfigOptions.ServiceExposedType serviceType =
+                configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
+        if (serviceType.isClusterIP()) {
             resolution = AddressResolution.NO_ADDRESS_RESOLUTION;
             LOG.warn(
                     "Please note that Flink client operations(e.g. cancel, list, stop,"
                             + " savepoint, etc.) won't work from outside the Kubernetes cluster"
                             + " since '{}' has been set to {}.",
                     KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE.key(),
-                    KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+                    serviceType);
         }
         return HighAvailabilityServicesUtils.getWebMonitorAddress(configuration, resolution);
     }
@@ -175,7 +177,7 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
             final ClusterSpecification clusterSpecification,
             final ApplicationConfiguration applicationConfiguration)
             throws ClusterDeploymentException {
-        if (client.getRestService(clusterId).isPresent()) {
+        if (client.getService(KubernetesService.ServiceType.REST_SERVICE, clusterId).isPresent()) {
             throw new ClusterDeploymentException(
                     "The Flink cluster " + clusterId + " already exists.");
         }

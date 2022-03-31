@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.time.Duration;
 
@@ -42,11 +43,24 @@ import java.time.Duration;
 @Internal
 public interface TimestampsAndWatermarks<T> {
 
+    /** Lets the owner/creator of the output know about latest emitted watermark. */
+    @Internal
+    interface WatermarkUpdateListener {
+        /**
+         * Effective watermark covers the {@link WatermarkStatus}. If an output becomes idle, this
+         * method should be called with {@link Long#MAX_VALUE}, but what is more important, once it
+         * becomes active again it should call this method with the last emitted value of the
+         * watermark.
+         */
+        void updateCurrentEffectiveWatermark(long watermark);
+    }
+
     /**
      * Creates the ReaderOutput for the source reader, than internally runs the timestamp extraction
      * and watermark generation.
      */
-    ReaderOutput<T> createMainOutput(PushingAsyncDataInput.DataOutput<T> output);
+    ReaderOutput<T> createMainOutput(
+            PushingAsyncDataInput.DataOutput<T> output, WatermarkUpdateListener watermarkCallback);
 
     /**
      * Starts emitting periodic watermarks, if this implementation produces watermarks, and if

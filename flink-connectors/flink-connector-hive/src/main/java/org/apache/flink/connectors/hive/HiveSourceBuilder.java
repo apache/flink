@@ -26,7 +26,6 @@ import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
-import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.connector.file.table.LimitableBulkFormat;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveInputFormat;
@@ -65,10 +64,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -79,7 +79,8 @@ public class HiveSourceBuilder {
     private static final Duration DEFAULT_SCAN_MONITOR_INTERVAL = Duration.ofMinutes(1L);
 
     private final JobConf jobConf;
-    private final ReadableConfig flinkConf;
+    private final int threadNum;
+    private final boolean fallbackMappedReader;
 
     private final ObjectPath tablePath;
     private final Map<String, String> tableOptions;
@@ -111,7 +112,9 @@ public class HiveSourceBuilder {
             @Nonnull String tableName,
             @Nonnull Map<String, String> tableOptions) {
         this.jobConf = jobConf;
-        this.flinkConf = flinkConf;
+        this.threadNum =
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
+        this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
         this.tablePath = new ObjectPath(dbName, tableName);
         this.hiveVersion = hiveVersion == null ? HiveShimLoader.getHiveVersion() : hiveVersion;
         HiveConf hiveConf = HiveConfUtils.create(jobConf);
@@ -148,7 +151,9 @@ public class HiveSourceBuilder {
             @Nullable String hiveVersion,
             @Nonnull CatalogTable catalogTable) {
         this.jobConf = jobConf;
-        this.flinkConf = flinkConf;
+        this.threadNum =
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
+        this.fallbackMappedReader = flinkConf.get(TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER);
         this.tablePath = tablePath;
         this.hiveVersion = hiveVersion == null ? HiveShimLoader.getHiveVersion() : hiveVersion;
         this.fullSchema = catalogTable.getSchema();
@@ -175,12 +180,12 @@ public class HiveSourceBuilder {
             Preconditions.checkState(
                     partitions == null, "setPartitions shouldn't be called in streaming mode");
             if (partitionKeys.isEmpty()) {
-                FileSystemConnectorOptions.PartitionOrder partitionOrder =
+                HiveOptions.PartitionOrder partitionOrder =
                         configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
-                if (partitionOrder != FileSystemConnectorOptions.PartitionOrder.CREATE_TIME) {
+                if (partitionOrder != HiveOptions.PartitionOrder.CREATE_TIME) {
                     throw new UnsupportedOperationException(
                             "Only '"
-                                    + FileSystemConnectorOptions.PartitionOrder.CREATE_TIME
+                                    + HiveOptions.PartitionOrder.CREATE_TIME
                                     + "' is supported for non partitioned table.");
                 }
                 // for non-partitioned table, we need to add the table to partitions because
@@ -232,10 +237,12 @@ public class HiveSourceBuilder {
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
                         partitions != null ? partitions : Collections.emptyList(),
+                        threadNum,
                         new JobConfWrapper(jobConf)),
                 splitAssigner,
                 bulkFormat,
                 continuousSourceSettings,
+                threadNum,
                 jobConf,
                 tablePath,
                 partitionKeys,
@@ -317,7 +324,7 @@ public class HiveSourceBuilder {
                         fullSchema.getFieldDataTypes(),
                         hiveVersion,
                         getProducedRowType(),
-                        flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)),
+                        fallbackMappedReader),
                 limit);
     }
 }

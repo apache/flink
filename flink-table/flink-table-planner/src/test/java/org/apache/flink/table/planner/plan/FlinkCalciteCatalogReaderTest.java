@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -46,8 +46,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -76,6 +75,7 @@ public class FlinkCalciteCatalogReaderTest {
     @Test
     public void testGetFlinkPreparingTableBase() {
         // Mock CatalogSchemaTable.
+        final ObjectIdentifier objectIdentifier = ObjectIdentifier.of("a", "b", "c");
         final ResolvedSchema schema =
                 new ResolvedSchema(Collections.emptyList(), Collections.emptyList(), null);
         final CatalogTable catalogTable =
@@ -85,16 +85,17 @@ public class FlinkCalciteCatalogReaderTest {
                 new ResolvedCatalogTable(catalogTable, schema);
         CatalogSchemaTable mockTable =
                 new CatalogSchemaTable(
-                        ObjectIdentifier.of("a", "b", "c"),
-                        CatalogManager.TableLookupResult.permanent(
-                                CatalogManagerMocks.createEmptyCatalog(), resolvedCatalogTable),
+                        ContextResolvedTable.permanent(
+                                objectIdentifier,
+                                CatalogManagerMocks.createEmptyCatalog(),
+                                resolvedCatalogTable),
                         FlinkStatistic.UNKNOWN(),
                         true);
 
         rootSchemaPlus.add(tableMockName, mockTable);
         Prepare.PreparingTable preparingTable =
                 catalogReader.getTable(Collections.singletonList(tableMockName));
-        assertTrue(preparingTable instanceof FlinkPreparingTableBase);
+        assertThat(preparingTable).isInstanceOf(FlinkPreparingTableBase.class);
     }
 
     @Test
@@ -104,6 +105,6 @@ public class FlinkCalciteCatalogReaderTest {
         rootSchemaPlus.add(tableMockName, nonFlinkTableMock);
         Prepare.PreparingTable resultTable =
                 catalogReader.getTable(Collections.singletonList(tableMockName));
-        assertFalse(resultTable instanceof FlinkPreparingTableBase);
+        assertThat(resultTable).isNotInstanceOf(FlinkPreparingTableBase.class);
     }
 }

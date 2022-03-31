@@ -18,7 +18,12 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import java.util.Collections
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.runtime.functions.table.UnnestRowsFunction
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toRowType
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
@@ -27,11 +32,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
-import org.apache.flink.table.functions.FunctionIdentifier
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.planner.utils.ShortcutUtils
-import org.apache.flink.table.runtime.functions.SqlUnnestUtils
+
+import java.util.Collections
 
 /**
   * Planner rule that rewrites UNNEST to explode function.
@@ -91,15 +93,13 @@ class LogicalUnnestRule(
           val relDataType = uc.getInput.getRowType.getFieldList.get(0).getValue
           val logicalType = FlinkTypeFactory.toLogicalType(relDataType)
 
-          val unnestFunction = SqlUnnestUtils.createUnnestFunction(logicalType)
-
           val sqlFunction = BridgingSqlFunction.of(
             cluster,
-            FunctionIdentifier.of("UNNEST"),
-            unnestFunction)
+            BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS)
 
           val rexCall = cluster.getRexBuilder.makeCall(
-            typeFactory.createFieldTypeFromLogicalType(unnestFunction.getWrappedOutputType),
+            typeFactory.createFieldTypeFromLogicalType(
+              toRowType(UnnestRowsFunction.getUnnestedType(logicalType))),
             sqlFunction,
             getRel(uc.getInput).asInstanceOf[LogicalProject].getProjects)
 

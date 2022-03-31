@@ -29,6 +29,10 @@ import java.util.function.Consumer;
 public abstract class FlinkUserCodeClassLoader extends URLClassLoader {
     public static final Consumer<Throwable> NOOP_EXCEPTION_HANDLER = classLoadingException -> {};
 
+    static {
+        ClassLoader.registerAsParallelCapable();
+    }
+
     private final Consumer<Throwable> classLoadingExceptionHandler;
 
     protected FlinkUserCodeClassLoader(URL[] urls, ClassLoader parent) {

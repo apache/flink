@@ -28,7 +28,7 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.blocking-shuffle.compression.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when compression ratio is high.</td>
         </tr>
@@ -43,6 +43,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.max-num-tcp-connections</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of tpc connections between taskmanagers for data communication.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
@@ -124,15 +130,21 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.sort-shuffle.min-buffers</h5></td>
-            <td style="word-wrap: break-word;">64</td>
+            <td style="word-wrap: break-word;">512</td>
             <td>Integer</td>
-            <td>Minimum number of network buffers required per sort-merge blocking result partition. For production usage, it is suggested to increase this config value to at least 2048 (64M memory if the default 32K memory segment size is used) to improve the data compression ratio and reduce the small network packets. Usually, several hundreds of megabytes memory is enough for large scale batch jobs. Note: you may also need to increase the size of total network memory to avoid the 'insufficient number of network buffers' error if you are increasing this config value.</td>
+            <td>Minimum number of network buffers required per blocking result partition for sort-shuffle. For production usage, it is suggested to increase this config value to at least 2048 (64M memory if the default 32K memory segment size is used) to improve the data compression ratio and reduce the small network packets. Usually, several hundreds of megabytes memory is enough for large scale batch jobs. Note: you may also need to increase the size of total network memory to avoid the 'insufficient number of network buffers' error if you are increasing this config value.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.sort-shuffle.min-parallelism</h5></td>
-            <td style="word-wrap: break-word;">2147483647</td>
+            <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>Parallelism threshold to switch between sort-merge blocking shuffle and the default hash-based blocking shuffle, which means for batch jobs of small parallelism, the hash-based blocking shuffle will be used and for batch jobs of large parallelism, the sort-merge one will be used. Note: For production usage, if sort-merge blocking shuffle is enabled, you may also need to enable data compression by setting 'taskmanager.network.blocking-shuffle.compression.enabled' to true and tune 'taskmanager.network.sort-shuffle.min-buffers' and 'taskmanager.memory.framework.off-heap.batch-shuffle.size' for better performance.</td>
+            <td>Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking shuffle, which means for batch jobs of smaller parallelism, hash-shuffle will be used and for batch jobs of larger or equal parallelism, sort-shuffle will be used. The value 1 means that sort-shuffle is the default option. Note: For production usage, you may also need to tune 'taskmanager.network.sort-shuffle.min-buffers' and 'taskmanager.memory.framework.off-heap.batch-shuffle.size' for better performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.tcp-connection.enable-reuse-across-jobs</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to reuse tcp connections across multi jobs. If set to true, tcp connections will not be released after job finishes. The subsequent jobs will be free from the overhead of the connection re-establish. However, this may lead to an increase in the total number of connections on your machine. When it reaches the upper limit, you can set it to false to release idle connections. Note that to avoid connection leak, you must set taskmanager.network.max-num-tcp-connections to a smaller value before you enable tcp connection reuse.</td>
         </tr>
     </tbody>
 </table>

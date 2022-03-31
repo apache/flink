@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.core.testutils.FlinkMatchers
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -26,10 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullablesOfData3, smallData3, type3}
 import org.apache.flink.types.Row
 
-import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Before, Test}
-
-import java.io.{OutputStream, PrintStream}
 
 import scala.collection.Seq
 
@@ -121,31 +117,27 @@ class CodeSplitITCase extends BatchTestBase {
     Assert.assertEquals(expected, TestValuesTableFactory.getResults("test_many_values"))
   }
 
-  private[flink] def runTest(sql: String, results: Seq[Row]): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000)
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000)
-    checkResult(sql.mkString, results)
-
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.MaxValue)
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.MaxValue)
-    val originalStdOut = System.out
-    try {
-      // redirect stdout to a null output stream to silence compile error in CompileUtils
-      System.setOut(new PrintStream(new OutputStream {
-        override def write(b: Int): Unit = {}
-      }))
-      checkResult(sql, results)
-      Assert.fail("Expecting compiler exception")
-    } catch {
-      case e: Exception =>
-        MatcherAssert.assertThat(e, FlinkMatchers.containsMessage("grows beyond 64 KB"))
-    } finally {
-      // set stdout back
-      System.setOut(originalStdOut)
+  @Test
+  def testManyIns(): Unit = {
+    val sql = new StringBuilder("SELECT a FROM SmallTable3 WHERE a IN (")
+    for (i <- 1 to 10000) {
+      sql.append(i)
+      if (i != 10000) {
+        sql.append(", ")
+      }
     }
+    sql.append(")")
+
+    val result = Seq(
+      Row.of(java.lang.Integer.valueOf(1)),
+      Row.of(java.lang.Integer.valueOf(2)),
+      Row.of(java.lang.Integer.valueOf(3)))
+    runTest(sql.mkString, result)
+  }
+
+  private[flink] def runTest(sql: String, results: Seq[Row]): Unit = {
+    tEnv.getConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.box(4000))
+    tEnv.getConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.box(10000))
+    checkResult(sql.mkString, results)
   }
 }

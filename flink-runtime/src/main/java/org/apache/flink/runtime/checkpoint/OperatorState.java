@@ -196,6 +196,20 @@ public class OperatorState implements CompositeStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+
+        for (int i = 0; i < parallelism; i++) {
+            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+            if (operatorSubtaskState != null) {
+                result += operatorSubtaskState.getCheckpointedSize();
+            }
+        }
+
+        return result;
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof OperatorState) {
             OperatorState other = (OperatorState) obj;

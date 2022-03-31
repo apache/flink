@@ -51,8 +51,10 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             leaderCallbackGrantLeadership();
                             assertThat(electionEventHandler.isLeader(), is(true));
                             assertThat(
-                                    electionEventHandler.getConfirmedLeaderInformation(),
-                                    is(LEADER_INFORMATION));
+                                    electionEventHandler
+                                            .getConfirmedLeaderInformation()
+                                            .getLeaderAddress(),
+                                    is(LEADER_ADDRESS));
                         });
             }
         };
@@ -68,7 +70,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             // Revoke leadership
                             getLeaderCallback().notLeader();
 
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             assertThat(electionEventHandler.isLeader(), is(false));
                             assertThat(
                                     electionEventHandler.getConfirmedLeaderInformation(),
@@ -92,7 +94,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                 runTest(
                         () -> {
                             leaderElectionDriver.hasLeadership();
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
                             assertThat(electionEventHandler.getError(), is(notNullValue()));
@@ -113,7 +115,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             leaderCallbackGrantLeadership();
 
                             final LeaderInformation leader =
-                                    LeaderInformation.known(UUID.randomUUID(), LEADER_URL);
+                                    LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS);
                             leaderElectionDriver.writeLeaderInformation(leader);
 
                             assertThat(
@@ -133,8 +135,9 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
             {
                 runTest(
                         () -> {
-                            leaderElectionDriver.writeLeaderInformation(LEADER_INFORMATION);
-                            electionEventHandler.waitForError(TIMEOUT);
+                            leaderElectionDriver.writeLeaderInformation(
+                                    LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
+                            electionEventHandler.waitForError();
 
                             final String errorMsg =
                                     "Could not write leader information since ConfigMap "
@@ -161,6 +164,9 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                                     callbackHandler = getLeaderElectionConfigMapCallback();
                             // Update ConfigMap with wrong data
                             final KubernetesConfigMap updatedConfigMap = getLeaderConfigMap();
+                            final UUID leaderSessionId =
+                                    UUID.fromString(
+                                            updatedConfigMap.getData().get(LEADER_SESSION_ID_KEY));
                             final LeaderInformation faultyLeader =
                                     LeaderInformation.known(
                                             UUID.randomUUID(), "faultyLeaderAddress");
@@ -177,10 +183,10 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             // The leader should be corrected
                             assertThat(
                                     getLeaderConfigMap().getData().get(LEADER_ADDRESS_KEY),
-                                    is(LEADER_INFORMATION.getLeaderAddress()));
+                                    is(LEADER_ADDRESS));
                             assertThat(
                                     getLeaderConfigMap().getData().get(LEADER_SESSION_ID_KEY),
-                                    is(LEADER_INFORMATION.getLeaderSessionID().toString()));
+                                    is(leaderSessionId.toString()));
                         });
             }
         };
@@ -199,7 +205,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             callbackHandler.onDeleted(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " is deleted externally";
                             assertThat(electionEventHandler.getError(), is(notNullValue()));
@@ -224,7 +230,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             callbackHandler.onError(
                                     Collections.singletonList(getLeaderConfigMap()));
 
-                            electionEventHandler.waitForError(TIMEOUT);
+                            electionEventHandler.waitForError();
                             final String errorMsg =
                                     "Error while watching the ConfigMap " + LEADER_CONFIGMAP_NAME;
                             assertThat(electionEventHandler.getError(), is(notNullValue()));
