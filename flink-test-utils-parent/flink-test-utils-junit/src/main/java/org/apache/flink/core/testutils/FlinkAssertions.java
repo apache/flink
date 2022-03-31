@@ -57,12 +57,12 @@ public final class FlinkAssertions {
             Class<? extends Throwable> clazz, String containsMessage) {
         return t ->
                 assertThatChainOfCauses(t)
+                        .as(
+                                "Any cause is instance of class '%s' and contains message '%s'",
+                                clazz, containsMessage)
                         .anySatisfy(
                                 cause ->
                                         assertThat(cause)
-                                                .as(
-                                                        "Any cause is instance of class '%s' and contains message '%s'",
-                                                        clazz, containsMessage)
                                                 .isInstanceOf(clazz)
                                                 .hasMessageContaining(containsMessage));
     }
