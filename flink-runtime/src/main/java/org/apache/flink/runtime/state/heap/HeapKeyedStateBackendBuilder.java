@@ -183,6 +183,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 localRecoveryConfig,
                 keyGroupRange,
                 keySerializerProvider,
-                numberOfKeyGroups);
+                numberOfKeyGroups,
+                StateSnapshotWriter.DEFAULT);
     }
 }

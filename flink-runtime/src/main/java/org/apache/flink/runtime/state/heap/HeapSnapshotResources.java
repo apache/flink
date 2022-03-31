@@ -41,13 +41,10 @@ import java.util.Map;
  * HeapKeyedStateBackend}.
  */
 @Internal
-final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
-    private final List<StateMetaInfoSnapshot> metaInfoSnapshots;
-    private final Map<StateUID, StateSnapshot> cowStateStableSnapshots;
+final class HeapSnapshotResources<K> extends HeapSnapshotResourcesBase<K>
+        implements FullSnapshotResources<K> {
     private final StreamCompressionDecorator streamCompressionDecorator;
-    private final Map<StateUID, Integer> stateNamesToId;
     private final KeyGroupRange keyGroupRange;
-    private final TypeSerializer<K> keySerializer;
     private final int totalKeyGroups;
 
     private HeapSnapshotResources(
@@ -58,12 +55,9 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
             KeyGroupRange keyGroupRange,
             TypeSerializer<K> keySerializer,
             int totalKeyGroups) {
-        this.metaInfoSnapshots = metaInfoSnapshots;
-        this.cowStateStableSnapshots = cowStateStableSnapshots;
+        super(metaInfoSnapshots, cowStateStableSnapshots, stateNamesToId, keySerializer);
         this.streamCompressionDecorator = streamCompressionDecorator;
-        this.stateNamesToId = stateNamesToId;
         this.keyGroupRange = keyGroupRange;
-        this.keySerializer = keySerializer;
         this.totalKeyGroups = totalKeyGroups;
     }
 
@@ -145,17 +139,6 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     }
 
     @Override
-    public void release() {
-        for (StateSnapshot stateSnapshot : cowStateStableSnapshots.values()) {
-            stateSnapshot.release();
-        }
-    }
-
-    public List<StateMetaInfoSnapshot> getMetaInfoSnapshots() {
-        return metaInfoSnapshots;
-    }
-
-    @Override
     public KeyValueStateIterator createKVStateIterator() throws IOException {
         return new HeapKeyValueStateIterator(
                 keyGroupRange,
@@ -171,20 +154,7 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     }
 
     @Override
-    public TypeSerializer<K> getKeySerializer() {
-        return keySerializer;
-    }
-
-    @Override
     public StreamCompressionDecorator getStreamCompressionDecorator() {
         return streamCompressionDecorator;
-    }
-
-    public Map<StateUID, StateSnapshot> getCowStateStableSnapshots() {
-        return cowStateStableSnapshots;
-    }
-
-    public Map<StateUID, Integer> getStateNamesToId() {
-        return stateNamesToId;
     }
 }
