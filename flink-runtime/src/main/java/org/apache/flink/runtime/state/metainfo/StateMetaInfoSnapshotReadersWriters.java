@@ -206,9 +206,9 @@ public class StateMetaInfoSnapshotReadersWriters {
      * Implementation of {@link StateMetaInfoReader} for the current version and generic for all
      * state types.
      */
-    static class CurrentReaderImpl implements StateMetaInfoReader {
+    public static class CurrentReaderImpl implements StateMetaInfoReader {
 
-        private static final CurrentReaderImpl INSTANCE = new CurrentReaderImpl();
+        public static final CurrentReaderImpl INSTANCE = new CurrentReaderImpl();
 
         @Nonnull
         @Override
