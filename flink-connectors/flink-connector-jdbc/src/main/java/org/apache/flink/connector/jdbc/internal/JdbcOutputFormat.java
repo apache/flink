@@ -142,7 +142,9 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
             throw new IOException("unable to open JDBC writer", e);
         }
         jdbcStatementExecutor = createAndOpenStatementExecutor(statementExecutorFactory);
-        if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
+        if (executionOptions.getBatchIntervalMs() != 0
+                && executionOptions.getBatchSize() != 0
+                && executionOptions.getBatchSize() != 1) {
             this.scheduler =
                     Executors.newScheduledThreadPool(
                             1, new ExecutorThreadFactory("jdbc-upsert-output-format"));
@@ -190,7 +192,7 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
             In recordCopy = copyIfNecessary(record);
             addToBatch(record, jdbcRecordExtractor.apply(recordCopy));
             batchCount++;
-            if (executionOptions.getBatchSize() > 0
+            if (executionOptions.getBatchSize() >= 0
                     && batchCount >= executionOptions.getBatchSize()) {
                 flush();
             }

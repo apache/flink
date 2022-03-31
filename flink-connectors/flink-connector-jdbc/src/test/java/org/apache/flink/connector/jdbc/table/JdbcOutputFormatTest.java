@@ -428,7 +428,16 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                                 TEST_DATA[i].qty));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                int recordCount = 0;
+                while (resultSet.next()) {
+                    assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+                    assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+                    assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+                    assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+                    assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                    recordCount++;
+                }
+                assertEquals(2, recordCount);
             }
         } finally {
             outputFormat.close();
