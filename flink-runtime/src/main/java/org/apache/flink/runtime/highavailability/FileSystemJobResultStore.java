@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.json.JobResultDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobResultSerializer;
+import org.apache.flink.runtime.util.NonClosingOutputStreamDecorator;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -137,8 +138,11 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
         final Path path = constructDirtyPath(jobResultEntry.getJobId());
         try (OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE)) {
-            mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
-            os.flush();
+            mapper.writeValue(
+                    // working around the internally used _writeAndClose method to ensure that close
+                    // is only called once
+                    new NonClosingOutputStreamDecorator(os),
+                    new JsonJobResultEntry(jobResultEntry));
         }
     }
 
