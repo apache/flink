@@ -25,10 +25,12 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RestoreOperation;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
+import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -163,7 +165,9 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                             keyGroupRange,
                             numberOfKeyGroups,
                             stateTableFactory,
-                            keyContext);
+                            keyContext,
+                            StateSnapshotRestore::keyGroupReader,
+                            KeyedBackendSerializationProxy::new);
         }
         try {
             restoreOperation.restore();
