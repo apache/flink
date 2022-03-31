@@ -35,9 +35,11 @@ import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -186,19 +188,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         }
         final Service service = restService.get().getInternalResource();
         final int restPort = getRestPortFromExternalService(service);
-
-        final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
-                ServiceType.classify(service);
-
-        // Return the external service.namespace directly when using ClusterIP.
-        if (serviceExposedType.isClusterIP()) {
-            return Optional.of(
-                    new Endpoint(
-                            ExternalServiceDecorator.getNamespacedExternalServiceName(
-                                    clusterId, namespace),
-                            restPort));
-        }
-
         return getRestEndPointFromService(service, restPort);
     }
 
@@ -493,61 +482,67 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     private Optional<Endpoint> getRestEndPointFromService(Service service, int restPort) {
-        if (service.getStatus() == null) {
-            return Optional.empty();
-        }
 
-        LoadBalancerStatus loadBalancer = service.getStatus().getLoadBalancer();
-        boolean hasExternalIP =
-                service.getSpec() != null
-                        && service.getSpec().getExternalIPs() != null
-                        && !service.getSpec().getExternalIPs().isEmpty();
+        final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
+                ServiceType.classify(service);
 
-        if (loadBalancer != null) {
-            return getLoadBalancerRestEndpoint(loadBalancer, restPort);
-        } else if (hasExternalIP) {
+        if (serviceExposedType.isClusterIP()) {
+            return getClusterIPRestEndpoint(restPort);
+        } else if (service.getStatus() != null && serviceExposedType.isLoadBalancer()) {
+            return getLoadBalancerRestEndpoint(service.getStatus().getLoadBalancer(), restPort);
+        } else if (service.getSpec() != null
+                && !CollectionUtil.isNullOrEmpty(service.getSpec().getExternalIPs())) {
             final String address = service.getSpec().getExternalIPs().get(0);
             if (address != null && !address.isEmpty()) {
                 return Optional.of(new Endpoint(address, restPort));
             }
+        } else if (serviceExposedType.isNodePort()) {
+            return getNodePortRestEndpoint(restPort);
         }
         return Optional.empty();
     }
 
+    private Optional<Endpoint> getClusterIPRestEndpoint(int restPort) {
+        return Optional.of(
+                new Endpoint(
+                        ExternalServiceDecorator.getNamespacedExternalServiceName(
+                                clusterId, namespace),
+                        restPort));
+    }
+
+    private Optional<Endpoint> getNodePortRestEndpoint(int restPort) {
+
+        final String address =
+                internalClient.nodes().list().getItems().stream()
+                        .flatMap(node -> node.getStatus().getAddresses().stream())
+                        .filter(
+                                nodeAddress ->
+                                        nodePortAddressType.name().equals(nodeAddress.getType()))
+                        .map(NodeAddress::getAddress)
+                        .filter(ip -> !ip.isEmpty())
+                        .findAny()
+                        .orElse(null);
+
+        return StringUtils.isNullOrWhitespaceOnly(address)
+                ? Optional.empty()
+                : Optional.of(new Endpoint(address, restPort));
+    }
+
     private Optional<Endpoint> getLoadBalancerRestEndpoint(
             LoadBalancerStatus loadBalancer, int restPort) {
-        boolean hasIngress =
-                loadBalancer.getIngress() != null && !loadBalancer.getIngress().isEmpty();
-        String address;
-        if (hasIngress) {
-            address = loadBalancer.getIngress().get(0).getIp();
+        if (!CollectionUtil.isNullOrEmpty(loadBalancer.getIngress())) {
+            String address = loadBalancer.getIngress().get(0).getIp();
             // Use hostname when the ip address is null
             if (address == null || address.isEmpty()) {
                 address = loadBalancer.getIngress().get(0).getHostname();
             }
-        } else {
-            // Use node port. Node port is accessible on any node within kubernetes cluster. We'll
-            // only consider IPs with the configured address type.
-            address =
-                    internalClient.nodes().list().getItems().stream()
-                            .flatMap(node -> node.getStatus().getAddresses().stream())
-                            .filter(
-                                    nodeAddress ->
-                                            nodePortAddressType
-                                                    .name()
-                                                    .equals(nodeAddress.getType()))
-                            .map(NodeAddress::getAddress)
-                            .filter(ip -> !ip.isEmpty())
-                            .findAny()
-                            .orElse(null);
-            if (address == null) {
-                LOG.warn(
-                        "Unable to find any node ip with type [{}]. Please see [{}] config option for more details.",
-                        nodePortAddressType,
-                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE.key());
-            }
+            return StringUtils.isNullOrWhitespaceOnly(address)
+                    ? Optional.empty()
+                    : Optional.of(new Endpoint(address, restPort));
         }
-        boolean noAddress = address == null || address.isEmpty();
-        return noAddress ? Optional.empty() : Optional.of(new Endpoint(address, restPort));
+        LOG.error(
+                "LoadBalancer is temporarily unavailable, which will cause the Flink client to not be able to connect to the JobMaster."
+                        + " Please contact your cloud service provider, or select another service type (parameter configuration is `kubernetes.rest-service.exposed.type`)");
+        throw new FlinkRuntimeException("LoadBalancer is temporarily unavailable");
     }
 }
