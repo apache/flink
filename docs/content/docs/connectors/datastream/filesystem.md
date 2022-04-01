@@ -1050,8 +1050,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports three filesystems: 
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports four filesystems: 
+HDFS, S3, OSS, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 
@@ -1085,6 +1085,12 @@ that don't complete within a specified number of days after being initiated. Thi
 aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out
 before the job is restarted. This will result in your job not being able to restore from that savepoint as the
 pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
+
+#### OSS-specific
+
+<span class="label label-danger">Important Note</span>: To guarantee exactly-once semantics while
+being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.aliyun.com/document_detail/155825.html)
+feature of OSS(similar with S3).
 
 {{< top >}}
 
