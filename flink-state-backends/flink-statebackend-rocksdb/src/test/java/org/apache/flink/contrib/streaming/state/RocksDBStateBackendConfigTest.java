@@ -771,6 +771,24 @@ public class RocksDBStateBackendConfigTest {
         }
     }
 
+    @Test
+    public void testDefaultRestoreOverlapThreshold() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        assertTrue(
+                RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
+                        == rocksDBStateBackend.getOverlapFractionThreshold());
+    }
+
+    @Test
+    public void testConfigureRestoreOverlapThreshold() {
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+        Configuration configuration = new Configuration();
+        configuration.setDouble(RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD, 0.3);
+        rocksDBStateBackend =
+                rocksDBStateBackend.configure(configuration, getClass().getClassLoader());
+        assertTrue(0.3 == rocksDBStateBackend.getOverlapFractionThreshold());
+    }
+
     private void verifySetParameter(Runnable setter) {
         try {
             setter.run();

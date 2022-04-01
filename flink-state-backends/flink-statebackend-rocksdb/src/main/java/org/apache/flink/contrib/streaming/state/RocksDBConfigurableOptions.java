@@ -258,11 +258,12 @@ public class RocksDBConfigurableOptions implements Serializable {
     public static final ConfigOption<Double> RESTORE_OVERLAP_FRACTION_THRESHOLD =
             key("state.backend.rocksdb.restore-overlap-fraction-threshold")
                     .doubleType()
-                    .defaultValue(0.75)
+                    .defaultValue(0.0)
                     .withDescription(
-                            "The threshold of the overlap fraction between the handle's key-group range and target key-group range. "
-                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to *threshold* "
-                                    + "has a chance to be an initial handle.");
+                            "The threshold of overlap fraction between the handle's key-group range and target key-group range. "
+                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to threshold "
+                                    + "has a chance to be an initial handle. "
+                                    + "The default value is 0.0, there is always a handle will be selected for initialization. ");
 
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
