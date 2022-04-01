@@ -447,9 +447,11 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
-					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
+					<systemPropertyVariables>
+						<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
+						be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
+						<io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>

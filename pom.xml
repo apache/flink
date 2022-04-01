@@ -1573,11 +1573,16 @@ under the License.
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
-					<systemPropertyVariables>
+					<systemPropertyVariables combine.children="append">
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
+						<!-- $$ ensures that surefire resolves this to the current forkNumber,
+						 	instead of maven during initialization -->
+						<mvn.forkNumber>$${surefire.forkNumber}</mvn.forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
+						<user.country>US</user.country>
+						<user.language>en</user.language>
 						<!-- force the use of the Changelog State Backend in tests on mini-cluster
 							on: enable CheckpointingOptions.ENABLE_STATE_CHANGE_LOG on cluster level
 							random: enable it randomly, unless explicitly set
@@ -1589,7 +1594,7 @@ under the License.
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
+					<argLine>-Xms256m -Xmx2048m -XX:+UseG1GC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
