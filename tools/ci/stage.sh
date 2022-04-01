@@ -20,7 +20,6 @@
 STAGE_COMPILE="compile"
 STAGE_CORE="core"
 STAGE_PYTHON="python"
-STAGE_LIBRARIES="libraries"
 STAGE_TABLE="table"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
@@ -48,9 +47,7 @@ flink-streaming-scala,\
 flink-metrics,\
 flink-metrics/flink-metrics-core,\
 flink-external-resources,\
-flink-external-resources/flink-external-resource-gpu"
-
-MODULES_LIBRARIES="\
+flink-external-resources/flink-external-resource-gpu,\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api"
@@ -139,9 +136,6 @@ function get_compile_modules_for_stage() {
         (${STAGE_CORE})
             echo "-pl $MODULES_CORE -am"
         ;;
-        (${STAGE_LIBRARIES})
-            echo "-pl $MODULES_LIBRARIES -am"
-        ;;
         (${STAGE_TABLE})
             echo "-pl $MODULES_TABLE -am"
         ;;
@@ -173,26 +167,21 @@ function get_test_modules_for_stage() {
     local stage=$1
 
     local modules_core=$MODULES_CORE
-    local modules_libraries=$MODULES_LIBRARIES
     local modules_table=$MODULES_TABLE
     local modules_kafka_gelly=$MODULES_KAFKA_GELLY
     local modules_connectors=$MODULES_CONNECTORS
     local modules_tests=$MODULES_TESTS
     local negated_core=\!${MODULES_CORE//,/,\!}
-    local negated_libraries=\!${MODULES_LIBRARIES//,/,\!}
     local negated_table=\!${MODULES_TABLE//,/,\!}
     local negated_kafka_gelly=\!${MODULES_KAFKA_GELLY//,/,\!}
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
-    local modules_misc="$negated_core,$negated_libraries,$negated_table,$negated_connectors,$negated_kafka_gelly,$negated_tests"
+    local modules_misc="$negated_core,$negated_table,$negated_connectors,$negated_kafka_gelly,$negated_tests"
     local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
 
     case ${stage} in
         (${STAGE_CORE})
             echo "-pl $modules_core"
-        ;;
-        (${STAGE_LIBRARIES})
-            echo "-pl $modules_libraries"
         ;;
         (${STAGE_TABLE})
             echo "-pl $modules_table"

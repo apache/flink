@@ -90,8 +90,6 @@ jobs:
         module: core
       python:
         module: python
-      libraries:
-        module: libraries
       table:
         module: table
       connectors:
