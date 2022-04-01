@@ -52,7 +52,7 @@ def session_window_demo():
               .column("f2", DataTypes.FLOAT())
               .watermark("ts", "ts - INTERVAL '3' SECOND")
               .build()
-    ).alias("ts, name, price")
+    ).alias("ts", "name", "price")
 
     # define the sink
     t_env.create_temporary_table(

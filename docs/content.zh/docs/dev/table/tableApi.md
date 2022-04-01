@@ -417,7 +417,7 @@ val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.alias("x, y, z, t")
+result = orders.alias("x", "y", "z", "t")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1054,7 +1054,7 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.join_lateral(split(orders.c).alias("s, t, v"))
+joined_table = orders.join_lateral(split(orders.c).alias("s", "t", "v"))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 ```
 {{< /tab >}}
@@ -1103,7 +1103,7 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s, t, v"))
+joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s", "t", "v"))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 ```
 {{< /tab >}}
@@ -2453,7 +2453,7 @@ agg = udaf(function,
 # 使用 python 通用聚合函数进行聚合
 result = t.group_by(t.a) \
     .aggregate(agg.alias("c", "d")) \
-    .select("a, c, d")
+    .select(col('a'), col('c'), col('d'))
     
 # 使用 python 向量化聚合函数进行聚合
 pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
@@ -2462,8 +2462,7 @@ pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
 t.aggregate(pandas_udaf.alias("a", "b")) \
-    .select("a, b")
-
+    .select(col('a'), col('b'))
 ```
 
 {{< /tab >}}
@@ -2515,9 +2514,9 @@ tumble_window = Tumble.over(expr.lit(1).hours) \
     .alias("w")
 t.select(t.b, t.rowtime) \
     .window(tumble_window) \
-    .group_by("w") \
+    .group_by(col("w")) \
     .aggregate(pandas_udaf.alias("d", "e")) \
-    .select("w.rowtime, d, e")
+    .select(col('w').rowtime, col('d'), col('e'))
 ```
 {{< /tab >}}
 {{< /tabs >}}

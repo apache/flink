@@ -54,7 +54,7 @@ def tumble_window_demo():
               .column("f2", DataTypes.FLOAT())
               .watermark("ts", "ts - INTERVAL '3' SECOND")
               .build()
-    ).alias("ts, name, price")
+    ).alias("ts", "name", "price")
 
     # define the sink
     t_env.create_temporary_table(
@@ -68,8 +68,8 @@ def tumble_window_demo():
 
     # define the over window operation
     table = table.over_window(
-        Over.partition_by("name")
-            .order_by("ts")
+        Over.partition_by(col("name"))
+            .order_by(col("ts"))
             .preceding(row_interval(2))
             .following(CURRENT_ROW)
             .alias('w')) \
