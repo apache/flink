@@ -128,7 +128,7 @@ add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 # 注册 Python 自定义函数
 table_env.create_temporary_function("add", add)
 # 在 Python Table API 中使用 Python 自定义函数
-my_table.select("add(a, b)")
+my_table.select(call('add', my_table.a, my_table.b))
 
 # 也可以在 Python Table API 中直接使用 Python 自定义函数
 my_table.select(add(my_table.a, my_table.b))
@@ -156,8 +156,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # 在 Python Table API 中使用 Python 表值函数
-my_table.join_lateral(split(my_table.a).alias("word, length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
+my_table.join_lateral(split(my_table.a).alias("word", "length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word", "length"))
 
 # 在 SQL API 中使用 Python 表值函数
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
@@ -194,8 +194,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # 在 Python Table API 中使用表值函数。 "alias"指定表的字段名称。
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
 
 # 注册 Python 函数。
 
@@ -337,7 +337,7 @@ tumble_window = Tumble.over(lit(1).hours) \
 
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
-        .select("w.start, w.end, weighted_avg(value, count)") \
+        .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
         .to_pandas()
 print(result)
 
