@@ -148,7 +148,8 @@ public class ChangelogCompatibilityITCase {
             waitForCheckpoint(
                     jobGraph.getJobID(),
                     miniClusterResource.getMiniCluster(),
-                    Deadline.fromNow(Duration.ofMinutes(5)));
+                    Deadline.fromNow(Duration.ofMinutes(5)),
+                    1);
             client.cancel(jobGraph.getJobID()).get();
             // obtain the latest checkpoint *after* cancellation - that one won't be subsumed
             return CommonTestUtils.getLatestCompletedCheckpointPath(

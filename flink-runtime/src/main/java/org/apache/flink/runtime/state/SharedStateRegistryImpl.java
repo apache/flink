@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
@@ -50,6 +52,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
     /** Executor for async state deletion */
     private final Executor asyncDisposalExecutor;
+
+    /** Checkpoint ID below which no state is discarded, inclusive. */
+    private long highestNotClaimedCheckpointID = -1L;
 
     /** Default uses direct executor to delete unreferenced state */
     public SharedStateRegistryImpl() {
@@ -147,7 +152,9 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             while (it.hasNext()) {
                 SharedStateEntry entry = it.next();
                 if (entry.lastUsedCheckpointID < lowestCheckpointID) {
-                    subsumed.add(entry.stateHandle);
+                    if (entry.createdByCheckpointID > highestNotClaimedCheckpointID) {
+                        subsumed.add(entry.stateHandle);
+                    }
                     it.remove();
                 }
             }
@@ -171,6 +178,20 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             for (CompositeStateHandle stateHandle : stateHandles) {
                 stateHandle.registerSharedStates(this, checkpointID);
             }
+        }
+    }
+
+    @Override
+    public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode) {
+        registerAll(checkpoint.getOperatorStates().values(), checkpoint.getCheckpointID());
+        // In NO_CLAIM and LEGACY restore modes, shared state of the initial checkpoints must be
+        // preserved. This is achieved by advancing highestRetainCheckpointID here, and then
+        // checking entry.createdByCheckpointID against it on checkpoint subsumption.
+        // In CLAIM restore mode, the shared state of the initial checkpoints must be
+        // discarded as soon as it becomes unused - so highestRetainCheckpointID is not updated.
+        if (mode != RestoreMode.CLAIM) {
+            highestNotClaimedCheckpointID =
+                    Math.max(highestNotClaimedCheckpointID, checkpoint.getCheckpointID());
         }
     }
 
@@ -251,6 +272,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
         /** The shared state handle */
         StreamStateHandle stateHandle;
 
+        private final long createdByCheckpointID;
+
         private long lastUsedCheckpointID;
 
         /** Whether this entry is included into a confirmed checkpoint. */
@@ -258,6 +281,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
 
         SharedStateEntry(StreamStateHandle value, long checkpointID) {
             this.stateHandle = value;
+            this.createdByCheckpointID = checkpointID;
             this.lastUsedCheckpointID = checkpointID;
         }
 
@@ -266,6 +290,8 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             return "SharedStateEntry{"
                     + "stateHandle="
                     + stateHandle
+                    + ", createdByCheckpointID="
+                    + createdByCheckpointID
                     + ", lastUsedCheckpointID="
                     + lastUsedCheckpointID
                     + '}';

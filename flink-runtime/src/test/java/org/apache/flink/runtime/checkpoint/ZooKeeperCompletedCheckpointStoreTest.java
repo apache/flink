@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -196,7 +197,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                 checkpointsInZooKeeper,
                 zooKeeperCheckpointStoreUtil,
                 Collections.emptyList(),
-                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
                 Executors.directExecutor());
     }
 
