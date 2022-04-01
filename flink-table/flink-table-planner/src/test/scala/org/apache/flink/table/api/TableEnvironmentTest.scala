@@ -50,7 +50,7 @@ import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 import java.io.File
-import java.util.UUID
+import java.util.{Collections, UUID}
 
 import scala.annotation.meta.getter
 
@@ -794,6 +794,28 @@ class TableEnvironmentTest {
     val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterRenameColumn(): Unit = {
+    tableEnv.executeSql("""
+                          |CREATE TABLE MyTable (
+                          | a bigint
+                          |) WITH (
+                          |  'connector' = 'COLLECTION',
+                          |  'is-bounded' = 'false'
+                          |)
+                          |""".stripMargin)
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable RENAME a TO b
+                          |""".stripMargin)
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      Collections
+        .singletonList(Row.of("b", "BIGINT", Boolean.box(true), null, null, null))
+        .iterator(),
+      tableResult.collect())
   }
 
   @Test

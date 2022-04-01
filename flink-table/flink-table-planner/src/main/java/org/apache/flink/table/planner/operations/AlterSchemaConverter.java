@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAdd;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableModify;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
@@ -27,9 +28,15 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.expressions.ColumnReferenceFinder;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -45,6 +52,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -63,6 +71,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * Schema}.
  */
 public class AlterSchemaConverter {
+
+    private static final String EX_MSG_PREFIX = "Failed to execute ALTER TABLE statement.\n";
 
     private final SqlValidator sqlValidator;
     private final Function<SqlNode, String> escapeExpression;
@@ -104,9 +114,83 @@ public class AlterSchemaConverter {
         return converter.convert();
     }
 
-    private abstract static class SchemaConverter {
+    public Schema applySchemaChange(
+            SqlAlterTableRenameColumn renameColumn, ContextResolvedTable originalTable) {
+        String oldColumnName = getColumnName(renameColumn.getOriginColumnIdentifier());
+        String newColumnName = getColumnName(renameColumn.getNewColumnIdentifier());
+        List<String> tableColumns =
+                originalTable.getResolvedSchema().getColumns().stream()
+                        .map(Column::getName)
+                        .collect(Collectors.toList());
+        // validate old column is exists or new column isn't duplicated or old column isn't
+        // referenced by computed column
+        validateColumnName(
+                oldColumnName,
+                newColumnName,
+                tableColumns,
+                originalTable.getResolvedSchema(),
+                ((CatalogTable) originalTable.getResolvedTable()).getPartitionKeys());
 
-        static final String EX_MSG_PREFIX = "Failed to execute ALTER TABLE statement.\n";
+        // validate old column isn't referenced by watermark
+        List<WatermarkSpec> watermarkSpecs = originalTable.getResolvedSchema().getWatermarkSpecs();
+        watermarkSpecs.forEach(
+                watermarkSpec -> {
+                    String rowtimeAttribute = watermarkSpec.getRowtimeAttribute();
+                    Set<String> referencedColumns =
+                            ColumnReferenceFinder.findReferencedColumn(
+                                    watermarkSpec.getWatermarkExpression(), tableColumns);
+                    if (oldColumnName.equals(rowtimeAttribute)
+                            || referencedColumns.contains(oldColumnName)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Old column %s is referred by watermark expression %s, "
+                                                + "currently doesn't allow to rename column which is "
+                                                + "referred by watermark expression.",
+                                        oldColumnName, watermarkSpec.asSummaryString()));
+                    }
+                });
+
+        Schema.Builder builder = Schema.newBuilder();
+        // build column
+        Schema originSchema = originalTable.getTable().getUnresolvedSchema();
+        originSchema
+                .getColumns()
+                .forEach(
+                        column -> {
+                            if (oldColumnName.equals(column.getName())) {
+                                buildNewColumnFromOriginColumn(builder, column, newColumnName);
+                            } else {
+                                builder.fromColumns(Collections.singletonList(column));
+                            }
+                        });
+        // build primary key
+        Optional<Schema.UnresolvedPrimaryKey> originPrimaryKey = originSchema.getPrimaryKey();
+        if (originPrimaryKey.isPresent()) {
+            List<String> originPrimaryKeyNames = originPrimaryKey.get().getColumnNames();
+            String constrainName = originPrimaryKey.get().getConstraintName();
+            List<String> newPrimaryKeyNames =
+                    originPrimaryKeyNames.stream()
+                            .map(pkName -> pkName.equals(oldColumnName) ? newColumnName : pkName)
+                            .collect(Collectors.toList());
+            builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
+        }
+
+        // build watermark
+        originSchema
+                .getWatermarkSpecs()
+                .forEach(
+                        watermarkSpec ->
+                                builder.watermark(
+                                        watermarkSpec.getColumnName(),
+                                        watermarkSpec.getWatermarkExpression()));
+
+        // generate new schema
+        return builder.build();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private abstract static class SchemaConverter {
 
         List<String> sortedColumnNames = new ArrayList<>();
         Set<String> alterColNames = new HashSet<>();
@@ -278,13 +362,7 @@ public class AlterSchemaConverter {
             for (SqlNode alterColumn : alterColumns) {
                 SqlTableColumnPosition columnPosition = (SqlTableColumnPosition) alterColumn;
                 SqlTableColumn column = columnPosition.getColumn();
-                if (!column.getName().isSimple()) {
-                    throw new UnsupportedOperationException(
-                            String.format(
-                                    "%sAlter nested row type is not supported yet.",
-                                    EX_MSG_PREFIX));
-                }
-                String columnName = column.getName().getSimple();
+                String columnName = getColumnName(column.getName());
                 if (!alterColNames.add(columnName)) {
                     throw new ValidationException(
                             String.format(
@@ -491,6 +569,87 @@ public class AlterSchemaConverter {
                     ? columns.get(column.getName().getSimple()).getComment().orElse(null)
                     : comment;
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private void validateColumnName(
+            String originColumnName,
+            String newColumnName,
+            List<String> tableColumns,
+            ResolvedSchema originResolvedSchema,
+            List<String> partitionKeys) {
+        // validate old column
+        if (!tableColumns.contains(originColumnName)) {
+            throw new ValidationException(
+                    String.format(
+                            "Old column %s not found in table schema for RENAME COLUMN",
+                            originColumnName));
+        }
+
+        // validate new column
+        if (tableColumns.contains(newColumnName)) {
+            throw new ValidationException(
+                    String.format(
+                            "New column %s already existed in table schema for RENAME COLUMN",
+                            newColumnName));
+        }
+
+        // validate old column name isn't referred by computed column case
+        originResolvedSchema.getColumns().stream()
+                .filter(column -> column instanceof Column.ComputedColumn)
+                .forEach(
+                        column -> {
+                            Column.ComputedColumn computedColumn = (Column.ComputedColumn) column;
+                            Set<String> referencedColumn =
+                                    ColumnReferenceFinder.findReferencedColumn(
+                                            computedColumn.getExpression(), tableColumns);
+                            if (referencedColumn.contains(originColumnName)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Old column %s is referred by computed column %s, currently doesn't "
+                                                        + "allow to rename column which is referred by computed column.",
+                                                originColumnName,
+                                                computedColumn.asSummaryString()));
+                            }
+                        });
+        // validate partition keys doesn't contain the old column
+        if (partitionKeys.contains(originColumnName)) {
+            throw new ValidationException(
+                    String.format(
+                            "Can not rename column %s because it is used as the partition keys.",
+                            originColumnName));
+        }
+    }
+
+    private void buildNewColumnFromOriginColumn(
+            Schema.Builder builder, Schema.UnresolvedColumn originColumn, String columnName) {
+        if (originColumn instanceof Schema.UnresolvedComputedColumn) {
+            builder.columnByExpression(
+                    columnName, ((Schema.UnresolvedComputedColumn) originColumn).getExpression());
+        } else if (originColumn instanceof Schema.UnresolvedPhysicalColumn) {
+            builder.column(
+                    columnName, ((Schema.UnresolvedPhysicalColumn) originColumn).getDataType());
+        } else if (originColumn instanceof Schema.UnresolvedMetadataColumn) {
+            Schema.UnresolvedMetadataColumn metadataColumn =
+                    (Schema.UnresolvedMetadataColumn) originColumn;
+            builder.columnByMetadata(
+                    columnName,
+                    metadataColumn.getDataType(),
+                    metadataColumn.getMetadataKey(),
+                    metadataColumn.isVirtual());
+        }
+        originColumn.getComment().ifPresent(builder::withComment);
+    }
+
+    private static String getColumnName(SqlIdentifier identifier) {
+        if (!identifier.isSimple()) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "%sAlter nested row type %s is not supported yet.",
+                            EX_MSG_PREFIX, identifier));
+        }
+        return identifier.getSimple();
     }
 
     private AlterSchemaStrategy computeAlterSchemaStrategy(SqlAlterTableSchema alterTableSchema) {

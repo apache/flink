@@ -28,6 +28,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlAlterView;
@@ -531,6 +532,20 @@ public class SqlToOperationConverter {
                     (SqlChangeColumn) sqlAlterTable,
                     (CatalogTable) baseTable,
                     flinkPlanner.getOrCreateSqlValidator());
+        } else if (sqlAlterTable instanceof SqlAlterTableRenameColumn) {
+            SqlAlterTableRenameColumn sqlAlterTableRenameColumn =
+                    (SqlAlterTableRenameColumn) sqlAlterTable;
+            Schema newSchema =
+                    alterSchemaConverter.applySchemaChange(
+                            sqlAlterTableRenameColumn, optionalCatalogTable.get());
+            CatalogTable baseCatalogTable = (CatalogTable) baseTable;
+            return new AlterTableSchemaOperation(
+                    tableIdentifier,
+                    CatalogTable.of(
+                            newSchema,
+                            baseCatalogTable.getComment(),
+                            baseCatalogTable.getPartitionKeys(),
+                            baseCatalogTable.getOptions()));
         } else if (sqlAlterTable instanceof SqlAddPartitions) {
             List<CatalogPartitionSpec> specs = new ArrayList<>();
             List<CatalogPartition> partitions = new ArrayList<>();

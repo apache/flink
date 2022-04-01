@@ -23,7 +23,6 @@ import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -32,8 +31,6 @@ import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -41,12 +38,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import com.google.common.collect.Lists;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,12 +62,10 @@ public class OperationConverterUtils {
             CatalogTable catalogTable,
             SqlValidator sqlValidator) {
         // This is only used by the Hive dialect at the moment. In Hive, only non-partition columns
-        // can be
-        // added/replaced and users will only define non-partition columns in the new column list.
-        // Therefore, we require
-        // that partitions columns must appear last in the schema (which is inline with Hive).
-        // Otherwise, we won't be
-        // able to determine the column positions after the non-partition columns are replaced.
+        // can be added/replaced and users will only define non-partition columns in the new column
+        // list. Therefore, we require that partitions columns must appear last in the schema (which
+        // is inline with Hive). Otherwise, we won't be able to determine the column positions after
+        // the non-partition columns are replaced.
         TableSchema oldSchema = catalogTable.getSchema();
         int numPartCol = catalogTable.getPartitionKeys().size();
         Set<String> lastCols =
@@ -147,116 +140,6 @@ public class OperationConverterUtils {
                         newProperties,
                         catalogTable.getComment()));
         // TODO: handle watermark and constraints
-    }
-
-    public static Operation convertRenameColumn(
-            ObjectIdentifier tableIdentifier,
-            String originColumnName,
-            String newColumnName,
-            CatalogTable catalogTable) {
-
-        Schema modifiedTableSchema = catalogTable.getUnresolvedSchema();
-        validateColumnName(originColumnName, newColumnName, modifiedTableSchema);
-
-        Schema.Builder builder = Schema.newBuilder();
-        // build column
-        modifiedTableSchema.getColumns().stream()
-                .forEach(
-                        column -> {
-                            if (StringUtils.equals(column.getName(), originColumnName)) {
-                                buildNewColumnFromOriginColumn(builder, column, newColumnName);
-                            } else {
-                                buildNewColumnFromOriginColumn(builder, column, column.getName());
-                            }
-                        });
-        // build primary key column
-        List<String> originPrimaryKeyNames =
-                modifiedTableSchema
-                        .getPrimaryKey()
-                        .map(Schema.UnresolvedPrimaryKey::getColumnNames)
-                        .orElseGet(Lists::newArrayList);
-
-        List<String> newPrimaryKeyNames =
-                originPrimaryKeyNames.stream()
-                        .map(
-                                pkName ->
-                                        StringUtils.equals(pkName, originColumnName)
-                                                ? newColumnName
-                                                : pkName)
-                        .collect(Collectors.toList());
-
-        if (newPrimaryKeyNames.size() > 0) {
-            builder.primaryKey(newPrimaryKeyNames);
-        }
-        // build watermark
-        modifiedTableSchema.getWatermarkSpecs().stream()
-                .forEach(
-                        watermarkSpec -> {
-                            String watermarkRefColumnName = watermarkSpec.getColumnName();
-                            Expression watermarkExpression = watermarkSpec.getWatermarkExpression();
-                            if (StringUtils.equals(watermarkRefColumnName, originColumnName)) {
-                                String newWatermarkExpression =
-                                        ((SqlCallExpression) watermarkExpression)
-                                                .getSqlExpression()
-                                                .replace(watermarkRefColumnName, newColumnName);
-                                builder.watermark(newColumnName, newWatermarkExpression);
-                            } else {
-                                builder.watermark(watermarkRefColumnName, watermarkExpression);
-                            }
-                        });
-        // build partition key
-        List<String> newPartitionKeys =
-                catalogTable.getPartitionKeys().stream()
-                        .map(
-                                name ->
-                                        StringUtils.equals(name, originColumnName)
-                                                ? newColumnName
-                                                : name)
-                        .collect(Collectors.toList());
-        // generate new schema
-        Schema newSchema = builder.build();
-
-        return new AlterTableSchemaOperation(
-                tableIdentifier,
-                CatalogTable.of(
-                        newSchema,
-                        catalogTable.getComment(),
-                        newPartitionKeys,
-                        catalogTable.getOptions()));
-    }
-
-    private static void validateColumnName(
-            String originColumnName, String newColumnName, Schema modifiedTableSchema) {
-        List<String> columnNames =
-                modifiedTableSchema.getColumns().stream()
-                        .map(Schema.UnresolvedColumn::getName)
-                        .collect(Collectors.toList());
-
-        int originColumnIndex = columnNames.indexOf(originColumnName);
-        if (originColumnIndex < 0) {
-            throw new ValidationException(
-                    String.format("Old column %s not found for RENAME COLUMN ", originColumnName));
-        }
-
-        int sameColumnNameIndex = columnNames.indexOf(newColumnName);
-        if (sameColumnNameIndex >= 0) {
-            throw new ValidationException(
-                    String.format("New column %s existed for RENAME COLUMN ", newColumnName));
-        }
-    }
-
-    private static void buildNewColumnFromOriginColumn(
-            Schema.Builder builder, Schema.UnresolvedColumn originColumn, String columnName) {
-        if (originColumn instanceof Schema.UnresolvedComputedColumn) {
-            builder.columnByExpression(
-                    columnName, ((Schema.UnresolvedComputedColumn) originColumn).getExpression());
-        } else if (originColumn instanceof Schema.UnresolvedPhysicalColumn) {
-            builder.column(
-                    columnName, ((Schema.UnresolvedPhysicalColumn) originColumn).getDataType());
-        } else {
-            builder.columnByMetadata(
-                    columnName, ((Schema.UnresolvedMetadataColumn) originColumn).getDataType());
-        }
     }
 
     // change a column in the old table schema and return the updated table schema

@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -9,34 +27,35 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName
- * RENAME  originColumnName TO newColumnName
+ * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME originColumnName TO newColumnName.
  */
 public class SqlAlterTableRenameColumn extends SqlAlterTable {
 
-    private final SqlIdentifier originColumnNameIdentifier;
-    private final SqlIdentifier newColumnNameIdentifier;
+    private final SqlIdentifier originColumnIdentifier;
+    private final SqlIdentifier newColumnIdentifier;
 
-    public SqlAlterTableRenameColumn(SqlParserPos pos,
-                                     SqlIdentifier tableName,
-                                     SqlIdentifier originColumnName,
-                                     SqlIdentifier newColumnName) {
+    public SqlAlterTableRenameColumn(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlIdentifier originColumnIdentifier,
+            SqlIdentifier newColumnIdentifier) {
         super(pos, tableName, null);
-        this.originColumnNameIdentifier = originColumnName;
-        this.newColumnNameIdentifier = newColumnName;
+        this.originColumnIdentifier = originColumnIdentifier;
+        this.newColumnIdentifier = newColumnIdentifier;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableIdentifier, originColumnNameIdentifier, newColumnNameIdentifier);
+        return ImmutableNullableList.of(
+                tableIdentifier, originColumnIdentifier, newColumnIdentifier);
     }
 
-    public SqlIdentifier getOriginColumnNameIdentifier() {
-        return originColumnNameIdentifier;
+    public SqlIdentifier getOriginColumnIdentifier() {
+        return originColumnIdentifier;
     }
 
-    public SqlIdentifier getNewColumnNameIdentifier() {
-        return newColumnNameIdentifier;
+    public SqlIdentifier getNewColumnIdentifier() {
+        return newColumnIdentifier;
     }
 
     @Override
@@ -44,8 +63,8 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
         writer.keyword("ALTER TABLE");
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         writer.keyword("RENAME");
-        originColumnNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        originColumnIdentifier.unparse(writer, leftPrec, rightPrec);
         writer.keyword("TO");
-        newColumnNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        newColumnIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }
