@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -569,6 +570,7 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object
      * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
      * @param executor to run ZooKeeper callbacks
+     * @param restoreMode the mode in which the job is being restored
      * @return {@link DefaultCompletedCheckpointStore} instance
      * @throws Exception if the completed checkpoint store cannot be created
      */
@@ -578,7 +580,8 @@ public class ZooKeeperUtils {
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
-            Executor executor)
+            Executor executor,
+            RestoreMode restoreMode)
             throws Exception {
 
         checkNotNull(configuration, "Configuration");
@@ -597,7 +600,8 @@ public class ZooKeeperUtils {
                         completedCheckpointStateHandleStore,
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
                         completedCheckpoints,
-                        sharedStateRegistryFactory.create(ioExecutor, completedCheckpoints),
+                        sharedStateRegistryFactory.create(
+                                ioExecutor, completedCheckpoints, restoreMode),
                         executor);
         LOG.info(
                 "Initialized {} in '{}' with {}.",

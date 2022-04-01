@@ -326,7 +326,7 @@ public class ChangelogRescalingITCase extends TestLogger {
     }
 
     private String checkpointAndCancel(JobID jobID) throws Exception {
-        waitForCheckpoint(jobID, cluster.getMiniCluster());
+        waitForCheckpoint(jobID, cluster.getMiniCluster(), 1);
         cluster.getClusterClient().cancel(jobID).get();
         checkStatus(jobID);
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResul
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
@@ -84,7 +85,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         super.setUp();
         haServices.setCheckpointRecoveryFactory(
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous, sharedStateRegistryFactory, ioExecutor) -> {
+                        (maxCheckpoints,
+                                previous,
+                                sharedStateRegistryFactory,
+                                ioExecutor,
+                                restoreMode) -> {
                             if (previous != null) {
                                 // First job cleanup still succeeded for the
                                 // CompletedCheckpointStore because the JobGraph cleanup happens
@@ -95,13 +100,17 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         maxCheckpoints,
                                         previous.getAllCheckpoints(),
                                         sharedStateRegistryFactory.create(
-                                                ioExecutor, previous.getAllCheckpoints()));
+                                                ioExecutor,
+                                                previous.getAllCheckpoints(),
+                                                restoreMode));
                             }
                             return new EmbeddedCompletedCheckpointStore(
                                     maxCheckpoints,
                                     Collections.emptyList(),
                                     sharedStateRegistryFactory.create(
-                                            ioExecutor, Collections.emptyList()));
+                                            ioExecutor,
+                                            Collections.emptyList(),
+                                            RestoreMode.DEFAULT));
                         }));
     }
 

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -2860,161 +2861,176 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     @Test
     public void testSharedStateRegistrationOnRestore() throws Exception {
-        JobVertexID jobVertexID1 = new JobVertexID();
+        for (RestoreMode restoreMode : RestoreMode.values()) {
+            JobVertexID jobVertexID1 = new JobVertexID();
 
-        int parallelism1 = 2;
-        int maxParallelism1 = 4;
+            int parallelism1 = 2;
+            int maxParallelism1 = 4;
 
-        ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
+                            .build(EXECUTOR_RESOURCE.getExecutor());
 
-        ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
+            ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
 
-        List<CompletedCheckpoint> checkpoints = Collections.emptyList();
-        SharedStateRegistry firstInstance =
-                SharedStateRegistry.DEFAULT_FACTORY.create(
-                        org.apache.flink.util.concurrent.Executors.directExecutor(), checkpoints);
-        final EmbeddedCompletedCheckpointStore store =
-                new EmbeddedCompletedCheckpointStore(10, checkpoints, firstInstance);
+            List<CompletedCheckpoint> checkpoints = Collections.emptyList();
+            SharedStateRegistry firstInstance =
+                    SharedStateRegistry.DEFAULT_FACTORY.create(
+                            org.apache.flink.util.concurrent.Executors.directExecutor(),
+                            checkpoints,
+                            restoreMode);
+            final EmbeddedCompletedCheckpointStore store =
+                    new EmbeddedCompletedCheckpointStore(10, checkpoints, firstInstance);
 
-        // set up the coordinator and validate the initial state
-        final CheckpointCoordinatorBuilder coordinatorBuilder =
-                new CheckpointCoordinatorBuilder().setTimer(manuallyTriggeredScheduledExecutor);
-        final CheckpointCoordinator coordinator =
-                coordinatorBuilder.setCompletedCheckpointStore(store).build(graph);
+            // set up the coordinator and validate the initial state
+            final CheckpointCoordinatorBuilder coordinatorBuilder =
+                    new CheckpointCoordinatorBuilder().setTimer(manuallyTriggeredScheduledExecutor);
+            final CheckpointCoordinator coordinator =
+                    coordinatorBuilder.setCompletedCheckpointStore(store).build(graph);
 
-        final int numCheckpoints = 3;
+            final int numCheckpoints = 3;
 
-        List<KeyGroupRange> keyGroupPartitions1 =
-                StateAssignmentOperation.createKeyGroupPartitions(maxParallelism1, parallelism1);
+            List<KeyGroupRange> keyGroupPartitions1 =
+                    StateAssignmentOperation.createKeyGroupPartitions(
+                            maxParallelism1, parallelism1);
 
-        for (int i = 0; i < numCheckpoints; ++i) {
-            performIncrementalCheckpoint(
-                    graph.getJobID(), coordinator, jobVertex1, keyGroupPartitions1, i);
-        }
-
-        List<CompletedCheckpoint> completedCheckpoints = coordinator.getSuccessfulCheckpoints();
-        assertEquals(numCheckpoints, completedCheckpoints.size());
-
-        int sharedHandleCount = 0;
-
-        List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint =
-                new ArrayList<>(numCheckpoints);
-
-        for (int i = 0; i < numCheckpoints; ++i) {
-            sharedHandlesByCheckpoint.add(new HashMap<>(2));
-        }
-
-        int cp = 0;
-        for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
-            for (OperatorState taskState : completedCheckpoint.getOperatorStates().values()) {
-                for (OperatorSubtaskState subtaskState : taskState.getStates()) {
-                    for (KeyedStateHandle keyedStateHandle : subtaskState.getManagedKeyedState()) {
-                        // test we are once registered with the current registry
-                        verify(keyedStateHandle, times(1))
-                                .registerSharedStates(
-                                        firstInstance, completedCheckpoint.getCheckpointID());
-                        IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
-                                (IncrementalRemoteKeyedStateHandle) keyedStateHandle;
-
-                        sharedHandlesByCheckpoint
-                                .get(cp)
-                                .putAll(incrementalKeyedStateHandle.getSharedState());
-
-                        for (StreamStateHandle streamStateHandle :
-                                incrementalKeyedStateHandle.getSharedState().values()) {
-                            assertTrue(
-                                    !(streamStateHandle instanceof PlaceholderStreamStateHandle));
-                            verify(streamStateHandle, never()).discardState();
-                            ++sharedHandleCount;
-                        }
-
-                        for (StreamStateHandle streamStateHandle :
-                                incrementalKeyedStateHandle.getPrivateState().values()) {
-                            verify(streamStateHandle, never()).discardState();
-                        }
-
-                        verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
-                                .discardState();
-                    }
-
-                    verify(subtaskState, never()).discardState();
-                }
+            for (int i = 0; i < numCheckpoints; ++i) {
+                performIncrementalCheckpoint(
+                        graph.getJobID(), coordinator, jobVertex1, keyGroupPartitions1, i);
             }
-            ++cp;
-        }
 
-        // 2 (parallelism) x (1 (CP0) + 2 (CP1) + 2 (CP2)) = 10
-        assertEquals(10, sharedHandleCount);
+            List<CompletedCheckpoint> completedCheckpoints = coordinator.getSuccessfulCheckpoints();
+            assertEquals(numCheckpoints, completedCheckpoints.size());
 
-        // discard CP0
-        store.removeOldestCheckpoint();
+            int sharedHandleCount = 0;
 
-        // we expect no shared state was discarded because the state of CP0 is still referenced by
-        // CP1
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-            for (StreamStateHandle streamStateHandle : cpList.values()) {
-                verify(streamStateHandle, never()).discardState();
+            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint =
+                    new ArrayList<>(numCheckpoints);
+
+            for (int i = 0; i < numCheckpoints; ++i) {
+                sharedHandlesByCheckpoint.add(new HashMap<>(2));
             }
-        }
 
-        // shutdown the store
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
+            int cp = 0;
+            for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
+                for (OperatorState taskState : completedCheckpoint.getOperatorStates().values()) {
+                    for (OperatorSubtaskState subtaskState : taskState.getStates()) {
+                        for (KeyedStateHandle keyedStateHandle :
+                                subtaskState.getManagedKeyedState()) {
+                            // test we are once registered with the current registry
+                            verify(keyedStateHandle, times(1))
+                                    .registerSharedStates(
+                                            firstInstance, completedCheckpoint.getCheckpointID());
+                            IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+                                    (IncrementalRemoteKeyedStateHandle) keyedStateHandle;
 
-        // restore the store
-        Set<ExecutionJobVertex> tasks = new HashSet<>();
-        tasks.add(jobVertex1);
+                            sharedHandlesByCheckpoint
+                                    .get(cp)
+                                    .putAll(incrementalKeyedStateHandle.getSharedState());
 
-        assertEquals(JobStatus.SUSPENDED, store.getShutdownStatus().orElse(null));
-        SharedStateRegistry secondInstance =
-                SharedStateRegistry.DEFAULT_FACTORY.create(
-                        org.apache.flink.util.concurrent.Executors.directExecutor(),
-                        store.getAllCheckpoints());
-        final EmbeddedCompletedCheckpointStore secondStore =
-                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints(), secondInstance);
-        final CheckpointCoordinator secondCoordinator =
-                coordinatorBuilder.setCompletedCheckpointStore(secondStore).build(graph);
-        assertTrue(secondCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
+                            for (StreamStateHandle streamStateHandle :
+                                    incrementalKeyedStateHandle.getSharedState().values()) {
+                                assertTrue(
+                                        !(streamStateHandle
+                                                instanceof PlaceholderStreamStateHandle));
+                                verify(streamStateHandle, never()).discardState();
+                                ++sharedHandleCount;
+                            }
 
-        // validate that all shared states are registered again after the recovery.
-        cp = 0;
-        for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
-            for (OperatorState taskState : completedCheckpoint.getOperatorStates().values()) {
-                for (OperatorSubtaskState subtaskState : taskState.getStates()) {
-                    for (KeyedStateHandle keyedStateHandle : subtaskState.getManagedKeyedState()) {
-                        VerificationMode verificationMode;
-                        // test we are once registered with the new registry
-                        if (cp > 0) {
-                            verificationMode = times(1);
-                        } else {
-                            verificationMode = never();
+                            for (StreamStateHandle streamStateHandle :
+                                    incrementalKeyedStateHandle.getPrivateState().values()) {
+                                verify(streamStateHandle, never()).discardState();
+                            }
+
+                            verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
+                                    .discardState();
                         }
 
-                        // check that all are registered with the new registry
-                        verify(keyedStateHandle, verificationMode)
-                                .registerSharedStates(
-                                        secondInstance, completedCheckpoint.getCheckpointID());
+                        verify(subtaskState, never()).discardState();
                     }
                 }
+                ++cp;
             }
-            ++cp;
+
+            // 2 (parallelism) x (1 (CP0) + 2 (CP1) + 2 (CP2)) = 10
+            assertEquals(10, sharedHandleCount);
+
+            // discard CP0
+            store.removeOldestCheckpoint();
+
+            // we expect no shared state was discarded because the state of CP0 is still referenced
+            // by
+            // CP1
+            for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
+                for (StreamStateHandle streamStateHandle : cpList.values()) {
+                    verify(streamStateHandle, never()).discardState();
+                }
+            }
+
+            // shutdown the store
+            store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
+
+            // restore the store
+            Set<ExecutionJobVertex> tasks = new HashSet<>();
+            tasks.add(jobVertex1);
+
+            assertEquals(JobStatus.SUSPENDED, store.getShutdownStatus().orElse(null));
+            SharedStateRegistry secondInstance =
+                    SharedStateRegistry.DEFAULT_FACTORY.create(
+                            org.apache.flink.util.concurrent.Executors.directExecutor(),
+                            store.getAllCheckpoints(),
+                            restoreMode);
+            final EmbeddedCompletedCheckpointStore secondStore =
+                    new EmbeddedCompletedCheckpointStore(
+                            10, store.getAllCheckpoints(), secondInstance);
+            final CheckpointCoordinator secondCoordinator =
+                    coordinatorBuilder.setCompletedCheckpointStore(secondStore).build(graph);
+            assertTrue(secondCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
+
+            // validate that all shared states are registered again after the recovery.
+            cp = 0;
+            for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
+                for (OperatorState taskState : completedCheckpoint.getOperatorStates().values()) {
+                    for (OperatorSubtaskState subtaskState : taskState.getStates()) {
+                        for (KeyedStateHandle keyedStateHandle :
+                                subtaskState.getManagedKeyedState()) {
+                            VerificationMode verificationMode;
+                            // test we are once registered with the new registry
+                            if (cp > 0) {
+                                verificationMode = times(1);
+                            } else {
+                                verificationMode = never();
+                            }
+
+                            // check that all are registered with the new registry
+                            verify(keyedStateHandle, verificationMode)
+                                    .registerSharedStates(
+                                            secondInstance, completedCheckpoint.getCheckpointID());
+                        }
+                    }
+                }
+                ++cp;
+            }
+
+            // discard CP1
+            secondStore.removeOldestCheckpoint();
+
+            // we expect that all shared state from CP0 is no longer referenced and discarded. CP2
+            // is
+            // still live and also
+            // references the state from CP1, so we expect they are not discarded.
+            verifyDiscard(
+                    sharedHandlesByCheckpoint,
+                    cpId -> restoreMode == RestoreMode.CLAIM && cpId == 0 ? times(1) : never());
+
+            // discard CP2
+            secondStore.removeOldestCheckpoint();
+
+            // still expect shared state not to be discarded because it may be used in later
+            // checkpoints
+            verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 1 ? never() : atLeast(0));
         }
-
-        // discard CP1
-        secondStore.removeOldestCheckpoint();
-
-        // we expect that all shared state from CP0 is no longer referenced and discarded. CP2 is
-        // still live and also
-        // references the state from CP1, so we expect they are not discarded.
-        verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 0 ? times(1) : never());
-
-        // discard CP2
-        secondStore.removeOldestCheckpoint();
-
-        // still expect shared state not to be discarded because it may be used in later checkpoints
-        verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 1 ? never() : atLeast(0));
     }
 
     @Test
