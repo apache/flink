@@ -45,7 +45,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
+import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
@@ -486,18 +486,21 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
                 ServiceType.classify(service);
 
-        if (serviceExposedType.isClusterIP()) {
-            return getClusterIPRestEndpoint(restPort);
-        } else if (service.getStatus() != null && serviceExposedType.isLoadBalancer()) {
-            return getLoadBalancerRestEndpoint(service.getStatus().getLoadBalancer(), restPort);
-        } else if (service.getSpec() != null
-                && !CollectionUtil.isNullOrEmpty(service.getSpec().getExternalIPs())) {
-            final String address = service.getSpec().getExternalIPs().get(0);
-            if (address != null && !address.isEmpty()) {
-                return Optional.of(new Endpoint(address, restPort));
-            }
-        } else if (serviceExposedType.isNodePort()) {
-            return getNodePortRestEndpoint(restPort);
+        switch (serviceExposedType) {
+            case ClusterIP:
+            case Headless_ClusterIP:
+                return getClusterIPRestEndpoint(restPort);
+            case LoadBalancer:
+                return getLoadBalancerRestEndpoint(service, restPort);
+            case NodePort:
+                if (service.getSpec() != null
+                        && !CollectionUtil.isNullOrEmpty(service.getSpec().getExternalIPs())) {
+                    final String address = service.getSpec().getExternalIPs().get(0);
+                    if (address != null && !address.isEmpty()) {
+                        return Optional.of(new Endpoint(address, restPort));
+                    }
+                }
+                return getNodePortRestEndpoint(restPort);
         }
         return Optional.empty();
     }
@@ -511,7 +514,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     private Optional<Endpoint> getNodePortRestEndpoint(int restPort) {
-
         final String address =
                 internalClient.nodes().list().getItems().stream()
                         .flatMap(node -> node.getStatus().getAddresses().stream())
@@ -528,13 +530,17 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 : Optional.of(new Endpoint(address, restPort));
     }
 
-    private Optional<Endpoint> getLoadBalancerRestEndpoint(
-            LoadBalancerStatus loadBalancer, int restPort) {
-        if (!CollectionUtil.isNullOrEmpty(loadBalancer.getIngress())) {
-            String address = loadBalancer.getIngress().get(0).getIp();
+    private Optional<Endpoint> getLoadBalancerRestEndpoint(Service service, int restPort) {
+        if (null != service.getStatus()
+                && null != service.getStatus().getLoadBalancer()
+                && !CollectionUtil.isNullOrEmpty(
+                        service.getStatus().getLoadBalancer().getIngress())) {
+            LoadBalancerIngress loadBalancerIngress =
+                    service.getStatus().getLoadBalancer().getIngress().get(0);
+            String address = loadBalancerIngress.getIp();
             // Use hostname when the ip address is null
             if (address == null || address.isEmpty()) {
-                address = loadBalancer.getIngress().get(0).getHostname();
+                address = loadBalancerIngress.getHostname();
             }
             return StringUtils.isNullOrWhitespaceOnly(address)
                     ? Optional.empty()

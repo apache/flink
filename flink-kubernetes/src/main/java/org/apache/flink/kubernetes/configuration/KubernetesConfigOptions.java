@@ -535,16 +535,6 @@ public class KubernetesConfigOptions {
         public boolean isClusterIP() {
             return this == ClusterIP || this == Headless_ClusterIP;
         }
-
-        /** Check whether it is LoadBalancer type. */
-        public boolean isLoadBalancer() {
-            return this == LoadBalancer;
-        }
-
-        /** Check whether it is NodePort type. */
-        public boolean isNodePort() {
-            return this == NodePort;
-        }
     }
 
     /** The flink rest service exposed type. */
