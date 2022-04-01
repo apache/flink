@@ -50,9 +50,13 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
-/** Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}. */
+/**
+ * Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}.
+ *
+ * <p>ATTENTION: This test is extremely brittle. Do NOT remove, add or re-order test cases.
+ */
 @RunWith(Parameterized.class)
-public class SinkTransformationTranslatorTest extends TestLogger {
+public class SinkTransformationTranslatorITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "Execution Mode: {0}")
     public static Collection<Object> data() {
@@ -362,7 +366,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
     private void setSinkProperty(DataStreamSink<Integer> dataStreamSink) {
         dataStreamSink.name(NAME);
         dataStreamSink.uid(UID);
-        dataStreamSink.setParallelism(SinkTransformationTranslatorTest.PARALLELISM);
+        dataStreamSink.setParallelism(SinkTransformationTranslatorITCase.PARALLELISM);
         dataStreamSink.slotSharingGroup(SLOT_SHARE_GROUP);
     }
 

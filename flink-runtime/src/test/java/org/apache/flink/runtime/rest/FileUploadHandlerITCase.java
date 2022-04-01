@@ -65,7 +65,7 @@ import static org.junit.Assert.fail;
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files
  * and/or json are properly handled.
  */
-public class FileUploadHandlerTest extends TestLogger {
+public class FileUploadHandlerITCase extends TestLogger {
 
     @Rule
     public final MultipartUploadResource multipartUpdateResource = new MultipartUploadResource();

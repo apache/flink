@@ -98,7 +98,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         0,
                         taskStateManager);
 
-        StreamTask testStreamTask = new StreamTaskTest.NoOpStreamTask(streamMockEnvironment);
+        StreamTask testStreamTask = new StreamTaskITCase.NoOpStreamTask(streamMockEnvironment);
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(0L, 0L);
         CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder();
 
