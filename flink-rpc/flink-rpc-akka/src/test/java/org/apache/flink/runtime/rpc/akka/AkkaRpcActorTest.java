@@ -430,7 +430,9 @@ class AkkaRpcActorTest {
         onStartEndpoint.awaitUntilOnStartCalled();
 
         assertThatThrownBy(() -> onStartEndpoint.getTerminationFuture().get())
-                .satisfies(FlinkAssertions.containsCause(testException));
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                testException.getClass(), testException.getMessage()));
     }
 
     /**
