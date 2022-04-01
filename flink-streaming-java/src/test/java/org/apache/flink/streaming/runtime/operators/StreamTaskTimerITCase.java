@@ -53,7 +53,7 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}. */
 @SuppressWarnings("serial")
-public class StreamTaskTimerTest extends TestLogger {
+public class StreamTaskTimerITCase extends TestLogger {
 
     private StreamTaskTestHarness<?> testHarness;
     private ProcessingTimeService timeService;
