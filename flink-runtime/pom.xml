@@ -282,14 +282,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- to increase build stability here, do not reuse unit test JVM forks -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<reuseForks>false</reuseForks>
-				</configuration>
-			</plugin>
 			<!-- Add version to jar http://stackoverflow.com/questions/2712970/how-to-get-maven-artifact-version-at-runtime
 				-->
 			<plugin>
