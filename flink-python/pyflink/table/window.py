@@ -144,9 +144,6 @@ class Session(object):
         >>> Session.with_gap(expr.lit(10).minutes)
         ...        .on(expr.col("rowtime"))
         ...        .alias("w")
-
-        >>> Session.with_gap("10.minutes").on("rowtime").alias("w")
-
     """
 
     @classmethod
@@ -230,8 +227,6 @@ class Slide(object):
         ...      .every(expr.lit(5).minutes)
         ...      .on(expr.col("rowtime"))
         ...      .alias("w")
-
-        >>> Slide.over("10.minutes").every("5.minutes").on("rowtime").alias("w")
     """
 
     @classmethod
@@ -338,8 +333,6 @@ class Over(object):
         ...     .order_by(col("rowtime")) \\
         ...     .preceding(expr.UNBOUNDED_RANGE) \\
         ...     .alias("w")
-
-        >>> Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w")
     """
 
     @classmethod

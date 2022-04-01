@@ -129,7 +129,7 @@ add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 # register the Python function
 table_env.create_temporary_function("add", add)
 # use the function in Python Table API
-my_table.select("add(a, b)")
+my_table.select(call('add', my_table.a, my_table.b))
 
 # You can also use the Python function in Python Table API directly
 my_table.select(add(my_table.a, my_table.b))
@@ -158,8 +158,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # use the Python Table Function in Python Table API
-my_table.join_lateral(split(my_table.a).alias("word, length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
+my_table.join_lateral(split(my_table.a).alias("word", "length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word", "length"))
 
 # use the Python Table function in SQL API
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
@@ -196,8 +196,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # Use the table function in the Python Table API. "alias" specifies the field names of the table.
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word", "length")).select(my_table.a, col('word'), col('length'))
 
 # Register the python function.
 
@@ -338,7 +338,7 @@ tumble_window = Tumble.over(lit(1).hours) \
 
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
-        .select("w.start, w.end, weighted_avg(value, count)") \
+        .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
         .to_pandas()
 print(result)
 
