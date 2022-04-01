@@ -498,7 +498,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
                         .setWriteBatchSize(getWriteBatchSize())
-                        .setOverlapFractionThreshold(overlapFractionThreshold);
+                        .setOverlapFractionThreshold(getOverlapFractionThreshold());
         return builder.build();
     }
 
@@ -831,6 +831,12 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     public void setWriteBatchSize(long writeBatchSize) {
         checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative.");
         this.writeBatchSize = writeBatchSize;
+    }
+
+    double getOverlapFractionThreshold() {
+        return overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
+                : overlapFractionThreshold;
     }
 
     // ------------------------------------------------------------------------
