@@ -130,6 +130,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
@@ -1266,6 +1267,112 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER TABLE RESET does not support empty key");
+    }
+
+    @Test
+    public void testAlterTableRenameColumn() throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        catalogManager.registerCatalog("cat1", catalog);
+        functionCatalog.registerTempCatalogScalarFunction(
+                ObjectIdentifier.of("cat1", "default", "my_udf1"), Func0$.MODULE$);
+
+        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.INT())
+                                .column("d", DataTypes.INT())
+                                .column("e", DataTypes.STRING())
+                                .column("f", DataTypes.TIMESTAMP(3).notNull())
+                                .columnByExpression("h", "c - 1")
+                                .columnByExpression("i", "cat1.`default`.my_udf1(d) + 1")
+                                .columnByMetadata("m", DataTypes.INT(), true)
+                                .columnByExpression("g", "TO_TIMESTAMP(e)")
+                                .watermark("f", "g - INTERVAL '5' SECOND")
+                                .primaryKey("a", "b")
+                                .build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        // Test alter table rename
+        // rename column b
+        Operation operation = parse("alter table tb1 rename b to b1");
+        assert operation instanceof AlterTableSchemaOperation;
+        Schema actual =
+                ((AlterTableSchemaOperation) operation).getCatalogTable().getUnresolvedSchema();
+        Schema expected =
+                Schema.newBuilder()
+                        .column("a", DataTypes.STRING().notNull())
+                        .column("b1", DataTypes.INT().notNull())
+                        .column("c", DataTypes.INT())
+                        .column("d", DataTypes.INT())
+                        .column("e", DataTypes.STRING())
+                        .column("f", DataTypes.TIMESTAMP(3).notNull())
+                        .columnByExpression("h", "c - 1")
+                        .columnByExpression("i", "cat1.`default`.my_udf1(d) + 1")
+                        .columnByMetadata("m", DataTypes.INT(), true)
+                        .columnByExpression("g", "TO_TIMESTAMP(e)")
+                        .watermark("f", "g - INTERVAL '5' SECOND")
+                        .primaryKeyNamed("PK_a_b", "a", "b1")
+                        .build();
+        assertThat(expected).isEqualTo(actual);
+
+        // rename column c test computed column case1
+        assertThatThrownBy(() -> parse("alter table tb1 rename c to c1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Old column c is referenced by computed column `h` INT AS c - 1, "
+                                + "currently doesn't allow to rename column which is referenced by computed column.");
+
+        // rename column d test computed column case2
+        assertThatThrownBy(() -> parse("alter table tb1 rename d to d1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Old column d is referenced by computed column `i` INT NOT NULL AS cat1.`default`.my_udf1(d) + 1,"
+                                + " currently doesn't allow to rename column which is referenced by computed column.");
+
+        // rename column e test computed column case3
+        CatalogTable catalogTable2 =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("e", DataTypes.STRING())
+                                .columnByExpression("j", $("e").upperCase())
+                                .columnByExpression("g", "TO_TIMESTAMP(e)")
+                                .primaryKey("a", "b")
+                                .build(),
+                        "tb2",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalog.createTable(new ObjectPath("db1", "tb2"), catalogTable2, true);
+
+        assertThatThrownBy(() -> parse("alter table tb2 rename e to e1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Old column e is referenced by computed column `j` STRING AS upper(e), currently doesn't "
+                                + "allow to rename column which is referenced by computed column.");
+
+        // rename column f test watermark case
+        assertThatThrownBy(() -> parse("alter table tb1 rename f to f1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Old column f is referenced by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS"
+                                + " g - INTERVAL '5' SECOND, currently doesn't allow to rename column which is "
+                                + "referenced by watermark expression.");
+
+        // rename column e test watermark case2
+        assertThatThrownBy(() -> parse("alter table tb1 rename g to g1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Old column g is referenced by watermark expression WATERMARK FOR `f`: TIMESTAMP(3) AS "
+                                + "g - INTERVAL '5' SECOND, currently doesn't allow to rename column which is "
+                                + "referenced by watermark expression.");
     }
 
     @Test

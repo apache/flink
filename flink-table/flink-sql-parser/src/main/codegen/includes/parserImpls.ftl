@@ -621,7 +621,8 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableRenameColumn(
                     startPos.plus(getPos()),
                     tableIdentifier,
-                    originColumnName,newColumnName);
+                    originColumnName,
+                    newColumnName);
         }
     |
         <RESET>

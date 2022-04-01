@@ -313,7 +313,7 @@ object FlinkRexUtil {
    * @return
    *   InputRef HashSet.
    */
-  private[flink] def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
+  def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
     val set = new util.HashSet[RexInputRef]
     node.accept(new RexVisitorImpl[Void](true) {
       override def visitInputRef(inputRef: RexInputRef): Void = {

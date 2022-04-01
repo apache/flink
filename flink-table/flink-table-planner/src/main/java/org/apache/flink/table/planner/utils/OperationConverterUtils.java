@@ -31,28 +31,28 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.SqlCallExpression;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.expressions.ColumnReferenceFinder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import com.google.common.collect.Lists;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -67,16 +67,15 @@ public class OperationConverterUtils {
             CatalogTable catalogTable,
             SqlValidator sqlValidator) {
         // This is only used by the Hive dialect at the moment. In Hive, only non-partition columns
-        // can be
-        // added/replaced and users will only define non-partition columns in the new column list.
-        // Therefore, we require
-        // that partitions columns must appear last in the schema (which is inline with Hive).
-        // Otherwise, we won't be
-        // able to determine the column positions after the non-partition columns are replaced.
+        // can be added/replaced and users will only define non-partition columns in the new column
+        // list. Therefore, we require that partitions columns must appear last in the schema (which
+        // is inline with Hive). Otherwise, we won't be able to determine the column positions after
+        // the non-partition columns are replaced.
         TableSchema oldSchema = catalogTable.getSchema();
         int numPartCol = catalogTable.getPartitionKeys().size();
         Set<String> lastCols =
-                oldSchema.getTableColumns()
+                oldSchema
+                        .getTableColumns()
                         .subList(oldSchema.getFieldCount() - numPartCol, oldSchema.getFieldCount())
                         .stream()
                         .map(TableColumn::getName)
@@ -153,85 +152,91 @@ public class OperationConverterUtils {
             ObjectIdentifier tableIdentifier,
             String originColumnName,
             String newColumnName,
-            CatalogTable catalogTable) {
+            CatalogTable catalogTable,
+            ResolvedSchema originResolveSchema) {
 
-        Schema modifiedTableSchema = catalogTable.getUnresolvedSchema();
-        validateColumnName(originColumnName, newColumnName, modifiedTableSchema);
+        Schema originSchema = catalogTable.getUnresolvedSchema();
+        List<String> columnNames =
+                originSchema.getColumns().stream()
+                        .map(Schema.UnresolvedColumn::getName)
+                        .collect(Collectors.toList());
+        // validate old column is exists or new column is duplicated or old column is
+        // referenced by computed column
+        validateColumnName(originColumnName, newColumnName, columnNames, originResolveSchema);
+
+        // validate old column is referenced by watermark
+        List<org.apache.flink.table.catalog.WatermarkSpec> watermarkSpecs =
+                originResolveSchema.getWatermarkSpecs();
+        watermarkSpecs.forEach(
+                watermarkSpec -> {
+                    String rowtimeAttribute = watermarkSpec.getRowtimeAttribute();
+                    Set<String> referencedColumns =
+                            ColumnReferenceFinder.findReferencedColumn(
+                                    watermarkSpec.getWatermarkExpression(), columnNames);
+                    if (originColumnName.equals(rowtimeAttribute)
+                            || referencedColumns.contains(originColumnName)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Old column %s is referenced by watermark expression %s, "
+                                                + "currently doesn't allow to rename column which is "
+                                                + "referenced by watermark expression.",
+                                        originColumnName, watermarkSpec.asSummaryString()));
+                    }
+                });
 
         Schema.Builder builder = Schema.newBuilder();
         // build column
-        modifiedTableSchema.getColumns().stream()
+        originSchema.getColumns().stream()
                 .forEach(
                         column -> {
-                            if (StringUtils.equals(column.getName(), originColumnName)) {
+                            if (originColumnName.equals(column.getName())) {
                                 buildNewColumnFromOriginColumn(builder, column, newColumnName);
                             } else {
                                 buildNewColumnFromOriginColumn(builder, column, column.getName());
                             }
                         });
-        // build primary key column
-        List<String> originPrimaryKeyNames =
-                modifiedTableSchema
-                        .getPrimaryKey()
-                        .map(Schema.UnresolvedPrimaryKey::getColumnNames)
-                        .orElseGet(Lists::newArrayList);
+        // build primary key
+        Optional<Schema.UnresolvedPrimaryKey> originPrimaryKey = originSchema.getPrimaryKey();
+        if (originPrimaryKey.isPresent()) {
+            List<String> originPrimaryKeyNames = originPrimaryKey.get().getColumnNames();
+            String constrainName = originPrimaryKey.get().getConstraintName();
+            List<String> newPrimaryKeyNames =
+                    originPrimaryKeyNames.stream()
+                            .map(pkName -> pkName.equals(originColumnName) ? newColumnName : pkName)
+                            .collect(Collectors.toList());
 
-        List<String> newPrimaryKeyNames =
-                originPrimaryKeyNames.stream()
-                        .map(
-                                pkName ->
-                                        StringUtils.equals(pkName, originColumnName)
-                                                ? newColumnName
-                                                : pkName)
-                        .collect(Collectors.toList());
-
-        if (newPrimaryKeyNames.size() > 0) {
-            builder.primaryKey(newPrimaryKeyNames);
+            builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
         }
+
         // build watermark
-        modifiedTableSchema.getWatermarkSpecs().stream()
+        originSchema.getWatermarkSpecs().stream()
                 .forEach(
-                        watermarkSpec -> {
-                            String watermarkRefColumnName = watermarkSpec.getColumnName();
-                            Expression watermarkExpression = watermarkSpec.getWatermarkExpression();
-                            if (StringUtils.equals(watermarkRefColumnName, originColumnName)) {
-                                String newWatermarkExpression =
-                                        ((SqlCallExpression) watermarkExpression)
-                                                .getSqlExpression()
-                                                .replace(watermarkRefColumnName, newColumnName);
-                                builder.watermark(newColumnName, newWatermarkExpression);
-                            } else {
-                                builder.watermark(watermarkRefColumnName, watermarkExpression);
-                            }
-                        });
+                        watermarkSpec ->
+                                builder.watermark(
+                                        watermarkSpec.getColumnName(),
+                                        watermarkSpec.getWatermarkExpression()));
+
         // build partition key
         List<String> newPartitionKeys =
                 catalogTable.getPartitionKeys().stream()
-                        .map(
-                                name ->
-                                        StringUtils.equals(name, originColumnName)
-                                                ? newColumnName
-                                                : name)
+                        .map(name -> name.equals(originColumnName) ? newColumnName : name)
                         .collect(Collectors.toList());
-        // generate new schema
-        Schema newSchema = builder.build();
 
+        // generate new schema
         return new AlterTableSchemaOperation(
                 tableIdentifier,
                 CatalogTable.of(
-                        newSchema,
+                        builder.build(),
                         catalogTable.getComment(),
                         newPartitionKeys,
                         catalogTable.getOptions()));
     }
 
     private static void validateColumnName(
-            String originColumnName, String newColumnName, Schema modifiedTableSchema) {
-        List<String> columnNames =
-                modifiedTableSchema.getColumns().stream()
-                        .map(Schema.UnresolvedColumn::getName)
-                        .collect(Collectors.toList());
-
+            String originColumnName,
+            String newColumnName,
+            List<String> columnNames,
+            ResolvedSchema originResolvedSchema) {
         int originColumnIndex = columnNames.indexOf(originColumnName);
         if (originColumnIndex < 0) {
             throw new ValidationException(
@@ -243,6 +248,25 @@ public class OperationConverterUtils {
             throw new ValidationException(
                     String.format("New column %s existed for RENAME COLUMN ", newColumnName));
         }
+
+        // validate old column name is referenced by computed column case
+        originResolvedSchema.getColumns().stream()
+                .filter(column -> column instanceof Column.ComputedColumn)
+                .forEach(
+                        column -> {
+                            Column.ComputedColumn computedColumn = (Column.ComputedColumn) column;
+                            Set<String> referencedColumn =
+                                    ColumnReferenceFinder.findReferencedColumn(
+                                            computedColumn.getExpression(), columnNames);
+                            if (referencedColumn.contains(originColumnName)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Old column %s is referenced by computed column %s, currently doesn't "
+                                                        + "allow to rename column which is referenced by computed column.",
+                                                originColumnName,
+                                                computedColumn.asSummaryString()));
+                            }
+                        });
     }
 
     private static void buildNewColumnFromOriginColumn(
@@ -254,8 +278,13 @@ public class OperationConverterUtils {
             builder.column(
                     columnName, ((Schema.UnresolvedPhysicalColumn) originColumn).getDataType());
         } else {
+            Schema.UnresolvedMetadataColumn metadataColumn =
+                    (Schema.UnresolvedMetadataColumn) originColumn;
             builder.columnByMetadata(
-                    columnName, ((Schema.UnresolvedMetadataColumn) originColumn).getDataType());
+                    columnName,
+                    metadataColumn.getDataType(),
+                    metadataColumn.getMetadataKey(),
+                    metadataColumn.isVirtual());
         }
     }
 

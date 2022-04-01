@@ -9,18 +9,18 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName
- * RENAME  originColumnName TO newColumnName
+ * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME originColumnName TO newColumnName.
  */
 public class SqlAlterTableRenameColumn extends SqlAlterTable {
 
     private final SqlIdentifier originColumnNameIdentifier;
     private final SqlIdentifier newColumnNameIdentifier;
 
-    public SqlAlterTableRenameColumn(SqlParserPos pos,
-                                     SqlIdentifier tableName,
-                                     SqlIdentifier originColumnName,
-                                     SqlIdentifier newColumnName) {
+    public SqlAlterTableRenameColumn(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlIdentifier originColumnName,
+            SqlIdentifier newColumnName) {
         super(pos, tableName, null);
         this.originColumnNameIdentifier = originColumnName;
         this.newColumnNameIdentifier = newColumnName;
@@ -28,7 +28,8 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableIdentifier, originColumnNameIdentifier, newColumnNameIdentifier);
+        return ImmutableNullableList.of(
+                tableIdentifier, originColumnNameIdentifier, newColumnNameIdentifier);
     }
 
     public SqlIdentifier getOriginColumnNameIdentifier() {
