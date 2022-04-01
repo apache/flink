@@ -25,9 +25,9 @@ import java.io.OutputStream;
 
 /** Decorator for input streams that ignores calls to {@link OutputStream#close()}. */
 @Internal
-public class NonClosingOutpusStreamDecorator extends ForwardingOutputStream {
+public class NonClosingOutputStreamDecorator extends ForwardingOutputStream {
 
-    public NonClosingOutpusStreamDecorator(OutputStream delegate) {
+    public NonClosingOutputStreamDecorator(OutputStream delegate) {
         super(delegate);
     }
 
