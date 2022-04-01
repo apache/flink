@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -286,7 +287,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
             super(
                     SharedStateRegistry.DEFAULT_FACTORY.create(
-                            Executors.directExecutor(), emptyList()));
+                            Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 
