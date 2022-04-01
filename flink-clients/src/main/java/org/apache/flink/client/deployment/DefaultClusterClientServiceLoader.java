@@ -72,7 +72,8 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
         if (!factoryisCompatible){
             throw new IllegalStateException(
-                    "The '" + configuration.getString(DeploymentOptions.TARGET) + "' Startup mode not found in flink configuration options");
+                    "The submitted startup mode cannot be found. Please check whether '" + configuration.getString(DeploymentOptions.TARGET) + "' is correct"
+            );
         }
 
         if (compatibleFactories.size() > 1) {
