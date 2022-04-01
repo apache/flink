@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
@@ -207,11 +208,13 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
      * checkpoint is added into the store.
      *
      * @param sharedStateRegistry The registry where shared states are registered
+     * @param restoreMode the mode in which this checkpoint was restored from
      */
-    public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
+    public void registerSharedStatesAfterRestored(
+            SharedStateRegistry sharedStateRegistry, RestoreMode restoreMode) {
         // in claim mode we should not register any shared handles
         if (!props.isUnclaimed()) {
-            sharedStateRegistry.registerAll(operatorStates.values(), checkpointID);
+            sharedStateRegistry.registerAllAfterRestored(this, restoreMode);
         }
     }
 

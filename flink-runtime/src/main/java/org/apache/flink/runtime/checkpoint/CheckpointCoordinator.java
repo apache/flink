@@ -1780,7 +1780,8 @@ public class CheckpointCoordinator {
         // register shared state - even before adding the checkpoint to the store
         // because the latter might trigger subsumption so the ref counts must be up-to-date
         savepoint.registerSharedStatesAfterRestored(
-                completedCheckpointStore.getSharedStateRegistry());
+                completedCheckpointStore.getSharedStateRegistry(),
+                restoreSettings.getRestoreMode());
 
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);

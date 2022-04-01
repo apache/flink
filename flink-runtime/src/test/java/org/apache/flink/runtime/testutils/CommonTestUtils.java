@@ -57,6 +57,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** This class contains auxiliary methods for unit tests. */
@@ -363,18 +364,31 @@ public class CommonTestUtils {
                 Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
     }
 
-    /** Wait for at least one successful checkpoint. */
-    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, Deadline timeout)
+    /** Wait for (at least) the given number of successful checkpoints. */
+    public static void waitForCheckpoint(
+            JobID jobID, MiniCluster miniCluster, Deadline timeout, int numCheckpoints)
             throws Exception, FlinkJobNotFoundException {
         waitUntilCondition(
-                () ->
-                        Optional.ofNullable(
-                                        miniCluster
-                                                .getExecutionGraph(jobID)
-                                                .get()
-                                                .getCheckpointStatsSnapshot())
-                                .filter(st -> st.getCounts().getNumberOfCompletedCheckpoints() > 0)
-                                .isPresent(),
+                () -> {
+                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
+                    if (Optional.ofNullable(graph.getCheckpointStatsSnapshot())
+                            .filter(
+                                    st ->
+                                            st.getCounts().getNumberOfCompletedCheckpoints()
+                                                    >= numCheckpoints)
+                            .isPresent()) {
+                        return true;
+                    } else if (graph.getState().isGloballyTerminalState()) {
+                        checkState(
+                                graph.getFailureInfo() != null,
+                                "Job terminated before taking required %s checkpoints: %s",
+                                numCheckpoints,
+                                graph.getState());
+                        throw graph.getFailureInfo().getException();
+                    } else {
+                        return false;
+                    }
+                },
                 timeout);
     }
 
