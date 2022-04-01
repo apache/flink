@@ -33,8 +33,6 @@ under the License.
 	<name>Flink : Connectors : Amazon DynamoDB</name>
 	<properties>
 		<aws.sdk.version>2.17.116</aws.sdk.version>
-		<commons-lang3.version>3.11</commons-lang3.version>
-		<testcontainers.version>1.16.2</testcontainers.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -109,13 +107,6 @@ under the License.
 			<version>${aws.sdk.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>${commons-lang3.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- Flink ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -177,23 +168,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

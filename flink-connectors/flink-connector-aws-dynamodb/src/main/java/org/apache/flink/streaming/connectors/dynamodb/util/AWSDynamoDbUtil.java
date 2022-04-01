@@ -42,7 +42,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
 
-/** Some utilities specific to Amazon Web Service. */
+/** Some utilities specific to Amazon DynamoDB. */
 @Internal
 public class AWSDynamoDbUtil extends AWSGeneralUtil {
 
