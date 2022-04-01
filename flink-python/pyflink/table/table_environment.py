@@ -1156,27 +1156,32 @@ class TableEnvironment(object):
         """
         if isinstance(table_or_data_stream, Table):
             self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_table)
-        elif len(fields_or_schema) == 0:
-            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_data_stream)
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                fields_or_schema[0])
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                fields_or_schema[0]._j_schema)
-        elif (len(fields_or_schema) > 0 and
-              all(isinstance(elem, Expression) for elem in fields_or_schema)):
-            self._j_tenv.createTemporaryView(
-                view_path,
-                table_or_data_stream._j_data_stream,
-                to_expression_jarray(fields_or_schema))
         else:
-            raise ValueError("Invalid arguments for 'fields': %r" %
-                             ','.join([repr(item) for item in fields_or_schema]))
+            j_data_stream = table_or_data_stream._j_data_stream
+            JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+            JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
+
+            if len(fields_or_schema) == 0:
+                self._j_tenv.createTemporaryView(view_path, j_data_stream)
+            elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    fields_or_schema[0])
+            elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    fields_or_schema[0]._j_schema)
+            elif (len(fields_or_schema) > 0 and
+                  all(isinstance(elem, Expression) for elem in fields_or_schema)):
+                self._j_tenv.createTemporaryView(
+                    view_path,
+                    j_data_stream,
+                    to_expression_jarray(fields_or_schema))
+            else:
+                raise ValueError("Invalid arguments for 'fields': %r" %
+                                 ','.join([repr(item) for item in fields_or_schema]))
 
     def add_python_file(self, file_path: str):
         """
