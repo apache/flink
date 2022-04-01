@@ -106,7 +106,7 @@ jobs:
       - name: "Compile Flink"
         working-directory: ${{ env.CHECKOUT_DIR }}
         run: |
-          ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
+          ${{ inputs.environment }} ./tools/ci/validate.sh "test-compile -T2 -Dfast" || exit $?
 
       - name: "Collect build artifacts"
         working-directory: ${{ env.CHECKOUT_DIR }}
@@ -118,6 +118,47 @@ jobs:
           name: build-artifacts-${{ steps.workflow-prep-step.outputs.stringified-workflow-name }}-${{ github.run_number }}
           path: ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }}
           if-no-files-found: error
+
+  packaging:
+    name: "Test packaging/licensing"
+    needs: compile
+    runs-on: ubuntu-latest
+    container:
+      image: chesnay/flink-ci:java_8_11_xenial
+      options: --init
+
+    steps:
+      - name: "Set JDK version"
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_${{inputs.jdk-version}}_X64" >> ${GITHUB_ENV}
+          echo "PATH=$JAVA_HOME_${{inputs.jdk-version}}_X64/bin:$PATH" >> ${GITHUB_ENV}
+
+      - name: "Flink Checkout"
+        uses: actions/checkout@v2
+        with:
+          path: ${{ env.CHECKOUT_MOUNT_DIR }}
+
+      - name: "Copy"
+        working-directory: ${{ env.CHECKOUT_MOUNT_DIR }}
+        run: |
+          mkdir -p ${{ env.CHECKOUT_DIR }}
+          mv ./* ${{ env.CHECKOUT_DIR }}/
+
+      - name: "Download build artifacts from compile job"
+        uses: actions/download-artifact@v2
+        with:
+          name: build-artifacts-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
+          path: ${{ env.FLINK_ARTIFACT_DIR }}
+
+      - name: "Unpack build artifact"
+        working-directory: ${{ env.CHECKOUT_DIR }}
+        run: |
+          ./tools/azure-pipelines/unpack_build_artifact.sh -f ${{ env.FLINK_ARTIFACT_DIR }}${{ env.FLINK_ARTIFACT_FILENAME }} -t .
+
+      - name: "Test"
+        working-directory: ${{ env.CHECKOUT_DIR }}
+        run: |
+          ${{ inputs.environment }} ./tools/ci/compile.sh || exit $?
 
   test:
     name: "Test (module: ${{ matrix.module }})"
