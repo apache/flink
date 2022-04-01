@@ -430,6 +430,35 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testMetadataColumnThatConflictsWithPhysicalColumn(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `metadata_1` DOUBLE,
+         |  `m_1` STRING METADATA FROM 'metadata_1' VIRTUAL,
+         |  `m_2` BIGINT METADATA FROM 'metadata_2',
+         |  `metadata_2` DOUBLE,
+         |  `other` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+         |)
+       """.stripMargin)
+
+    val sql =
+      """
+        |INSERT INTO MetadataTable
+        |SELECT `metadata_1`, `m_2`, `metadata_2`, `other`
+        |FROM MetadataTable
+        |""".stripMargin
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+
+    util.verifyRelPlan(stmtSet)
+  }
+
+  @Test
   def testSinkDisorderChangeLogWithJoin(): Unit = {
     util.tableEnv.executeSql(
       """

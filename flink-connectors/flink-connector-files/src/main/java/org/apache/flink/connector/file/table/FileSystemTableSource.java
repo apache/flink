@@ -227,7 +227,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
                     IntStream.range(0, metadata.size())
                             .mapToObj(
                                     i -> {
-                                        // Access metadata columns from behind because the
+                                        // Access metadata columns from the back because the
                                         // names are decided by the planner
                                         final int columnPos =
                                                 producedFieldNames.size() - metadata.size() + i;
