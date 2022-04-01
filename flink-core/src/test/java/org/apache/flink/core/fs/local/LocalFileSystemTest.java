@@ -174,45 +174,6 @@ public class LocalFileSystemTest extends TestLogger {
         assertTrue(!tempdir.exists());
     }
 
-    /**
-     * Test that {@link FileUtils#deletePathIfEmpty(FileSystem, Path)} deletes the path if it is
-     * empty. A path can only be empty if it is a directory which does not contain any
-     * files/directories.
-     */
-    @Test
-    public void testDeletePathIfEmpty() throws IOException {
-        File file = temporaryFolder.newFile();
-        File directory = temporaryFolder.newFolder();
-        File directoryFile = new File(directory, UUID.randomUUID().toString());
-
-        assertTrue(directoryFile.createNewFile());
-
-        Path filePath = new Path(file.toURI());
-        Path directoryPath = new Path(directory.toURI());
-        Path directoryFilePath = new Path(directoryFile.toURI());
-
-        FileSystem fs = FileSystem.getLocalFileSystem();
-
-        // verify that the files have been created
-        assertTrue(fs.exists(filePath));
-        assertTrue(fs.exists(directoryFilePath));
-
-        // delete the single file
-        assertFalse(FileUtils.deletePathIfEmpty(fs, filePath));
-        assertTrue(fs.exists(filePath));
-
-        // try to delete the non-empty directory
-        assertFalse(FileUtils.deletePathIfEmpty(fs, directoryPath));
-        assertTrue(fs.exists(directoryPath));
-
-        // delete the file contained in the directory
-        assertTrue(fs.delete(directoryFilePath, false));
-
-        // now the deletion should work
-        assertTrue(FileUtils.deletePathIfEmpty(fs, directoryPath));
-        assertFalse(fs.exists(directoryPath));
-    }
-
     @Test
     public void testRenamePath() throws IOException {
         final File rootDirectory = temporaryFolder.newFolder();
