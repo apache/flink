@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 
 import org.rocksdb.CompactionStyle;
-import org.rocksdb.InfoLogLevel;
 
 import javax.annotation.Nullable;
 
@@ -60,9 +59,7 @@ public enum PredefinedOptions {
      *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      * </ul>
      */
-    DEFAULT(
-            Collections.singletonMap(
-                    RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL)),
+    DEFAULT(Collections.emptyMap()),
 
     /**
      * Pre-defined options for regular spinning hard disks.
@@ -91,7 +88,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                     put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
                 }
@@ -131,7 +127,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                     put(RocksDBConfigurableOptions.COMPACTION_STYLE, CompactionStyle.LEVEL);
                     put(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, true);
                     put(
@@ -172,7 +167,6 @@ public enum PredefinedOptions {
                 {
                     put(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, 4);
                     put(RocksDBConfigurableOptions.MAX_OPEN_FILES, -1);
-                    put(RocksDBConfigurableOptions.LOG_LEVEL, InfoLogLevel.HEADER_LEVEL);
                 }
             });
 

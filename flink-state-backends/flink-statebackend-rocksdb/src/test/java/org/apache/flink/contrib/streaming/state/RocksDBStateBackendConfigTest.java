@@ -102,6 +102,9 @@ public class RocksDBStateBackendConfigTest {
         // set the environment variable 'log.file' with the Flink log file location
         System.setProperty("log.file", logFile.getPath());
         try (RocksDBResourceContainer container = backend.createOptionsAndResourceContainer()) {
+            assertEquals(
+                    RocksDBConfigurableOptions.LOG_LEVEL.defaultValue(),
+                    container.getDbOptions().infoLogLevel());
             assertEquals(logFile.getParent(), container.getDbOptions().dbLogDir());
         } finally {
             logFile.delete();
