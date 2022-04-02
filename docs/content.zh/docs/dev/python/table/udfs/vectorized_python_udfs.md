@@ -101,7 +101,8 @@ tumble_window = Tumble.over(expr.lit(1).hours) \
 
 my_table.window(tumble_window) \
     .group_by("w") \
-    .select(col('w').start, col('w').end, mean_udaf(col('b')))
+    .select("w.start, w.end, mean_udaf(b)")
+
 
 # 在 Over Window Aggregation 中使用向量化聚合函数
 table_env.create_temporary_function("mean_udaf", mean_udaf)
