@@ -20,6 +20,7 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.python.util.PythonDependencyUtils;
@@ -27,29 +28,24 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.time.ZoneId;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_LOOPBACK_SERVER_ADDRESS;
+
 /** Configurations for the Python job which are used at run time. */
 @Internal
 public class PythonConfig implements ReadableConfig {
 
-    private static final List<ConfigOption<?>> PYTHON_CONFIG_OPTIONS =
-            Arrays.asList(
-                    PythonOptions.MAX_BUNDLE_SIZE,
-                    PythonOptions.MAX_BUNDLE_TIME_MILLS,
-                    PythonOptions.MAX_ARROW_BATCH_SIZE,
-                    PythonOptions.PYTHON_EXECUTABLE,
-                    PythonOptions.PYTHON_METRIC_ENABLED,
-                    PythonOptions.USE_MANAGED_MEMORY,
-                    PythonOptions.PYTHON_PROFILE_ENABLED,
-                    PythonOptions.PYTHON_EXECUTION_MODE,
-                    PythonDependencyUtils.PYTHON_FILES,
-                    PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE,
-                    PythonDependencyUtils.PYTHON_ARCHIVES);
+    private static final List<ConfigOption<?>> PYTHON_CONFIG_OPTIONS;
+
+    static {
+        PYTHON_CONFIG_OPTIONS =
+                new ArrayList<>(ConfigUtils.getAllConfigOptions(PythonOptions.class));
+    }
 
     /**
      * Configuration adopted from the outer layer, e.g. flink-conf.yaml, command line arguments,
@@ -111,10 +107,9 @@ public class PythonConfig implements ReadableConfig {
                 PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
                 String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
         jobOptions.put("table.exec.timezone", getLocalTimeZone(configuration).getId());
-        if (config.containsKey("PYFLINK_LOOPBACK_SERVER_ADDRESS")) {
+        if (config.contains(PYTHON_LOOPBACK_SERVER_ADDRESS)) {
             jobOptions.put(
-                    "PYFLINK_LOOPBACK_SERVER_ADDRESS",
-                    config.getString("PYFLINK_LOOPBACK_SERVER_ADDRESS", null));
+                    "PYTHON_LOOPBACK_SERVER_ADDRESS", config.get(PYTHON_LOOPBACK_SERVER_ADDRESS));
         }
 
         return config;

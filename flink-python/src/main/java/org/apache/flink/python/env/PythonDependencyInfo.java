@@ -33,8 +33,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE;
+import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
 
 /** PythonDependencyInfo contains the information of third-party dependencies. */
 @Internal
@@ -142,7 +145,7 @@ public final class PythonDependencyInfo {
 
         Map<String, String> pythonFiles = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry :
-                config.getOptional(PythonDependencyUtils.PYTHON_FILES)
+                config.getOptional(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
                         .orElse(new HashMap<>())
                         .entrySet()) {
             File pythonFile = distributedCache.getFile(entry.getKey());
@@ -154,13 +157,13 @@ public final class PythonDependencyInfo {
         String requirementsCacheDir = null;
 
         String requirementsFileName =
-                config.getOptional(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                config.getOptional(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                         .orElse(new HashMap<>())
                         .get(PythonDependencyUtils.FILE);
         if (requirementsFileName != null) {
             requirementsFilePath = distributedCache.getFile(requirementsFileName).getAbsolutePath();
             String requirementsFileCacheDir =
-                    config.getOptional(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                    config.getOptional(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                             .orElse(new HashMap<>())
                             .get(PythonDependencyUtils.CACHE);
             if (requirementsFileCacheDir != null) {
@@ -171,7 +174,7 @@ public final class PythonDependencyInfo {
 
         Map<String, String> archives = new HashMap<>();
         for (Map.Entry<String, String> entry :
-                config.getOptional(PythonDependencyUtils.PYTHON_ARCHIVES)
+                config.getOptional(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
                         .orElse(new HashMap<>())
                         .entrySet()) {
             String archiveFilePath = distributedCache.getFile(entry.getKey()).getAbsolutePath();

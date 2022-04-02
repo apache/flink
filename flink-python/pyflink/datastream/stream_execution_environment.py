@@ -980,7 +980,7 @@ class StreamExecutionEnvironment(object):
                 BeamFnLoopbackWorkerPoolServicer
             config = Configuration(j_configuration=j_configuration)
             config.set_string(
-                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 

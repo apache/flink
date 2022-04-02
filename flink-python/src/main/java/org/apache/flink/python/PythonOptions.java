@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -240,8 +240,30 @@ public class PythonOptions {
                                     + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
                                     + "It will fall back to `process` mode in these cases.");
 
-    @Documentation.ExcludeFromDocumentation(
-            "This is an internal option, that we do not want to expose in the documentation")
+    // ------------------------------------------------------------------------------------------
+    // config options used for internal purpose
+    // ------------------------------------------------------------------------------------------
+
+    @Documentation.ExcludeFromDocumentation("Internal use only")
     public static final ConfigOption<Map<String, String>> PYTHON_JOB_OPTIONS =
             ConfigOptions.key("python.job-options").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation("Internal use only")
+    public static final ConfigOption<Map<String, String>> PYTHON_FILES_DISTRIBUTED_CACHE_INFO =
+            ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation("Internal use only")
+    public static final ConfigOption<Map<String, String>>
+            PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO =
+                    ConfigOptions.key("python.internal.requirements-file-key")
+                            .mapType()
+                            .noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation("Internal use only")
+    public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO =
+            ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
+
+    @Documentation.ExcludeFromDocumentation("Internal use only. Used for local debug")
+    public static final ConfigOption<String> PYTHON_LOOPBACK_SERVER_ADDRESS =
+            ConfigOptions.key("python.loopback-server.address").stringType().noDefaultValue();
 }

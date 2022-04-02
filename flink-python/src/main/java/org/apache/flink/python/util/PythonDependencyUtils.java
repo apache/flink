@@ -20,8 +20,6 @@ package org.apache.flink.python.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.python.PythonOptions;
@@ -39,7 +37,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
@@ -47,8 +44,11 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
+import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
 
 /**
  * Utility class for Python dependency management. The dependencies will be registered at the
@@ -62,15 +62,6 @@ public class PythonDependencyUtils {
     public static final String FILE_DELIMITER = ",";
     public static final String PARAM_DELIMITER = "#";
     private static final String HASH_ALGORITHM = "SHA-256";
-
-    // Internal Python Config Options.
-
-    public static final ConfigOption<Map<String, String>> PYTHON_FILES =
-            ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
-    public static final ConfigOption<Map<String, String>> PYTHON_REQUIREMENTS_FILE =
-            ConfigOptions.key("python.internal.requirements-file-key").mapType().noDefaultValue();
-    public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES =
-            ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
 
     /**
      * Adds python dependencies to registered cache file list according to given configuration and
@@ -184,10 +175,12 @@ public class PythonDependencyUtils {
             Preconditions.checkNotNull(filePath);
             String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
             registerCachedFileIfNotExist(filePath, fileKey);
-            if (!toConfiguration.contains(PYTHON_FILES)) {
-                toConfiguration.set(PYTHON_FILES, new LinkedHashMap<>());
+            if (!toConfiguration.contains(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)) {
+                toConfiguration.set(PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new LinkedHashMap<>());
             }
-            toConfiguration.get(PYTHON_FILES).put(fileKey, new File(filePath).getName());
+            toConfiguration
+                    .get(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
+                    .put(fileKey, new File(filePath).getName());
         }
 
         /**
@@ -216,24 +209,27 @@ public class PythonDependencyUtils {
                 String requirementsFilePath,
                 @Nullable String requirementsCachedDir) {
             Preconditions.checkNotNull(requirementsFilePath);
-            if (!toConfiguration.contains(PYTHON_REQUIREMENTS_FILE)) {
-                toConfiguration.set(PYTHON_REQUIREMENTS_FILE, new HashMap<>());
+            if (!toConfiguration.contains(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)) {
+                toConfiguration.set(
+                        PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
             }
-            toConfiguration.get(PYTHON_REQUIREMENTS_FILE).clear();
+            toConfiguration.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO).clear();
             removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_FILE_PREFIX);
             removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_CACHE_PREFIX);
 
             String fileKey =
                     generateUniqueFileKey(PYTHON_REQUIREMENTS_FILE_PREFIX, requirementsFilePath);
             registerCachedFileIfNotExist(requirementsFilePath, fileKey);
-            toConfiguration.get(PYTHON_REQUIREMENTS_FILE).put(FILE, fileKey);
+            toConfiguration.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO).put(FILE, fileKey);
 
             if (requirementsCachedDir != null) {
                 String cacheDirKey =
                         generateUniqueFileKey(
                                 PYTHON_REQUIREMENTS_CACHE_PREFIX, requirementsCachedDir);
                 registerCachedFileIfNotExist(requirementsCachedDir, cacheDirKey);
-                toConfiguration.get(PYTHON_REQUIREMENTS_FILE).put(CACHE, cacheDirKey);
+                toConfiguration
+                        .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
+                        .put(CACHE, cacheDirKey);
             }
         }
 
@@ -249,14 +245,14 @@ public class PythonDependencyUtils {
         private void addPythonArchive(
                 Configuration toConfiguration, String archivePath, String targetDir) {
             Preconditions.checkNotNull(archivePath);
-            if (!toConfiguration.contains(PYTHON_ARCHIVES)) {
-                toConfiguration.set(PYTHON_ARCHIVES, new HashMap<>());
+            if (!toConfiguration.contains(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)) {
+                toConfiguration.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
             }
             String fileKey =
                     generateUniqueFileKey(
                             PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
             registerCachedFileIfNotExist(archivePath, fileKey);
-            toConfiguration.get(PYTHON_ARCHIVES).put(fileKey, targetDir);
+            toConfiguration.get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO).put(fileKey, targetDir);
         }
 
         private void applyToConfiguration(Configuration toConfiguration) {

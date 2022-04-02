@@ -34,6 +34,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -74,7 +77,7 @@ public class PythonDependencyInfoTest {
         Map<String, String> pythonFiles = new HashMap<>();
         pythonFiles.put("python_file_{SHA256_0}", "test_file1.py");
         pythonFiles.put("python_file_{SHA256_1}", "test_file2.py");
-        config.set(PythonDependencyUtils.PYTHON_FILES, pythonFiles);
+        config.set(PYTHON_FILES_DISTRIBUTED_CACHE_INFO, pythonFiles);
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
         Map<String, String> expected = new HashMap<>();
@@ -89,15 +92,15 @@ public class PythonDependencyInfoTest {
         Assume.assumeFalse(OperatingSystem.isWindows());
 
         Configuration config = new Configuration();
-        config.set(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE, new HashMap<>());
-        config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+        config.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
+        config.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(PythonDependencyUtils.FILE, "python_requirements_file_{SHA256}");
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
         assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
         assertFalse(dependencyInfo.getRequirementsCacheDir().isPresent());
 
-        config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+        config.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                 .put(PythonDependencyUtils.CACHE, "python_requirements_cache_{SHA256}");
         dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
@@ -114,7 +117,7 @@ public class PythonDependencyInfoTest {
         Map<String, String> pythonArchives = new HashMap<>();
         pythonArchives.put("python_archive_{SHA256_0}", "py27.zip");
         pythonArchives.put("python_archive_{SHA256_1}", "py37");
-        config.set(PythonDependencyUtils.PYTHON_ARCHIVES, pythonArchives);
+        config.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, pythonArchives);
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
         Map<String, String> expected = new HashMap<>();
