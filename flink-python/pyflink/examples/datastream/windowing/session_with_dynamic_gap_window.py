@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # define the source
     data_stream = env.from_collection([
-        ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 8), ('hi', 9), ('hi', 15)],
+        ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 9), ('hi', 9), ('hi', 15)],
         type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
 
     # define the watermark strategy
