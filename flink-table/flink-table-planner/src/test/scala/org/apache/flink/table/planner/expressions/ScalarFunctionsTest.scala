@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
-
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -2497,6 +2496,41 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testToDate(): Unit = {
     testSqlApi("to_date('2017-09-15 00:00:00')", "2017-09-15")
+  }
+
+  @Test
+  def testDateAdd(): Unit = {
+    testSqlApi("DATE_ADD('2022-04-01 00:00:00', 1)", "2022-04-02")
+
+    testAllApis(
+      "2022-04-01".dateAdd(1),
+      s"DATE_ADD('2022-04-01', 1)",
+      "2022-04-02")
+
+    testAllApis(
+      "2022-03-31".dateAdd(1),
+      s"DATE_ADD('2022-03-31', 1)",
+      "2022-04-01")
+
+    testAllApis(
+      "2022-03-31".dateAdd(0),
+      s"DATE_ADD('2022-03-31', 0)",
+      "2022-03-31")
+
+    testAllApis(
+      "2022-04-01".dateAdd(-1),
+      s"DATE_ADD('2022-04-01', -1)",
+      "2022-03-31")
+
+    testAllApis(
+      "2022-04-01 23:59:59".dateAdd( 1),
+      s"DATE_ADD('2022-04-01 23:59:59', 1)",
+      "2022-04-02")
+
+    testAllApis(
+      "2022-04-01 23:59:59".dateAdd(-1),
+      s"DATE_ADD('2022-04-01 23:59:59', -1)",
+      "2022-03-31")
   }
 
   // ----------------------------------------------------------------------------------------------

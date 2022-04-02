@@ -1287,11 +1287,20 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
+
     public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toTimestampLtz")
                     .kind(SCALAR)
                     .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
+    public static final BuiltInFunctionDefinition DATE_ADD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DATE_ADD")
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.DateAddFunction")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .build();
 
     // --------------------------------------------------------------------------------------------

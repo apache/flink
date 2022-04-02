@@ -50,116 +50,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.toMonthInter
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AVG;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BETWEEN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COUNT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLOOR;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FROM_BASE64;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG10;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PROCTIME;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RADIANS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROUND;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ROWTIME;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RPAD;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.RTRIM;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA1;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA2;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA224;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA256;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA384;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SHA512;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIGN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIMILAR;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SINH;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SQRT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_POP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_SAMP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUBSTRING;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SUM0;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TAN;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TANH;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIMES;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TO_BASE64;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_START;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.*;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -1245,6 +1136,13 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Creates an interval of the given number of milliseconds. */
     public OutType millis() {
         return milli();
+    }
+
+    /** Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp. */
+    public OutType dateAdd(InType numberOfDays) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        DATE_ADD, objectToExpression(toExpr()), objectToExpression(numberOfDays)));
     }
 
     // Hash functions
