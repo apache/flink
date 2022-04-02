@@ -29,12 +29,13 @@ import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -62,12 +63,9 @@ import static org.mockito.Mockito.when;
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
     /** Executor service for concurrent produce/consume tests. */
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
-
-    @AfterClass
-    public static void shutdownExecutorService() throws Exception {
-        executorService.shutdownNow();
-    }
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newCachedThreadPool());
 
     @Override
     PipelinedSubpartition createSubpartition() throws Exception {
@@ -207,10 +205,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
         CompletableFuture<Boolean> producerResult =
                 CompletableFuture.supplyAsync(
-                        CheckedSupplier.unchecked(producer::call), executorService);
+                        CheckedSupplier.unchecked(producer::call), EXECUTOR_RESOURCE.getExecutor());
         CompletableFuture<Boolean> consumerResult =
                 CompletableFuture.supplyAsync(
-                        CheckedSupplier.unchecked(consumer::call), executorService);
+                        CheckedSupplier.unchecked(consumer::call), EXECUTOR_RESOURCE.getExecutor());
 
         FutureUtils.waitForAll(Arrays.asList(producerResult, consumerResult))
                 .get(60_000L, TimeUnit.MILLISECONDS);
