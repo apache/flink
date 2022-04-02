@@ -74,8 +74,7 @@ public class OperationConverterUtils {
         TableSchema oldSchema = catalogTable.getSchema();
         int numPartCol = catalogTable.getPartitionKeys().size();
         Set<String> lastCols =
-                oldSchema
-                        .getTableColumns()
+                oldSchema.getTableColumns()
                         .subList(oldSchema.getFieldCount() - numPartCol, oldSchema.getFieldCount())
                         .stream()
                         .map(TableColumn::getName)
