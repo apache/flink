@@ -21,6 +21,8 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.flink.configuration.DeploymentOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +73,8 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
         if (!factoryisCompatible){
             throw new IllegalStateException(
-                    "The submitted startup mode cannot be found. Please check whether '" + configuration.getString(DeploymentOptions.TARGET) + "' is correct"
+                    "The submitted startup mode cannot be found. Please check whether '" + configuration.getString(
+                            DeploymentOptions.TARGET) + "' is correct"
             );
         }
 
