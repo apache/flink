@@ -21,6 +21,8 @@ package org.apache.flink.client.deployment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.flink.configuration.DeploymentOptions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,10 +54,12 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
         final List<ClusterClientFactory> compatibleFactories = new ArrayList<>();
         final Iterator<ClusterClientFactory> factories = loader.iterator();
+        boolean factoryisCompatible = false;
         while (factories.hasNext()) {
             try {
                 final ClusterClientFactory factory = factories.next();
                 if (factory != null && factory.isCompatibleWith(configuration)) {
+                    factoryisCompatible = true;
                     compatibleFactories.add(factory);
                 }
             } catch (Throwable e) {
@@ -65,6 +69,13 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
                     throw e;
                 }
             }
+        }
+
+        if (!factoryisCompatible){
+            throw new IllegalStateException(
+                    "The submitted startup mode cannot be found. Please check whether '" + configuration.getString(
+                            DeploymentOptions.TARGET) + "' is correct"
+            );
         }
 
         if (compatibleFactories.size() > 1) {
