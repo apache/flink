@@ -372,7 +372,7 @@ class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, CountW
 
     def process(self,
                 key: str,
-                content: ProcessWindowFunction.Context,
+                context: ProcessWindowFunction.Context,
                 elements: Iterable[tuple]) -> Iterable[tuple]:
         return [(key, len([e for e in elements]))]
 

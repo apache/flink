@@ -15,13 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import logging
 import sys
 
 import argparse
 from typing import Iterable
 
-from pyflink.common import Types
+from pyflink.datastream.connectors import FileSink, OutputFileConfig, RollingPolicy
+
+from pyflink.common import Types, Encoder
 from pyflink.datastream import StreamExecutionEnvironment, WindowFunction
 from pyflink.datastream.window import CountWindow
 
@@ -35,8 +36,6 @@ class SumWindowFunction(WindowFunction[tuple, tuple, str, CountWindow]):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--output',
@@ -44,14 +43,40 @@ if __name__ == '__main__':
         required=False,
         help='Output file to write results to.')
 
+    argv = sys.argv[1:]
+    known_args, _ = parser.parse_known_args(argv)
+    output_path = known_args.output
+
     env = StreamExecutionEnvironment.get_execution_environment()
+    # write all the data to one file
     env.set_parallelism(1)
+
+    # define the source
     data_stream = env.from_collection([
         (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello'), (6, 'hello')],
-        type_info=Types.TUPLE([Types.INT(), Types.STRING()]))  # type: DataStream
-    data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
-        .count_window(3) \
-        .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
-        .print()
+        type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
 
+    ds = data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
+        .count_window(3) \
+        .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()]))
+
+    # define the sink
+    if output_path is not None:
+        ds.sink_to(
+            sink=FileSink.for_row_format(
+                base_path=output_path,
+                encoder=Encoder.simple_string_encoder())
+            .with_output_file_config(
+                OutputFileConfig.builder()
+                .with_part_prefix("prefix")
+                .with_part_suffix(".ext")
+                .build())
+            .with_rolling_policy(RollingPolicy.default_rolling_policy())
+            .build()
+        )
+    else:
+        print("Printing result to stdout. Use --output to specify output path.")
+        ds.print()
+
+    # submit for execution
     env.execute()
