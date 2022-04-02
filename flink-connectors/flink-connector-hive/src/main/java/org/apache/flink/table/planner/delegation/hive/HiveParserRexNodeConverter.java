@@ -449,7 +449,8 @@ public class HiveParserRexNodeConverter {
             case VOID:
                 calciteLiteral =
                         cluster.getRexBuilder()
-                                .makeLiteral(null, dtFactory.createSqlType(SqlTypeName.NULL), true);
+                                .makeLiteral(
+                                        null, dtFactory.createSqlType(SqlTypeName.VARCHAR), true);
                 break;
             case BINARY:
             case UNKNOWN:
