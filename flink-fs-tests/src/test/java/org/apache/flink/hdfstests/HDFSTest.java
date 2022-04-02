@@ -38,7 +38,6 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.IOUtils;

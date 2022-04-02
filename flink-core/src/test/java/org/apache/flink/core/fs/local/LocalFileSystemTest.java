@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.lang3.RandomStringUtils;
