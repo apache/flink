@@ -27,7 +27,6 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,11 +40,11 @@ import java.util.Map;
 class TableRequestsContainer {
 
     private final DynamoDbTablesConfig tablesConfig;
-    private final LinkedHashMap<String, Map<PrimaryKey, WriteRequest>> container;
+    private final Map<String, Map<PrimaryKey, WriteRequest>> container;
 
     public TableRequestsContainer(DynamoDbTablesConfig tablesConfig) {
         this.tablesConfig = tablesConfig;
-        this.container = new LinkedHashMap<>();
+        this.container = new HashMap<>();
     }
 
     public void put(DynamoDbWriteRequest request) {
