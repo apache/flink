@@ -53,11 +53,7 @@ public enum PredefinedOptions {
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
      * to sync data to stable storage.
      *
-     * <p>The following options are set:
-     *
-     * <ul>
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
-     * </ul>
+     * <p>There are no specified options here.
      */
     DEFAULT(Collections.emptyMap()),
 
@@ -75,7 +71,6 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
@@ -112,7 +107,6 @@ public enum PredefinedOptions {
      *   <li>setMinWriteBufferNumberToMerge(3)
      *   <li>setMaxWriteBufferNumber(4)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      *   <li>BlockBasedTableConfig.setBlockCacheSize(256 MBytes)
      *   <li>BlockBasedTableConfig.setBlockSize(128 KBytes)
      * </ul>
@@ -154,7 +148,6 @@ public enum PredefinedOptions {
      *   <li>setMaxBackgroundJobs(4)
      *   <li>setDisableDataSync(true)
      *   <li>setMaxOpenFiles(-1)
-     *   <li>setInfoLogLevel(InfoLogLevel.HEADER_LEVEL)
      * </ul>
      *
      * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery, there is no need
