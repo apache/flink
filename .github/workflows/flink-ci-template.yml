@@ -68,6 +68,7 @@ jobs:
         ${{ inputs.environment }} ./tools/ci/validate.sh "checkstyle:check spotless:check -T2" || exit $?
 
     - name: "License Headers"
+      if: (success() || failure())
       run: |
         ${{ inputs.environment }} ./tools/ci/validate.sh "org.apache.rat:apache-rat-plugin:check -N" || exit $?
 
