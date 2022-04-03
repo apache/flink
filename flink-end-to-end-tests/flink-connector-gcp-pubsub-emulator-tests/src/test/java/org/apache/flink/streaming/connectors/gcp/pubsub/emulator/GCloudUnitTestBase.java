@@ -41,7 +41,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class GCloudUnitTestBase extends TestLogger {
 
     @ClassRule
-    public static final PubSubEmulatorContainer pubSubEmulatorContainer =
+    public static final PubSubEmulatorContainer PUB_SUB_EMULATOR_CONTAINER =
             new PubSubEmulatorContainer(
                     DockerImageName.parse(DockerImageVersions.GOOGLE_CLOUD_PUBSUB_EMULATOR));
 
@@ -69,7 +69,7 @@ public class GCloudUnitTestBase extends TestLogger {
     }
 
     public static String getPubSubHostPort() {
-        return pubSubEmulatorContainer.getEmulatorEndpoint();
+        return PUB_SUB_EMULATOR_CONTAINER.getEmulatorEndpoint();
     }
 
     @AfterClass
