@@ -52,7 +52,6 @@ public class ByteArrayWrapperSerializerTest extends SerializerTestBase<ByteArray
             randomByteArray(1),
             randomByteArray(2),
             randomByteArray(1024 * 1024),
-            randomByteArray(32 * 1024 * 1024),
         };
     }
 
