@@ -144,12 +144,6 @@ public class KafkaDynamicTableFactoryTest {
         KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
 
         KAFKA_FINAL_SINK_PROPERTIES.putAll(KAFKA_SINK_PROPERTIES);
-        KAFKA_FINAL_SINK_PROPERTIES.setProperty(
-                "value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        KAFKA_FINAL_SINK_PROPERTIES.setProperty(
-                "key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-        KAFKA_FINAL_SINK_PROPERTIES.put("transaction.timeout.ms", 3600000);
-
         KAFKA_FINAL_SOURCE_PROPERTIES.putAll(KAFKA_SOURCE_PROPERTIES);
     }
 
