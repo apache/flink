@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for the {@link ZooKeeperUtils}. */
 @ExtendWith(TestLoggerExtension.class)
-class ZooKeeperUtilsITCase {
+class ZooKeeperUtilsWriteLeaderInformationTest {
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
     @RegisterExtension

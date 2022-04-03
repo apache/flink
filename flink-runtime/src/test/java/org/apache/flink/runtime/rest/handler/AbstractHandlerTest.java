@@ -18,17 +18,28 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.router.RouteResult;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.util.TestMessageHeaders;
+import org.apache.flink.runtime.rest.util.TestRestHandler;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -40,6 +51,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 
+import org.hamcrest.core.StringContains;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,12 +59,16 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -61,6 +77,75 @@ import static org.mockito.Mockito.when;
 public class AbstractHandlerTest extends TestLogger {
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    private static final RestfulGateway mockRestfulGateway =
+            TestingDispatcherGateway.newBuilder().build();
+
+    private static final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
+            () -> CompletableFuture.completedFuture(mockRestfulGateway);
+
+    private static final Configuration REST_BASE_CONFIG;
+
+    static {
+        final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
+
+        final Configuration config = new Configuration();
+        config.setString(RestOptions.BIND_PORT, "0");
+        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.setString(RestOptions.ADDRESS, loopbackAddress);
+
+        REST_BASE_CONFIG = config;
+    }
+
+    private RestClient createRestClient(int serverPort) throws ConfigurationException {
+        Configuration config = new Configuration(REST_BASE_CONFIG);
+        config.setInteger(RestOptions.PORT, serverPort);
+
+        return new RestClient(config, Executors.directExecutor());
+    }
+
+    @Test
+    public void testOOMErrorMessageEnrichment() throws Exception {
+        final TestMessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
+                messageHeaders =
+                        TestMessageHeaders.emptyBuilder()
+                                .setTargetRestEndpointURL("/test-handler")
+                                .build();
+
+        final TestRestHandler<
+                        RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
+                testRestHandler =
+                        new TestRestHandler<>(
+                                mockGatewayRetriever,
+                                messageHeaders,
+                                FutureUtils.completedExceptionally(
+                                        new OutOfMemoryError("Metaspace")));
+
+        try (final TestRestServerEndpoint server =
+                        TestRestServerEndpoint.builder(REST_BASE_CONFIG)
+                                .withHandler(messageHeaders, testRestHandler)
+                                .buildAndStart();
+                final RestClient restClient =
+                        createRestClient(server.getServerAddress().getPort())) {
+            CompletableFuture<EmptyResponseBody> response =
+                    restClient.sendRequest(
+                            server.getServerAddress().getHostName(),
+                            server.getServerAddress().getPort(),
+                            messageHeaders,
+                            EmptyMessageParameters.getInstance(),
+                            EmptyRequestBody.getInstance());
+            try {
+                response.get();
+                fail(
+                        "An ExecutionException was expected here being caused by the OutOfMemoryError.");
+            } catch (ExecutionException e) {
+                assertThat(
+                        e.getMessage(),
+                        StringContains.containsString(
+                                "Metaspace. The metaspace out-of-memory error has occurred. "));
+            }
+        }
+    }
 
     @Test
     public void testFileCleanup() throws Exception {
