@@ -526,14 +526,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private void assertLocalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
-        assertThat(localCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(localCleanupFuture.get(), equalTo(jobId));
         assertThat(globalCleanupFuture.isDone(), is(false));
     }
 
     private void assertGlobalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
         assertThat(localCleanupFuture.isDone(), is(false));
-        assertThat(globalCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(globalCleanupFuture.get(), equalTo(jobId));
     }
 
     @Test
