@@ -33,7 +33,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 
 /** Integration tests for {@link BucketAssigner bucket assigners}. */
-public class BucketAssignerITCases {
+public class BucketAssignerTest {
 
     @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
