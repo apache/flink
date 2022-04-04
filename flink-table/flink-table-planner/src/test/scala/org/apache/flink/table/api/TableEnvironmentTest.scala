@@ -757,7 +757,7 @@ class TableEnvironmentTest {
     assertThat(tableResult3.getResultKind).isEqualTo(ResultKind.SUCCESS)
 
     val tableResult4 = tableEnv.executeSql("SHOW DATABASES")
-    assertThat(tableResult4.getResultKind).isEqualTo(ResultKind.SUCCESS)
+    assertThat(tableResult4.getResultKind).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT)
     assertThat(ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())))
       .isEqualTo(tableResult4.getResolvedSchema)
     assertThat(CollectionUtil.iteratorToList(tableResult4.collect).toArray())
@@ -768,21 +768,21 @@ class TableEnvironmentTest {
         Row.of("pre_db3")).toArray())
 
     val tableResult5 = tableEnv.executeSql("SHOW DATABASES LIKE 'db%'")
-    assertThat(tableResult5.getResultKind).isEqualTo(ResultKind.SUCCESS)
+    assertThat(tableResult5.getResultKind).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT)
     assertThat(ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())))
       .isEqualTo(tableResult5.getResolvedSchema)
     assertThat(CollectionUtil.iteratorToList(tableResult5.collect).toArray())
       .isEqualTo(util.Arrays.asList(Row.of("db1"), Row.of("db2")).toArray())
 
     val tableResult6 = tableEnv.executeSql("SHOW DATABASES LIKE '_re%'")
-    assertThat(tableResult6.getResultKind).isEqualTo(ResultKind.SUCCESS)
+    assertThat(tableResult6.getResultKind).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT)
     assertThat(ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())))
       .isEqualTo(tableResult6.getResolvedSchema)
     assertThat(CollectionUtil.iteratorToList(tableResult6.collect).toArray())
       .isEqualTo(util.Arrays.asList(Row.of("pre_db3")).toArray())
 
     val tableResult7 = tableEnv.executeSql("SHOW DATABASES NOT LIKE '_re%'")
-    assertThat(tableResult7.getResultKind).isEqualTo(ResultKind.SUCCESS)
+    assertThat(tableResult7.getResultKind).isEqualTo(ResultKind.SUCCESS_WITH_CONTENT)
     assertThat(ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())))
       .isEqualTo(tableResult7.getResolvedSchema)
     assertThat(CollectionUtil.iteratorToList(tableResult7.collect).toArray())
