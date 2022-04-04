@@ -36,19 +36,6 @@ public class HiveRunnerShimLoader {
                 hiveVersion,
                 v -> {
                     switch (v) {
-                        case HiveShimLoader.HIVE_VERSION_V1_0_0:
-                        case HiveShimLoader.HIVE_VERSION_V1_0_1:
-                        case HiveShimLoader.HIVE_VERSION_V1_1_0:
-                        case HiveShimLoader.HIVE_VERSION_V1_1_1:
-                        case HiveShimLoader.HIVE_VERSION_V1_2_0:
-                        case HiveShimLoader.HIVE_VERSION_V1_2_1:
-                        case HiveShimLoader.HIVE_VERSION_V1_2_2:
-                            return new HiveRunnerShimV3();
-                        case HiveShimLoader.HIVE_VERSION_V2_0_0:
-                        case HiveShimLoader.HIVE_VERSION_V2_0_1:
-                        case HiveShimLoader.HIVE_VERSION_V2_1_0:
-                        case HiveShimLoader.HIVE_VERSION_V2_1_1:
-                        case HiveShimLoader.HIVE_VERSION_V2_2_0:
                         case HiveShimLoader.HIVE_VERSION_V2_3_0:
                         case HiveShimLoader.HIVE_VERSION_V2_3_1:
                         case HiveShimLoader.HIVE_VERSION_V2_3_2:
