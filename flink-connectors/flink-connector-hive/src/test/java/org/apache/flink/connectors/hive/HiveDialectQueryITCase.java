@@ -157,7 +157,7 @@ public class HiveDialectQueryITCase {
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
                                         + " (select salary,count(*) as cnt from employee group by salary) a"));
-        if (HiveVersionTestUtil.HIVE_220_OR_LATER) {
+        if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
         }

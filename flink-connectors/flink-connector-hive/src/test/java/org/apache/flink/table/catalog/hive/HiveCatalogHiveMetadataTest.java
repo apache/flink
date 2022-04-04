@@ -170,7 +170,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     @Test
     public void testAlterTableColumnStatistics() throws Exception {
         String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
-        boolean supportDateStats = hiveVersion.compareTo(HiveShimLoader.HIVE_VERSION_V1_2_0) >= 0;
+        boolean supportDateStats = hiveVersion.compareTo(HiveShimLoader.HIVE_VERSION_V2_3_0) >= 0;
         catalog.createDatabase(db1, createDb(), false);
         TableSchema.Builder builder =
                 TableSchema.builder()

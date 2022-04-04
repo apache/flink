@@ -1027,108 +1027,15 @@ under the License.
 	<profiles>
 		<!-- Activate these profiles with -Phive-x.x.x to build and test against different Hive versions -->
 		<profile>
-			<id>hive-1.0.1</id>
+			<id>hive-2.3.6</id>
 			<properties>
-				<hive.version>1.0.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
-				<hiverunner.version>3.1.1</hiverunner.version>
-				<derby.version>10.10.1.1</derby.version>
+				<hive.version>2.3.6</hive.version>
 			</properties>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
-					<classifier>nohive</classifier>
-					<exclusions>
-						<exclusion>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.apache.hive</groupId>
-							<artifactId>hive-storage-api</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<!-- Hive-1.1.1 has issue that it can't handle 'stored as file_format' syntax. So test against 1.1.0 -->
-			<id>hive-1.1.0</id>
-			<properties>
-				<hive.version>1.1.0</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
-				<hiverunner.version>3.1.1</hiverunner.version>
-				<derby.version>10.11.1.1</derby.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.orc</groupId>
-					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
-					<classifier>nohive</classifier>
-					<exclusions>
-						<exclusion>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.apache.hive</groupId>
-							<artifactId>hive-storage-api</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hive-1.2.1</id>
-			<properties>
-				<hive.version>1.2.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
-				<hiverunner.version>3.2.1</hiverunner.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.orc</groupId>
-					<artifactId>orc-core</artifactId>
-					<version>${orc.version}</version>
-					<classifier>nohive</classifier>
-					<exclusions>
-						<exclusion>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.apache.hive</groupId>
-							<artifactId>hive-storage-api</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hive-2.0.0</id>
-			<properties>
-				<hive.version>2.0.0</hive.version>
-			</properties>
-		</profile>
-		<profile>
-			<id>hive-2.1.1</id>
-			<properties>
-				<hive.version>2.1.1</hive.version>
-			</properties>
-		</profile>
-		<profile>
-			<id>hive-2.2.0</id>
-			<properties>
-				<hive.version>2.2.0</hive.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.orc</groupId>
-					<artifactId>orc-core</artifactId>
-					<version>${hive-2.2.0-orc-version}</version>
+					<version>${hive-2.3.6-orc-version}</version>
 					<exclusions>
 						<exclusion>
 							<groupId>org.apache.hadoop</groupId>
