@@ -1769,9 +1769,8 @@ public class StreamTaskTest extends TestLogger {
 
     /**
      * Tests mailbox metrics latency and queue size and verifies that (1) latency measurement is
-     * executed initially once and at least once triggered by timer, (2) latency max value is
-     * greater than zero and (3) mailbox size is greater than zero for some time and eventually
-     * equals to zero.
+     * executed once initially and at least once triggered by timer and (2) mailbox size is greater
+     * than zero for some time and eventually equals to zero.
      *
      * @throws Exception on {@link MockEnvironmentBuilder#build()} failure.
      */
@@ -1800,10 +1799,7 @@ public class StreamTaskTest extends TestLogger {
                                         mailboxProcessor
                                                 .getMainMailboxExecutor()
                                                 .execute(() -> {}, "mail");
-                                        // The actual delay here is irrelevant for the test but
-                                        // delay should be at least once 10 ms to reach a measurable
-                                        // delay >~ 8 ms.
-                                        Thread.sleep(mailboxLatencyMetric.getCount() == 0 ? 10 : 1);
+                                        Thread.sleep(1);
                                     } else {
                                         controller.suspendDefaultAction();
                                         mailboxProcessor.suspend();
@@ -1820,7 +1816,6 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     mailboxLatencyMetric.getCount(),
                     greaterThanOrEqualTo(new Long(minMeasurements)));
-            assertThat(mailboxLatencyMetric.getStatistics().getMax(), greaterThan(0L));
             assertThat(maxMailboxSize.get(), greaterThan(0));
             assertThat(mailboxSizeMetric.getValue(), equalTo(0));
         }
