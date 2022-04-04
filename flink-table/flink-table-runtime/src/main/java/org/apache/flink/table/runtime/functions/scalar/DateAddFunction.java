@@ -46,8 +46,7 @@ public class DateAddFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.DATE_ADD, context);
     }
 
-    public @Nullable
-    StringData eval(StringData startDate, int numberOfDays) {
+    public @Nullable StringData eval(StringData startDate, int numberOfDays) {
         final String dateStr = startDate.toString();
         long startMillSecond;
         try {
