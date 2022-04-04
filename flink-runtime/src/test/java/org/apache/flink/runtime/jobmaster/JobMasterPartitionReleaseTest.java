@@ -250,8 +250,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                     new JobMasterBuilder(jobGraph, rpcService)
                             .withConfiguration(configuration)
                             .withHighAvailabilityServices(haServices)
-                            .withJobManagerSharedServices(
-                                    new TestingJobManagerSharedServicesBuilder().build())
                             .withFatalErrorHandler(fatalErrorHandler)
                             .withHeartbeatServices(heartbeatServices)
                             .withPartitionTrackerFactory(ignored -> partitionTracker)

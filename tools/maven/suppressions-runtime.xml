@@ -138,6 +138,6 @@ under the License.
 		files="(.*)runtime[/\\]zookeeper[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|MemberNameCheck|LocalFinalVariableName|LocalVariableName|UpperEll|reliefPattern|EmptyStatement|EmptyLineSeparator"/>
 	<suppress
-		files="(.*)StateBackendTestBase.java"
+		files="(.*)(StateBackendTestBase|TaskExecutorTest).java"
 		checks="FileLength"/>
 </suppressions>

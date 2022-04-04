@@ -32,9 +32,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.Matchers;
 
@@ -46,6 +49,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -62,17 +66,20 @@ import static org.mockito.Mockito.when;
  * builds {@link DistributionPattern#ALL_TO_ALL} connections correctly.
  */
 public class DefaultExecutionGraphConstructionTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private ExecutionGraph createDefaultExecutionGraph(List<JobVertex> vertices) throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private ExecutionGraph createDynamicExecutionGraph(List<JobVertex> vertices) throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
-                .buildDynamicGraph();
+                .buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
     }
 
     @Test

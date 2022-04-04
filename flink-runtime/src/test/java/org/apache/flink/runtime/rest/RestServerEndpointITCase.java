@@ -52,7 +52,7 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
@@ -70,6 +70,7 @@ import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -98,6 +99,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -125,6 +127,10 @@ public class RestServerEndpointITCase extends TestLogger {
     private static final String JOB_ID_KEY = "jobid";
     private static final Time timeout = Time.seconds(10L);
     private static final int TEST_REST_MAX_CONTENT_LENGTH = 4096;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -241,7 +247,7 @@ public class RestServerEndpointITCase extends TestLogger {
                                 WebContentHandlerSpecification.getInstance(),
                                 staticFileServerHandler)
                         .buildAndStart();
-        restClient = new TestRestClient(config);
+        restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
 
         serverAddress = serverEndpoint.getServerAddress();
     }
@@ -778,13 +784,6 @@ public class RestServerEndpointITCase extends TestLogger {
         parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
         parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
         return parameters;
-    }
-
-    static class TestRestClient extends RestClient {
-
-        TestRestClient(Configuration configuration) throws ConfigurationException {
-            super(configuration, TestingUtils.defaultExecutor());
-        }
     }
 
     private static class TestRequest implements RequestBody {

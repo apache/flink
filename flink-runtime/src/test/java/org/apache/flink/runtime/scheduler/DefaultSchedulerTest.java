@@ -1598,10 +1598,11 @@ public class DefaultSchedulerTest extends TestLogger {
                         final JobGraph jobGraph = singleJobVertexJobGraph(1);
                         enableCheckpointing(jobGraph);
                         try {
-                            return SchedulerTestingUtils.newSchedulerBuilder(
+                            return new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                             jobGraph,
                                             ComponentMainThreadExecutorServiceAdapter
-                                                    .forSingleThreadExecutor(executorService))
+                                                    .forSingleThreadExecutor(executorService),
+                                            executorService)
                                     .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
                                     .setCheckpointCleaner(checkpointCleaner)
                                     .build();
@@ -1845,12 +1846,14 @@ public class DefaultSchedulerTest extends TestLogger {
     private SchedulerTestingUtils.DefaultSchedulerBuilder createSchedulerBuilder(
             final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph,
+                        mainThreadExecutor,
+                        executor,
+                        scheduledExecutorService,
+                        taskRestartExecutor)
                 .setLogger(log)
-                .setIoExecutor(executor)
                 .setJobMasterConfiguration(configuration)
-                .setFutureExecutor(scheduledExecutorService)
-                .setDelayExecutor(taskRestartExecutor)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
                 .setFailoverStrategyFactory(new RestartPipelinedRegionFailoverStrategy.Factory())
                 .setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)

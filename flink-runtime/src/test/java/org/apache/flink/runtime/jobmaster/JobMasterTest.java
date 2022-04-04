@@ -1550,7 +1550,6 @@ public class JobMasterTest extends TestLogger {
                 new JobMasterBuilder(jobGraph, rpcService)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withJobManagerSharedServices(jobManagerSharedServices)
                         .withHeartbeatServices(heartbeatServices)
                         .withPartitionTrackerFactory(ignored -> partitionTracker)
                         .createJobMaster()) {

@@ -32,8 +32,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
@@ -51,6 +54,10 @@ import static org.hamcrest.core.IsEqual.equalTo;
  * PartitionGroupReleaseStrategy}.
  */
 public class ExecutionGraphPartitionReleaseTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final ScheduledExecutorService scheduledExecutorService =
             Executors.newSingleThreadScheduledExecutor();
@@ -251,8 +258,10 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(vertices);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, mainThreadExecutor.getMainThreadExecutor())
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                                jobGraph,
+                                mainThreadExecutor.getMainThreadExecutor(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setPartitionTracker(partitionTracker)

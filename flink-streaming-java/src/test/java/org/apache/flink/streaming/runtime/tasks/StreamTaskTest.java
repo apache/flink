@@ -128,6 +128,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -145,6 +147,7 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -168,9 +171,11 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -224,6 +229,9 @@ import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamTask}. */
 public class StreamTaskTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -450,7 +458,7 @@ public class StreamTaskTest extends TestLogger {
                             .setInvokable(SourceStreamTask.class)
                             .setTaskConfig(cfg.getConfiguration())
                             .setTaskManagerActions(taskManagerActions)
-                            .build();
+                            .build(EXECUTOR_RESOURCE.getExecutor());
 
             final TaskExecutionState state =
                     new TaskExecutionState(task.getExecutionId(), ExecutionState.RUNNING);
@@ -489,7 +497,8 @@ public class StreamTaskTest extends TestLogger {
                             StateBackendTestSource.class,
                             shuffleEnvironment,
                             cfg,
-                            taskManagerConfig);
+                            taskManagerConfig,
+                            EXECUTOR_RESOURCE.getExecutor());
 
             StateBackendTestSource.fail = false;
             task.startTaskThread();
@@ -530,7 +539,8 @@ public class StreamTaskTest extends TestLogger {
                             StateBackendTestSource.class,
                             shuffleEnvironment,
                             cfg,
-                            taskManagerConfig);
+                            taskManagerConfig,
+                            EXECUTOR_RESOURCE.getExecutor());
 
             StateBackendTestSource.fail = true;
             task.startTaskThread();
@@ -1205,7 +1215,7 @@ public class StreamTaskTest extends TestLogger {
                 env ->
                         taskBuilderWithConfiguredRecordWriter(env)
                                 .setTaskManagerActions(taskManagerActions)
-                                .build());
+                                .build(EXECUTOR_RESOURCE.getExecutor()));
     }
 
     @Test
@@ -1217,7 +1227,7 @@ public class StreamTaskTest extends TestLogger {
                 env ->
                         taskBuilderWithConfiguredRecordWriter(env)
                                 .setTaskManagerConfig(conf)
-                                .build());
+                                .build(EXECUTOR_RESOURCE.getExecutor()));
     }
 
     private void testRecordWriterClosedOnError(
@@ -1583,7 +1593,12 @@ public class StreamTaskTest extends TestLogger {
         try (NettyShuffleEnvironment shuffleEnvironment =
                 new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
-                    createTask(SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
+                    createTask(
+                            SourceStreamTask.class,
+                            shuffleEnvironment,
+                            cfg,
+                            taskManagerConfig,
+                            EXECUTOR_RESOURCE.getExecutor());
 
             // when: Task starts
             task.startTaskThread();
@@ -2097,14 +2112,15 @@ public class StreamTaskTest extends TestLogger {
             Class<? extends TaskInvokable> invokable,
             ShuffleEnvironment shuffleEnvironment,
             StreamConfig taskConfig,
-            Configuration taskManagerConfig)
+            Configuration taskManagerConfig,
+            Executor executor)
             throws Exception {
 
         return new TestTaskBuilder(shuffleEnvironment)
                 .setTaskManagerConfig(taskManagerConfig)
                 .setInvokable(invokable)
                 .setTaskConfig(taskConfig.getConfiguration())
-                .build();
+                .build(executor);
     }
 
     // ------------------------------------------------------------------------

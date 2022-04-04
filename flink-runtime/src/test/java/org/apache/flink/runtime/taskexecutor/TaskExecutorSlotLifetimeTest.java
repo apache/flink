@@ -49,6 +49,8 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -62,12 +64,17 @@ import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link TaskExecutor TaskExecutor's} slot lifetime and its dependencies. */
 public class TaskExecutorSlotLifetimeTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @ClassRule
     public static final TestingRpcServiceResource TESTING_RPC_SERVICE_RESOURCE =
@@ -210,7 +217,9 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                         TestFileUtils.createTempDir()),
                 haServices,
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
                         .build(),
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,

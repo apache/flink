@@ -176,10 +176,8 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         final DefaultExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(jobGraph)
-                        .setFutureExecutor(executor)
-                        .setIoExecutor(executor)
                         .setBlobWriter(blobWriter)
-                        .build();
+                        .build(executor);
 
         eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 

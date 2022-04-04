@@ -30,6 +30,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.RunnableWithException;
@@ -40,8 +41,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,8 +58,8 @@ public class KubernetesMultipleComponentLeaderElectionDriverTest {
             new TestingFatalErrorHandlerExtension();
 
     @RegisterExtension
-    private static final TestExecutorExtension<ExecutorService> testExecutorExtension =
-            new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
+    private static final TestExecutorExtension<ScheduledExecutorService> testExecutorExtension =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
     public void testElectionDriverGainsLeadership() throws Exception {

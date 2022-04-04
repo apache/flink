@@ -61,7 +61,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.testutils.ClassLoaderUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
@@ -1347,7 +1346,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                             Time.milliseconds(50),
                             deadline,
                             (jobStatus) -> jobStatus.equals(JobStatus.CANCELED),
-                            TestingUtils.defaultScheduledExecutor());
+                            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
             assertEquals(
                     JobStatus.CANCELED,
                     jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));

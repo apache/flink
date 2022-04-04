@@ -640,8 +640,7 @@ public class ResourceManagerTest extends TestLogger {
 
             if (slotManager == null) {
                 slotManager =
-                        DeclarativeSlotManagerBuilder.newBuilder()
-                                .setScheduledExecutor(rpcService.getScheduledExecutor())
+                        DeclarativeSlotManagerBuilder.newBuilder(rpcService.getScheduledExecutor())
                                 .build();
             }
 

@@ -35,10 +35,10 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameter
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -68,7 +68,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
                                 Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-                        TestingUtils.defaultExecutor());
+                        Executors.directExecutor());
 
         // Instance a empty request.
         final HandlerRequest<EmptyRequestBody> request =

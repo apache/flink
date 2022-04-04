@@ -78,12 +78,14 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -94,6 +96,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -105,6 +108,10 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the StreamTask termination. */
 public class StreamTaskTerminationTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final OneShotLatch RUN_LATCH = new OneShotLatch();
     private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
@@ -186,7 +193,7 @@ public class StreamTaskTerminationTest extends TestLogger {
                         Executors.directExecutor());
 
         CompletableFuture<Void> taskRun =
-                CompletableFuture.runAsync(() -> task.run(), TestingUtils.defaultExecutor());
+                CompletableFuture.runAsync(() -> task.run(), EXECUTOR_RESOURCE.getExecutor());
 
         // wait until the stream task started running
         RUN_LATCH.await();

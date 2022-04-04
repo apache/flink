@@ -64,10 +64,13 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecutio
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -82,6 +85,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -96,6 +100,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link AdaptiveScheduler AdaptiveScheduler's} {@link Executing} state. */
 public class ExecutingTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testExecutionGraphDeploymentOnEnter() throws Exception {
@@ -361,7 +368,8 @@ public class ExecutingTest extends TestLogger {
     public void testTransitionToStopWithSavepointState() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             CheckpointCoordinator coordinator =
-                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .build(EXECUTOR_RESOURCE.getExecutor());
             StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
                     new StateTrackingMockExecutionGraph() {
                         @Nullable
@@ -384,7 +392,8 @@ public class ExecutingTest extends TestLogger {
     public void testCheckpointSchedulerIsStoppedOnStopWithSavepoint() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             CheckpointCoordinator coordinator =
-                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder().build();
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .build(EXECUTOR_RESOURCE.getExecutor());
             StateTrackingMockExecutionGraph mockedExecutionGraphWithCheckpointCoordinator =
                     new StateTrackingMockExecutionGraph() {
                         @Nullable
@@ -474,7 +483,8 @@ public class ExecutingTest extends TestLogger {
 
     private final class ExecutingStateBuilder {
         private ExecutionGraph executionGraph =
-                TestingDefaultExecutionGraphBuilder.newBuilder().build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         private OperatorCoordinatorHandler operatorCoordinatorHandler;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {

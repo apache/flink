@@ -51,8 +51,7 @@ public class MockResourceManagerRuntimeServices {
         this(
                 rpcService,
                 timeout,
-                DeclarativeSlotManagerBuilder.newBuilder()
-                        .setScheduledExecutor(
+                DeclarativeSlotManagerBuilder.newBuilder(
                                 new ScheduledExecutorServiceAdapter(
                                         new DirectScheduledExecutorService()))
                         .setTaskManagerRequestTimeout(Time.seconds(10))

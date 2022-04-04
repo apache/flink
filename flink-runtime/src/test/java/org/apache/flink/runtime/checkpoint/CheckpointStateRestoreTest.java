@@ -34,9 +34,12 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -46,6 +49,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -57,6 +61,10 @@ import static org.mockito.Mockito.when;
 
 /** Tests concerning the restoring of state from a checkpoint to the task executions. */
 public class CheckpointStateRestoreTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
@@ -78,7 +86,7 @@ public class CheckpointStateRestoreTest {
                     new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                             .addJobVertex(statefulId, 3, 256)
                             .addJobVertex(statelessId, 2, 256)
-                            .build();
+                            .build(EXECUTOR_RESOURCE.getExecutor());
 
             ExecutionJobVertex stateful = graph.getJobVertex(statefulId);
             ExecutionJobVertex stateless = graph.getJobVertex(statelessId);
@@ -100,9 +108,8 @@ public class CheckpointStateRestoreTest {
 
             CheckpointCoordinator coord =
                     new CheckpointCoordinatorBuilder()
-                            .setExecutionGraph(graph)
                             .setTimer(manuallyTriggeredScheduledExecutor)
-                            .build();
+                            .build(graph);
 
             // create ourselves a checkpoint with state
             coord.triggerCheckpoint(false);
@@ -175,7 +182,8 @@ public class CheckpointStateRestoreTest {
     @Test
     public void testNoCheckpointAvailable() {
         try {
-            CheckpointCoordinator coord = new CheckpointCoordinatorBuilder().build();
+            CheckpointCoordinator coord =
+                    new CheckpointCoordinatorBuilder().build(EXECUTOR_RESOURCE.getExecutor());
 
             final boolean restored =
                     coord.restoreLatestCheckpointedStateToAll(Collections.emptySet(), false);
@@ -217,7 +225,8 @@ public class CheckpointStateRestoreTest {
         tasks.add(jobVertex1);
         tasks.add(jobVertex2);
 
-        CheckpointCoordinator coord = new CheckpointCoordinatorBuilder().build();
+        CheckpointCoordinator coord =
+                new CheckpointCoordinatorBuilder().build(EXECUTOR_RESOURCE.getExecutor());
 
         // --- (2) Checkpoint misses state for a jobVertex (should work) ---
         Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();

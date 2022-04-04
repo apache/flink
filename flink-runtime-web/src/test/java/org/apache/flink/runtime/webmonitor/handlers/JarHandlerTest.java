@@ -20,6 +20,8 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -32,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -43,6 +46,10 @@ public class JarHandlerTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TMP = new TemporaryFolder();
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     @Test
     public void testPlanJar() throws Exception {
         runTest("hello out!", "hello err!");
@@ -53,7 +60,9 @@ public class JarHandlerTest extends TestLogger {
         final TestingDispatcherGateway restfulGateway =
                 TestingDispatcherGateway.newBuilder().build();
 
-        final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
+        final JarHandlers handlers =
+                new JarHandlers(
+                        TMP.newFolder().toPath(), restfulGateway, EXECUTOR_RESOURCE.getExecutor());
 
         final Path originalJar = Paths.get(System.getProperty("targetDir")).resolve(JAR_NAME);
         final Path jar = Files.copy(originalJar, TMP.newFolder().toPath().resolve(JAR_NAME));

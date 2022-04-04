@@ -29,10 +29,15 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -40,6 +45,10 @@ import static org.junit.Assert.assertThat;
 
 /** Validates that suspending out of various states works correctly. */
 public class ExecutionGraphSuspendTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /**
      * Going into SUSPENDED out of CREATED should immediately cancel everything and not send out RPC
@@ -228,9 +237,10 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         final ManuallyTriggeredScheduledExecutor taskRestartExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                 JobGraphTestUtils.emptyJobGraph(),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setRestartBackoffTimeStrategy(
                                 new TestRestartBackoffTimeStrategy(true, Long.MAX_VALUE))
                         .setDelayExecutor(taskRestartExecutor)
@@ -308,9 +318,10 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         vertex.setParallelism(parallelism);
 
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(vertex),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
