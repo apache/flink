@@ -72,6 +72,14 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Required due to UniqueBucketAssigner -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
