@@ -169,7 +169,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setJobGraphWriter(haServices.getJobGraphStore())
                         .setJobResultStore(haServices.getJobResultStore())
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
         return dispatcher;
     }
@@ -251,7 +251,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 new ExpectedJobIdJobManagerRunnerFactory(
                                         jobId, createdJobManagerRunnerLatch))
                         .setRecoveredJobs(Collections.singleton(jobGraph))
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -483,7 +483,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                     archiveAttemptFuture.complete(null);
                                     return CompletableFuture.completedFuture(null);
                                 })
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -678,7 +678,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setRecoveredJobs(Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
-                        .build();
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -723,7 +723,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 createTestingDispatcherBuilder()
                         .setRecoveredJobs(Collections.singleton(jobGraph))
                         .setRecoveredDirtyJobs(Collections.singleton(jobResult))
-                        .build();
+                        .build(rpcService);
     }
 
     @Test
@@ -752,7 +752,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                     dispatcherBootstrapLatch.trigger();
                                     return new NoOpDispatcherBootstrap();
                                 })
-                        .build();
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -779,7 +779,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
         haServices.setJobGraphStore(submittedJobGraphStore);
 
         dispatcher =
-                createTestingDispatcherBuilder().setJobGraphWriter(submittedJobGraphStore).build();
+                createTestingDispatcherBuilder()
+                        .setJobGraphWriter(submittedJobGraphStore)
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -899,7 +901,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 createTestingDispatcherBuilder()
                         .setRecoveredJobs(Collections.singleton(jobGraph))
                         .setJobGraphWriter(testingJobGraphStore)
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
 
         final CompletableFuture<Void> processFuture =
@@ -1068,7 +1070,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredJobs(Collections.singleton(new JobGraph(jobId1, "foobar")))
-                        .build();
+                        .build(rpcService);
 
         Assertions.assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
         Assertions.assertThatThrownBy(() -> blobServer.getFile(jobId2, blobKey2))

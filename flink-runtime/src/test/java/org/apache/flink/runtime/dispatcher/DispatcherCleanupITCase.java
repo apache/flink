@@ -177,7 +177,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         haServices,
                                         UnregisteredMetricGroups
                                                 .createUnregisteredJobManagerMetricGroup()))
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
@@ -223,7 +223,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final Dispatcher dispatcher =
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
-                        .build();
+                        .build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
@@ -290,7 +290,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         configuration.set(
                 CleanupOptions.CLEANUP_STRATEGY,
                 CleanupOptions.NONE_PARAM_VALUES.iterator().next());
-        final Dispatcher dispatcher = createTestingDispatcherBuilder().build();
+        final Dispatcher dispatcher = createTestingDispatcherBuilder().build(rpcService);
         dispatcher.start();
 
         toTerminate.add(dispatcher);
@@ -332,7 +332,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final Dispatcher secondDispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
-                        .build();
+                        .build(rpcService);
         secondDispatcher.start();
 
         toTerminate.add(secondDispatcher);

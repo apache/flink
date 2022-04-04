@@ -165,7 +165,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
             TestingDispatcher.Builder dispatcherBuilder,
             JobManagerRunnerFactory jobManagerRunnerFactory)
             throws Exception {
-        dispatcher = dispatcherBuilder.setJobManagerRunnerFactory(jobManagerRunnerFactory).build();
+        dispatcher =
+                dispatcherBuilder
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -176,7 +179,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 new DefaultJobManagerRunnerRegistry(2);
         return TestingDispatcher.builder()
-                .setRpcService(rpcService)
                 .setBlobServer(blobServer)
                 .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
