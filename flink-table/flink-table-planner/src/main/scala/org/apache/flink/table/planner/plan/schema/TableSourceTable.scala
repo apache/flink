@@ -73,7 +73,7 @@ class TableSourceTable(
 
       for (spec <- abilitySpecs) {
         val sourceAbilityContext = new SourceAbilityContext(
-          flinkContext, newProducedType, flinkTypeFactory)
+          flinkContext, flinkTypeFactory, newProducedType)
 
         builder.add(spec.getDigests(sourceAbilityContext))
         newProducedType = spec.getProducedType.orElse(newProducedType)

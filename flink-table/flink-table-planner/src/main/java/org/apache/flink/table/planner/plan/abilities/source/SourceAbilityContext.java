@@ -51,7 +51,7 @@ public class SourceAbilityContext implements FlinkContext {
     private final FlinkTypeFactory typeFactory;
 
     public SourceAbilityContext(
-            FlinkContext context, RowType sourceRowType, FlinkTypeFactory typeFactory) {
+            FlinkContext context, FlinkTypeFactory typeFactory, RowType sourceRowType) {
         this.context = context;
         this.sourceRowType = sourceRowType;
         this.typeFactory = typeFactory;
@@ -107,7 +107,7 @@ public class SourceAbilityContext implements FlinkContext {
     public static SourceAbilityContext from(TableScan scan) {
         return new SourceAbilityContext(
                 ShortcutUtils.unwrapContext(scan),
-                FlinkTypeFactory.toLogicalRowType(scan.getRowType()),
-                ShortcutUtils.unwrapTypeFactory(scan));
+                ShortcutUtils.unwrapTypeFactory(scan),
+                FlinkTypeFactory.toLogicalRowType(scan.getRowType()));
     }
 }

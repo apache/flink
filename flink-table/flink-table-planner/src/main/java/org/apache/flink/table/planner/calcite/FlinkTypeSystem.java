@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -32,10 +33,13 @@ import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 
+import javax.annotation.Nullable;
+
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
 /** Custom type system for Flink. */
+@Internal
 public class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
     public static final FlinkTypeSystem INSTANCE = new FlinkTypeSystem();
@@ -129,24 +133,18 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
     @Override
     public RelDataType deriveDecimalModType(
             RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
-        if (SqlTypeUtil.isExactNumeric(type1)
-                && SqlTypeUtil.isExactNumeric(type2)
-                && (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
-            RelDataType decType1 = adjustType(typeFactory, type1);
-            RelDataType decType2 = adjustType(typeFactory, type2);
-            if (decType1.getScale() == 0 && decType2.getScale() == 0) {
-                return type2;
-            }
-            DecimalType result =
-                    LogicalTypeMerging.findModuloDecimalType(
-                            decType1.getPrecision(),
-                            decType1.getScale(),
-                            decType2.getPrecision(),
-                            decType2.getScale());
-            return typeFactory.createSqlType(DECIMAL, result.getPrecision(), result.getScale());
-        } else {
-            return null;
-        }
+        return deriveDecimalRelDataType(
+                typeFactory,
+                type1,
+                type2,
+                (p1, s1, p2, s2) -> {
+                    if (s1 == 0 && s2 == 0) {
+                        return type2;
+                    }
+                    DecimalType result = LogicalTypeMerging.findModuloDecimalType(p1, s1, p2, s2);
+                    return typeFactory.createSqlType(
+                            DECIMAL, result.getPrecision(), result.getScale());
+                });
     }
 
     @Override
@@ -163,24 +161,36 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
                 typeFactory, type1, type2, LogicalTypeMerging::findMultiplicationDecimalType);
     }
 
-    /** Use derivation from [[LogicalTypeMerging]] to derive decimal type. */
-    private RelDataType deriveDecimalType(
+    /** Use derivation from {@link LogicalTypeMerging} to derive decimal type. */
+    private @Nullable RelDataType deriveDecimalType(
             RelDataTypeFactory typeFactory,
             RelDataType type1,
             RelDataType type2,
             QuadFunction<Integer, Integer, Integer, Integer, DecimalType> deriveImpl) {
-        if (SqlTypeUtil.isExactNumeric(type1)
-                && SqlTypeUtil.isExactNumeric(type2)
-                && (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
+        return deriveDecimalRelDataType(
+                typeFactory,
+                type1,
+                type2,
+                (p1, s1, p2, s2) -> {
+                    DecimalType result = deriveImpl.apply(p1, s1, p2, s2);
+                    return typeFactory.createSqlType(
+                            DECIMAL, result.getPrecision(), result.getScale());
+                });
+    }
+
+    private @Nullable RelDataType deriveDecimalRelDataType(
+            RelDataTypeFactory typeFactory,
+            RelDataType type1,
+            RelDataType type2,
+            QuadFunction<Integer, Integer, Integer, Integer, RelDataType> deriveImpl) {
+        if (canDeriveDecimal(type1, type2)) {
             RelDataType decType1 = adjustType(typeFactory, type1);
             RelDataType decType2 = adjustType(typeFactory, type2);
-            DecimalType result =
-                    deriveImpl.apply(
-                            decType1.getPrecision(),
-                            decType1.getScale(),
-                            decType2.getPrecision(),
-                            decType2.getScale());
-            return typeFactory.createSqlType(DECIMAL, result.getPrecision(), result.getScale());
+            return deriveImpl.apply(
+                    decType1.getPrecision(),
+                    decType1.getScale(),
+                    decType2.getPrecision(),
+                    decType2.getScale());
         } else {
             return null;
         }
@@ -194,5 +204,11 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
         return RelDataTypeFactoryImpl.isJavaType(relDataType)
                 ? typeFactory.decimalOf(relDataType)
                 : relDataType;
+    }
+
+    private boolean canDeriveDecimal(RelDataType type1, RelDataType type2) {
+        return SqlTypeUtil.isExactNumeric(type1)
+                && SqlTypeUtil.isExactNumeric(type2)
+                && (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2));
     }
 }

@@ -422,7 +422,7 @@ object AggregateUtil extends Enumeration {
       indexOfExistingCountStar: Option[Int],
       isStateBackedDataViews: Boolean,
       needDistinctInfo: Boolean,
-      isBounded: Boolean) = {
+      isBounded: Boolean): AggregateInfoList = {
 
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,

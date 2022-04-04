@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
 
@@ -566,7 +567,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           inputType: RelDataType,
           isBounded: Boolean): AggregateCall = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          ShortcutUtils.unwrapTypeFactory(input),
+          unwrapTypeFactory(input),
           aggCalls,
           inputType,
           isBounded)
@@ -584,7 +585,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           inputRowType: RelDataType,
           isBounded: Boolean): Integer = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          ShortcutUtils.unwrapTypeFactory(input),
+          unwrapTypeFactory(input),
           globalAggCalls,
           inputRowType,
           isBounded)

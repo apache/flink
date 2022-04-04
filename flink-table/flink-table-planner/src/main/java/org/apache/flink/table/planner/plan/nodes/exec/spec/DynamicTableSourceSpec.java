@@ -93,7 +93,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                                         .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilities) {
                     SourceAbilityContext sourceAbilityContext =
-                            new SourceAbilityContext(context, newProducedType, typeFactory);
+                            new SourceAbilityContext(context, typeFactory, newProducedType);
                     spec.apply(tableSource, sourceAbilityContext);
                     if (spec.getProducedType().isPresent()) {
                         newProducedType = spec.getProducedType().get();
