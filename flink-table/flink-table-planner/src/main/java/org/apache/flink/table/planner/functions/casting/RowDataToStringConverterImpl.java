@@ -59,42 +59,37 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
         this.castRuleContext = CastRule.Context.create(legacyBehaviour, zoneId, classLoader);
     }
 
-    @SuppressWarnings("unchecked")
-    public void init() {
-        if (this.columnConverters != null) {
-            return;
-        }
-
-        List<DataType> rowDataTypes = DataType.getFieldDataTypes(dataType);
-        this.columnConverters = new Function[rowDataTypes.size()];
-
-        for (int i = 0; i < rowDataTypes.size(); i++) {
-            final int index = i;
-            LogicalType fieldType = rowDataTypes.get(index).getLogicalType();
-            RowData.FieldGetter getter = RowData.createFieldGetter(fieldType, index);
-            CastExecutor<Object, StringData> castExecutor =
-                    (CastExecutor<Object, StringData>)
-                            CastRuleProvider.create(
-                                    castRuleContext, fieldType, STRING().getLogicalType());
-            if (castExecutor == null) {
-                throw new IllegalStateException(
-                        "Cannot create a cast executor for converting "
-                                + fieldType
-                                + " to string. This is a bug, please open an issue.");
-            }
-            this.columnConverters[index] =
-                    row -> {
-                        if (row.isNullAt(index)) {
-                            return PrintStyle.NULL_VALUE;
-                        }
-                        return castExecutor.cast(getter.getFieldOrNull(row)).toString();
-                    };
-        }
-    }
-
     @Override
+    @SuppressWarnings("unchecked")
     public String[] convert(RowData rowData) {
-        init();
+        if (this.columnConverters == null) {
+            List<DataType> rowDataTypes = DataType.getFieldDataTypes(dataType);
+            this.columnConverters = new Function[rowDataTypes.size()];
+
+            for (int i = 0; i < rowDataTypes.size(); i++) {
+                final int index = i;
+                LogicalType fieldType = rowDataTypes.get(index).getLogicalType();
+                RowData.FieldGetter getter = RowData.createFieldGetter(fieldType, index);
+                CastExecutor<Object, StringData> castExecutor =
+                        (CastExecutor<Object, StringData>)
+                                CastRuleProvider.create(
+                                        castRuleContext, fieldType, STRING().getLogicalType());
+                if (castExecutor == null) {
+                    throw new IllegalStateException(
+                            "Cannot create a cast executor for converting "
+                                    + fieldType
+                                    + " to string. This is a bug, please open an issue.");
+                }
+                this.columnConverters[index] =
+                        row -> {
+                            if (row.isNullAt(index)) {
+                                return PrintStyle.NULL_VALUE;
+                            }
+                            return castExecutor.cast(getter.getFieldOrNull(row)).toString();
+                        };
+            }
+        }
+        
         String[] result = new String[rowData.getArity()];
         for (int i = 0; i < result.length; i++) {
             result[i] = this.columnConverters[i].apply(rowData);
