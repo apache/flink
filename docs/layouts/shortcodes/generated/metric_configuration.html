@@ -84,7 +84,7 @@
             <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The reporter interval to use for the reporter named &lt;name&gt;.</td>
+            <td>The reporter interval to use for the reporter named &lt;name&gt;. Only applicable to push-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
@@ -96,13 +96,13 @@
             <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
             <td style="word-wrap: break-word;"></td>
             <td>Map</td>
-            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
+            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
             <td style="word-wrap: break-word;">"."</td>
             <td>String</td>
-            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
+            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporters</h5></td>
@@ -120,37 +120,37 @@
             <td><h5>metrics.scope.jm</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a JobManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a JobManager. Only effective when a identifier-based reporter is configured.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.jm.job</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.operator</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to an operator.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.task</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a task.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a task. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.tm</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a TaskManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a TaskManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.tm.job</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured</td>
         </tr>
         <tr>
             <td><h5>metrics.system-resource</h5></td>

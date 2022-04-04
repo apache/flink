@@ -24,7 +24,7 @@
             <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The reporter interval to use for the reporter named &lt;name&gt;.</td>
+            <td>The reporter interval to use for the reporter named &lt;name&gt;. Only applicable to push-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
@@ -36,13 +36,13 @@
             <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
             <td style="word-wrap: break-word;"></td>
             <td>Map</td>
-            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
+            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
             <td style="word-wrap: break-word;">"."</td>
             <td>String</td>
-            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).</td>
+            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
         </tr>
         <tr>
             <td><h5>metrics.reporter.&lt;name&gt;.filter.includes</h5></td>
