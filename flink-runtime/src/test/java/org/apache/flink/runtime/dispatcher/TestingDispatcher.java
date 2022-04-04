@@ -41,7 +41,6 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -177,7 +176,6 @@ class TestingDispatcher extends Dispatcher {
     }
 
     public static class Builder {
-        private RpcService rpcService = new TestingRpcService();
         private DispatcherId fencingToken = DispatcherId.generate();
         private Collection<JobGraph> recoveredJobs = Collections.emptyList();
         @Nullable private Collection<JobResult> recoveredDirtyJobs = null;
@@ -216,11 +214,6 @@ class TestingDispatcher extends Dispatcher {
         private JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 new DefaultJobManagerRunnerRegistry(1);
         @Nullable private ResourceCleanerFactory resourceCleanerFactory;
-
-        public Builder setRpcService(RpcService rpcService) {
-            this.rpcService = rpcService;
-            return this;
-        }
 
         public Builder setFencingToken(DispatcherId fencingToken) {
             this.fencingToken = fencingToken;
@@ -354,7 +347,7 @@ class TestingDispatcher extends Dispatcher {
                     jobManagerMetricGroup);
         }
 
-        public TestingDispatcher build() throws Exception {
+        public TestingDispatcher build(RpcService rpcService) throws Exception {
             return new TestingDispatcher(
                     rpcService,
                     fencingToken,

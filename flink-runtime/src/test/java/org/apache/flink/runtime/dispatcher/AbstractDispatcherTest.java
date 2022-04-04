@@ -103,7 +103,6 @@ public class AbstractDispatcherTest extends TestLogger {
 
     protected TestingDispatcher.Builder createTestingDispatcherBuilder() {
         return TestingDispatcher.builder()
-                .setRpcService(rpcService)
                 .setConfiguration(configuration)
                 .setHeartbeatServices(heartbeatServices)
                 .setHighAvailabilityServices(haServices)
