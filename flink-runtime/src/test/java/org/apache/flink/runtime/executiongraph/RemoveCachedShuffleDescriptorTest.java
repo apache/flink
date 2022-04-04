@@ -42,10 +42,13 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -70,6 +73,10 @@ import static org.junit.Assert.assertNull;
 public class RemoveCachedShuffleDescriptorTest extends TestLogger {
 
     private static final int PARALLELISM = 4;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private ScheduledExecutorService scheduledExecutorService;
     private ComponentMainThreadExecutor mainThreadExecutor;
@@ -386,7 +393,8 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
                         .addJobVertices(jobVertices)
                         .build();
 
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                 .setBlobWriter(blobWriter)
                 .setIoExecutor(ioExecutor)

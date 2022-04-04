@@ -53,7 +53,6 @@ import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -78,7 +77,6 @@ public final class TestTaskBuilder {
             new NoOpPartitionProducerStateChecker();
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
     private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
-    private Executor executor = TestingUtils.defaultExecutor();
     private Configuration taskManagerConfig = new Configuration();
     private Configuration taskConfig = new Configuration();
     private ExecutionConfig executionConfig = new ExecutionConfig();
@@ -126,11 +124,6 @@ public final class TestTaskBuilder {
 
     public TestTaskBuilder setKvStateService(KvStateService kvStateService) {
         this.kvStateService = kvStateService;
-        return this;
-    }
-
-    public TestTaskBuilder setExecutor(Executor executor) {
-        this.executor = executor;
         return this;
     }
 
@@ -192,7 +185,7 @@ public final class TestTaskBuilder {
         return this;
     }
 
-    public Task build() throws Exception {
+    public Task build(Executor executor) throws Exception {
         final JobVertexID jobVertexId = new JobVertexID();
 
         final SerializedValue<ExecutionConfig> serializedExecutionConfig =

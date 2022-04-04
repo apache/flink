@@ -25,9 +25,14 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -36,6 +41,10 @@ import static org.junit.Assert.fail;
 
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     /**
      * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
      * id, will not fail the execution graph.
@@ -43,9 +52,10 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
     @Test
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                 JobGraphTestUtils.emptyJobGraph(),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .build();
         scheduler.startScheduling();
 

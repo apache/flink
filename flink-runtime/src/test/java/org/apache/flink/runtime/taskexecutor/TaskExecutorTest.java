@@ -101,6 +101,8 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -118,6 +120,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -185,6 +188,10 @@ public class TaskExecutorTest extends TestLogger {
                     MemorySize.parse("3m"),
                     MemorySize.parse("4m"),
                     Collections.emptyList());
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
@@ -255,7 +262,8 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test
     public void testShouldShutDownTaskManagerServicesInPostStop() throws Exception {
-        final TaskSlotTableImpl<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTableImpl<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
 
         final JobLeaderService jobLeaderService =
                 new DefaultJobLeaderService(
@@ -382,7 +390,9 @@ public class TaskExecutorTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .setJobLeaderService(jobLeaderService)
                         .setTaskStateManager(localStateStoresManager)
                         .build();
@@ -725,7 +735,9 @@ public class TaskExecutorTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .setTaskStateManager(createTaskExecutorLocalStateStoresManager())
                         .build();
 
@@ -881,7 +893,8 @@ public class TaskExecutorTest extends TestLogger {
      */
     @Test
     public void testJobLeaderDetection() throws Exception {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
         final JobLeaderService jobLeaderService =
                 new DefaultJobLeaderService(
                         unresolvedTaskManagerLocation,
@@ -992,7 +1005,8 @@ public class TaskExecutorTest extends TestLogger {
         rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
         rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(2, EXECUTOR_RESOURCE.getExecutor());
         final TaskManagerServices taskManagerServices =
                 createTaskManagerServicesWithTaskSlotTable(taskSlotTable);
         final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices);
@@ -1117,7 +1131,8 @@ public class TaskExecutorTest extends TestLogger {
         rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
         rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(2, EXECUTOR_RESOURCE.getExecutor());
         final TaskManagerServices taskManagerServices =
                 createTaskManagerServicesWithTaskSlotTable(taskSlotTable);
         final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
@@ -1237,7 +1252,8 @@ public class TaskExecutorTest extends TestLogger {
         rpc.registerGateway(jobMasterGateway1.getAddress(), jobMasterGateway1);
         rpc.registerGateway(jobMasterGateway2.getAddress(), jobMasterGateway2);
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(2, EXECUTOR_RESOURCE.getExecutor());
         final TaskManagerServices taskManagerServices =
                 createTaskManagerServicesWithTaskSlotTable(taskSlotTable);
         final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
@@ -1331,7 +1347,8 @@ public class TaskExecutorTest extends TestLogger {
 
         rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 createTaskExecutorLocalStateStoresManager();
         final TaskManagerServices taskManagerServices =
@@ -1408,7 +1425,8 @@ public class TaskExecutorTest extends TestLogger {
         rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
         rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(2, EXECUTOR_RESOURCE.getExecutor());
         final TaskManagerServices taskManagerServices =
                 createTaskManagerServicesWithTaskSlotTable(taskSlotTable);
         final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices);
@@ -1551,7 +1569,8 @@ public class TaskExecutorTest extends TestLogger {
                 new RecordingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
         final ResourceID rmResourceID = ResourceID.generate();
 
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
 
         final String rmAddress = "rm";
         final TestingResourceManagerGateway rmGateway =
@@ -1609,7 +1628,8 @@ public class TaskExecutorTest extends TestLogger {
      */
     @Test
     public void testRemoveJobFromJobLeaderService() throws Exception {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 createTaskExecutorLocalStateStoresManager();
@@ -1715,7 +1735,8 @@ public class TaskExecutorTest extends TestLogger {
     public void testMaximumRegistrationDurationAfterConnectionLoss() throws Exception {
         configuration.set(
                 TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("100 ms"));
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
@@ -1837,7 +1858,8 @@ public class TaskExecutorTest extends TestLogger {
      */
     @Test
     public void testReconnectionAttemptIfExplicitlyDisconnected() throws Exception {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
         final TaskExecutor taskExecutor =
@@ -1972,7 +1994,8 @@ public class TaskExecutorTest extends TestLogger {
     /** Tests that the {@link TaskExecutor} tries to reconnect if the initial slot report fails. */
     @Test
     public void testInitialSlotReportFailure() throws Exception {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(1, EXECUTOR_RESOURCE.getExecutor());
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
         final TaskManagerServices taskManagerServices =
@@ -2034,7 +2057,8 @@ public class TaskExecutorTest extends TestLogger {
     /** Tests that offers slots to job master timeout and retry. */
     @Test
     public void testOfferSlotToJobMasterAfterTimeout() throws Exception {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(2, EXECUTOR_RESOURCE.getExecutor());
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
 
@@ -2112,7 +2136,9 @@ public class TaskExecutorTest extends TestLogger {
     public void testDisconnectFromJobMasterWhenNewLeader() throws Exception {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .build();
         final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
 
@@ -2197,7 +2223,7 @@ public class TaskExecutorTest extends TestLogger {
                     new Builder(jobId)
                             .setConfiguration(configuration)
                             .setLocalCommunication(false)
-                            .build()) {
+                            .build(EXECUTOR_RESOURCE.getExecutor())) {
                 TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
                 try {
                     CompletableFuture<TransientBlobKey> logFuture =
@@ -2215,7 +2241,9 @@ public class TaskExecutorTest extends TestLogger {
     @Test(timeout = 10000L)
     public void testTerminationOnFatalError() throws Throwable {
         try (TaskSubmissionTestEnvironment env =
-                new Builder(jobId).setConfiguration(configuration).build()) {
+                new Builder(jobId)
+                        .setConfiguration(configuration)
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             String testExceptionMsg = "Test exception of fatal error.";
 
             env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));
@@ -2567,7 +2595,9 @@ public class TaskExecutorTest extends TestLogger {
     public void testReleaseOfJobResourcesIfJobMasterIsNotCorrect() throws Exception {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .build();
 
         final TestingTaskExecutorPartitionTracker taskExecutorPartitionTracker =
@@ -2646,7 +2676,9 @@ public class TaskExecutorTest extends TestLogger {
     public void testReleaseInactiveSlots() throws Exception {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
-                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
+                        .setTaskSlotTable(
+                                TaskSlotUtils.createTaskSlotTable(
+                                        1, EXECUTOR_RESOURCE.getExecutor()))
                         .build();
 
         final TaskExecutor taskExecutor =
@@ -2712,7 +2744,8 @@ public class TaskExecutorTest extends TestLogger {
     }
 
     private TaskExecutor createTaskExecutor(int numberOFSlots) throws IOException {
-        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(numberOFSlots);
+        final TaskSlotTable<Task> taskSlotTable =
+                TaskSlotUtils.createTaskSlotTable(numberOFSlots, EXECUTOR_RESOURCE.getExecutor());
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
         final TaskManagerServices taskManagerServices =
@@ -2799,7 +2832,8 @@ public class TaskExecutorTest extends TestLogger {
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)
             throws IOException {
-        return createTaskExecutorTestingContext(TaskSlotUtils.createTaskSlotTable(numberOfSlots));
+        return createTaskExecutorTestingContext(
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor()));
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(

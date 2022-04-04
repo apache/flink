@@ -33,7 +33,6 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -53,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -92,7 +90,6 @@ public abstract class JarHandlerParameterTest<
             CompletableFuture.completedFuture("shazam://localhost:12345");
     static Time timeout = Time.seconds(10);
     static Map<String, String> responseHeaders = Collections.emptyMap();
-    static Executor executor = TestingUtils.defaultExecutor();
 
     private static Path jarWithManifest;
     private static Path jarWithoutManifest;
@@ -129,7 +126,6 @@ public abstract class JarHandlerParameterTest<
         localAddressFuture = CompletableFuture.completedFuture("shazam://localhost:12345");
         timeout = Time.seconds(10);
         responseHeaders = Collections.emptyMap();
-        executor = TestingUtils.defaultExecutor();
     }
 
     @Before

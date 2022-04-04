@@ -57,10 +57,12 @@ import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -84,6 +86,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
     private static final String TASK_DEPLOYED_MARKER = "deployed";
     private static final Duration TIMEOUT = Duration.ofMinutes(2);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
@@ -127,7 +133,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         StandaloneResourceManagerFactory.getInstance());
         DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
-        final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
+        final ScheduledExecutorService ioExecutor = EXECUTOR_RESOURCE.getExecutor();
         final HighAvailabilityServices haServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,

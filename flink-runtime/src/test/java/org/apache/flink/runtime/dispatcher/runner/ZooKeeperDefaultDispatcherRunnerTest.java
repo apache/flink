@@ -55,6 +55,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -73,6 +74,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
@@ -89,6 +91,10 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
     @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @ClassRule
     public static TestingRpcServiceResource testingRpcServiceResource =
@@ -240,7 +246,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                 dispatcherLeaderElectionService,
                 fatalErrorHandler,
                 jobPersistenceComponentFactory,
-                TestingUtils.defaultExecutor(),
+                EXECUTOR_RESOURCE.getExecutor(),
                 rpcService,
                 partialDispatcherServices);
     }

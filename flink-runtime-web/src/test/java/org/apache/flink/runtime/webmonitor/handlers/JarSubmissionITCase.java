@@ -22,9 +22,12 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -33,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.deleteJar;
 import static org.apache.flink.runtime.webmonitor.handlers.JarHandlers.listJars;
@@ -48,6 +52,10 @@ public class JarSubmissionITCase extends TestLogger {
 
     @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     @Test
     public void testJarSubmission() throws Exception {
         final TestingDispatcherGateway restfulGateway =
@@ -57,7 +65,10 @@ public class JarSubmissionITCase extends TestLogger {
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
         final JarHandlers handlers =
-                new JarHandlers(temporaryFolder.newFolder().toPath(), restfulGateway);
+                new JarHandlers(
+                        temporaryFolder.newFolder().toPath(),
+                        restfulGateway,
+                        EXECUTOR_RESOURCE.getExecutor());
         final JarUploadHandler uploadHandler = handlers.uploadHandler;
         final JarListHandler listHandler = handlers.listHandler;
         final JarPlanHandler planHandler = handlers.planHandler;

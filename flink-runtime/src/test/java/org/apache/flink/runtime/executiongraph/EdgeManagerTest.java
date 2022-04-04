@@ -28,15 +28,23 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link EdgeManager}. */
 public class EdgeManagerTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testGetConsumedPartitionGroup() throws Exception {
@@ -55,7 +63,9 @@ public class EdgeManagerTest {
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(v1, v2);
         SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
-                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor());
         ExecutionGraph eg = scheduler.getExecutionGraph();
 
         ConsumedPartitionGroup groupRetrievedByDownstreamVertex =

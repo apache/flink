@@ -35,17 +35,21 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
 
 import org.hamcrest.Matchers;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -57,6 +61,10 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link MemoryExecutionGraphInfoStore}. */
 public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /**
      * Tests that we can put {@link ExecutionGraphInfo} into the {@link
@@ -241,7 +249,8 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
                         new MiniClusterConfiguration.Builder()
                                 .setConfiguration(configuration)
-                                .build())) {
+                                .build(),
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
             miniCluster.start();
             final JobVertex vertex = new JobVertex("blockingVertex");
             // The adaptive scheduler expects that every vertex has a configured parallelism
@@ -285,7 +294,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
         return new MemoryExecutionGraphInfoStore(
                 expirationTime,
                 maximumCapacity,
-                TestingUtils.defaultScheduledExecutor(),
+                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
                 Ticker.systemTicker());
     }
 }

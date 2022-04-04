@@ -32,11 +32,13 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -48,6 +50,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 
@@ -55,6 +58,10 @@ import static org.junit.Assert.assertEquals;
 public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
     private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private TestingServer testingServer;
 
@@ -79,7 +86,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                 new ZooKeeperHaServices(
                         ZooKeeperUtils.startCuratorFramework(
                                 config, testingFatalErrorHandlerResource.getFatalErrorHandler()),
-                        TestingUtils.defaultExecutor(),
+                        EXECUTOR_RESOURCE.getExecutor(),
                         config,
                         new VoidBlobStore());
     }

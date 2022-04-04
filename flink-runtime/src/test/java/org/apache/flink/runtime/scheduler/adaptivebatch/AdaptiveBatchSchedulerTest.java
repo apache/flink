@@ -38,13 +38,17 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -55,6 +59,10 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
 
     private static final int SOURCE_PARALLELISM_1 = 6;
     private static final int SOURCE_PARALLELISM_2 = 4;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static final ComponentMainThreadExecutor mainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forMainThread();
@@ -172,7 +180,9 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
         final AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder schedulerBuilder =
                 (AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder)
                         new AdaptiveBatchSchedulerTestUtils.AdaptiveBatchSchedulerBuilder(
-                                        jobGraph, mainThreadExecutor)
+                                        jobGraph,
+                                        mainThreadExecutor,
+                                        EXECUTOR_RESOURCE.getExecutor())
                                 .setJobMasterConfiguration(configuration);
         schedulerBuilder.setVertexParallelismDecider((ignored) -> 10);
 

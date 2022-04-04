@@ -52,6 +52,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -89,7 +90,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     Collections.emptyMap(),
                     JobExceptionsHeaders.getInstance(),
                     new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
-                    TestingUtils.defaultExecutor());
+                    Executors.directExecutor());
 
     @Test
     public void testNoExceptions() throws HandlerRequestException {

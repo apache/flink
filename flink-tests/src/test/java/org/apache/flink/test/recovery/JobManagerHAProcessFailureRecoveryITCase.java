@@ -51,6 +51,7 @@ import org.apache.flink.runtime.testutils.DispatcherProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -60,6 +61,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -74,6 +76,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -100,6 +103,10 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
     private static ZooKeeperTestEnvironment zooKeeper;
 
     private static final Duration TEST_TIMEOUT = Duration.ofMinutes(5);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -289,7 +296,9 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
             highAvailabilityServices =
                     HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                            config, TestingUtils.defaultExecutor(), NoOpFatalErrorHandler.INSTANCE);
+                            config,
+                            EXECUTOR_RESOURCE.getExecutor(),
+                            NoOpFatalErrorHandler.INSTANCE);
 
             final PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(config);

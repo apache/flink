@@ -60,6 +60,8 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -68,6 +70,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -110,6 +113,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private final JobVertexID testVertexId = new JobVertexID();
     private final OperatorID testOperatorId = new OperatorID();
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private final ManuallyTriggeredScheduledExecutorService executor =
             new ManuallyTriggeredScheduledExecutorService();
@@ -689,9 +696,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        ? SchedulerTestingUtils.createSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                         : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
+                                jobGraph,
+                                mainThreadExecutor,
+                                taskExecutorOperatorEventGateway,
+                                EXECUTOR_RESOURCE.getExecutor());
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }

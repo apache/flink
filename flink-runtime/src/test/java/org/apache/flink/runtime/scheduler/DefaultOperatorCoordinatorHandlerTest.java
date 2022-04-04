@@ -29,11 +29,15 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.TestingOperatorCoordinator;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.SerializedValue;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
@@ -43,6 +47,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Test for {@link DefaultOperatorCoordinatorHandler}. */
 public class DefaultOperatorCoordinatorHandlerTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testRegisterAndStartNewCoordinators() throws Exception {
@@ -94,6 +101,6 @@ public class DefaultOperatorCoordinatorHandlerTest {
     private DefaultExecutionGraph createDynamicGraph(JobVertex... jobVertices) throws Exception {
         return TestingDefaultExecutionGraphBuilder.newBuilder()
                 .setJobGraph(new JobGraph(new JobID(), "TestJob", jobVertices))
-                .buildDynamicGraph();
+                .buildDynamicGraph(EXECUTOR_RESOURCE.getExecutor());
     }
 }

@@ -58,6 +58,8 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
@@ -65,6 +67,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -76,6 +79,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.CoreMatchers.is;
@@ -88,6 +92,10 @@ import static org.mockito.Mockito.mock;
 
 /** Tests for submission logic of the {@link TaskExecutor}. */
 public class TaskExecutorSubmissionTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Rule public final TestName testName = new TestName();
 
@@ -113,7 +121,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setSlotSize(1)
                         .addTaskManagerActionListener(
                                 eid, ExecutionState.RUNNING, taskRunningFuture)
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
@@ -141,7 +149,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         // must be >= 1
 
         try (TaskSubmissionTestEnvironment env =
-                new TaskSubmissionTestEnvironment.Builder(jobId).build()) {
+                new TaskSubmissionTestEnvironment.Builder(jobId)
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
@@ -176,7 +185,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                                 eid2, ExecutionState.RUNNING, task2RunningFuture)
                         .addTaskManagerActionListener(
                                 eid1, ExecutionState.CANCELED, task1CanceledFuture)
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -231,7 +240,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(
                                 eid2, ExecutionState.FAILED, task2FailedFuture)
                         .setSlotSize(2)
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -292,7 +301,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setJobMasterId(jobMasterId)
                         .setJobMasterGateway(testingJobMasterGateway)
                         .useRealNonMockShuffleEnvironment()
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -369,7 +378,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setJobMasterId(jobMasterId)
                         .setJobMasterGateway(testingJobMasterGateway)
                         .useRealNonMockShuffleEnvironment()
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -423,7 +432,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                             .setConfiguration(config)
                             .setLocalCommunication(false)
                             .useRealNonMockShuffleEnvironment()
-                            .build()) {
+                            .build(EXECUTOR_RESOURCE.getExecutor())) {
                 TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
                 TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -459,7 +468,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(
                                 eid, ExecutionState.RUNNING, taskRunningFuture)
                         .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -517,7 +526,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
                         .setConfiguration(config)
                         .useRealNonMockShuffleEnvironment()
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -582,7 +591,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setJobMasterId(jobMasterId)
                         .setJobMasterGateway(testingJobMasterGateway)
                         .useRealNonMockShuffleEnvironment()
-                        .build()) {
+                        .build(EXECUTOR_RESOURCE.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 

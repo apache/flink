@@ -84,6 +84,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -652,7 +653,7 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        ExecutionGraph build() throws Exception {
+        ExecutionGraph build(ScheduledExecutorService executorService) throws Exception {
             // Lets connect source vertices and non-source vertices
             for (JobVertex source : sourceVertices) {
                 for (JobVertex nonSource : nonSourceVertices) {
@@ -666,8 +667,8 @@ public class CheckpointCoordinatorTestingUtils {
             allVertices.addAll(nonSourceVertices);
 
             ExecutionGraph executionGraph =
-                    ExecutionGraphTestUtils.createSimpleTestGraph(
-                            allVertices.toArray(new JobVertex[0]));
+                    ExecutionGraphTestUtils.createExecutionGraph(
+                            executorService, allVertices.toArray(new JobVertex[0]));
             executionGraph.start(mainThreadExecutor);
 
             if (taskManagerGateway != null) {
@@ -704,8 +705,6 @@ public class CheckpointCoordinatorTestingUtils {
                         .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                         .build();
 
-        private ExecutionGraph executionGraph;
-
         private Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint =
                 Collections.emptyList();
 
@@ -739,11 +738,6 @@ public class CheckpointCoordinatorTestingUtils {
         public CheckpointCoordinatorBuilder setCheckpointCoordinatorConfiguration(
                 CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration) {
             this.checkpointCoordinatorConfiguration = checkpointCoordinatorConfiguration;
-            return this;
-        }
-
-        public CheckpointCoordinatorBuilder setExecutionGraph(ExecutionGraph executionGraph) {
-            this.executionGraph = executionGraph;
             return this;
         }
 
@@ -820,13 +814,15 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinator build() throws Exception {
-            if (executionGraph == null) {
-                executionGraph =
-                        new CheckpointExecutionGraphBuilder()
-                                .addJobVertex(new JobVertexID())
-                                .build();
-            }
+        public CheckpointCoordinator build(ScheduledExecutorService executorService)
+                throws Exception {
+            return build(
+                    new CheckpointExecutionGraphBuilder()
+                            .addJobVertex(new JobVertexID())
+                            .build(executorService));
+        }
+
+        public CheckpointCoordinator build(ExecutionGraph executionGraph) throws Exception {
 
             DefaultCheckpointPlanCalculator checkpointPlanCalculator =
                     new DefaultCheckpointPlanCalculator(

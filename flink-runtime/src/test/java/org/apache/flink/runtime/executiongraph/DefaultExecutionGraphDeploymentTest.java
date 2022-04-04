@@ -64,11 +64,14 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -81,6 +84,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
@@ -91,6 +95,10 @@ import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultExecutionGraph} deployment. */
 public class DefaultExecutionGraphDeploymentTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /** BLOB server instance to use for the job graph. */
     protected BlobWriter blobWriter = VoidBlobWriter.getInstance();
@@ -159,10 +167,8 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         DefaultExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(jobGraph)
-                        .setFutureExecutor(executor)
-                        .setIoExecutor(executor)
                         .setBlobWriter(blobWriter)
-                        .build();
+                        .build(executor);
 
         eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
@@ -471,8 +477,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                graph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                                graph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
@@ -530,9 +538,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(v1, v2),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setFutureExecutor(executorService)
@@ -615,8 +624,10 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
@@ -681,7 +692,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
                 .setJobGraph(jobGraph)
                 .setJobMasterConfig(configuration)
                 .setBlobWriter(blobWriter)
-                .build();
+                .build(EXECUTOR_RESOURCE.getExecutor());
     }
 
     private static final class ExecutionStageMatcher

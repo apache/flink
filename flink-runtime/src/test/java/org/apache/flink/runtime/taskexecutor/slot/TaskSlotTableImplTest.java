@@ -28,11 +28,14 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -41,6 +44,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -50,6 +54,10 @@ import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link TaskSlotTable}. */
 public class TaskSlotTableImplTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private static final Time SLOT_TIMEOUT = Time.seconds(100L);
 
     /** Tests that one can can mark allocated slots as active. */
@@ -537,7 +545,7 @@ public class TaskSlotTableImplTest extends TestLogger {
     private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
             final int numberOfSlots, final SlotActions slotActions) {
         final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
-                TaskSlotUtils.createTaskSlotTable(numberOfSlots);
+                TaskSlotUtils.createTaskSlotTable(numberOfSlots, EXECUTOR_RESOURCE.getExecutor());
         taskSlotTable.start(slotActions, ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return taskSlotTable;
     }
@@ -545,7 +553,8 @@ public class TaskSlotTableImplTest extends TestLogger {
     private static TaskSlotTableImpl<TaskSlotPayload> createTaskSlotTableAndStart(
             final int numberOfSlots, TimerService<AllocationID> timerService) {
         final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable =
-                TaskSlotUtils.createTaskSlotTable(numberOfSlots, timerService);
+                TaskSlotUtils.createTaskSlotTable(
+                        numberOfSlots, timerService, EXECUTOR_RESOURCE.getExecutor());
         taskSlotTable.start(
                 new TestingSlotActionsBuilder().build(),
                 ComponentMainThreadExecutorServiceAdapter.forMainThread());
