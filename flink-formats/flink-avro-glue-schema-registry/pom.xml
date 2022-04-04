@@ -84,6 +84,20 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<!-- This has a transitive dependency on mbknor-jackson-jsonschema which needs scala -->
 			<groupId>software.amazon.glue</groupId>
