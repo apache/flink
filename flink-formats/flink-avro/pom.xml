@@ -114,6 +114,14 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- We need this for the patched FlinkScalaKryoInstantiator -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
