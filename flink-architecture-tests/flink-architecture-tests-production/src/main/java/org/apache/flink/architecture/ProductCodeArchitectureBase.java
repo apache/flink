@@ -18,23 +18,21 @@
 
 package org.apache.flink.architecture;
 
-import org.apache.flink.architecture.common.ImportOptions;
+import org.apache.flink.architecture.rules.ApiAnnotationRules;
+import org.apache.flink.architecture.rules.TableApiRules;
 
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.junit.ArchTests;
 
-/** Architecture tests. */
-@AnalyzeClasses(
-        packages = "org.apache.flink",
-        importOptions = {
-            ImportOption.DoNotIncludeTests.class,
-            ImportOptions.ExcludeScalaImportOption.class,
-            ImportOptions.ExcludeShadedImportOption.class
-        })
-public class ArchitectureTest {
-
+/**
+ * Central setup of architectural tests for the production code.
+ *
+ * <p>Architectural tests should include this class via {@link ArchTests#in(Class)} to cover the
+ * common part.
+ */
+public class ProductCodeArchitectureBase {
     @ArchTest
-    public static final ArchTests COMMON_TESTS = ArchTests.in(ProductCodeArchitectureBase.class);
+    public static final ArchTests API_ANNOTATIONS = ArchTests.in(ApiAnnotationRules.class);
+
+    @ArchTest public static final ArchTests TABLE_API = ArchTests.in(TableApiRules.class);
 }
