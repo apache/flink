@@ -496,7 +496,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
      * @param testData the test data
      * @param semantic the supported semantic, see {@link CheckpointingMode}
      */
-    private void checkResultWithSemantic(
+    protected void checkResultWithSemantic(
             ExternalSystemDataReader<T> reader, List<T> testData, CheckpointingMode semantic)
             throws Exception {
         final ArrayList<T> result = new ArrayList<>();
