@@ -19,18 +19,23 @@ package org.apache.flink.connector.kafka.source;
 
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,11 +157,53 @@ public class KafkaSourceBuilderTest {
                         "Property group.id is required because partition topic-0 is initialized with committed offset");
     }
 
+    @Test
+    public void testSettingCustomKafkaSubscriber() {
+        ExampleCustomSubscriber exampleCustomSubscriber = new ExampleCustomSubscriber();
+        KafkaSourceBuilder<String> customKafkaSubscriberBuilder =
+                new KafkaSourceBuilder<String>()
+                        .setBootstrapServers("testServer")
+                        .setKafkaSubscriber(exampleCustomSubscriber)
+                        .setDeserializer(
+                                KafkaRecordDeserializationSchema.valueOnly(
+                                        StringDeserializer.class));
+
+        assertThat(customKafkaSubscriberBuilder.build().getKafkaSubscriber())
+                .isEqualTo(exampleCustomSubscriber);
+
+        assertThatThrownBy(() -> customKafkaSubscriberBuilder.setTopics("topic"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Cannot use topics for consumption because a ExampleCustomSubscriber is already set for consumption.");
+
+        assertThatThrownBy(
+                        () -> customKafkaSubscriberBuilder.setTopicPattern(Pattern.compile(".+")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Cannot use topic pattern for consumption because a ExampleCustomSubscriber is already set for consumption.");
+
+        assertThatThrownBy(
+                        () ->
+                                customKafkaSubscriberBuilder.setPartitions(
+                                        Collections.singleton(new TopicPartition("topic", 0))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Cannot use partitions for consumption because a ExampleCustomSubscriber is already set for consumption.");
+    }
+
     private KafkaSourceBuilder<String> getBasicBuilder() {
         return new KafkaSourceBuilder<String>()
                 .setBootstrapServers("testServer")
                 .setTopics("topic")
                 .setDeserializer(
                         KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
+    }
+
+    private static class ExampleCustomSubscriber implements KafkaSubscriber {
+
+        @Override
+        public Set<TopicPartition> getSubscribedTopicPartitions(AdminClient adminClient) {
+            return Collections.singleton(new TopicPartition("topic", 0));
+        }
     }
 }

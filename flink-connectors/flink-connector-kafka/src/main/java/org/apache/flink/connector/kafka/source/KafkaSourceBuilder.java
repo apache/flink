@@ -185,6 +185,18 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
+     * Set a custom Kafka subscriber to use to discover new splits.
+     *
+     * @param kafkaSubscriber the {@link KafkaSubscriber} to use for split discovery.
+     * @return this KafkaSourceBuilder.
+     */
+    public KafkaSourceBuilder<OUT> setKafkaSubscriber(KafkaSubscriber kafkaSubscriber) {
+        ensureSubscriberIsNull("custom");
+        this.subscriber = checkNotNull(kafkaSubscriber);
+        return this;
+    }
+
+    /**
      * Specify from which offsets the KafkaSource should start consume from by providing an {@link
      * OffsetsInitializer}.
      *
