@@ -18,8 +18,6 @@
 
 package org.apache.flink.formats.avro.glue.schema.registry;
 
-import org.apache.flink.util.TestLogger;
-
 import com.amazonaws.services.schemaregistry.common.AWSSchemaRegistryClient;
 import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
@@ -28,10 +26,8 @@ import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySeria
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import lombok.NonNull;
 import org.apache.avro.Schema;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
@@ -48,9 +44,10 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link GlueSchemaRegistryAvroSchemaCoder}. */
-public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
+class GlueSchemaRegistryAvroSchemaCoderTest {
     private static final String testTopic = "Test-Topic";
     private static final String schemaName = "User-Topic";
     private static final String AVRO_USER_SCHEMA_FILE = "src/test/java/resources/avro/user.avsc";
@@ -70,10 +67,9 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
     private static AWSSchemaRegistryClient mockClient;
     private static GlueSchemaRegistryInputStreamDeserializer mockInputStreamDeserializer;
     private static GlueSchemaRegistryOutputStreamSerializer mockOutputStreamSerializer;
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         metadata.put("test-key", "test-value");
         metadata.put(AWSSchemaRegistryConstants.TRANSPORT_METADATA_KEY, testTopic);
 
@@ -98,13 +94,13 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
 
     /** Test whether constructor works. */
     @Test
-    public void testConstructor_withConfigs_succeeds() {
+    void testConstructor_withConfigs_succeeds() {
         assertThat(new GlueSchemaRegistryAvroSchemaCoder(testTopic, configs)).isNotNull();
     }
 
     /** Test whether readSchema method works. */
     @Test
-    public void testReadSchema_withValidParams_succeeds() throws IOException {
+    void testReadSchema_withValidParams_succeeds() throws IOException {
         GlueSchemaRegistryAvroSchemaCoder glueSchemaRegistryAvroSchemaCoder =
                 new GlueSchemaRegistryAvroSchemaCoder(mockInputStreamDeserializer);
         Schema resultSchema =
@@ -115,7 +111,7 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
 
     /** Test whether writeSchema method works. */
     @Test
-    public void testWriteSchema_withValidParams_succeeds() throws IOException {
+    void testWriteSchema_withValidParams_succeeds() throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         outputStream.write(actualBytes);
         GlueSchemaRegistryAvroSchemaCoder glueSchemaRegistryAvroSchemaCoder =
@@ -127,7 +123,7 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
 
     /** Test whether writeSchema method throws exception if auto registration un-enabled. */
     @Test
-    public void testWriteSchema_withoutAutoRegistration_throwsException() throws IOException {
+    void testWriteSchema_withoutAutoRegistration_throwsException() {
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, false);
         mockClient = new MockAWSSchemaRegistryClient();
 
@@ -145,9 +141,12 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
         GlueSchemaRegistryAvroSchemaCoder glueSchemaRegistryAvroSchemaCoder =
                 new GlueSchemaRegistryAvroSchemaCoder(glueSchemaRegistryOutputStreamSerializer);
 
-        thrown.expect(AWSSchemaRegistryException.class);
-        thrown.expectMessage(AWSSchemaRegistryConstants.AUTO_REGISTRATION_IS_DISABLED_MSG);
-        glueSchemaRegistryAvroSchemaCoder.writeSchema(userSchema, new ByteArrayOutputStream());
+        assertThatThrownBy(
+                        () ->
+                                glueSchemaRegistryAvroSchemaCoder.writeSchema(
+                                        userSchema, new ByteArrayOutputStream()))
+                .isInstanceOf(AWSSchemaRegistryException.class)
+                .hasMessage(AWSSchemaRegistryConstants.AUTO_REGISTRATION_IS_DISABLED_MSG);
     }
 
     private void testForSerializedData(byte[] serializedData) {
