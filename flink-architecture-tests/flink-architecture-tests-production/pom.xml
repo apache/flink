@@ -39,21 +39,25 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-architecture-tests-base</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.tngtech.archunit</groupId>
 			<artifactId>archunit</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.tngtech.archunit</groupId>
 			<artifactId>archunit-junit5</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<!-- Tested Flink modules -->
@@ -61,6 +65,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<!-- Table API & SQL -->
@@ -68,6 +73,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
