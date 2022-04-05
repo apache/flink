@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.TopicPartition;
@@ -38,9 +38,11 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p>The KafkaSubscriber provides a unified interface for the Kafka source to support all these
- * three types of subscribing mode.
+ * three types of subscribing mode. {@link
+ * org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator} only supports adding
+ * new splits and not removing splits in split discovery.
  */
-@Internal
+@PublicEvolving
 public interface KafkaSubscriber extends Serializable {
 
     /**
