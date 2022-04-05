@@ -32,7 +32,7 @@ jobs:
       glue_schema_access_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_ACCESS_KEY }}
       glue_schema_secret_key: ${{ secrets.IT_CASE_GLUE_SCHEMA_SECRET_KEY }}
   docs-404-check:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial
     steps:

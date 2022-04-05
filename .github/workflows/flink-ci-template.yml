@@ -52,7 +52,7 @@ env:
 jobs:
   qa:
     name: "Basic QA"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
@@ -78,7 +78,7 @@ jobs:
 
   compile:
     name: "Compile"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
@@ -128,7 +128,7 @@ jobs:
   packaging:
     name: "Test packaging/licensing"
     needs: compile
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
@@ -170,7 +170,7 @@ jobs:
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
@@ -277,7 +277,7 @@ jobs:
   e2e-prereq-check:
     name: "Check: Code modified"
     needs: compile
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
@@ -307,7 +307,7 @@ jobs:
   e2e:
     name: "E2E (group ${{ matrix.group }})"
     needs: [compile, e2e-prereq-check]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: chesnay/flink-ci:java_8_11_xenial_m2
       options: --init
