@@ -69,6 +69,9 @@ Flink supports the following Hive versions.
     - 2.3.4
     - 2.3.5
     - 2.3.6
+    - 2.3.7
+    - 2.3.8
+    - 2.3.9
 - 3.1
     - 3.1.0
     - 3.1.1
@@ -103,9 +106,9 @@ There are two ways to add Hive dependencies. First is to use Flink's bundled Hiv
 
 The following tables list all available bundled hive jars. You can pick one to the `/lib/` directory in Flink distribution.
 
-| Metastore version | Maven dependency             | SQL Client JAR         |
-| :---------------- | :--------------------------- | :----------------------|
-| 2.3.0 - 2.3.6     | `flink-sql-connector-hive-2.3.6` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.6{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
+| Metastore version | Maven dependency                 | SQL Client JAR                                                                                                                                                                                                                                                                                                   |
+|:------------------|:---------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.3.0 - 2.3.9     | `flink-sql-connector-hive-2.3.9` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.9{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.9{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 | 3.0.0 - 3.1.2     | `flink-sql-connector-hive-3.1.2` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.2{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 
 #### User defined dependencies
