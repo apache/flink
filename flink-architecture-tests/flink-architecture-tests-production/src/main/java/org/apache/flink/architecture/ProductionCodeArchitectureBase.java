@@ -30,7 +30,7 @@ import com.tngtech.archunit.junit.ArchTests;
  * <p>Architectural tests should include this class via {@link ArchTests#in(Class)} to cover the
  * common part.
  */
-public class ProductCodeArchitectureBase {
+public class ProductionCodeArchitectureBase {
     @ArchTest
     public static final ArchTests API_ANNOTATIONS = ArchTests.in(ApiAnnotationRules.class);
 
