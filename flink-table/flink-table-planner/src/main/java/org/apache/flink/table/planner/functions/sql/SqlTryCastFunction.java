@@ -33,8 +33,6 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlCastFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import static org.apache.flink.table.functions.BuiltInFunctionDefinition.DEFAULT_VERSION;
-
 /**
  * This class implements the {@code TRY_CAST} built-in, essentially delegating all the method
  * invocations, whenever is possible, to Calcite's {@link SqlCastFunction}.
@@ -49,16 +47,12 @@ public class SqlTryCastFunction extends BuiltInSqlFunction {
     SqlTryCastFunction() {
         super(
                 "TRY_CAST",
-                DEFAULT_VERSION,
                 SqlKind.OTHER_FUNCTION,
                 null,
                 SqlStdOperatorTable.CAST
                         .getOperandTypeInference(), // From Calcite's SqlCastFunction
                 null,
-                SqlFunctionCategory.SYSTEM,
-                true,
-                false,
-                SqlStdOperatorTable.CAST::getMonotonicity);
+                SqlFunctionCategory.SYSTEM);
     }
 
     @Override

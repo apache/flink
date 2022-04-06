@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.table.api.{DataTypes, LiteralStringExpression, UnresolvedFieldExpression}
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
 
 import org.junit.Test
@@ -238,5 +239,17 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)",
       "FALSE")
     testSqlApi("uuid() = cast(f22 as timestamp_ltz)", "NULL")
+  }
+
+  @Test
+  def testTryCast(): Unit = {
+    testAllApis(
+      "non-numeric".tryCast(DataTypes.BIGINT()),
+      "TRY_CAST ('non-numeric' AS BIGINT)",
+      "NULL")
+    testAllApis(
+      'f10.tryCast(DataTypes.BIGINT()),
+      "TRY_CAST (f10 AS BIGINT)",
+      "NULL")
   }
 }
