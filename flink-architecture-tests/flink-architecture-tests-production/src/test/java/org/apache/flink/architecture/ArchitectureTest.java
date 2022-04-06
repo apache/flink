@@ -36,5 +36,5 @@ import com.tngtech.archunit.junit.ArchTests;
 public class ArchitectureTest {
 
     @ArchTest
-    public static final ArchTests COMMON_TESTS = ArchTests.in(ProductCodeArchitectureBase.class);
+    public static final ArchTests COMMON_TESTS = ArchTests.in(ProductionCodeArchitectureBase.class);
 }
