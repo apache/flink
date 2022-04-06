@@ -20,16 +20,24 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /** Base class for all Python DataStream operators. */
 @Internal
@@ -55,6 +63,10 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
     /** The TypeInformation of output data. */
     private final TypeInformation<OUT> outputTypeInfo;
 
+    private final Map<String, OutputTag<?>> sideOutputTags;
+
+    private transient Map<String, TypeSerializer<Row>> sideOutputSerializers;
+
     public AbstractDataStreamPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
@@ -62,6 +74,19 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         super(config);
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
+        sideOutputTags = new HashMap<>();
+    }
+
+    @Override
+    public void open() throws Exception {
+        sideOutputSerializers = new HashMap<>();
+        for (Map.Entry<String, OutputTag<?>> entry : sideOutputTags.entrySet()) {
+            sideOutputSerializers.put(
+                    entry.getKey(),
+                    PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                            getSideOutputTypeInfo(entry.getValue())));
+        }
+        super.open();
     }
 
     @Override
@@ -95,6 +120,37 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
 
     public boolean containsPartitionCustom() {
         return this.containsPartitionCustom;
+    }
+
+    public void addSideOutputTag(OutputTag<?> outputTag) {
+        sideOutputTags.put(outputTag.getId(), outputTag);
+    }
+
+    protected Map<String, FlinkFnApi.CoderInfoDescriptor> createSideOutputCoderDescriptors() {
+        Map<String, FlinkFnApi.CoderInfoDescriptor> descriptorMap = new HashMap<>();
+        for (Map.Entry<String, OutputTag<?>> entry : sideOutputTags.entrySet()) {
+            descriptorMap.put(
+                    entry.getKey(),
+                    createRawTypeCoderInfoDescriptorProto(
+                            getSideOutputTypeInfo(entry.getValue()),
+                            FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE,
+                            false));
+        }
+        return descriptorMap;
+    }
+
+    protected OutputTag<?> getOutputTagById(String id) {
+        Preconditions.checkArgument(sideOutputTags.containsKey(id));
+        return sideOutputTags.get(id);
+    }
+
+    protected TypeInformation<Row> getSideOutputTypeInfo(OutputTag<?> outputTag) {
+        return Types.ROW(Types.LONG, outputTag.getTypeInfo());
+    }
+
+    protected TypeSerializer<Row> getSideOutputTypeSerializer(String id) {
+        Preconditions.checkArgument(sideOutputSerializers.containsKey(id));
+        return sideOutputSerializers.get(id);
     }
 
     // ----------------------------------------------------------------------

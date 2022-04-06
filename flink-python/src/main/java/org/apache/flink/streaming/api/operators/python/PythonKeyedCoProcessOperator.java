@@ -148,7 +148,8 @@ public class PythonKeyedCoProcessOperator<OUT>
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(),
                 createOutputCoderInfoDescriptor(),
-                createTimerDataCoderInfoDescriptorProto(timerDataTypeInfo));
+                createTimerDataCoderInfoDescriptorProto(timerDataTypeInfo),
+                createSideOutputCoderDescriptors());
     }
 
     @Override

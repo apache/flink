@@ -100,7 +100,8 @@ public class PythonProcessOperator<IN, OUT>
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(),
                 createOutputCoderInfoDescriptor(),
-                null);
+                null,
+                createSideOutputCoderDescriptors());
     }
 
     @Override

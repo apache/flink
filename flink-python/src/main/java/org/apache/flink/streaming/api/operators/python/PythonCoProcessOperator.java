@@ -103,7 +103,8 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(),
                 createOutputCoderInfoDescriptor(),
-                null);
+                null,
+                createSideOutputCoderDescriptors());
     }
 
     @Override

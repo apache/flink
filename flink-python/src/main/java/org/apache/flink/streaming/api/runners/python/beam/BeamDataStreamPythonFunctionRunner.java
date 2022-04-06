@@ -79,7 +79,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
-            FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor) {
+            FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor,
+            Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
         super(
                 taskName,
                 environmentManager,
@@ -91,7 +92,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 memoryManager,
                 managedMemoryFraction,
                 inputCoderDescriptor,
-                outputCoderDescriptor);
+                outputCoderDescriptor,
+                sideOutputCoderDescriptors);
         this.headOperatorFunctionUrn = Preconditions.checkNotNull(headOperatorFunctionUrn);
         Preconditions.checkArgument(
                 userDefinedDataStreamFunctions != null
@@ -102,7 +104,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 
     @Override
     protected void buildTransforms(RunnerApi.Components.Builder componentsBuilder) {
-        for (int i = 0; i < userDefinedDataStreamFunctions.size() + 1; i++) {
+        for (int i = 0; i < userDefinedDataStreamFunctions.size(); i++) {
             String functionUrn;
             if (i == 0) {
                 functionUrn = headOperatorFunctionUrn;
@@ -110,13 +112,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 functionUrn = STATELESS_FUNCTION_URN;
             }
 
-            FlinkFnApi.UserDefinedDataStreamFunction functionProto;
-            if (i < userDefinedDataStreamFunctions.size()) {
-                functionProto = userDefinedDataStreamFunctions.get(i);
-            } else {
-                // the last function in the operation tree is used to prune the watermark column
-                functionProto = createReviseOutputDataStreamFunctionProto();
-            }
+            FlinkFnApi.UserDefinedDataStreamFunction functionProto =
+                    userDefinedDataStreamFunctions.get(i);
 
             // Use ParDoPayload as a wrapper of the actual payload as timer is only supported in
             // ParDo
@@ -164,23 +161,84 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             }
 
             // prepare outputs
-            if (i == userDefinedDataStreamFunctions.size()) {
-                transformBuilder.putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID);
-            } else {
-                transformBuilder.putOutputs(MAIN_OUTPUT_NAME, COLLECTION_PREFIX + i);
-
-                componentsBuilder
-                        .putPcollections(
-                                COLLECTION_PREFIX + i,
-                                RunnerApi.PCollection.newBuilder()
-                                        .setWindowingStrategyId(WINDOW_STRATEGY)
-                                        .setCoderId(CODER_PREFIX + i)
-                                        .build())
-                        .putCoders(CODER_PREFIX + i, createCoderProto(inputCoderDescriptor));
+            if (i == userDefinedDataStreamFunctions.size() - 1
+                    && sideOutputCoderDescriptors != null) {
+                for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                        sideOutputCoderDescriptors.entrySet()) {
+                    transformBuilder.putOutputs(entry.getKey(), entry.getKey() + "-revise");
+                    componentsBuilder
+                            .putPcollections(
+                                    entry.getKey() + "-revise",
+                                    RunnerApi.PCollection.newBuilder()
+                                            .setWindowingStrategyId(WINDOW_STRATEGY)
+                                            .setCoderId(CODER_PREFIX + "revise-" + entry.getKey())
+                                            .build())
+                            .putCoders(
+                                    CODER_PREFIX + "revise-" + entry.getKey(),
+                                    createCoderProto(inputCoderDescriptor));
+                }
             }
+
+            transformBuilder.putOutputs(MAIN_OUTPUT_NAME, COLLECTION_PREFIX + i);
+            componentsBuilder
+                    .putPcollections(
+                            COLLECTION_PREFIX + i,
+                            RunnerApi.PCollection.newBuilder()
+                                    .setWindowingStrategyId(WINDOW_STRATEGY)
+                                    .setCoderId(CODER_PREFIX + i)
+                                    .build())
+                    .putCoders(CODER_PREFIX + i, createCoderProto(inputCoderDescriptor));
 
             componentsBuilder.putTransforms(transformName, transformBuilder.build());
         }
+
+        // Add REVISE_OUTPUT transformation
+        if (sideOutputCoderDescriptors != null) {
+            for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                    sideOutputCoderDescriptors.entrySet()) {
+                String name = TRANSFORM_ID_PREFIX + "revise-" + entry.getKey();
+                componentsBuilder.putTransforms(
+                        name,
+                        buildReviseTransform(name, entry.getKey() + "-revise", entry.getKey()));
+            }
+        }
+        String name = TRANSFORM_ID_PREFIX + "revise";
+        componentsBuilder.putTransforms(
+                name,
+                buildReviseTransform(
+                        name,
+                        COLLECTION_PREFIX + (userDefinedDataStreamFunctions.size() - 1),
+                        OUTPUT_COLLECTION_ID));
+    }
+
+    private RunnerApi.PTransform buildReviseTransform(
+            String name, String inputCollection, String outputCollection) {
+        final FlinkFnApi.UserDefinedDataStreamFunction proto =
+                createReviseOutputDataStreamFunctionProto();
+        final RunnerApi.ParDoPayload.Builder payloadBuilder =
+                RunnerApi.ParDoPayload.newBuilder()
+                        .setDoFn(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(STATELESS_FUNCTION_URN)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        proto.toByteArray()))
+                                        .build());
+        final RunnerApi.PTransform.Builder transformBuilder =
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(name)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(
+                                                BeamUrns.getUrn(
+                                                        RunnerApi.StandardPTransforms.Primitives
+                                                                .PAR_DO))
+                                        .setPayload(payloadBuilder.build().toByteString())
+                                        .build());
+        transformBuilder.putInputs(MAIN_INPUT_NAME, inputCollection);
+        transformBuilder.putOutputs(MAIN_OUTPUT_NAME, outputCollection);
+        return transformBuilder.build();
     }
 
     @Override

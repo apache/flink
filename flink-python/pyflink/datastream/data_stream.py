@@ -36,6 +36,7 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           InternalSingleValueWindowFunction,
                                           InternalSingleValueProcessWindowFunction,
                                           PassThroughWindowFunction, AggregateFunction)
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     StateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor
@@ -44,6 +45,7 @@ from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSliding
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
                                        WindowAssigner, WindowOperationDescriptor)
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import is_instance_of
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
@@ -788,6 +790,24 @@ class DataStream(object):
         else:
             j_data_stream_sink = self._align_output_type()._j_data_stream.print()
         return DataStreamSink(j_data_stream_sink)
+
+    def get_side_output(self, output_tag: OutputTag) -> 'DataStream':
+        """
+        Gets the :class:`DataStream` that contains the elements that are emitted from an operation
+        into the side output with the given :class:`OutputTag`.
+
+        :param output_tag: output tag for the side stream
+        :return: The DataStream with specified output tag
+
+        .. versionadded:: 1.16.0
+        """
+        gateway = get_gateway()
+        if not is_instance_of(
+            self._j_data_stream,
+            gateway.jvm.org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
+        ):
+            raise TypeError("get_side_output() should be applied on SingleOutputStreamOperator")
+        return DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
 
     def _apply_chaining_optimization(self):
         """

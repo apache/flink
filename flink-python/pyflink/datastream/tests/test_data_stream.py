@@ -30,6 +30,7 @@ from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFl
                                           MapFunction, FilterFunction, FlatMapFunction,
                                           KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
                                           ProcessFunction, ReduceFunction)
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
                                       AggregatingStateDescriptor, StateTtlConfig)
@@ -754,6 +755,26 @@ class DataStreamTests(object):
         results = self.test_sink.get_results()
         expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
         self.assert_equals_sorted(expected, results)
+
+    def test_process_side_output(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('a', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+        ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
+        ds2.add_sink(self.test_sink)
+        ds2.get_side_output(tag).add_sink(self.test_sink)
+
+        self.env.execute("test_process_side_output")
+        expected = ['0', '1', '2', 'a', 'a', 'b']
+        self.assert_equals_sorted(expected, self.test_sink.get_results(False))
 
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):

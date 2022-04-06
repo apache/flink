@@ -249,6 +249,19 @@ public class PythonOperatorChainingOptimizer {
             }
         }
 
+        if (transform instanceof SideOutputTransformation) {
+            final SideOutputTransformation<?> sideTransform =
+                    (SideOutputTransformation<?>) transform;
+            final Transformation<?> upTransform = transform.getInputs().get(0);
+            if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
+                final AbstractDataStreamPythonFunctionOperator<?> upOperator =
+                        (AbstractDataStreamPythonFunctionOperator<?>)
+                                ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
+                                        .getOperator();
+                upOperator.addSideOutputTag(sideTransform.getOutputTag());
+            }
+        }
+
         if (chainInfo == null) {
             chainInfo = ChainInfo.of(transform);
         }

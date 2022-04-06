@@ -18,6 +18,7 @@
 import abc
 
 from pyflink.common import Row
+from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
 from pyflink.fn_execution import pickle
@@ -147,7 +148,7 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
             # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
             timestamp = value[0]
             element = value[2]
-            yield Row(timestamp, element)
+            yield DEFAULT_OUTPUT_TAG, Row(timestamp, element)
 
         process_element_func = revise_output
 

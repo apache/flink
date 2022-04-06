@@ -18,8 +18,11 @@
 from abc import ABC
 from collections import Iterable
 from enum import Enum
+from typing import cast
 
 from pyflink.common import Row
+from pyflink.common.constants import DEFAULT_OUTPUT_TAG
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
 
 
@@ -99,4 +102,7 @@ class TimerHandler(ABC):
 def _emit_results(timestamp, watermark, results):
     if results:
         for result in results:
-            yield Row(timestamp, watermark, result)
+            if isinstance(result, tuple) and isinstance(result[0], OutputTag):
+                yield cast(OutputTag, result[0]).tag_id, Row(timestamp, watermark, result[1])
+            else:
+                yield DEFAULT_OUTPUT_TAG, Row(timestamp, watermark, result)

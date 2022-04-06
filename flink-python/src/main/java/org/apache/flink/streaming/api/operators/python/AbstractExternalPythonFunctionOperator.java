@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonDependencyInfo;
@@ -92,10 +92,10 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
                             ((BeamPythonFunctionRunner) pythonFunctionRunner).notifyNoMoreResults();
                         }
                     });
-            Tuple2<byte[], Integer> resultTuple;
+            Tuple3<String, byte[], Integer> resultTuple;
             while (!flushThreadFinish.get()) {
                 resultTuple = pythonFunctionRunner.takeResult();
-                if (resultTuple.f1 != 0) {
+                if (resultTuple.f2 != 0) {
                     emitResult(resultTuple);
                     emitResults();
                 }
@@ -136,14 +136,14 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
     }
 
     protected void emitResults() throws Exception {
-        Tuple2<byte[], Integer> resultTuple;
-        while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f1 != 0) {
+        Tuple3<String, byte[], Integer> resultTuple;
+        while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f2 != 0) {
             emitResult(resultTuple);
         }
     }
 
     /** Sends the execution result to the downstream operator. */
-    public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
+    public abstract void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception;
 
     /**
      * Creates the {@link PythonFunctionRunner} which is responsible for Python user-defined
