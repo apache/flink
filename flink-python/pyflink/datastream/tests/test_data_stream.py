@@ -1094,6 +1094,8 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_min_and_max(self):
+        original_parallelism = self.env.get_parallelism()
+        self.env.set_parallelism(1)
         ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 1), ('b', 3, 1)],
                                       type_info=Types.ROW_NAMED(
                                           ["v1", "v2", "v3"],
@@ -1121,8 +1123,11 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         results = self.test_sink.get_results(False)
         expected = ['a', 'a', 'b', 'b']
         self.assert_equals_sorted(expected, results)
+        self.env.set_parallelism(original_parallelism)
 
     def test_keyed_min_by_and_max_by(self):
+        original_parallelism = self.env.get_parallelism()
+        self.env.set_parallelism(1)
         ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)],
                                       type_info=Types.ROW_NAMED(
                                           ["v1", "v2", "v3"],
@@ -1149,6 +1154,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         results = self.test_sink.get_results(False)
         expected = ['a', 'a', 'a', 'a']
         self.assert_equals_sorted(expected, results)
+        self.env.set_parallelism(original_parallelism)
 
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
