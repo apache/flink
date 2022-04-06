@@ -150,6 +150,7 @@ public class PythonKeyedProcessOperator<OUT>
                         inBatchExecutionMode(getKeyedStateBackend()),
                         config.get(PYTHON_METRIC_ENABLED),
                         config.get(PYTHON_PROFILE_ENABLED),
+                        getSideOutputTags().size() > 0,
                         config.get(STATE_CACHE_SIZE),
                         config.get(MAP_STATE_READ_CACHE_SIZE),
                         config.get(MAP_STATE_WRITE_CACHE_SIZE)),
@@ -177,7 +178,8 @@ public class PythonKeyedProcessOperator<OUT>
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(),
                 createOutputCoderInfoDescriptor(),
-                createTimerDataCoderInfoDescriptorProto(timerDataTypeInfo));
+                createTimerDataCoderInfoDescriptorProto(timerDataTypeInfo),
+                createSideOutputCoderDescriptors());
     }
 
     @Override

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
@@ -186,7 +186,7 @@ public class PythonTableFunctionOperator
 
     @Override
     @SuppressWarnings("ConstantConditions")
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
         byte[] rawUdtfResult;
         int length;
         if (isFinishResult) {
@@ -194,8 +194,8 @@ public class PythonTableFunctionOperator
             hasJoined = false;
         }
         do {
-            rawUdtfResult = resultTuple.f0;
-            length = resultTuple.f1;
+            rawUdtfResult = resultTuple.f1;
+            length = resultTuple.f2;
             isFinishResult = isFinishResult(rawUdtfResult, length);
             if (!isFinishResult) {
                 reuseJoinedRow.setRowKind(input.getRowKind());

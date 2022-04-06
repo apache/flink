@@ -15,20 +15,23 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
 from typing import Iterable, Tuple, Dict
 
+from pyflink.common import Configuration
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction, AggregateFunction)
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class WindowTests(PyFlinkStreamingTestCase):
@@ -371,6 +374,41 @@ class WindowTests(PyFlinkStreamingTestCase):
         results = self.test_sink.get_results()
         expected = ['(hi,1,7,4)', '(hi,8,12,2)', '(hi,15,18,1)']
         self.assert_equals_sorted(expected, results)
+
+    def test_side_output_late_data(self):
+        self.env.set_parallelism(1)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment)
+        )
+        config.set_integer('python.fn-execution.bundle.size', 1)
+        jvm = get_gateway().jvm
+        watermark_strategy = WatermarkStrategy(
+            jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy.forGenerator(
+                jvm.org.apache.flink.streaming.api.functions.python.eventtime.
+                PerElementWatermarkGenerator.getSupplier()
+            )
+        ).with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        tag = OutputTag('late-data', type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = self.env.from_collection([('a', 0), ('a', 8), ('a', 4), ('a', 6)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = ds1.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda e: e[0]) \
+            .window(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
+            .allowed_lateness(0) \
+            .side_output_late_data(tag) \
+            .process(CountWindowProcessFunction(),
+                     Types.TUPLE([Types.STRING(), Types.LONG(), Types.LONG(), Types.INT()]))
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute('test_side_output_late_data')
+        main_expected = ['(a,0,5,1)', '(a,5,10,2)']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['+I[a, 4]']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
 class SecondColumnTimestampAssigner(TimestampAssigner):

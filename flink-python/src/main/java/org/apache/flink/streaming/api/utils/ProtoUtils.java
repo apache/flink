@@ -135,6 +135,7 @@ public enum ProtoUtils {
             boolean inBatchExecutionMode,
             boolean isMetricEnabled,
             boolean isProfileEnabled,
+            boolean hasSideOutput,
             int stateCacheSize,
             int mapStateReadCacheSize,
             int mapStateWriteCacheSize) {
@@ -182,6 +183,7 @@ public enum ProtoUtils {
                                 .getSerializedPythonFunction()));
         builder.setMetricEnabled(isMetricEnabled);
         builder.setProfileEnabled(isProfileEnabled);
+        builder.setHasSideOutput(hasSideOutput);
         builder.setStateCacheSize(stateCacheSize);
         builder.setMapStateReadCacheSize(mapStateReadCacheSize);
         builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
@@ -204,6 +206,7 @@ public enum ProtoUtils {
                     boolean inBatchExecutionMode,
                     boolean isMetricEnabled,
                     boolean isProfileEnabled,
+                    boolean hasSideOutput,
                     int stateCacheSize,
                     int mapStateReadCacheSize,
                     int mapStateWriteCacheSize) {
@@ -220,6 +223,7 @@ public enum ProtoUtils {
                             inBatchExecutionMode,
                             isMetricEnabled,
                             isProfileEnabled,
+                            false,
                             stateCacheSize,
                             mapStateReadCacheSize,
                             mapStateWriteCacheSize));
@@ -233,6 +237,7 @@ public enum ProtoUtils {
                         inBatchExecutionMode,
                         isMetricEnabled,
                         isProfileEnabled,
+                        hasSideOutput,
                         stateCacheSize,
                         mapStateReadCacheSize,
                         mapStateWriteCacheSize));
@@ -248,6 +253,7 @@ public enum ProtoUtils {
                     boolean inBatchExecutionMode,
                     boolean isMetricEnabled,
                     boolean isProfileEnabled,
+                    boolean hasSideOutput,
                     int stateCacheSize,
                     int mapStateReadCacheSize,
                     int mapStateWriteCacheSize) {
@@ -259,6 +265,7 @@ public enum ProtoUtils {
                         inBatchExecutionMode,
                         isMetricEnabled,
                         isProfileEnabled,
+                        hasSideOutput,
                         stateCacheSize,
                         mapStateReadCacheSize,
                         mapStateWriteCacheSize);

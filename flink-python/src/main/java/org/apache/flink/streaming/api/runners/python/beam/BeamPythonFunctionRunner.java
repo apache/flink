@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
@@ -77,7 +78,7 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -90,6 +91,7 @@ import java.util.stream.Collectors;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.SIDE_OUTPUT_CODER_PREFIX;
 import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
@@ -131,6 +133,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     protected final FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor;
     protected final FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor;
+    protected final Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors;
 
     // ------------------------------------------------------------------------
 
@@ -164,11 +167,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
      */
     private transient RemoteBundle remoteBundle;
 
-    /** The Python function execution result tuple: (raw bytes, length). */
-    private transient Tuple2<byte[], Integer> reusableResultTuple;
+    /** The Python function execution result tuple: (output tag, raw bytes, length). */
+    private transient Tuple3<String, byte[], Integer> reusableResultTuple;
 
     /** Buffers the Python function execution result which has still not been processed. */
-    @VisibleForTesting protected transient LinkedBlockingQueue<byte[]> resultBuffer;
+    @VisibleForTesting protected transient LinkedBlockingQueue<Tuple2<String, byte[]>> resultBuffer;
 
     /** The receiver which forwards the input elements to a remote environment for processing. */
     @VisibleForTesting protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
@@ -190,7 +193,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             MemoryManager memoryManager,
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
-            FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
+            FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
+            Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.flinkMetricContainer = flinkMetricContainer;
@@ -202,6 +206,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.managedMemoryFraction = managedMemoryFraction;
         this.inputCoderDescriptor = Preconditions.checkNotNull(inputCoderDescriptor);
         this.outputCoderDescriptor = Preconditions.checkNotNull(outputCoderDescriptor);
+        this.sideOutputCoderDescriptors = Preconditions.checkNotNull(sideOutputCoderDescriptors);
     }
 
     // ------------------------------------------------------------------------
@@ -210,7 +215,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     public void open(ReadableConfig config) throws Exception {
         this.bundleStarted = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
-        this.reusableResultTuple = new Tuple2<>();
+        this.reusableResultTuple = new Tuple3<>();
 
         stateRequestHandler =
                 getStateRequestHandler(
@@ -340,23 +345,24 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     @Override
-    public Tuple2<byte[], Integer> pollResult() throws Exception {
-        byte[] result = resultBuffer.poll();
+    public Tuple3<String, byte[], Integer> pollResult() throws Exception {
+        Tuple2<String, byte[]> result = resultBuffer.poll();
         if (result == null) {
             return null;
-        } else {
-            this.reusableResultTuple.f0 = result;
-            this.reusableResultTuple.f1 = result.length;
-            return this.reusableResultTuple;
         }
+        reusableResultTuple.f0 = result.f0;
+        reusableResultTuple.f1 = result.f1;
+        reusableResultTuple.f2 = result.f1.length;
+        return reusableResultTuple;
     }
 
     @Override
-    public Tuple2<byte[], Integer> takeResult() throws Exception {
-        byte[] result = resultBuffer.take();
-        this.reusableResultTuple.f0 = result;
-        this.reusableResultTuple.f1 = result.length;
-        return this.reusableResultTuple;
+    public Tuple3<String, byte[], Integer> takeResult() throws Exception {
+        Tuple2<String, byte[]> result = resultBuffer.take();
+        reusableResultTuple.f0 = result.f0;
+        reusableResultTuple.f1 = result.f1;
+        reusableResultTuple.f2 = result.f1.length;
+        return reusableResultTuple;
     }
 
     @Override
@@ -372,7 +378,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     /** Interrupts the progress of takeResult. */
     public void notifyNoMoreResults() {
-        resultBuffer.add(new byte[0]);
+        resultBuffer.add(Tuple2.of(null, new byte[0]));
     }
 
     private void finishBundle() {
@@ -444,6 +450,19 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .putCoders(OUTPUT_CODER_ID, createCoderProto(outputCoderDescriptor))
                         .putCoders(WINDOW_CODER_ID, getWindowCoderProto());
 
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            String collectionId = entry.getKey();
+            String collectionCoderId = SIDE_OUTPUT_CODER_PREFIX + collectionId;
+            componentsBuilder.putPcollections(
+                    collectionId,
+                    RunnerApi.PCollection.newBuilder()
+                            .setWindowingStrategyId(WINDOW_STRATEGY)
+                            .setCoderId(collectionCoderId)
+                            .build());
+            componentsBuilder.putCoders(collectionCoderId, createCoderProto(entry.getValue()));
+        }
+
         getOptionalTimerCoderProto()
                 .ifPresent(
                         timerCoderProto -> {
@@ -475,11 +494,18 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 components.getTransformsMap().keySet().stream()
                         .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
                         .collect(Collectors.toList());
-        List<PipelineNode.PCollectionNode> outputs =
-                Collections.singletonList(
-                        PipelineNode.pCollection(
-                                OUTPUT_COLLECTION_ID,
-                                components.getPcollectionsOrThrow(OUTPUT_COLLECTION_ID)));
+        List<PipelineNode.PCollectionNode> outputs = new ArrayList<>();
+        outputs.add(
+                PipelineNode.pCollection(
+                        OUTPUT_COLLECTION_ID,
+                        components.getPcollectionsOrThrow(OUTPUT_COLLECTION_ID)));
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            String collectionId = entry.getKey();
+            outputs.add(
+                    PipelineNode.pCollection(
+                            collectionId, components.getPcollectionsOrThrow(collectionId)));
+        }
         return ImmutableExecutableStage.of(
                 components,
                 environment,
@@ -501,14 +527,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         windowedValueCoder.encode(value, baos);
 
-        return Arrays.asList(
+        List<RunnerApi.ExecutableStagePayload.WireCoderSetting> settings = new ArrayList<>();
+        settings.add(
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
                                 org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(INPUT_COLLECTION_ID)
-                        .build(),
+                        .build());
+        settings.add(
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
@@ -516,6 +544,18 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            settings.add(
+                    RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+                            .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+                            .setPayload(
+                                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
+                                            .ByteString.copyFrom(baos.toByteArray()))
+                            .setInputOrOutputId(entry.getKey())
+                            .build());
+        }
+        return settings;
     }
 
     /** Gets the proto representation of the window coder. */
@@ -546,7 +586,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             @Override
             public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
                 return input -> {
-                    resultBuffer.add(input.getValue());
+                    resultBuffer.add(Tuple2.of(pCollectionId, input.getValue()));
                 };
             }
         };

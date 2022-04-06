@@ -19,12 +19,13 @@ import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
-from typing import TypeVar, Generic, Iterable, Collection, Any, cast
+from typing import TypeVar, Generic, Iterable, Collection, Any, cast, Optional
 
 from pyflink.common import Time, Types
 from pyflink.common.constants import MAX_LONG_VALUE, MIN_LONG_VALUE
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction, ReduceFunction
+from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import StateDescriptor, ReducingStateDescriptor, \
     ValueStateDescriptor, State, ReducingState
 from pyflink.metrics import MetricGroup
@@ -560,12 +561,14 @@ class WindowOperationDescriptor(object):
                  assigner: WindowAssigner,
                  trigger: Trigger,
                  allowed_lateness: int,
+                 late_data_output_tag: Optional[OutputTag],
                  window_state_descriptor: StateDescriptor,
                  window_serializer: TypeSerializer,
                  internal_window_function: InternalWindowFunction):
         self.assigner = assigner
         self.trigger = trigger
         self.allowed_lateness = allowed_lateness
+        self.late_data_output_tag = late_data_output_tag
         self.window_state_descriptor = window_state_descriptor
         self.internal_window_function = internal_window_function
         self.window_serializer = window_serializer

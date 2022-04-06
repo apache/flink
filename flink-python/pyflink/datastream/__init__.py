@@ -183,6 +183,8 @@ Other important classes:
       Interface for implementing user defined sink functionality.
     - :class:`SourceFunction`:
       Interface for implementing user defined source functionality.
+    - :class:`OutputTag`:
+      Tag with a name and type for identifying side output of an operator
 """
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
@@ -210,6 +212,7 @@ from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
 from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
     MergingWindowAssigner, TriggerResult, Trigger
+from pyflink.datastream.output_tag import OutputTag
 
 __all__ = [
     'StreamExecutionEnvironment',
@@ -263,5 +266,6 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'SlotSharingGroup',
-    'MemorySize'
+    'MemorySize',
+    'OutputTag'
 ]

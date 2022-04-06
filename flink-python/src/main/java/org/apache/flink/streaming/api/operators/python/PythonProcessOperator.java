@@ -78,6 +78,7 @@ public class PythonProcessOperator<IN, OUT>
                         inBatchExecutionMode(getKeyedStateBackend()),
                         config.get(PYTHON_METRIC_ENABLED),
                         config.get(PYTHON_PROFILE_ENABLED),
+                        getSideOutputTags().size() > 0,
                         config.get(STATE_CACHE_SIZE),
                         config.get(MAP_STATE_READ_CACHE_SIZE),
                         config.get(MAP_STATE_WRITE_CACHE_SIZE)),
@@ -100,7 +101,8 @@ public class PythonProcessOperator<IN, OUT>
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(),
                 createOutputCoderInfoDescriptor(),
-                null);
+                null,
+                createSideOutputCoderDescriptors());
     }
 
     @Override

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
@@ -122,12 +123,18 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
     }
 
     @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
+        String tag = resultTuple.f0;
+        byte[] rawResult = resultTuple.f1;
+        int length = resultTuple.f2;
         bais.setBuffer(rawResult, 0, length);
-        Row runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
-        runnerOutputCollector.collect(runnerOutput);
+        if (tag.equals(OUTPUT_COLLECTION_ID)) {
+            Row runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
+            runnerOutputCollector.collect(runnerOutput);
+        } else {
+            Row runnerOutput = getSideOutputTypeSerializerById(tag).deserialize(baisWrapper);
+            runnerOutputCollector.collect(getOutputTagById(tag), runnerOutput);
+        }
     }
 
     public void processElement(long timestamp, long watermark, Object element) throws Exception {

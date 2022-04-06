@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -37,7 +38,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /**
@@ -144,7 +147,10 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     @Override
     public void flush() throws Exception {
         super.flush();
-        resultBuffer.addAll(buffer);
+        resultBuffer.addAll(
+                buffer.stream()
+                        .map(b -> Tuple2.of(OUTPUT_COLLECTION_ID, b))
+                        .collect(Collectors.toList()));
         buffer.clear();
     }
 

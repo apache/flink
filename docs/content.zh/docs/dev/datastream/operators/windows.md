@@ -1449,6 +1449,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 {{< hint info >}}
@@ -1493,6 +1503,22 @@ val result = input
     .<windowed transformation>(<window function>)
 
 val lateStream = result.getSideOutput(lateOutputTag)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+late_output_tag = OutputTag("late-data", type_info)
+
+input = ...  # type: DataStream
+
+result = input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .allowed_lateness(<time>) \
+    .side_output_late_data(late_output_tag) \
+    .<windowed transformation>(<window function>)
+
+late_stream = result.get_side_output(late_output_tag)
 ```
 {{< /tab >}}
 {{< /tabs >}}
