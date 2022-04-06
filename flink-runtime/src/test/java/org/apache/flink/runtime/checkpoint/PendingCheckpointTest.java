@@ -643,6 +643,7 @@ public class PendingCheckpointTest {
                         operatorCoordinators,
                         masterStateIdentifiers,
                         props,
+                        new CompletableFuture<>(),
                         new CompletableFuture<>());
         pendingCheckpoint.setCheckpointTargetLocation(location);
         return pendingCheckpoint;
