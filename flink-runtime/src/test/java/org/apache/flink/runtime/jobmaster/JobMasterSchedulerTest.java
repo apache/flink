@@ -65,29 +65,36 @@ public class JobMasterSchedulerTest extends TestLogger {
         final SchedulerNGFactory schedulerFactory = new FailingSchedulerFactory();
         final JobMasterBuilder.TestingOnCompletionActions onCompletionActions =
                 new JobMasterBuilder.TestingOnCompletionActions();
-        final JobMaster jobMaster =
-                new JobMasterBuilder(
-                                JobGraphTestUtils.emptyJobGraph(),
-                                TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
-                        .withSlotPoolServiceSchedulerFactory(
-                                DefaultSlotPoolServiceSchedulerFactory.create(
-                                        TestingSlotPoolServiceBuilder.newBuilder(),
-                                        schedulerFactory))
-                        .withOnCompletionActions(onCompletionActions)
-                        .createJobMaster();
-
-        jobMaster.start();
-
-        assertThat(
-                onCompletionActions.getJobMasterFailedFuture().join(),
-                is(instanceOf(JobMasterException.class)));
-
-        // close the jobMaster to remove it from the testing rpc service so that it can shut down
-        // cleanly
+        final JobManagerSharedServices jobManagerSharedServices =
+                new TestingJobManagerSharedServicesBuilder().build();
         try {
-            jobMaster.close();
-        } catch (Exception expected) {
-            // expected
+            final JobMaster jobMaster =
+                    new JobMasterBuilder(
+                                    JobGraphTestUtils.emptyJobGraph(),
+                                    TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
+                            .withSlotPoolServiceSchedulerFactory(
+                                    DefaultSlotPoolServiceSchedulerFactory.create(
+                                            TestingSlotPoolServiceBuilder.newBuilder(),
+                                            schedulerFactory))
+                            .withOnCompletionActions(onCompletionActions)
+                            .withJobManagerSharedServices(jobManagerSharedServices)
+                            .createJobMaster();
+
+            jobMaster.start();
+
+            assertThat(
+                    onCompletionActions.getJobMasterFailedFuture().join(),
+                    is(instanceOf(JobMasterException.class)));
+
+            // close the jobMaster to remove it from the testing rpc service so that it can shut
+            // down cleanly
+            try {
+                jobMaster.close();
+            } catch (Exception expected) {
+                // expected
+            }
+        } finally {
+            jobManagerSharedServices.shutdown();
         }
     }
 
