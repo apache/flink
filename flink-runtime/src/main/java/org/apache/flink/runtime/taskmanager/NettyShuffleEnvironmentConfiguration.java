@@ -55,6 +55,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int partitionRequestMaxBackoff;
 
+    private final Duration partitionRequestNotifyTimeout;
+
     /**
      * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
      * channel).
@@ -104,6 +106,7 @@ public class NettyShuffleEnvironmentConfiguration {
             int networkBufferSize,
             int partitionRequestInitialBackoff,
             int partitionRequestMaxBackoff,
+            Duration partitionRequestNotifyTimeout,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             Duration requestSegmentsTimeout,
@@ -126,6 +129,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.networkBufferSize = networkBufferSize;
         this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+        this.partitionRequestNotifyTimeout = partitionRequestNotifyTimeout;
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.requestSegmentsTimeout = Preconditions.checkNotNull(requestSegmentsTimeout);
@@ -161,6 +165,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int partitionRequestMaxBackoff() {
         return partitionRequestMaxBackoff;
+    }
+
+    public Duration getPartitionRequestNotifyTimeout() {
+        return partitionRequestNotifyTimeout;
     }
 
     public int networkBuffersPerChannel() {
@@ -274,6 +282,10 @@ public class NettyShuffleEnvironmentConfiguration {
         int maxRequestBackoff =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
+        Duration notifierTimeout =
+                Duration.ofMillis(
+                        configuration.getLong(
+                            NettyShuffleEnvironmentOptions.NETWORK_REQUEST_NOTIFY_TIMEOUT));
 
         int buffersPerChannel =
                 configuration.getInteger(
@@ -338,6 +350,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 pageSize,
                 initialRequestBackoff,
                 maxRequestBackoff,
+                notifierTimeout,
                 buffersPerChannel,
                 extraBuffersPerGate,
                 requestSegmentsTimeout,
@@ -480,6 +493,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + networkBufferSize;
         result = 31 * result + partitionRequestInitialBackoff;
         result = 31 * result + partitionRequestMaxBackoff;
+        result = 31 * result + partitionRequestNotifyTimeout.hashCode();
         result = 31 * result + networkBuffersPerChannel;
         result = 31 * result + floatingNetworkBuffersPerGate;
         result = 31 * result + requestSegmentsTimeout.hashCode();

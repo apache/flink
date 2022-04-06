@@ -40,6 +40,8 @@ import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +100,11 @@ public class NettyShuffleServiceFactory
                 config,
                 taskExecutorResourceId,
                 taskEventPublisher,
-                new ResultPartitionManager(),
+                new ResultPartitionManager(
+                        config.getPartitionRequestNotifyTimeout(),
+                        new ScheduledExecutorServiceAdapter(
+                                Executors.newSingleThreadScheduledExecutor(
+                                        new ExecutorThreadFactory("partition-notifier-timeout-checker")))),
                 metricGroup,
                 ioExecutor,
                 numberOfSlots,

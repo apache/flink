@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
@@ -54,6 +56,8 @@ class CreditBasedSequenceNumberingViewReader
     private final int initialCredit;
 
     private volatile ResultSubpartitionView subpartitionView;
+
+    private volatile PartitionRequestNotifier partitionRequestNotifier;
 
     /**
      * The status indicating whether this reader is already enqueued in the pipeline for
@@ -93,6 +97,55 @@ class CreditBasedSequenceNumberingViewReader
                 this.subpartitionView =
                         partitionProvider.createSubpartitionView(
                                 resultPartitionId, subPartitionIndex, this);
+            } else {
+                throw new IllegalStateException("Subpartition already requested");
+            }
+        }
+
+        notifyDataAvailable();
+    }
+
+    @Override
+    public void requestSubpartitionView(
+            ResultPartition partition,
+            int subPartitionIndex) throws IOException {
+        synchronized (requestLock) {
+            if (subpartitionView == null) {
+                subpartitionView = partition.createSubpartitionView(subPartitionIndex, this);
+            } else {
+                throw new IllegalStateException("Subpartition already requested");
+            }
+        }
+
+        notifyDataAvailable();
+    }
+
+    @Override
+    public void requestSubpartitionViewOrNotify(
+            ResultPartitionProvider partitionProvider,
+            ResultPartitionID resultPartitionId,
+            int subPartitionIndex) throws IOException {
+        synchronized (requestLock) {
+            if (subpartitionView == null) {
+                if (partitionRequestNotifier == null) {
+                    partitionRequestNotifier = new NettyPartitionRequestNotifier(
+                            partitionProvider,
+                            this,
+                            subPartitionIndex,
+                            resultPartitionId);
+                } else {
+                    throw new IllegalStateException("Partition request notifier already created");
+                }
+                // The partition provider will create subpartitionView if resultPartition is registered,
+                // otherwise it will return null and add a notifier of the given result partition id.
+                this.subpartitionView = partitionProvider.createSubpartitionViewOrNotify(
+                        resultPartitionId,
+                        subPartitionIndex,
+                        this,
+                        partitionRequestNotifier);
+                if (subpartitionView == null) {
+                    return;
+                }
             } else {
                 throw new IllegalStateException("Subpartition already requested");
             }
@@ -177,6 +230,11 @@ class CreditBasedSequenceNumberingViewReader
         subpartitionView.notifyNewBufferSize(newBufferSize);
     }
 
+    @Override
+    public void notifyPartitionRequestTimeout(PartitionRequestNotifierTimeout partitionRequestNotifierTimeout) {
+        requestQueue.notifyPartitionRequestTimeout(partitionRequestNotifierTimeout);
+    }
+
     @VisibleForTesting
     int getNumCreditsAvailable() {
         return numCreditsAvailable;
@@ -221,6 +279,9 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void releaseAllResources() throws IOException {
+        if (partitionRequestNotifier != null) {
+            partitionRequestNotifier.releaseNotifier();
+        }
         subpartitionView.releaseAllResources();
     }
 

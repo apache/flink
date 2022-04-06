@@ -31,38 +31,48 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TestingResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
+
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for {@link PartitionRequestServerHandler}. */
 public class PartitionRequestServerHandlerTest extends TestLogger {
 
     /**
      * Tests that {@link PartitionRequestServerHandler} responds {@link ErrorResponse} with wrapped
-     * {@link PartitionNotFoundException} after receiving invalid {@link PartitionRequest}.
+     * {@link PartitionNotFoundException} when the notifier is timeout.
      */
     @Test
-    public void testResponsePartitionNotFoundException() {
+    public void testResponsePartitionNotFoundExceptionForNotifierTimeout() {
+        long startTimestamp = System.currentTimeMillis();
+        ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+        PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        ResultPartitionManager resultPartitionManager = new ResultPartitionManager(Duration.ofMillis(1L), scheduledExecutor);
         final PartitionRequestServerHandler serverHandler =
                 new PartitionRequestServerHandler(
-                        new ResultPartitionManager(),
+                        resultPartitionManager,
                         new TaskEventDispatcher(),
-                        new PartitionRequestQueue());
-        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler, partitionRequestQueue);
         final ResultPartitionID partitionId = new ResultPartitionID();
 
         // Write the message of partition request to server
@@ -71,9 +81,13 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 
         // Read the response message after handling partition request
         final Object msg = channel.readOutbound();
-        assertThat(msg, instanceOf(ErrorResponse.class));
+        assertNull(msg);
 
-        final ErrorResponse err = (ErrorResponse) msg;
+        assumeTrue(System.currentTimeMillis() > startTimestamp);
+        scheduledExecutor.triggerScheduledTasks();
+
+        final Object timeoutMsg = channel.readOutbound();
+        final ErrorResponse err = (ErrorResponse) timeoutMsg;
         assertThat(err.cause, instanceOf(PartitionNotFoundException.class));
 
         final ResultPartitionID actualPartitionId =
@@ -108,9 +122,15 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 
         ResultPartition resultPartition =
                 PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
-        ResultPartitionProvider partitionProvider =
-                (partitionId, index, availabilityListener) ->
-                        resultPartition.createSubpartitionView(index, availabilityListener);
+        ResultPartitionProvider partitionProvider = TestingResultPartitionProvider.newBuilder()
+                .setCreateSubpartitionViewFunction(tuple -> {
+                    try {
+                        return resultPartition.createSubpartitionView(tuple.f1, tuple.f2);
+                    } catch (IOException e) {
+                        throw new IllegalArgumentException(e);
+                    }
+                })
+                .build();
 
         // Creates the netty network handler stack.
         PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();

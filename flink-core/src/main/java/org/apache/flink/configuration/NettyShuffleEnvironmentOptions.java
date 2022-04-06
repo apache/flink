@@ -451,6 +451,14 @@ public class NettyShuffleEnvironmentOptions {
                     .withDescription(
                             "Maximum backoff in milliseconds for partition requests of input channels.");
 
+    /** The timeout for partition request notifier. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Long> NETWORK_REQUEST_NOTIFY_TIMEOUT =
+            key("taskmanager.network.partition-request-notify-timeout-ms")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription("Timeout in milliseconds for partition request notifier in result partition manager.");
+
     // ------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */
