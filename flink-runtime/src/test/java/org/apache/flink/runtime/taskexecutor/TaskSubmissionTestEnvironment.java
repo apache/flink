@@ -330,6 +330,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         temporaryFolder.delete();
 
         testingFatalErrorHandler.rethrowError();
+
+        taskExecutor.close();
     }
 
     public static final class Builder {
