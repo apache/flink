@@ -76,7 +76,10 @@ $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{< version >}}
 
 {{< /tab >}}
 {{< tab "Gradle" >}}
-You can create a project with a Gradle build script or use the provided quickstart bash script.
+You can create an empty project, where you are required to create the `src/main/java` and 
+`src/main/resources` directories manually and start writing some class(es) in that, with the use 
+of the following Gradle build script or instead use the provided quickstart bash script to get a
+completely functional startup project. 
 
 ### Gradle build script
 
