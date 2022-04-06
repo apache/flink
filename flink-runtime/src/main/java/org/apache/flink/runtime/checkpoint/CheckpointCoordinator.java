@@ -533,6 +533,8 @@ public class CheckpointCoordinator {
             CompletableFuture<CheckpointPlan> checkpointPlanFuture =
                     checkpointPlanCalculator.calculateCheckpointPlan();
 
+            CompletableFuture<Void> masterTriggerCompletionPromise = new CompletableFuture<>();
+
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
                     checkpointPlanFuture
                             .thenApplyAsync(
@@ -559,7 +561,8 @@ public class CheckpointCoordinator {
                                                     request.isPeriodic,
                                                     checkpointInfo.f1.checkpointId,
                                                     checkpointInfo.f1.checkpointStorageLocation,
-                                                    request.getOnCompletionFuture()),
+                                                    request.getOnCompletionFuture(),
+                                                    masterTriggerCompletionPromise),
                                     timer);
 
             final CompletableFuture<?> coordinatorCheckpointsComplete =
@@ -591,8 +594,12 @@ public class CheckpointCoordinator {
                             },
                             timer);
 
+            FutureUtils.forward(
+                    CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete),
+                    masterTriggerCompletionPromise);
+
             FutureUtils.assertNoException(
-                    CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+                    masterTriggerCompletionPromise
                             .handleAsync(
                                     (ignored, throwable) -> {
                                         final PendingCheckpoint checkpoint =
@@ -698,7 +705,8 @@ public class CheckpointCoordinator {
             boolean isPeriodic,
             long checkpointID,
             CheckpointStorageLocation checkpointStorageLocation,
-            CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+            CompletableFuture<CompletedCheckpoint> onCompletionPromise,
+            CompletableFuture<Void> masterTriggerCompletionPromise) {
 
         synchronized (lock) {
             try {
@@ -720,7 +728,8 @@ public class CheckpointCoordinator {
                         masterHooks.keySet(),
                         props,
                         checkpointStorageLocation,
-                        onCompletionPromise);
+                        onCompletionPromise,
+                        masterTriggerCompletionPromise);
 
         trackPendingCheckpointStats(checkpoint);
 

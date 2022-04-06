@@ -3435,6 +3435,50 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testTimeoutWhileCheckpointOperatorCoordinatorNotFinishing() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build();
+
+        CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext context =
+                new CheckpointCoordinatorTestingUtils
+                                .MockOperatorCheckpointCoordinatorContextBuilder()
+                        .setOperatorID(new OperatorID())
+                        .setOnCallingCheckpointCoordinator(
+                                (ignored, future) -> {
+                                    // Never complete
+                                })
+                        .build();
+
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setCheckpointTimeout(10)
+                                        .build())
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCoordinatorsToCheckpoint(Collections.singleton(context))
+                        .build();
+        try {
+            checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            Assert.assertTrue(checkpointCoordinator.isTriggering());
+
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            Assert.assertFalse(checkpointCoordinator.isTriggering());
+        } finally {
+            checkpointCoordinator.shutdown();
+            executorService.shutdownNow();
+        }
+    }
+
     private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {
         return new CheckpointCoordinatorBuilder()
                 .setExecutionGraph(graph)

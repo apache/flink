@@ -633,6 +633,7 @@ public class PendingCheckpointTest {
                 masterStateIdentifiers,
                 props,
                 location,
+                new CompletableFuture<>(),
                 new CompletableFuture<>());
     }
 

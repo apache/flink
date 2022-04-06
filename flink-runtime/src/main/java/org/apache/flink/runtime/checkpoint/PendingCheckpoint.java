@@ -111,6 +111,8 @@ public class PendingCheckpoint implements Checkpoint {
     /** The promise to fulfill once the checkpoint has been completed. */
     private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
+    private final CompletableFuture<Void> masterTriggerCompletionPromise;
+
     private int numAcknowledgedTasks;
 
     private boolean disposed;
@@ -132,7 +134,8 @@ public class PendingCheckpoint implements Checkpoint {
             Collection<String> masterStateIdentifiers,
             CheckpointProperties props,
             CheckpointStorageLocation targetLocation,
-            CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+            CompletableFuture<CompletedCheckpoint> onCompletionPromise,
+            CompletableFuture<Void> masterTriggerCompletionPromise) {
 
         checkArgument(
                 checkpointPlan.getTasksToWaitFor().size() > 0,
@@ -163,6 +166,7 @@ public class PendingCheckpoint implements Checkpoint {
                         : new HashSet<>(operatorCoordinatorsToConfirm);
         this.acknowledgedTasks = new HashSet<>(checkpointPlan.getTasksToWaitFor().size());
         this.onCompletionPromise = checkNotNull(onCompletionPromise);
+        this.masterTriggerCompletionPromise = checkNotNull(masterTriggerCompletionPromise);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -531,6 +535,7 @@ public class PendingCheckpoint implements Checkpoint {
         try {
             failureCause = new CheckpointException(reason, cause);
             onCompletionPromise.completeExceptionally(failureCause);
+            masterTriggerCompletionPromise.completeExceptionally(failureCause);
             reportFailedCheckpoint(failureCause, statsCallback);
             assertAbortSubsumedForced(reason);
         } finally {
