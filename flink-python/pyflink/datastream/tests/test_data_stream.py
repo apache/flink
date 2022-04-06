@@ -1094,6 +1094,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_min_and_max(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 1), ('b', 3, 1)],
                                       type_info=Types.ROW_NAMED(
                                           ["v1", "v2", "v3"],
@@ -1123,6 +1124,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_min_by_and_max_by(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)],
                                       type_info=Types.ROW_NAMED(
                                           ["v1", "v2", "v3"],
@@ -1257,6 +1259,7 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_sum(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, 1), (1, 2), (1, 3), (5, 1), (5, 5)],
             type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
@@ -1292,6 +1295,7 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         self.assertEqual(expected, results)
 
     def test_keyed_min_and_max(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
             type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
@@ -1321,6 +1325,7 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_min_by_and_max_by(self):
+        self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
             type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
