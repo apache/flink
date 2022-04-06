@@ -1858,4 +1858,12 @@ class CalcITCase extends BatchTestBase {
         LocalTime.of(16, 50, 1, 123000000)
       )))
   }
+
+  @Test
+  def testTryCast(): Unit = {
+    checkResult("SELECT TRY_CAST('invalid' AS INT)", Seq(row(null)))
+    checkResult(
+      "SELECT TRY_CAST(g AS DOUBLE) FROM testTable",
+      Seq(row(null), row(null), row(null)))
+  }
 }
