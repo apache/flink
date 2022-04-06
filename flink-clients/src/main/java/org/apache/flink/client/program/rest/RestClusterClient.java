@@ -98,6 +98,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -117,6 +118,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -891,8 +893,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             CheckedSupplier<CompletableFuture<C>> operation, Predicate<Throwable> retryPredicate) {
         return FutureUtils.retryWithDelay(
                 CheckedSupplier.unchecked(operation),
-                restClusterClientConfiguration.getRetryMaxAttempts(),
-                Time.milliseconds(restClusterClientConfiguration.getRetryDelay()),
+                new FixedRetryStrategy(
+                        restClusterClientConfiguration.getRetryMaxAttempts(),
+                        Duration.ofMillis(restClusterClientConfiguration.getRetryDelay())),
                 retryPredicate,
                 new ScheduledExecutorServiceAdapter(retryExecutorService));
     }
