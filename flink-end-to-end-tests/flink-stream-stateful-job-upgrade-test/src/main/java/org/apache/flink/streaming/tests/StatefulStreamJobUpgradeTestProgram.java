@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
@@ -37,6 +39,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.extractTimestamp;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
 /**
@@ -90,11 +93,13 @@ public class StatefulStreamJobUpgradeTestProgram {
 
     private static void executeOriginalVariant(StreamExecutionEnvironment env, ParameterTool pt)
             throws Exception {
+        Duration maxOutOfOrderness = extractTimestamp(pt);
         KeyedStream<Event, Integer> source =
-                env.addSource(createEventSource(pt))
+                env
+                        .addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
                         .keyBy(Event::getKey);
 
         List<TypeSerializer<ComplexPayload>> stateSer =
@@ -114,11 +119,12 @@ public class StatefulStreamJobUpgradeTestProgram {
 
     private static void executeUpgradedVariant(StreamExecutionEnvironment env, ParameterTool pt)
             throws Exception {
+        Duration maxOutOfOrderness = extractTimestamp(pt);
         KeyedStream<UpgradedEvent, Integer> source =
                 env.addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
                         .map(new UpgradeEvent())
                         .keyBy(UpgradedEvent::getKey);
 

@@ -53,6 +53,8 @@ import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateB
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueStateBuilder;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -424,6 +426,15 @@ public class DataStreamAllroundTestJobFactory {
                 return element.getEventTime();
             }
         };
+    }
+    static Duration extractTimestamp(ParameterTool pt) {
+        Time maxOutOfOrderness =
+                Time.milliseconds(
+                        pt.getLong(
+                                SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
+                                SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS
+                                        .defaultValue()));
+        return Duration.of(maxOutOfOrderness.getSize(), ChronoUnit.MILLIS);
     }
 
     static WindowedStream<Event, Integer, TimeWindow> applyTumblingWindows(
