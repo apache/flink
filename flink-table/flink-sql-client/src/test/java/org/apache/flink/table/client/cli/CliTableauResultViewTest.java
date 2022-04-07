@@ -33,11 +33,13 @@ import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.jline.terminal.Terminal;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -58,6 +60,9 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for CliTableauResultView. */
 public class CliTableauResultViewTest {
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newSingleThreadExecutor());
 
     private ByteArrayOutputStream terminalOutput;
     private Terminal terminal;
@@ -235,8 +240,7 @@ public class CliTableauResultViewTest {
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
         // submit result display in another thread
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(view::displayResults);
+        Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
 
         // wait until we trying to get batch result
         CommonTestUtils.waitUntilCondition(
@@ -431,8 +435,7 @@ public class CliTableauResultViewTest {
                 new CliTableauResultView(terminal, mockExecutor, "session", resultDescriptor);
 
         // submit result display in another thread
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        Future<?> furture = executorService.submit(view::displayResults);
+        Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
 
         // wait until we processed first result
         CommonTestUtils.waitUntilCondition(

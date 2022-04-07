@@ -884,26 +884,30 @@ public class AsyncSinkWriterTest {
         TestProcessingTimeService tpts = sinkInitContext.getTestProcessingTimeService();
         ExecutorService es = Executors.newFixedThreadPool(4);
 
-        tpts.setCurrentTime(0L);
-        sink.write("1");
-        sink.write("2");
-        es.submit(
-                () -> {
-                    try {
-                        sink.writeAsNonMailboxThread("3");
-                    } catch (IOException | InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                });
+        try {
+            tpts.setCurrentTime(0L);
+            sink.write("1");
+            sink.write("2");
+            es.submit(
+                    () -> {
+                        try {
+                            sink.writeAsNonMailboxThread("3");
+                        } catch (IOException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    });
 
-        delayedStartLatch.await();
-        sink.write("4");
-        tpts.setCurrentTime(100L);
-        blockedWriteLatch.countDown();
-        es.shutdown();
-        assertThat(es.awaitTermination(500, TimeUnit.MILLISECONDS))
-                .as("Executor Service stuck at termination, not terminated after 500ms!")
-                .isTrue();
+            delayedStartLatch.await();
+            sink.write("4");
+            tpts.setCurrentTime(100L);
+            blockedWriteLatch.countDown();
+            es.shutdown();
+            assertThat(es.awaitTermination(500, TimeUnit.MILLISECONDS))
+                    .as("Executor Service stuck at termination, not terminated after 500ms!")
+                    .isTrue();
+        } finally {
+            es.shutdown();
+        }
     }
 
     /**
