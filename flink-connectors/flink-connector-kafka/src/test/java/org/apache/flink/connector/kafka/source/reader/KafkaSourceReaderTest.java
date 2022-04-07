@@ -398,6 +398,38 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
     }
 
+    @Test
+    void testAssigningEmptySplitOnly() throws Exception {
+        // Empty split with no record
+        KafkaPartitionSplit emptySplit0 =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 0), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        KafkaPartitionSplit emptySplit1 =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 1), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        // Split finished hook for listening finished splits
+        final Set<String> finishedSplits = new HashSet<>();
+        final Consumer<Collection<String>> splitFinishedHook = finishedSplits::addAll;
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "KafkaSourceReaderTestGroup",
+                                new TestingReaderContext(),
+                                splitFinishedHook)) {
+            reader.addSplits(Arrays.asList(emptySplit0, emptySplit1));
+            pollUntil(
+                    reader,
+                    new TestingReaderOutput<>(),
+                    () -> reader.getNumAliveFetchers() == 0,
+                    "The split fetcher did not exit before timeout.");
+            assertThat(reader.getNumAliveFetchers()).isEqualTo(0);
+            assertThat(finishedSplits)
+                    .containsExactly(emptySplit0.splitId(), emptySplit1.splitId());
+        }
+    }
+
     // ------------------------------------------
 
     @Override

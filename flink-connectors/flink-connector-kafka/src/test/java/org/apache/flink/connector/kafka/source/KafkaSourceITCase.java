@@ -307,6 +307,65 @@ public class KafkaSourceITCase {
                             });
             env.execute();
         }
+
+        @Test
+        public void testConsumingEmptyTopic() throws Throwable {
+            String emptyTopic = "emptyTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(emptyTopic, 3, 1);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(emptyTopic)
+                            .setGroupId("empty-topic-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            try (CloseableIterator<PartitionAndValue> iterator =
+                    env.fromSource(
+                                    source,
+                                    WatermarkStrategy.noWatermarks(),
+                                    "testConsumingEmptyTopic")
+                            .executeAndCollect()) {
+                assertThat(iterator.hasNext()).isFalse();
+            }
+        }
+
+        @Test
+        public void testConsumingTopicWithEmptyPartitions() throws Throwable {
+            String topicWithEmptyPartitions = "topicWithEmptyPartitions-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(
+                    topicWithEmptyPartitions, KafkaSourceTestEnv.NUM_PARTITIONS, 1);
+            List<ProducerRecord<String, Integer>> records =
+                    KafkaSourceTestEnv.getRecordsForTopicWithoutTimestamp(topicWithEmptyPartitions);
+            // Only keep records in partition 5
+            int partitionWithRecords = 5;
+            records.removeIf(record -> record.partition() != partitionWithRecords);
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSourceTestEnv.setupEarliestOffsets(
+                    Collections.singletonList(
+                            new TopicPartition(topicWithEmptyPartitions, partitionWithRecords)));
+
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(topicWithEmptyPartitions)
+                            .setGroupId("topic-with-empty-partition-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(2);
+            executeAndVerify(
+                    env,
+                    env.fromSource(
+                            source,
+                            WatermarkStrategy.noWatermarks(),
+                            "testConsumingTopicWithEmptyPartitions"));
+        }
     }
 
     /** Integration test based on connector testing framework. */
@@ -441,14 +500,13 @@ public class KafkaSourceITCase {
                                 .add(partitionAndValue.value));
         resultPerPartition.forEach(
                 (tp, values) -> {
-                    int firstExpectedValue = Integer.parseInt(tp.substring(tp.indexOf('-') + 1));
+                    int firstExpectedValue =
+                            Integer.parseInt(tp.substring(tp.lastIndexOf('-') + 1));
                     for (int i = 0; i < values.size(); i++) {
                         assertThat((int) values.get(i))
-                                .as(
-                                        String.format(
-                                                "The %d-th value for partition %s should be %d",
-                                                i, tp, i))
-                                .isEqualTo(firstExpectedValue + i);
+                                .as(String.format(
+                                        "The %d-th value for partition %s should be %d",
+                                        i, tp, firstExpectedValue + i)).isEqualTo(firstExpectedValue + i);
                     }
                 });
     }

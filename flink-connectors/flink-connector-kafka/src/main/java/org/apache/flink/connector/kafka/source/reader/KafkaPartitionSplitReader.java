@@ -98,9 +98,16 @@ public class KafkaPartitionSplitReader
         ConsumerRecords<byte[], byte[]> consumerRecords;
         try {
             consumerRecords = consumer.poll(Duration.ofMillis(POLL_TIMEOUT));
-        } catch (WakeupException we) {
-            return new KafkaPartitionSplitRecords(
-                    ConsumerRecords.empty(), kafkaSourceReaderMetrics);
+        } catch (WakeupException | IllegalStateException e) {
+            // IllegalStateException will be thrown if the consumer is not assigned any partitions.
+            // This happens if all assigned partitions are invalid or empty (starting offset >=
+            // stopping offset). We just mark empty partitions as finished and return an empty
+            // record container, and this consumer will be closed by SplitFetcherManager.
+            KafkaPartitionSplitRecords recordsBySplits =
+                    new KafkaPartitionSplitRecords(
+                            ConsumerRecords.empty(), kafkaSourceReaderMetrics);
+            markEmptySplitsAsFinished(recordsBySplits);
+            return recordsBySplits;
         }
         KafkaPartitionSplitRecords recordsBySplits =
                 new KafkaPartitionSplitRecords(consumerRecords, kafkaSourceReaderMetrics);
@@ -131,12 +138,7 @@ public class KafkaPartitionSplitReader
             kafkaSourceReaderMetrics.maybeAddRecordsLagMetric(consumer, tp);
         }
 
-        // Some splits are discovered as empty when handling split additions. These splits should be
-        // added to finished splits to clean up states in split fetcher and source reader.
-        if (!emptySplits.isEmpty()) {
-            recordsBySplits.finishedSplits.addAll(emptySplits);
-            emptySplits.clear();
-        }
+        markEmptySplitsAsFinished(recordsBySplits);
 
         // Unassign the partitions that has finished.
         if (!finishedPartitions.isEmpty()) {
@@ -148,6 +150,15 @@ public class KafkaPartitionSplitReader
         kafkaSourceReaderMetrics.updateNumBytesInCounter();
 
         return recordsBySplits;
+    }
+
+    private void markEmptySplitsAsFinished(KafkaPartitionSplitRecords recordsBySplits) {
+        // Some splits are discovered as empty when handling split additions. These splits should be
+        // added to finished splits to clean up states in split fetcher and source reader.
+        if (!emptySplits.isEmpty()) {
+            recordsBySplits.finishedSplits.addAll(emptySplits);
+            emptySplits.clear();
+        }
     }
 
     @Override
