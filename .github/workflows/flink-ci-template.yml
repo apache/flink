@@ -63,6 +63,8 @@ jobs:
 
     - name: "Flink Checkout"
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
     - name: "Codestyle"
       run: |
         ${{ inputs.environment }} ./tools/ci/validate.sh "checkstyle:check spotless:check -T2" || exit $?
@@ -96,6 +98,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       - name: "Copy"
@@ -137,6 +140,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       - name: "Copy"
@@ -198,6 +202,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       - name: "Copy"
@@ -280,6 +285,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
@@ -322,6 +328,7 @@ jobs:
       - name: "Flink Checkout"
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
           path: ${{ env.CHECKOUT_MOUNT_DIR }}
 
       - name: "Copy"
