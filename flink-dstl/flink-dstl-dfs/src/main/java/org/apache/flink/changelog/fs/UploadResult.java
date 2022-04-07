@@ -17,12 +17,15 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-final class UploadResult {
+/** Result of uploading state changes. */
+@Internal
+public final class UploadResult {
     public final StreamStateHandle streamStateHandle;
     public final long offset;
     public final SequenceNumber sequenceNumber;

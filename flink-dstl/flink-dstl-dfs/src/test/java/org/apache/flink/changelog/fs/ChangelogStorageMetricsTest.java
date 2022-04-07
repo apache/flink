@@ -64,7 +64,11 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(tempFolder.toFile()), false, 100, metrics)) {
+                        Path.fromLocalFile(tempFolder.toFile()),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP)) {
             FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
@@ -84,7 +88,11 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(tempFolder.toFile()), false, 100, metrics)) {
+                        Path.fromLocalFile(tempFolder.toFile()),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP)) {
             FsStateChangelogWriter writer = createWriter(storage);
 
             // upload single byte to infer header size
@@ -111,7 +119,12 @@ public class ChangelogStorageMetricsTest {
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         try (FsStateChangelogStorage storage =
-                new FsStateChangelogStorage(Path.fromLocalFile(file), false, 100, metrics)) {
+                new FsStateChangelogStorage(
+                        Path.fromLocalFile(file),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP)) {
             FsStateChangelogWriter writer = createWriter(storage);
 
             int numUploads = 5;
@@ -136,7 +149,13 @@ public class ChangelogStorageMetricsTest {
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         Path basePath = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader uploader =
-                new StateChangeFsUploader(basePath, basePath.getFileSystem(), false, 100, metrics);
+                new StateChangeFsUploader(
+                        basePath,
+                        basePath.getFileSystem(),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
         BatchingStateChangeUploadScheduler batcher =
@@ -153,7 +172,9 @@ public class ChangelogStorageMetricsTest {
                                 metrics.getTotalAttemptsPerUpload()),
                         metrics);
 
-        FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher, Integer.MAX_VALUE, TaskChangelogRegistry.NO_OP);
         FsStateChangelogWriter[] writers = new FsStateChangelogWriter[numWriters];
         for (int i = 0; i < numWriters; i++) {
             writers[i] =
@@ -203,7 +224,9 @@ public class ChangelogStorageMetricsTest {
                                 metrics.getTotalAttemptsPerUpload()),
                         metrics);
 
-        FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher, Integer.MAX_VALUE, TaskChangelogRegistry.NO_OP);
         FsStateChangelogWriter writer = createWriter(storage);
 
         try {
@@ -243,7 +266,9 @@ public class ChangelogStorageMetricsTest {
                                 metrics.getTotalAttemptsPerUpload()),
                         metrics);
 
-        FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
+        FsStateChangelogStorage storage =
+                new FsStateChangelogStorage(
+                        batcher, Integer.MAX_VALUE, TaskChangelogRegistry.NO_OP);
         FsStateChangelogWriter writer = createWriter(storage);
 
         try {
@@ -281,7 +306,13 @@ public class ChangelogStorageMetricsTest {
 
         Path path = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader delegate =
-                new StateChangeFsUploader(path, path.getFileSystem(), false, 100, metrics);
+                new StateChangeFsUploader(
+                        path,
+                        path.getFileSystem(),
+                        false,
+                        100,
+                        metrics,
+                        TaskChangelogRegistry.NO_OP);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
         BatchingStateChangeUploadScheduler batcher =
@@ -298,7 +329,7 @@ public class ChangelogStorageMetricsTest {
                                 metrics.getTotalAttemptsPerUpload()),
                         metrics);
         try (FsStateChangelogStorage storage =
-                new FsStateChangelogStorage(batcher, Long.MAX_VALUE)) {
+                new FsStateChangelogStorage(batcher, Long.MAX_VALUE, TaskChangelogRegistry.NO_OP)) {
             FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 11;
             for (int i = 0; i < numUploads; i++) {

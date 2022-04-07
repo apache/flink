@@ -17,6 +17,8 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
@@ -34,13 +36,15 @@ import static java.util.stream.Collectors.toList;
  * changelog parts. It has a single {@link #upload} method with a collection of {@link UploadTask}
  * argument which is meant to initiate such an upload.
  */
-interface StateChangeUploader extends AutoCloseable {
+@Internal
+public interface StateChangeUploader extends AutoCloseable {
     /**
      * Execute the upload task and return the results. It is the caller responsibility to {@link
      * UploadTask#complete(List) complete} the tasks.
      */
     UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException;
 
+    /** Result of executing one or more {@link UploadTask upload tasks}. */
     final class UploadTasksResult {
         private final Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets;
         private final StreamStateHandle handle;
@@ -72,6 +76,11 @@ interface StateChangeUploader extends AutoCloseable {
 
         public void discard() throws Exception {
             handle.discardState();
+        }
+
+        @VisibleForTesting
+        public StreamStateHandle getStreamStateHandle() {
+            return handle;
         }
     }
 }
