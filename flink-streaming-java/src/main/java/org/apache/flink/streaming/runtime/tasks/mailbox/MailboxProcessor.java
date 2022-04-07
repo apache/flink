@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
@@ -101,8 +101,7 @@ public class MailboxProcessor implements Closeable {
 
     private final StreamTaskActionExecutor actionExecutor;
 
-    /** Counter that counts number of mails processed from mailbox. */
-    private final Counter numMailsProcessed;
+    private final MailboxMetricsController mailboxMetricsControl;
 
     @VisibleForTesting
     public MailboxProcessor() {
@@ -122,20 +121,25 @@ public class MailboxProcessor implements Closeable {
             MailboxDefaultAction mailboxDefaultAction,
             TaskMailbox mailbox,
             StreamTaskActionExecutor actionExecutor) {
-        this(mailboxDefaultAction, mailbox, actionExecutor, new SimpleCounter());
+        this(
+                mailboxDefaultAction,
+                mailbox,
+                actionExecutor,
+                new MailboxMetricsController(
+                        new DescriptiveStatisticsHistogram(10), new SimpleCounter()));
     }
 
     public MailboxProcessor(
             MailboxDefaultAction mailboxDefaultAction,
             TaskMailbox mailbox,
             StreamTaskActionExecutor actionExecutor,
-            Counter numMailsProcessed) {
+            MailboxMetricsController mailboxMetricsControl) {
         this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
         this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
         this.mailbox = Preconditions.checkNotNull(mailbox);
         this.mailboxLoopRunning = true;
         this.suspendedDefaultAction = null;
-        this.numMailsProcessed = numMailsProcessed;
+        this.mailboxMetricsControl = mailboxMetricsControl;
     }
 
     public MailboxExecutor getMainMailboxExecutor() {
@@ -152,12 +156,13 @@ public class MailboxProcessor implements Closeable {
     }
 
     /**
-     * Returns attached {@link Counter} that counts number of mails processed.
+     * Gets {@link MailboxMetricsController} for control and access to mailbox metrics.
      *
-     * @return {@link Counter} that counts number of mails processed.
+     * @return {@link MailboxMetricsController}.
      */
-    public Counter getNumMailsProcessedCounter() {
-        return numMailsProcessed;
+    @VisibleForTesting
+    public MailboxMetricsController getMailboxMetricsControl() {
+        return this.mailboxMetricsControl;
     }
 
     /** Lifecycle method to close the mailbox for action submission. */
@@ -197,8 +202,7 @@ public class MailboxProcessor implements Closeable {
      */
     public void drain() throws Exception {
         for (final Mail mail : mailbox.drain()) {
-            mail.run();
-            numMailsProcessed.inc();
+            runMail(mail);
         }
     }
 
@@ -359,8 +363,8 @@ public class MailboxProcessor implements Closeable {
                 maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
             }
             maybePauseIdleTimer();
-            maybeMail.get().run();
-            numMailsProcessed.inc();
+
+            runMail(maybeMail.get());
 
             maybeRestartIdleTimer();
             processedSomething = true;
@@ -376,8 +380,7 @@ public class MailboxProcessor implements Closeable {
             if (processedMails++ == 0) {
                 maybePauseIdleTimer();
             }
-            maybeMail.get().run();
-            numMailsProcessed.inc();
+            runMail(maybeMail.get());
             if (singleStep) {
                 break;
             }
@@ -387,6 +390,20 @@ public class MailboxProcessor implements Closeable {
             return true;
         } else {
             return false;
+        }
+    }
+
+    private void runMail(Mail mail) throws Exception {
+        mailboxMetricsControl.getMailCounter().inc();
+        mail.run();
+        if (!suspended) {
+            // start latency measurement on first mail that is not suspending mailbox execution,
+            // i.e., on first non-poison mail, otherwise latency measurement is not started to avoid
+            // overhead
+            if (!mailboxMetricsControl.isLatencyMeasurementStarted()
+                    && mailboxMetricsControl.isLatencyMeasurementSetup()) {
+                mailboxMetricsControl.startLatencyMeasurement();
+            }
         }
     }
 

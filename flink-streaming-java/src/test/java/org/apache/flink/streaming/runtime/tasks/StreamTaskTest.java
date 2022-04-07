@@ -1685,7 +1685,9 @@ public class StreamTaskTest extends TestLogger {
                             new StreamTask<Object, StreamOperator<Object>>(mockEnvironment) {
                                 @Override
                                 protected void init() {
-                                    this.mailboxMetricsInterval = 2;
+                                    this.mailboxProcessor
+                                            .getMailboxMetricsControl()
+                                            .setLatencyMeasurementInterval(2);
                                 }
 
                                 @Override
@@ -1741,12 +1743,12 @@ public class StreamTaskTest extends TestLogger {
                             .getIOMetricGroup()
                             .getMailboxSize();
             long startTime = SystemClock.getInstance().relativeTimeMillis();
-            harness.streamTask.measureMailboxLatency();
+            harness.streamTask.mailboxProcessor.getMailboxMetricsControl().measureMailboxLatency();
             for (int i = 0; i < numMails; ++i) {
                 harness.streamTask.mainMailboxExecutor.execute(
                         () -> Thread.sleep(sleepTime), "add value");
             }
-            harness.streamTask.measureMailboxLatency();
+            harness.streamTask.mailboxProcessor.getMailboxMetricsControl().measureMailboxLatency();
 
             assertThat(mailboxSizeMetric.getValue(), greaterThanOrEqualTo(numMails));
             assertThat(mailboxLatencyMetric.getCount(), equalTo(0L));
