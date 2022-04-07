@@ -38,6 +38,8 @@ on:
       glue_schema_secret_key:
         required: false
 
+permissions: read-all
+
 env:
   FLINK_ARTIFACT_DIR: /root/
   FLINK_ARTIFACT_FILENAME: flink_artifacts.tar.gz

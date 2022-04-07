@@ -17,6 +17,8 @@ name: "Hadoop 2.8.3/Java 8/Scala 2.12"
 
 on: [push, workflow_dispatch]
 
+permissions: read-all
+
 jobs:
   ci:
     uses: ./.github/workflows/flink-ci-template.yml
