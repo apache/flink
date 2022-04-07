@@ -122,7 +122,9 @@ public class TaskMailboxProcessorTest {
         mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true), "stop");
         mailboxThread.join();
         assertThat(counter.get(), greaterThan(0));
-        assertThat(mailboxProcessor.getNumMailsProcessedCounter().getCount(), greaterThan(0L));
+        assertThat(
+                mailboxProcessor.getMailboxMetricsControl().getMailCounter().getCount(),
+                greaterThan(0L));
     }
 
     @Test
