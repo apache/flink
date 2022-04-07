@@ -572,7 +572,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .toArray(String[]::new);
     }
 
-    public String[] listDatabases(String catalogName, boolean notLike, String likePattern) {
+    @Override
+    public String[] listDatabasesLike(String catalogName, String likePattern) {
+        return listDatabases(catalogName, false, likePattern);
+    }
+
+    @Override
+    public String[] listDatabasesNotLike(String catalogName, String likePattern) {
+        return listDatabases(catalogName, true, likePattern);
+    }
+
+    private String[] listDatabases(String catalogName, boolean notLike, String likePattern) {
         final String catalog =
                 catalogName == null ? catalogManager.getCurrentCatalog() : catalogName;
         final Stream<String> allDatabases =

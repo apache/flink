@@ -798,11 +798,19 @@ public interface TableEnvironment {
      * Gets the names of all databases registered in the specified catalog.
      *
      * @param catalogName specified catalog name
-     * @param notLike is not like
      * @param likePattern like pattern
      * @return A list of the names of all registered databases in the specified catalog.
      */
-    String[] listDatabases(String catalogName, boolean notLike, String likePattern);
+    String[] listDatabasesLike(String catalogName, String likePattern);
+
+    /**
+     * Gets the names of all databases registered in the specified catalog.
+     *
+     * @param catalogName specified catalog name
+     * @param likePattern not like pattern
+     * @return A list of the names of all registered databases in the specified catalog.
+     */
+    String[] listDatabasesNotLike(String catalogName, String likePattern);
 
     /**
      * Gets the names of all tables available in the current namespace (the current database of the
