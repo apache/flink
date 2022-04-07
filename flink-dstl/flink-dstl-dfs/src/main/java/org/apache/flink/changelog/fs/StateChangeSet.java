@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 
@@ -33,7 +34,8 @@ import static java.util.Collections.unmodifiableList;
  * that constructor arguments are not modified outside.
  */
 @ThreadSafe
-class StateChangeSet {
+@Internal
+public class StateChangeSet {
     private final UUID logId;
     private final List<StateChange> changes;
     private final SequenceNumber sequenceNumber;

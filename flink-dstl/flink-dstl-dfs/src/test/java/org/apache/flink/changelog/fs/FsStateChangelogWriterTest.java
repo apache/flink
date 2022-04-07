@@ -92,8 +92,9 @@ class FsStateChangelogWriterTest {
                     byte[] bytes = getBytes();
                     SequenceNumber sqn = append(writer, bytes);
                     writer.persist(sqn);
+                    uploader.completeUpload();
                     uploader.reset();
-                    writer.confirm(sqn, writer.lastAppendedSqnUnsafe().next());
+                    writer.confirm(sqn, writer.nextSequenceNumber());
                     writer.persist(sqn);
                     assertNoUpload(uploader, "confirmed changes shouldn't be re-uploaded");
                 });
@@ -223,7 +224,8 @@ class FsStateChangelogWriterTest {
                         KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
                         StateChangeUploadScheduler.directScheduler(uploader),
                         appendPersistThreshold,
-                        new SyncMailboxExecutor())) {
+                        new SyncMailboxExecutor(),
+                        TaskChangelogRegistry.NO_OP)) {
             test.accept(writer, uploader);
         }
     }

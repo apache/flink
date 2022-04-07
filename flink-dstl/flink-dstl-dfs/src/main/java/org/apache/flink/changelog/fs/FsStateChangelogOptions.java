@@ -88,6 +88,13 @@ public class FsStateChangelogOptions {
                     .defaultValue(5)
                     .withDescription("Number of threads to use for upload.");
 
+    public static final ConfigOption<Integer> NUM_DISCARD_THREADS =
+            ConfigOptions.key("dstl.dfs.discard.num-threads")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Number of threads to use to discard changelog (e.g. pre-emptively uploaded unused state).");
+
     public static final ConfigOption<MemorySize> IN_FLIGHT_DATA_LIMIT =
             ConfigOptions.key("dstl.dfs.upload.max-in-flight")
                     .memoryType()

@@ -79,7 +79,8 @@ public class FsStateChangelogWriterSqnTest {
                         StateChangeUploadScheduler.directScheduler(
                                 new TestingStateChangeUploader()),
                         Long.MAX_VALUE,
-                        new SyncMailboxExecutor())) {
+                        new SyncMailboxExecutor(),
+                        TaskChangelogRegistry.NO_OP)) {
             if (writerSqnTestSettings.withAppend) {
                 append(writer);
             }
