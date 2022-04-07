@@ -132,7 +132,12 @@ public enum ProtoUtils {
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
             RuntimeContext runtimeContext,
             Map<String, String> internalParameters,
-            boolean inBatchExecutionMode) {
+            boolean inBatchExecutionMode,
+            boolean isMetricEnabled,
+            boolean isProfileEnabled,
+            int stateCacheSize,
+            int mapStateReadCacheSize,
+            int mapStateWriteCacheSize) {
         FlinkFnApi.UserDefinedDataStreamFunction.Builder builder =
                 FlinkFnApi.UserDefinedDataStreamFunction.newBuilder();
         builder.setFunctionType(
@@ -175,7 +180,11 @@ public enum ProtoUtils {
                         dataStreamPythonFunctionInfo
                                 .getPythonFunction()
                                 .getSerializedPythonFunction()));
-        builder.setMetricEnabled(true);
+        builder.setMetricEnabled(isMetricEnabled);
+        builder.setProfileEnabled(isProfileEnabled);
+        builder.setStateCacheSize(stateCacheSize);
+        builder.setMapStateReadCacheSize(mapStateReadCacheSize);
+        builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
         return builder.build();
     }
 
@@ -192,7 +201,12 @@ public enum ProtoUtils {
                     DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
-                    boolean inBatchExecutionMode) {
+                    boolean inBatchExecutionMode,
+                    boolean isMetricEnabled,
+                    boolean isProfileEnabled,
+                    int stateCacheSize,
+                    int mapStateReadCacheSize,
+                    int mapStateWriteCacheSize) {
         List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
 
         Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
@@ -203,7 +217,12 @@ public enum ProtoUtils {
                             (DataStreamPythonFunctionInfo) inputs[0],
                             runtimeContext,
                             internalParameters,
-                            inBatchExecutionMode));
+                            inBatchExecutionMode,
+                            isMetricEnabled,
+                            isProfileEnabled,
+                            stateCacheSize,
+                            mapStateReadCacheSize,
+                            mapStateWriteCacheSize));
         }
 
         results.add(
@@ -211,7 +230,12 @@ public enum ProtoUtils {
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
-                        inBatchExecutionMode));
+                        inBatchExecutionMode,
+                        isMetricEnabled,
+                        isProfileEnabled,
+                        stateCacheSize,
+                        mapStateReadCacheSize,
+                        mapStateWriteCacheSize));
         return results;
     }
 
@@ -221,13 +245,23 @@ public enum ProtoUtils {
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
                     TypeInformation<?> keyTypeInfo,
-                    boolean inBatchExecutionMode) {
+                    boolean inBatchExecutionMode,
+                    boolean isMetricEnabled,
+                    boolean isProfileEnabled,
+                    int stateCacheSize,
+                    int mapStateReadCacheSize,
+                    int mapStateWriteCacheSize) {
         List<FlinkFnApi.UserDefinedDataStreamFunction> results =
                 createUserDefinedDataStreamFunctionProtos(
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
-                        inBatchExecutionMode);
+                        inBatchExecutionMode,
+                        isMetricEnabled,
+                        isProfileEnabled,
+                        stateCacheSize,
+                        mapStateReadCacheSize,
+                        mapStateWriteCacheSize);
 
         // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
