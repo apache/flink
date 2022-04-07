@@ -124,10 +124,12 @@ Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< hint info >}}
 **Note:** All of the following configuration options can also be set globally in 
 `conf/flink-conf.yaml` (see [configuration]({{< ref "docs/deployment/config" >}}) and can be later
 on overridden in the application, through `EnvironmentSettings`, before instantiating
 the `TableEnvironment`, or through the `TableConfig` of the `TableEnvironment`.
+{{< /hint >}}
 
 ### Execution Options
 
