@@ -391,6 +391,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
             while (coordinator.getPendingCheckpoints().values().stream()
                     .noneMatch(pc -> pc.getCheckpointStorageLocation() != null)) {
                 // wait for at least 1 request to be fully processed
+                // explicitly check for the checkpoint storage location to make sure
+                // that the checkpoint was actually triggered
+                // if the checkpoint wasn't triggered yet the acknowledge below
+                // will fail with an error
                 Thread.sleep(10);
             }
             coordinator.receiveAcknowledgeMessage(
