@@ -42,6 +42,7 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -1020,6 +1021,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         File tmpConfigurationFile = null;
         try {
             tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+
+            // remove localhost bind hosts as they render production clusters unusable
+            removeLocalhostBindHostSetting(configuration, JobManagerOptions.BIND_HOST);
+            removeLocalhostBindHostSetting(configuration, TaskManagerOptions.BIND_HOST);
+            // this setting is unconditionally overridden anyway, so we remove it for clarity
+            configuration.removeConfig(TaskManagerOptions.HOST);
+
             BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
             String flinkConfigKey = "flink-conf.yaml";
@@ -1264,6 +1272,20 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // since deployment was successful, remove the hook
         ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
         return report;
+    }
+
+    private void removeLocalhostBindHostSetting(
+            Configuration configuration, ConfigOption<?> option) {
+        configuration
+                .getOptional(option)
+                .filter(bindHost -> bindHost.equals("localhost"))
+                .ifPresent(
+                        bindHost -> {
+                            LOG.info(
+                                    "Removing 'localhost' {} setting from effective configuration; using '0.0.0.0' instead.",
+                                    option);
+                            configuration.removeConfig(option);
+                        });
     }
 
     private void setTokensFor(ContainerLaunchContext containerLaunchContext) throws IOException {
