@@ -1303,7 +1303,7 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>uploadQueueSize</td>
       <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
