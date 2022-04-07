@@ -64,7 +64,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Time;
-import java.util.TimeZone;
 
 /**
  * Utilities for converting Flink logical types, such as convert it to the related TypeSerializer or
@@ -74,12 +73,6 @@ import java.util.TimeZone;
 public final class PythonTypeUtils {
 
     private static final String EMPTY_STRING = "";
-
-    /** The local time zone. */
-    private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
-
-    /** The number of milliseconds in a day. */
-    private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
     public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
         return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
