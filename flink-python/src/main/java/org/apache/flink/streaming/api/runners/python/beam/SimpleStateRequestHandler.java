@@ -105,8 +105,8 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
             BeamFnApi.StateGetResponse.newBuilder()
                     .setData(ByteString.copyFrom(new byte[] {NOT_EMPTY_FLAG}));
 
-    private final TypeSerializer keySerializer;
-    private final TypeSerializer namespaceSerializer;
+    private final TypeSerializer<?> keySerializer;
+    private final TypeSerializer<?> namespaceSerializer;
     private final TypeSerializer<byte[]> valueSerializer;
     private final KeyedStateBackend keyedStateBackend;
 
