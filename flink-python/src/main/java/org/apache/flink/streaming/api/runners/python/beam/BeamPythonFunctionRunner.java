@@ -234,15 +234,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         PortablePipelineOptions portableOptions =
                 PipelineOptionsFactory.as(PortablePipelineOptions.class);
 
-        if (jobOptions.containsKey(PythonOptions.STATE_CACHE_SIZE.key())) {
+        int stateCacheSize =
+                Integer.parseInt(
+                        jobOptions.getOrDefault(
+                                PythonOptions.STATE_CACHE_SIZE.key(),
+                                PythonOptions.STATE_CACHE_SIZE.defaultValue().toString()));
+        if (stateCacheSize > 0) {
             portableOptions
                     .as(ExperimentalOptions.class)
                     .setExperiments(
                             Collections.singletonList(
-                                    ExperimentalOptions.STATE_CACHE_SIZE
-                                            + "="
-                                            + jobOptions.get(
-                                                    PythonOptions.STATE_CACHE_SIZE.key())));
+                                    ExperimentalOptions.STATE_CACHE_SIZE + "=" + stateCacheSize));
         }
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
