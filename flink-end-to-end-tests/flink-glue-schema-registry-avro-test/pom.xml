@@ -34,7 +34,7 @@ under the License.
 
 	<properties>
 		<guava.version>29.0-jre</guava.version>
-		<netty.version>4.1.68.Final</netty.version>
+		<netty.version>4.1.71.Final</netty.version>
 		<kotlin.version>1.3.50</kotlin.version>
 	</properties>
 
