@@ -87,6 +87,9 @@ class LRUCache(object):
     def __iter__(self):
         return iter(self._cache.values())
 
+    def __contains__(self, key):
+        return key in self._cache
+
 
 class SynchronousKvRuntimeState(InternalKvState, ABC):
     """
