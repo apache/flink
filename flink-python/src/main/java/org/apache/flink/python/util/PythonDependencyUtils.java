@@ -171,14 +171,15 @@ public class PythonDependencyUtils {
          *
          * @param filePath The path of the Python dependency.
          */
-        private void addPythonFile(Configuration toConfiguration, String filePath) {
+        private void addPythonFile(Configuration pythonDependencyConfig, String filePath) {
             Preconditions.checkNotNull(filePath);
             String fileKey = generateUniqueFileKey(PYTHON_FILE_PREFIX, filePath);
             registerCachedFileIfNotExist(filePath, fileKey);
-            if (!toConfiguration.contains(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)) {
-                toConfiguration.set(PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new LinkedHashMap<>());
+            if (!pythonDependencyConfig.contains(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)) {
+                pythonDependencyConfig.set(
+                        PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new LinkedHashMap<>());
             }
-            toConfiguration
+            pythonDependencyConfig
                     .get(PYTHON_FILES_DISTRIBUTED_CACHE_INFO)
                     .put(fileKey, new File(filePath).getName());
         }
@@ -191,8 +192,8 @@ public class PythonDependencyUtils {
          * @param requirementsFilePath The path of the requirements file.
          */
         private void setPythonRequirements(
-                Configuration toConfiguration, String requirementsFilePath) {
-            setPythonRequirements(toConfiguration, requirementsFilePath, null);
+                Configuration pythonDependencyConfig, String requirementsFilePath) {
+            setPythonRequirements(pythonDependencyConfig, requirementsFilePath, null);
         }
 
         /**
@@ -205,29 +206,31 @@ public class PythonDependencyUtils {
          * @param requirementsCachedDir The path of the requirements cached directory.
          */
         private void setPythonRequirements(
-                Configuration toConfiguration,
+                Configuration pythonDependencyConfig,
                 String requirementsFilePath,
                 @Nullable String requirementsCachedDir) {
             Preconditions.checkNotNull(requirementsFilePath);
-            if (!toConfiguration.contains(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)) {
-                toConfiguration.set(
+            if (!pythonDependencyConfig.contains(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)) {
+                pythonDependencyConfig.set(
                         PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
             }
-            toConfiguration.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO).clear();
+            pythonDependencyConfig.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO).clear();
             removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_FILE_PREFIX);
             removeCachedFilesByPrefix(PYTHON_REQUIREMENTS_CACHE_PREFIX);
 
             String fileKey =
                     generateUniqueFileKey(PYTHON_REQUIREMENTS_FILE_PREFIX, requirementsFilePath);
             registerCachedFileIfNotExist(requirementsFilePath, fileKey);
-            toConfiguration.get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO).put(FILE, fileKey);
+            pythonDependencyConfig
+                    .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
+                    .put(FILE, fileKey);
 
             if (requirementsCachedDir != null) {
                 String cacheDirKey =
                         generateUniqueFileKey(
                                 PYTHON_REQUIREMENTS_CACHE_PREFIX, requirementsCachedDir);
                 registerCachedFileIfNotExist(requirementsCachedDir, cacheDirKey);
-                toConfiguration
+                pythonDependencyConfig
                         .get(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO)
                         .put(CACHE, cacheDirKey);
             }
@@ -243,24 +246,26 @@ public class PythonDependencyUtils {
          * @param targetDir The name of the target directory.
          */
         private void addPythonArchive(
-                Configuration toConfiguration, String archivePath, String targetDir) {
+                Configuration pythonDependencyConfig, String archivePath, String targetDir) {
             Preconditions.checkNotNull(archivePath);
-            if (!toConfiguration.contains(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)) {
-                toConfiguration.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
+            if (!pythonDependencyConfig.contains(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)) {
+                pythonDependencyConfig.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
             }
             String fileKey =
                     generateUniqueFileKey(
                             PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
             registerCachedFileIfNotExist(archivePath, fileKey);
-            toConfiguration.get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO).put(fileKey, targetDir);
+            pythonDependencyConfig
+                    .get(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO)
+                    .put(fileKey, targetDir);
         }
 
-        private void applyToConfiguration(Configuration toConfiguration) {
+        private void applyToConfiguration(Configuration pythonDependencyConfig) {
             config.getOptional(PythonOptions.PYTHON_FILES)
                     .ifPresent(
                             pyFiles -> {
                                 for (String filePath : pyFiles.split(FILE_DELIMITER)) {
-                                    addPythonFile(toConfiguration, filePath);
+                                    addPythonFile(pythonDependencyConfig, filePath);
                                 }
                             });
 
@@ -271,11 +276,11 @@ public class PythonDependencyUtils {
                                     String[] requirementFileAndCache =
                                             pyRequirements.split(PARAM_DELIMITER, 2);
                                     setPythonRequirements(
-                                            toConfiguration,
+                                            pythonDependencyConfig,
                                             requirementFileAndCache[0],
                                             requirementFileAndCache[1]);
                                 } else {
-                                    setPythonRequirements(toConfiguration, pyRequirements);
+                                    setPythonRequirements(pythonDependencyConfig, pyRequirements);
                                 }
                             });
 
@@ -297,15 +302,16 @@ public class PythonDependencyUtils {
                                         archivePath = archive;
                                         targetDir = new File(archivePath).getName();
                                     }
-                                    addPythonArchive(toConfiguration, archivePath, targetDir);
+                                    addPythonArchive(
+                                            pythonDependencyConfig, archivePath, targetDir);
                                 }
                             });
 
             config.getOptional(PYTHON_EXECUTABLE)
-                    .ifPresent(e -> toConfiguration.set(PYTHON_EXECUTABLE, e));
+                    .ifPresent(e -> pythonDependencyConfig.set(PYTHON_EXECUTABLE, e));
 
             config.getOptional(PYTHON_CLIENT_EXECUTABLE)
-                    .ifPresent(e -> toConfiguration.set(PYTHON_CLIENT_EXECUTABLE, e));
+                    .ifPresent(e -> pythonDependencyConfig.set(PYTHON_CLIENT_EXECUTABLE, e));
         }
 
         private String generateUniqueFileKey(String prefix, String hashString) {

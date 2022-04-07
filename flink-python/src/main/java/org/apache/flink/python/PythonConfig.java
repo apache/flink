@@ -59,11 +59,6 @@ public class PythonConfig implements ReadableConfig {
      */
     private final ReadableConfig pythonDependencyConfiguration;
 
-    public PythonConfig(ReadableConfig configuration) {
-        this.configuration = Preconditions.checkNotNull(configuration);
-        this.pythonDependencyConfiguration = new Configuration();
-    }
-
     public PythonConfig(
             ReadableConfig configuration, ReadableConfig pythonDependencyConfiguration) {
         this.configuration = Preconditions.checkNotNull(configuration);
@@ -100,13 +95,7 @@ public class PythonConfig implements ReadableConfig {
             jobOptions = new HashMap<>();
             config.set(PythonOptions.PYTHON_JOB_OPTIONS, jobOptions);
         }
-        jobOptions.put(
-                PythonOptions.STATE_CACHE_SIZE.key(),
-                String.valueOf(config.get(PythonOptions.STATE_CACHE_SIZE)));
-        jobOptions.put(
-                PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
-                String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
-        jobOptions.put("table.exec.timezone", getLocalTimeZone(configuration).getId());
+        jobOptions.put("TABLE_LOCAL_TIME_ZONE", getLocalTimeZone(configuration).getId());
         if (config.contains(PYTHON_LOOPBACK_SERVER_ADDRESS)) {
             jobOptions.put(
                     "PYTHON_LOOPBACK_SERVER_ADDRESS", config.get(PYTHON_LOOPBACK_SERVER_ADDRESS));

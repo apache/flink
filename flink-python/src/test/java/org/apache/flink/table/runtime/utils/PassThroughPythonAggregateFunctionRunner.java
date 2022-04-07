@@ -37,7 +37,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
@@ -72,7 +71,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             boolean isBatchOverWindow) {
         super(
@@ -80,7 +78,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 null,
                 null,

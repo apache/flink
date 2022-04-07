@@ -37,7 +37,6 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
@@ -71,11 +70,10 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             ProcessPythonEnvironmentManager environmentManager,
             String headOperatorFunctionUrn,
             List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
-            Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
-            KeyedStateBackend<?> stateBackend,
-            TypeSerializer<?> keySerializer,
-            TypeSerializer<?> namespaceSerializer,
+            @Nullable KeyedStateBackend<?> stateBackend,
+            @Nullable TypeSerializer<?> keySerializer,
+            @Nullable TypeSerializer<?> namespaceSerializer,
             @Nullable TimerRegistration timerRegistration,
             MemoryManager memoryManager,
             double managedMemoryFraction,
@@ -85,7 +83,6 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                jobOptions,
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,

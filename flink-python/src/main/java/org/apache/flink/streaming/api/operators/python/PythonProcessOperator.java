@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.python.PythonOptions.PYTHON_JOB_OPTIONS;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -72,7 +71,6 @@ public class PythonProcessOperator<IN, OUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                config.get(PYTHON_JOB_OPTIONS),
                 getFlinkMetricContainer(),
                 null,
                 null,

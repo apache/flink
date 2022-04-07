@@ -49,7 +49,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private static final long serialVersionUID = 1L;
 
-    protected Configuration config;
+    protected final Configuration config;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
@@ -246,11 +246,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     /** Returns whether the bundle is finished. */
     public boolean isBundleFinished() {
         return elementCount == 0;
-    }
-
-    /** Reset the {@link Configuration} if needed. */
-    public void setConfiguration(Configuration config) {
-        this.config = config;
     }
 
     /** Returns the {@link Configuration}. */

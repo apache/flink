@@ -244,26 +244,30 @@ public class PythonOptions {
     // config options used for internal purpose
     // ------------------------------------------------------------------------------------------
 
-    @Documentation.ExcludeFromDocumentation("Internal use only")
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The options will be exported as environment variables which could be accessed in Python worker process.")
     public static final ConfigOption<Map<String, String>> PYTHON_JOB_OPTIONS =
             ConfigOptions.key("python.job-options").mapType().noDefaultValue();
 
-    @Documentation.ExcludeFromDocumentation("Internal use only")
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.files'.")
     public static final ConfigOption<Map<String, String>> PYTHON_FILES_DISTRIBUTED_CACHE_INFO =
             ConfigOptions.key("python.internal.files-key-map").mapType().noDefaultValue();
 
-    @Documentation.ExcludeFromDocumentation("Internal use only")
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.requirements'.")
     public static final ConfigOption<Map<String, String>>
             PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO =
                     ConfigOptions.key("python.internal.requirements-file-key")
                             .mapType()
                             .noDefaultValue();
 
-    @Documentation.ExcludeFromDocumentation("Internal use only")
+    @Documentation.ExcludeFromDocumentation(
+            "Internal use only. The distributed cache entries for 'python.archives'.")
     public static final ConfigOption<Map<String, String>> PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO =
             ConfigOptions.key("python.internal.archives-key-map").mapType().noDefaultValue();
 
-    @Documentation.ExcludeFromDocumentation("Internal use only. Used for local debug")
+    @Documentation.ExcludeFromDocumentation("Internal use only. Used for local debug.")
     public static final ConfigOption<String> PYTHON_LOOPBACK_SERVER_ADDRESS =
             ConfigOptions.key("python.loopback-server.address").stringType().noDefaultValue();
 }

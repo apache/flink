@@ -47,7 +47,6 @@ import org.apache.flink.util.Preconditions;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.python.PythonOptions.PYTHON_JOB_OPTIONS;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
@@ -177,7 +176,6 @@ public abstract class AbstractPythonStreamAggregateOperator
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                config.get(PYTHON_JOB_OPTIONS),
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
