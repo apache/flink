@@ -358,6 +358,15 @@ public class HiveDialectITCase {
                 .isEqualTo(
                         "[+I[1, 0, static], +I[1, 1, a], +I[1, 1, static], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static],"
                                 + " +I[2, 1, b], +I[2, 1, static], +I[3, 0, static], +I[3, 1, c], +I[3, 1, static]]");
+
+        // test table partitioned by decimal type
+        tableEnv.executeSql(
+                "create table dest3 (key int, value string) partitioned by (p1 decimal(5, 2)) ");
+        tableEnv.executeSql("insert overwrite dest3 partition (p1) select 1,y,100.45 from src")
+                .await();
+        results = queryResult(tableEnv.sqlQuery("select * from dest3"));
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, a, 100.45], +I[1, b, 100.45], +I[1, c, 100.45]]");
     }
 
     @Test
