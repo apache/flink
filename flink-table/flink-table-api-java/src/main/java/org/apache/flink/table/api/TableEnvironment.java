@@ -807,10 +807,10 @@ public interface TableEnvironment {
      * Gets the names of all databases registered in the specified catalog.
      *
      * @param catalogName specified catalog name
-     * @param likePattern not like pattern
+     * @param notLikePattern not like pattern
      * @return A list of the names of all registered databases in the specified catalog.
      */
-    String[] listDatabasesNotLike(String catalogName, String likePattern);
+    String[] listDatabasesNotLike(String catalogName, String notLikePattern);
 
     /**
      * Gets the names of all tables available in the current namespace (the current database of the

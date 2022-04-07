@@ -578,8 +578,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String[] listDatabasesNotLike(String catalogName, String likePattern) {
-        return listDatabases(catalogName, true, likePattern);
+    public String[] listDatabasesNotLike(String catalogName, String notLikePattern) {
+        return listDatabases(catalogName, true, notLikePattern);
     }
 
     private String[] listDatabases(String catalogName, boolean notLike, String likePattern) {
