@@ -20,11 +20,12 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -65,7 +66,9 @@ public class LocalBufferPoolTest extends TestLogger {
 
     private BufferPool localBufferPool;
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newCachedThreadPool());
 
     @Before
     public void setupLocalBufferPool() throws Exception {
@@ -86,11 +89,6 @@ public class LocalBufferPoolTest extends TestLogger {
         // no other local buffer pools used than the one above, but call just in case
         networkBufferPool.destroyAllBufferPools();
         networkBufferPool.destroy();
-    }
-
-    @AfterClass
-    public static void shutdownExecutor() {
-        executor.shutdownNow();
     }
 
     @Test
@@ -367,8 +365,11 @@ public class LocalBufferPoolTest extends TestLogger {
         Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
         for (int i = 0; i < numConcurrentTasks; i++) {
             taskResults[i] =
-                    executor.submit(
-                            new BufferRequesterTask(localBufferPool, numBuffersToRequestPerTask));
+                    EXECUTOR_RESOURCE
+                            .getExecutor()
+                            .submit(
+                                    new BufferRequesterTask(
+                                            localBufferPool, numBuffersToRequestPerTask));
         }
 
         for (int i = 0; i < numConcurrentTasks; i++) {

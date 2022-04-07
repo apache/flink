@@ -19,9 +19,11 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -33,6 +35,10 @@ import java.util.concurrent.Executors;
 
 /** Test for {@link RecordEmitter}. */
 public class RecordEmitterTest {
+
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newSingleThreadExecutor());
 
     private class TestRecordEmitter extends RecordEmitter<TimestampedValue> {
 
@@ -67,15 +73,13 @@ public class RecordEmitterTest {
 
         queue1.put(two);
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(emitter);
+        EXECUTOR_RESOURCE.getExecutor().submit(emitter);
 
         Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
         while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
             Thread.sleep(10);
         }
         emitter.stop();
-        executor.shutdownNow();
 
         Assert.assertThat(emitter.results, Matchers.contains(one, five, two, ten));
     }
@@ -109,8 +113,7 @@ public class RecordEmitterTest {
         emitter.setMaxLookaheadMillis(1);
         emitter.setCurrentWatermark(5);
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(emitter);
+        EXECUTOR_RESOURCE.getExecutor().submit(emitter);
         try {
             // emits one record past the limit
             Deadline dl = Deadline.fromNow(Duration.ofSeconds(10));
@@ -128,7 +131,6 @@ public class RecordEmitterTest {
             Assert.assertThat(emitter.results, Matchers.contains(one, two, three, ten, eleven));
         } finally {
             emitter.stop();
-            executor.shutdownNow();
         }
     }
 }

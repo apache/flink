@@ -25,10 +25,12 @@ import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -55,6 +57,10 @@ public class HiveCatalogFactoryTest extends TestLogger {
 
     private static final URL CONF_DIR =
             Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
+
+    @ClassRule
+    public static final TestExecutorResource<ExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorResource<>(() -> Executors.newFixedThreadPool(2));
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -233,10 +239,9 @@ public class HiveCatalogFactoryTest extends TestLogger {
                                 null,
                                 Thread.currentThread().getContextClassLoader());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        ExecutorService executorService = EXECUTOR_RESOURCE.getExecutor();
         Future<Catalog> future1 = executorService.submit(callable1);
         Future<Catalog> future2 = executorService.submit(callable2);
-        executorService.shutdown();
 
         HiveCatalog catalog1 = (HiveCatalog) future1.get();
         HiveCatalog catalog2 = (HiveCatalog) future2.get();
