@@ -430,3 +430,5 @@ The following are some precautions for using the Hive dialect.
 location is only supported in Hive-2.4.0 or later.
 - Use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
 to run DML and DQL.
+- Since Flink 1.15 you need to swap flink-table-planner-loader located in /lib with flink-table-planner_2.12 located in /opt to avoid the following exception. Please see [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128) for more details.
+  {{<img alt="error" width="80%" src="/fig/hive_parser_load_exception.png">}}
