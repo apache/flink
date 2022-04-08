@@ -19,7 +19,6 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
-import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -31,7 +30,6 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,7 +53,7 @@ import java.util.Optional;
  */
 public class SqlAlterTableAdd extends SqlAlterTable {
 
-    // Whether the column is added by a paren, currently it is only used for SQL unparse.
+    // Whether the added column is in a paren, currently it is only used for SQL unparse.
     private final boolean withParen;
     private final SqlNodeList addedColumns;
     @Nullable private final SqlWatermark watermark;
@@ -73,24 +71,6 @@ public class SqlAlterTableAdd extends SqlAlterTable {
         this.addedColumns = addedColumns;
         this.watermark = sqlWatermark;
         this.constraint = constraint;
-    }
-
-    /** Returns the column constraints plus the table constraints. */
-    public List<SqlTableConstraint> getFullConstraints() {
-        List<SqlTableConstraint> ret = new ArrayList<>();
-        this.addedColumns.getList().stream()
-                .map(SqlTableColumnPosition.class::cast)
-                .map(SqlTableColumnPosition::getColumn)
-                .forEach(
-                        column -> {
-                            if (column instanceof SqlTableColumn.SqlRegularColumn) {
-                                SqlTableColumn.SqlRegularColumn regularColumn =
-                                        (SqlTableColumn.SqlRegularColumn) column;
-                                regularColumn.getConstraint().map(ret::add);
-                            }
-                        });
-        ret.addAll(this.constraint);
-        return ret;
     }
 
     public SqlNodeList getColumns() {
@@ -144,7 +124,6 @@ public class SqlAlterTableAdd extends SqlAlterTable {
                 // add watermark case
                 watermark.unparse(writer, leftPrec, rightPrec);
             }
-            // TODO: add constraint case
         }
     }
 }

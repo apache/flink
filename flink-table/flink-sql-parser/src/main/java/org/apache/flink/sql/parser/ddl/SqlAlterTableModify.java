@@ -52,7 +52,7 @@ import java.util.List;
  */
 public class SqlAlterTableModify extends SqlAlterTable {
 
-    // Whether the column is added by a paren, currently it is only used for SQL unparse.
+    // Whether the modified column is in a paren, currently it is only used for SQL unparse.
     private final boolean withParen;
     private final SqlNodeList modifiedColumns;
     @Nullable private final SqlWatermark watermark;
