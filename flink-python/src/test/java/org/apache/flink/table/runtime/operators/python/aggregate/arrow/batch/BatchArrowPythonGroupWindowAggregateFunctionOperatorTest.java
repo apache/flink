@@ -344,19 +344,19 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest
                 5000L,
                 new int[] {0, 1},
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "UdafInputProjection",
                         inputRowType,
                         udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "GroupKey",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),
                         groupingSet),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "GroupSet",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),

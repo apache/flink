@@ -94,7 +94,7 @@ public class PythonTableFunctionOperatorTest
                 udfOutputType,
                 JoinTypeUtil.getFlinkJoinType(joinRelType),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "UdtfInputProjection",
                         inputType,
                         udfInputType,

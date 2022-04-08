@@ -185,19 +185,19 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
                 udfInputType,
                 udfOutputType,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "GroupKey",
                         inputType,
                         (RowType) Projection.of(groupingSet).project(inputType),
                         groupingSet),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "GroupSet",
                         inputType,
                         (RowType) Projection.of(groupingSet).project(inputType),

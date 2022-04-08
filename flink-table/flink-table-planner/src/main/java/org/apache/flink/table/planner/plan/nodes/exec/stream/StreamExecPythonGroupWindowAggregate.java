@@ -487,7 +487,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     namedWindowProperties,
                     shiftTimeZone,
                     ProjectionCodeGenerator.generateProjection(
-                            CodeGeneratorContext.apply(config),
+                            new CodeGeneratorContext(config),
                             "UdafInputProjection",
                             inputRowType,
                             userDefinedFunctionInputType,

@@ -177,7 +177,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             udfOutputType,
                             joinType,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config),
+                                    new CodeGeneratorContext(config),
                                     "UdtfInputProjection",
                                     inputType,
                                     udfInputType,

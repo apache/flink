@@ -86,7 +86,7 @@ object LongHashJoinGenerator {
   def genProjection(tableConfig: ReadableConfig, types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
-      CodeGeneratorContext.apply(tableConfig),
+      new CodeGeneratorContext(tableConfig),
       "Projection",
       rowType,
       rowType,
@@ -110,7 +110,7 @@ object LongHashJoinGenerator {
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
     val tableTerm = newName("LongHashTable")
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig)
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
