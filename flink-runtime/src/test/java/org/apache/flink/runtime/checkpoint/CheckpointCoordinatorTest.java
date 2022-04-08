@@ -3635,7 +3635,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID)
-                        .build();
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext context =
                 new CheckpointCoordinatorTestingUtils
@@ -3650,14 +3650,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
                         .setCheckpointCoordinatorConfiguration(
                                 CheckpointCoordinatorConfiguration.builder()
                                         .setCheckpointTimeout(10)
                                         .build())
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setCoordinatorsToCheckpoint(Collections.singleton(context))
-                        .build();
+                        .build(graph);
         try {
             checkpointCoordinator.triggerCheckpoint(false);
             manuallyTriggeredScheduledExecutor.triggerAll();
