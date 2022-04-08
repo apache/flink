@@ -188,7 +188,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
           context.getSqlExprToRexConverterFactory
 
-        override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
         override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
@@ -281,7 +281,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       isUpdateBeforeRequired: Boolean): IntermediateRelTable = {
     val uniqueKeys = getUniqueKeys(relNode)
     val fmq = FlinkRelMetadataQuery
-      .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
+      .reuseOrCreate(planner.createRelBuilder.getCluster.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(relNode)
     val windowProperties = fmq.getRelWindowProperties(relNode)
     val statistic = FlinkStatistic
@@ -301,7 +301,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {
     val rowType = relNode.getRowType
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(
+      planner.createRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
       uniqueKeys.filter(_.nonEmpty).map {

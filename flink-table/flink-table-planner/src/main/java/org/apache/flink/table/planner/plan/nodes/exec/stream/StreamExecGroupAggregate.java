@@ -167,7 +167,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
-                                planner.getRelBuilder(),
+                                planner.createRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                                 // TODO: heap state backend do not copy key currently,
                                 //  we have to copy input field

@@ -1582,7 +1582,7 @@ object TableTestUtil {
       .asInstanceOf[TableEnvironmentImpl]
       .getPlanner
       .asInstanceOf[PlannerBase]
-      .getRelBuilder
+      .createRelBuilder
       .queryOperation(table.getQueryOperation)
       .build()
   }

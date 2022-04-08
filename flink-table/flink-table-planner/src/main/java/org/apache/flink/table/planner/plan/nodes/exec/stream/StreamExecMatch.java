@@ -155,7 +155,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
-                translatePattern(matchSpec, config, planner.getRelBuilder(), inputRowType);
+                translatePattern(matchSpec, config, planner.createRelBuilder(), inputRowType);
         final Pattern<RowData, RowData> cepPattern = cepPatternAndNames.f0;
 
         // TODO remove this once it is supported in CEP library
@@ -190,7 +190,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         final MatchCodeGenerator generator =
                 new MatchCodeGenerator(
                         new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         false, // nullableInput
                         JavaScalaConversionUtil.toScala(cepPatternAndNames.f1),
                         JavaScalaConversionUtil.toScala(Optional.empty()),

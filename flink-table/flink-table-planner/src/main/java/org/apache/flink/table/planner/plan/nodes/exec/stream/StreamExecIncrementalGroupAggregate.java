@@ -183,7 +183,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggGrouping.length,
                         partialLocalAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         // the partial aggregate accumulators will be buffered, so need copy
                         true);
 
@@ -202,7 +202,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         0,
                         partialLocalAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         // the final aggregate accumulators is not buffered
                         false);
 

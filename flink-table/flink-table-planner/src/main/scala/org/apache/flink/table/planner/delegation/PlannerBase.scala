@@ -117,28 +117,19 @@ abstract class PlannerBase(
       getTraitDefs.toList
     )
 
-  /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
-  private[flink] def getRelBuilder: FlinkRelBuilder = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentDatabase = catalogManager.getCurrentDatabase
-    plannerContext.createRelBuilder(currentCatalogName, currentDatabase)
+  private[flink] def createRelBuilder: FlinkRelBuilder = {
+    plannerContext.createRelBuilder()
   }
 
-  /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   @VisibleForTesting
   private[flink] def createFlinkPlanner: FlinkPlannerImpl = {
-    val currentCatalogName = catalogManager.getCurrentCatalog
-    val currentDatabase = catalogManager.getCurrentDatabase
-    plannerContext.createFlinkPlanner(currentCatalogName, currentDatabase)
+    plannerContext.createFlinkPlanner()
   }
 
-  /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */
   private[flink] def getTypeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
 
-  /** Returns specific RelTraitDefs depends on the concrete type of this TableEnvironment. */
   protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]]
 
-  /** Returns specific query [[Optimizer]] depends on the concrete type of this TableEnvironment. */
   protected def getOptimizer: Optimizer
 
   def getTableConfig: TableConfig = tableConfig
@@ -197,7 +188,7 @@ abstract class PlannerBase(
     val dataTypeFactory = catalogManager.getDataTypeFactory
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
-        val input = getRelBuilder.queryOperation(s.getChild).build()
+        val input = createRelBuilder.queryOperation(s.getChild).build()
         val sinkSchema = s.getSink.getTableSchema
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(
@@ -213,9 +204,9 @@ abstract class PlannerBase(
           ConnectorCatalogTable.sink(s.getSink, !isStreamingMode))
 
       case collectModifyOperation: CollectModifyOperation =>
-        val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
+        val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
         DynamicSinkUtils.convertCollectToRel(
-          getRelBuilder,
+          createRelBuilder,
           input,
           collectModifyOperation,
           getTableConfig,
@@ -223,7 +214,7 @@ abstract class PlannerBase(
         )
 
       case catalogSink: SinkModifyOperation =>
-        val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
+        val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
         val dynamicOptions = catalogSink.getDynamicOptions
         getTableSink(catalogSink.getContextResolvedTable, dynamicOptions).map {
           case (table, sink: TableSink[_]) =>
@@ -255,7 +246,7 @@ abstract class PlannerBase(
               catalogSink.getStaticPartitions.toMap)
 
           case (table, sink: DynamicTableSink) =>
-            DynamicSinkUtils.convertSinkToRel(getRelBuilder, input, catalogSink, sink)
+            DynamicSinkUtils.convertSinkToRel(createRelBuilder, input, catalogSink, sink)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>
@@ -264,12 +255,12 @@ abstract class PlannerBase(
         }
 
       case externalModifyOperation: ExternalModifyOperation =>
-        val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
-        DynamicSinkUtils.convertExternalToRel(getRelBuilder, input, externalModifyOperation)
+        val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
+        DynamicSinkUtils.convertExternalToRel(createRelBuilder, input, externalModifyOperation)
 
       // legacy
       case outputConversion: OutputConversionModifyOperation =>
-        val input = getRelBuilder.queryOperation(outputConversion.getChild).build()
+        val input = createRelBuilder.queryOperation(outputConversion.getChild).build()
         val (needUpdateBefore, withChangeFlag) = outputConversion.getUpdateMode match {
           case UpdateMode.RETRACT => (true, true)
           case UpdateMode.APPEND => (false, false)
@@ -486,7 +477,7 @@ abstract class PlannerBase(
     beforeTranslation()
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
-        val relNode = getRelBuilder.queryOperation(queryOperation).build()
+        val relNode = createRelBuilder.queryOperation(queryOperation).build()
         relNode match {
           // SQL: explain plan for insert into xx
           case modify: LogicalTableModify =>

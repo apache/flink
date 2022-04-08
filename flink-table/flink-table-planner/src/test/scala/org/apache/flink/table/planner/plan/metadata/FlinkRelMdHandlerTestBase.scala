@@ -105,7 +105,7 @@ class FlinkRelMdHandlerTestBase {
 
   @Before
   def setUp(): Unit = {
-    relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    relBuilder = plannerContext.createRelBuilder()
 
     rexBuilder = relBuilder.getRexBuilder
     cluster = relBuilder.getCluster

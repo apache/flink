@@ -155,62 +155,37 @@ public class PlannerContext {
                 .build();
     }
 
-    /** Returns the {@link FlinkTypeFactory} that will be used. */
     public FlinkTypeFactory getTypeFactory() {
         return typeFactory;
     }
 
-    /** Returns the {@link FlinkContext}. */
     public FlinkContext getFlinkContext() {
         return context;
     }
 
-    /**
-     * Creates a configured {@link FlinkRelBuilder} for a planning session.
-     *
-     * @param currentCatalog the current default catalog to look for first during planning.
-     * @param currentDatabase the current default database to look for first during planning.
-     * @return configured rel builder
-     */
-    public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
-        FlinkCalciteCatalogReader relOptSchema =
-                createCatalogReader(false, currentCatalog, currentDatabase);
+    public FlinkRelBuilder createRelBuilder() {
+        final FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false);
 
-        Context chain =
-                Contexts.of(
-                        context,
-                        // Sets up the ViewExpander explicitly for FlinkRelBuilder.
-                        createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext());
+        final FlinkPlannerImpl planner = createFlinkPlanner();
+
+        // Sets up the ViewExpander explicitly for FlinkRelBuilder.
+        final Context chain = Contexts.of(context, planner.createToRelContext());
+
         return FlinkRelBuilder.of(chain, cluster, relOptSchema);
     }
 
-    /**
-     * Creates a configured {@link FlinkPlannerImpl} for a planning session.
-     *
-     * @param currentCatalog the current default catalog to look for first during planning.
-     * @param currentDatabase the current default database to look for first during planning.
-     * @return configured flink planner
-     */
-    public FlinkPlannerImpl createFlinkPlanner(String currentCatalog, String currentDatabase) {
+    public FlinkPlannerImpl createFlinkPlanner() {
         return new FlinkPlannerImpl(
-                createFrameworkConfig(),
-                isLenient -> createCatalogReader(isLenient, currentCatalog, currentDatabase),
-                typeFactory,
-                cluster);
+                createFrameworkConfig(), this::createCatalogReader, typeFactory, cluster);
     }
 
-    /**
-     * Creates a configured instance of {@link CalciteParser}.
-     *
-     * @return configured calcite parser
-     */
     public CalciteParser createCalciteParser() {
         return new CalciteParser(getSqlParserConfig());
     }
 
-    public FlinkCalciteCatalogReader createCatalogReader(
-            boolean lenientCaseSensitivity, String currentCatalog, String currentDatabase) {
-        SqlParser.Config sqlParserConfig = getSqlParserConfig();
+    public FlinkCalciteCatalogReader createCatalogReader(boolean lenientCaseSensitivity) {
+        final SqlParser.Config sqlParserConfig = getSqlParserConfig();
+
         final boolean caseSensitive;
         if (lenientCaseSensitivity) {
             caseSensitive = false;
@@ -218,13 +193,19 @@ public class PlannerContext {
             caseSensitive = sqlParserConfig.caseSensitive();
         }
 
-        SqlParser.Config newSqlParserConfig =
+        final SqlParser.Config newSqlParserConfig =
                 SqlParser.configBuilder(sqlParserConfig).setCaseSensitive(caseSensitive).build();
 
-        SchemaPlus rootSchema = getRootSchema(this.rootSchema.plus());
+        final SchemaPlus finalRootSchema = getRootSchema(rootSchema.plus());
+
+        final CatalogManager catalogManager = context.getCatalogManager();
         return new FlinkCalciteCatalogReader(
-                CalciteSchema.from(rootSchema),
-                asList(asList(currentCatalog, currentDatabase), singletonList(currentCatalog)),
+                CalciteSchema.from(finalRootSchema),
+                asList(
+                        asList(
+                                catalogManager.getCurrentCatalog(),
+                                catalogManager.getCurrentDatabase()),
+                        singletonList(catalogManager.getCurrentCatalog())),
                 typeFactory,
                 CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
     }

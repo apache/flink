@@ -204,7 +204,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             rowTimeIdx,
                             group.isRows(),
                             config,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             planner.getTypeFactory());
         } else if (group.getLowerBound().isPreceding()
                 && !group.getLowerBound().isUnbounded()
@@ -229,7 +229,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             group.isRows(),
                             precedingOffset,
                             config,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             planner.getTypeFactory());
         } else {
             throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.");

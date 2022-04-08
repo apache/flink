@@ -176,7 +176,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
                         sliceAssigner,
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
 

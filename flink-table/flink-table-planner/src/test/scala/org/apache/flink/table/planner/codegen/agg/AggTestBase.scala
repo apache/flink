@@ -62,7 +62,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
   val inputType: RowType = RowType.of(inputTypes, inputNames)
 
   val relBuilder: RelBuilder =
-    planner.getRelBuilder.values(typeFactory.buildRelNodeRowType(inputNames, inputTypes))
+    planner.createRelBuilder.values(typeFactory.buildRelNodeRowType(inputNames, inputTypes))
   val aggInfo1: AggregateInfo = {
     val aggInfo = mock(classOf[AggregateInfo])
     val call = mock(classOf[AggregateCall])

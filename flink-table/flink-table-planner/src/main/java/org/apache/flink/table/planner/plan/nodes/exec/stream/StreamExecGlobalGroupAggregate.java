@@ -217,7 +217,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         grouping.length,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.createRelBuilder());
 
         final GeneratedAggsHandleFunction globalAggsHandler =
                 generateAggsHandler(
@@ -226,7 +226,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         0, // mergedAccOffset
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder());
+                        planner.createRelBuilder());
 
         final int indexOfCountStar = globalAggInfoList.getIndexOfCountStar();
         final LogicalType[] globalAccTypes =

@@ -209,9 +209,7 @@ public class HiveParserCalcitePlanner {
             throws SemanticException {
         this.catalogManager = catalogManager;
         this.catalogReader = catalogReader;
-        flinkPlanner =
-                plannerContext.createFlinkPlanner(
-                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        flinkPlanner = plannerContext.createFlinkPlanner();
         this.plannerContext = plannerContext;
         this.frameworkConfig = frameworkConfig;
         this.semanticAnalyzer =
@@ -2570,9 +2568,7 @@ public class HiveParserCalcitePlanner {
         if (correlUse == null) {
             correlRel =
                     plannerContext
-                            .createRelBuilder(
-                                    catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase())
+                            .createRelBuilder()
                             .push(input)
                             .push(tableFunctionScan)
                             .join(

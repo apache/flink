@@ -79,7 +79,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
     // prepare RelBuilder
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-    val relBuilder: RelBuilder = planner.getRelBuilder
+    val relBuilder: RelBuilder = planner.createRelBuilder
     relBuilder.scan(tableName)
 
     (relBuilder, planner, env)

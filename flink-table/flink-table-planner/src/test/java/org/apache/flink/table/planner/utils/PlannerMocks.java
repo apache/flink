@@ -82,9 +82,7 @@ public class PlannerMocks {
                                                 catalogManager, !isBatchMode)),
                         traitDefs);
 
-        this.planner =
-                plannerContext.createFlinkPlanner(
-                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        this.planner = plannerContext.createFlinkPlanner();
         this.parser =
                 new ParserImpl(
                         catalogManager,

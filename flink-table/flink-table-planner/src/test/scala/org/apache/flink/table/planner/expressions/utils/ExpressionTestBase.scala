@@ -86,7 +86,7 @@ abstract class ExpressionTestBase {
     tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
   }
   private val planner = tEnv.getPlanner.asInstanceOf[PlannerBase]
-  private val relBuilder = planner.getRelBuilder
+  private val relBuilder = planner.createRelBuilder
   private val calcitePlanner = planner.createFlinkPlanner
   private val parser = planner.plannerContext.createCalciteParser()
 
