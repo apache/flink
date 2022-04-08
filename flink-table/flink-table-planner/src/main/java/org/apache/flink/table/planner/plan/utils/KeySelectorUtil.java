@@ -56,7 +56,7 @@ public class KeySelectorUtil {
             RowType inputType = rowType.toRowType();
             GeneratedProjection generatedProjection =
                     ProjectionCodeGenerator.generateProjection(
-                            CodeGeneratorContext.apply(new Configuration()),
+                            new CodeGeneratorContext(new Configuration()),
                             "KeyProjection",
                             inputType,
                             returnType,

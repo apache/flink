@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.TaskInfo
@@ -74,8 +75,7 @@ abstract class ExpressionTestBase {
   private val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
-  private val tEnv = StreamTableEnvironmentImpl
-    .create(env, settings)
+  private val tEnv = StreamTableEnvironmentImpl.create(env, settings)
     .asInstanceOf[StreamTableEnvironmentImpl]
 
   val tableConfig = tEnv.getConfig
@@ -171,16 +171,23 @@ abstract class ExpressionTestBase {
     }
   }
 
-  def testAllApis(expr: Expression, sqlExpr: String, expected: String): Unit = {
+  def testAllApis(
+      expr: Expression,
+      sqlExpr: String,
+      expected: String): Unit = {
     addTableApiTestExpr(expr, expected, validExprs)
     addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
-  def testTableApi(expr: Expression, expected: String): Unit = {
+  def testTableApi(
+      expr: Expression,
+      expected: String): Unit = {
     addTableApiTestExpr(expr, expected, validExprs)
   }
 
-  def testSqlApi(sqlExpr: String, expected: String): Unit = {
+  def testSqlApi(
+      sqlExpr: String,
+      expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
@@ -209,7 +216,7 @@ abstract class ExpressionTestBase {
 
   // return the codegen function instances
   def getCodeGenFunctions(
-      sqlExprs: List[String]): GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
+        sqlExprs: List[String]): GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
     val testSqlExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
     sqlExprs.foreach(exp => addSqlTestExpr(exp, null, testSqlExprs, null))
     getCodeGenFunction(testSqlExprs.map(r => r._2).toList)
@@ -217,7 +224,7 @@ abstract class ExpressionTestBase {
 
   // return the codegen function instances
   def evaluateFunctionResult(
-      generatedFunction: GeneratedFunction[MapFunction[RowData, BinaryRowData]]): List[String] = {
+        generatedFunction: GeneratedFunction[MapFunction[RowData, BinaryRowData]]): List[String] = {
     val mapper = generatedFunction.newInstance(getClass.getClassLoader)
     val isRichFunction = mapper.isInstanceOf[RichFunction]
 
@@ -254,16 +261,13 @@ abstract class ExpressionTestBase {
         mapper.asInstanceOf[RichMapFunction[_, _]].close()
       }
 
-      Seq
-        .range(0, result.getArity)
-        .map(
-          index =>
-            if (!result.isNullAt(index)) {
-              result.getString(index).toString
-            } else {
-              null
-            })
-        .toList
+      Seq.range(0, result.getArity).map(index =>
+        if (!result.isNullAt(index)) {
+          result.getString(index).toString
+        } else {
+          null
+        }
+      ).toList
     } catch {
       case te: TableException =>
         // TableException are exception that might be expected,
@@ -271,8 +275,7 @@ abstract class ExpressionTestBase {
         throw te
       case e: Throwable =>
         throw new AssertionError(
-          "Error when executing the expression. Expression code:\n" + generatedFunction.getCode,
-          e)
+          "Error when executing the expression. Expression code:\n" + generatedFunction.getCode, e)
     }
   }
 
@@ -280,7 +283,8 @@ abstract class ExpressionTestBase {
       sqlExpr: String,
       expected: String,
       exprsContainer: mutable.ArrayBuffer[_],
-      exceptionClass: Class[_ <: Throwable] = null): Unit = {
+      exceptionClass: Class[_ <: Throwable] = null)
+  : Unit = {
     // create RelNode from SQL expression
     val parsed = parser.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
@@ -295,8 +299,7 @@ abstract class ExpressionTestBase {
       exceptionClass: Class[_ <: Throwable] = null): Unit = {
     // create RelNode from Table API expression
     val relNode = relBuilder
-      .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation)
-      .build()
+      .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
 
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString(), null, exprsContainer)
   }
@@ -330,8 +333,8 @@ abstract class ExpressionTestBase {
     calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
   }
 
-  private def evaluateGivenExprs(
-      exprArray: mutable.ArrayBuffer[(String, RexNode, String)]): Unit = {
+  private def evaluateGivenExprs(exprArray: mutable.ArrayBuffer[(String, RexNode, String)])
+  : Unit = {
     val genFunc = getCodeGenFunction(exprArray.map(exp => exp._2).toList)
     val result = evaluateFunctionResult(genFunc)
 
@@ -340,6 +343,7 @@ abstract class ExpressionTestBase {
       .zip(result)
       .foreach {
         case ((originalExpr, optimizedExpr, expected), actual) =>
+
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
           assertEquals(
             s"Wrong result $original optimized to: [$optimizedExpr]",
@@ -348,9 +352,9 @@ abstract class ExpressionTestBase {
       }
   }
 
-  private def getCodeGenFunction(
-      rexNodes: List[RexNode]): GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
-    val ctx = CodeGeneratorContext(tableConfig)
+  private def getCodeGenFunction(rexNodes: List[RexNode]):
+    GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
+    val ctx = new CodeGeneratorContext(tableConfig)
     val inputType = if (containsLegacyTypes) {
       fromTypeInfoToLogicalType(typeInfo)
     } else {
@@ -362,7 +366,8 @@ abstract class ExpressionTestBase {
     val stringTestExprs = rexNodes.map(expr => relBuilder.cast(expr, VARCHAR))
 
     // generate code
-    val resultType = RowType.of(Seq.fill(rexNodes.size)(VarCharType.STRING_TYPE): _*)
+    val resultType = RowType.of(Seq.fill(rexNodes.size)(
+      VarCharType.STRING_TYPE): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
     val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])
