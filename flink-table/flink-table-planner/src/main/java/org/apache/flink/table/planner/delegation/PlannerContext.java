@@ -96,7 +96,6 @@ public class PlannerContext {
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
     private final SqlExprToRexConverterFactory rexConverterFactory =
             new DefaultSqlExprToRexConverterFactory();
-    private final TableConfig tableConfig;
     private final RelOptCluster cluster;
     private final FlinkContext context;
     private final CalciteSchema rootSchema;
@@ -111,8 +110,6 @@ public class PlannerContext {
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
             List<RelTraitDef> traitDefs) {
-        this.tableConfig = tableConfig;
-
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
@@ -149,10 +146,10 @@ public class PlannerContext {
                 .costFactory(new FlinkCostFactory())
                 .typeSystem(typeSystem)
                 .convertletTable(FlinkConvertletTable.INSTANCE)
-                .sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
-                .operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig)))
+                .sqlToRelConverterConfig(getSqlToRelConverterConfig())
+                .operatorTable(getSqlOperatorTable(getCalciteConfig()))
                 // set the executor to evaluate constant expressions
-                .executor(new ExpressionReducer(tableConfig, false))
+                .executor(new ExpressionReducer(context.getTableConfig(), false))
                 .context(context)
                 .traitDefs(traitDefs)
                 .build();
@@ -244,8 +241,8 @@ public class PlannerContext {
         }
     }
 
-    private CalciteConfig getCalciteConfig(TableConfig tableConfig) {
-        return TableConfigUtils.getCalciteConfig(tableConfig);
+    private CalciteConfig getCalciteConfig() {
+        return TableConfigUtils.getCalciteConfig(context.getTableConfig());
     }
 
     /**
@@ -253,11 +250,10 @@ public class PlannerContext {
      */
     private SqlParser.Config getSqlParserConfig() {
         return JavaScalaConversionUtil.<SqlParser.Config>toJava(
-                        getCalciteConfig(tableConfig).getSqlParserConfig())
+                        getCalciteConfig().getSqlParserConfig())
                 .orElseGet(
                         // we use Java lex because back ticks are easier than double quotes in
-                        // programming
-                        // and cases are preserved
+                        // programming and cases are preserved
                         () -> {
                             SqlConformance conformance = getSqlConformance();
                             return SqlParser.config()
@@ -269,7 +265,7 @@ public class PlannerContext {
     }
 
     private FlinkSqlConformance getSqlConformance() {
-        SqlDialect sqlDialect = tableConfig.getSqlDialect();
+        SqlDialect sqlDialect = context.getTableConfig().getSqlDialect();
         switch (sqlDialect) {
             case HIVE:
                 return FlinkSqlConformance.HIVE;
@@ -281,7 +277,7 @@ public class PlannerContext {
     }
 
     private org.apache.calcite.sql.SqlDialect getCalciteSqlDialect() {
-        SqlDialect sqlDialect = tableConfig.getSqlDialect();
+        SqlDialect sqlDialect = context.getTableConfig().getSqlDialect();
         switch (sqlDialect) {
             case HIVE:
                 return HiveSqlDialect.DEFAULT;
@@ -298,9 +294,9 @@ public class PlannerContext {
      * <p>`expand` is set as false, and each sub-query becomes a
      * [[org.apache.calcite.rex.RexSubQuery]].
      */
-    private SqlToRelConverter.Config getSqlToRelConverterConfig(CalciteConfig calciteConfig) {
+    private SqlToRelConverter.Config getSqlToRelConverterConfig() {
         return JavaScalaConversionUtil.<SqlToRelConverter.Config>toJava(
-                        calciteConfig.getSqlToRelConverterConfig())
+                        getCalciteConfig().getSqlToRelConverterConfig())
                 .orElseGet(
                         () ->
                                 SqlToRelConverter.config()
