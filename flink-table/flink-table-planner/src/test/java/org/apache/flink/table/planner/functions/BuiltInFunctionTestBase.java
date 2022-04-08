@@ -34,6 +34,7 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
@@ -47,7 +48,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -329,7 +329,7 @@ abstract class BuiltInFunctionTestBase {
     }
 
     private interface TestItem {
-        void test(TableEnvironmentInternal env, Table inputTable);
+        void test(TableEnvironmentInternal env, Table inputTable) throws Exception;
     }
 
     private abstract static class ResultTestItem<T> implements TestItem {
@@ -346,31 +346,35 @@ abstract class BuiltInFunctionTestBase {
         abstract Table query(TableEnvironment env, Table inputTable);
 
         @Override
-        public void test(TableEnvironmentInternal env, Table inputTable) {
+        public void test(TableEnvironmentInternal env, Table inputTable) throws Exception {
             final Table resultTable = this.query(env, inputTable);
 
             final List<DataType> expectedDataTypes =
                     createDataTypes(env.getCatalogManager().getDataTypeFactory(), this.dataTypes);
             final TableResult result = resultTable.execute();
-            final Iterator<Row> iterator = result.collect();
+            try (final CloseableIterator<Row> iterator = result.collect()) {
+                assertThat(iterator).hasNext();
 
-            assertThat(iterator).hasNext();
+                final Row row = iterator.next();
 
-            final Row row = iterator.next();
+                assertThat(iterator).as("No more rows expected.").isExhausted();
 
-            assertThat(iterator).as("No more rows expected.").isExhausted();
+                for (int i = 0; i < row.getArity(); i++) {
+                    assertThat(
+                                    result.getResolvedSchema()
+                                            .getColumnDataTypes()
+                                            .get(i)
+                                            .getLogicalType())
+                            .as("Logical type for spec [%d] of test [%s] doesn't match.", i, this)
+                            .isEqualTo(expectedDataTypes.get(i).getLogicalType());
 
-            for (int i = 0; i < row.getArity(); i++) {
-                assertThat(result.getResolvedSchema().getColumnDataTypes().get(i).getLogicalType())
-                        .as("Logical type for spec [%d] of test [%s] doesn't match.", i, this)
-                        .isEqualTo(expectedDataTypes.get(i).getLogicalType());
-
-                assertThat(Row.of(row.getField(i)))
-                        .as("Result for spec [%d] of test [%s] doesn't match.", i, this)
-                        .isEqualTo(
-                                // Use Row.equals() to enable equality for complex structure, i.e.
-                                // byte[]
-                                Row.of(this.results.get(i)));
+                    assertThat(Row.of(row.getField(i)))
+                            .as("Result for spec [%d] of test [%s] doesn't match.", i, this)
+                            .isEqualTo(
+                                    // Use Row.equals() to enable equality for complex structure,
+                                    // i.e. byte[]
+                                    Row.of(this.results.get(i)));
+                }
             }
         }
     }
