@@ -224,6 +224,8 @@ public final class LogicalTypeCasts {
                 .implicitFrom(INTERVAL_DAY_TIME)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
                 .build();
+
+        castTo(RAW).explicitFromFamily(BINARY_STRING).build();
     }
 
     /**
@@ -334,10 +336,10 @@ public final class LogicalTypeCasts {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
 
-        } else if (sourceRoot == RAW
+        } else if ((sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
-                        && !targetType.is(CHARACTER_STRING)
-                || targetRoot == RAW) {
+                        && !targetType.is(CHARACTER_STRING))
+                || targetRoot == RAW && !sourceType.is(BINARY_STRING)) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {

@@ -256,6 +256,12 @@ class LogicalTypeCastsTest {
                         new RawType<>(Integer.class, IntSerializer.INSTANCE),
                         VarCharType.STRING_TYPE,
                         false,
+                        true),
+                // binary to raw
+                Arguments.of(
+                        new BinaryType(),
+                        new RawType<>(Integer.class, IntSerializer.INSTANCE),
+                        false,
                         true));
     }
 

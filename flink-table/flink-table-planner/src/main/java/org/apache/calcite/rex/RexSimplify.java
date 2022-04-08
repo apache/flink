@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.rex;
 
+import org.apache.flink.table.planner.plan.schema.RawRelDataType;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
@@ -231,6 +233,9 @@ public class RexSimplify {
                 && SqlTypeUtil.equalSansNullability(
                         rexBuilder.typeFactory, e2.getType(), e.getType())) {
             return e2;
+        }
+        if (e.getType().getSqlTypeName() == SqlTypeName.OTHER) {
+            return e;
         }
         final RexNode e3 = rexBuilder.makeCast(e.getType(), e2, matchNullability);
         if (e3.equals(e)) {
@@ -2024,7 +2029,9 @@ public class RexSimplify {
     private RexNode simplifyCast(RexCall e) {
         RexNode operand = e.getOperands().get(0);
         operand = simplify(operand, UNKNOWN);
-        if (sameTypeOrNarrowsNullability(e.getType(), operand.getType())) {
+        if (sameTypeOrNarrowsNullability(e.getType(), operand.getType())
+                || e.getType() instanceof RawRelDataType) {
+            // || e.getType().getSqlTypeName() == SqlTypeName.OTHER) {
             return operand;
         }
         if (RexUtil.isLosslessCast(operand)) {

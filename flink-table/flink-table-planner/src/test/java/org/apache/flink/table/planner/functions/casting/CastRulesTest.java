@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.api.DataTypes;
@@ -31,6 +32,7 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryRawValueData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
@@ -159,6 +161,12 @@ class CastRulesTest {
                                             new StructuredType.StructuredAttribute(
                                                     "d", ARRAY(STRING()).getLogicalType())))
                             .build());
+    private static final BinaryRawValueData<Integer> DEFAULT_RAW =
+            BinaryRawValueData.fromObject(123456);
+
+    static {
+        DEFAULT_RAW.ensureMaterialized(new IntSerializer());
+    }
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -1461,7 +1469,11 @@ class CastRulesTest {
                                                     TIMESTAMP_STRING,
                                                     TIMESTAMP_STRING,
                                                     TIMESTAMP_STRING
-                                                }))));
+                                                }))),
+                CastTestSpecBuilder.testCastTo(RAW(Integer.class, new IntSerializer()))
+                        .fromCase(BINARY(4), new byte[] {0, 1, -30, 64}, DEFAULT_RAW)
+                        .fromCase(VARBINARY(10), new byte[] {0, 1, -30, 64}, DEFAULT_RAW)
+                        .fromCase(BYTES(), new byte[] {0, 1, -30, 64}, DEFAULT_RAW));
     }
 
     @TestFactory

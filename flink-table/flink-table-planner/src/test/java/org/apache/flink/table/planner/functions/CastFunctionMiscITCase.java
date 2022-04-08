@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -39,6 +40,7 @@ import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.RAW;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
@@ -53,6 +55,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
+
+    private static final String INT_TYPE_SERIALIZER_BASE_64 =
+            "AE5vcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2Uu"
+                    + "SW50U2VyaWFsaXplciRJbnRTZXJpYWxpemVyU25hcHNob3QAAAAD";
 
     @Override
     Configuration getConfiguration() {
@@ -240,6 +246,16 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("LocalDateTimeToRaw", $("f0")).cast(STRING()),
                                 "2020-11-11T18:08:01.123",
                                 STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast BINARY to RAW")
+                        .onFieldsWithData(new Object[] {new byte[] {0, 1, -30, 64}})
+                        .andDataTypes(BYTES())
+                        .testResult(
+                                $("f0").cast(RAW(Integer.class, new IntSerializer())),
+                                "CAST(f0 AS RAW('java.lang.Integer', '"
+                                        + INT_TYPE_SERIALIZER_BASE_64
+                                        + "'))",
+                                123456,
+                                RAW(Integer.class, new IntSerializer())),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_CAST, "try cast from STRING to TIME")
                         .onFieldsWithData("Flink", "12:34:56")

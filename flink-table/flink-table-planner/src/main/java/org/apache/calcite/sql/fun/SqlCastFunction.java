@@ -166,6 +166,8 @@ public class SqlCastFunction extends SqlFunction {
             case MULTISET:
             case STRUCTURED:
             case ROW:
+            case BINARY:
+            case VARBINARY:
             case OTHER:
                 // We use our casting checker logic only for these types,
                 //  as the differences with calcite casting checker logic generates issues
