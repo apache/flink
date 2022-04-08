@@ -129,26 +129,33 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
+    protected CompletableFuture<CleanupJobState> jobReachedTerminalState(
+            ExecutionGraphInfo executionGraphInfo) {
         final ArchivedExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
-        final CleanupJobState cleanupHAState = super.jobReachedTerminalState(executionGraphInfo);
+        final CompletableFuture<CleanupJobState> cleanupHAState =
+                super.jobReachedTerminalState(executionGraphInfo);
 
-        JobStatus jobStatus =
-                Objects.requireNonNull(
-                        archivedExecutionGraph.getState(), "JobStatus should not be null here.");
-        if (jobStatus.isGloballyTerminalState()
-                && (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED)) {
-            // shut down if job is cancelled or we don't have to wait for the execution result
-            // retrieval
-            log.info(
-                    "Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}",
-                    jobStatus,
-                    jobCancelled,
-                    executionMode);
-            shutDownFuture.complete(ApplicationStatus.fromJobStatus(jobStatus));
-        }
+        return cleanupHAState.thenApply(
+                cleanupJobState -> {
+                    JobStatus jobStatus =
+                            Objects.requireNonNull(
+                                    archivedExecutionGraph.getState(),
+                                    "JobStatus should not be null here.");
+                    if (jobStatus.isGloballyTerminalState()
+                            && (jobCancelled
+                                    || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED)) {
+                        // shut down if job is cancelled or we don't have to wait for the execution
+                        // result retrieval
+                        log.info(
+                                "Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}",
+                                jobStatus,
+                                jobCancelled,
+                                executionMode);
+                        shutDownFuture.complete(ApplicationStatus.fromJobStatus(jobStatus));
+                    }
 
-        return cleanupHAState;
+                    return cleanupJobState;
+                });
     }
 }
