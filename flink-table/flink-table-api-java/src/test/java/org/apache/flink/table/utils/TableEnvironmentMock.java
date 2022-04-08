@@ -89,7 +89,8 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 
     private static FunctionCatalog createFunctionCatalog(
             ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        return new FunctionCatalog(config, catalogManager, moduleManager);
+        return new FunctionCatalog(
+                config, catalogManager, moduleManager, TableEnvironmentMock.class.getClassLoader());
     }
 
     private static PlannerMock createPlanner() {

@@ -93,9 +93,6 @@ public class CatalogFunctionImpl implements CatalogFunction {
                 + "', "
                 + "functionLanguage='"
                 + getFunctionLanguage()
-                + "', "
-                + "isGeneric='"
-                + isGeneric()
                 + "'}";
     }
 }

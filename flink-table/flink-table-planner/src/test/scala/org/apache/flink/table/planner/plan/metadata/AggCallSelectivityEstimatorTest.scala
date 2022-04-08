@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.{JDouble, JLong}
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.PlannerMocks
@@ -52,7 +52,8 @@ class AggCallSelectivityEstimatorTest {
   private val allFieldTypes = Seq(VARCHAR, INTEGER, DOUBLE)
   val (name_idx, amount_idx, price_idx) = (0, 1, 2)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE);
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType =
     typeFactory.createStructType(allFieldTypes.map(typeFactory.createSqlType), allFieldNames)

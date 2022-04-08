@@ -41,6 +41,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -248,9 +249,15 @@ public final class UserDefinedFunctionHelper {
     }
 
     /** Prepares a {@link UserDefinedFunction} instance for usage in the API. */
-    public static void prepareInstance(ReadableConfig config, UserDefinedFunction function) {
+    public static <T extends UserDefinedFunction> T prepareInstance(
+            ReadableConfig config, ClassLoader userClassLoader, T function) {
         validateClass(function.getClass(), false);
         cleanFunction(config, function);
+        try {
+            return InstantiationUtil.clone(function, userClassLoader);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new TableException("Error while cloning the function " + function, e);
+        }
     }
 
     /**
@@ -258,7 +265,7 @@ public final class UserDefinedFunctionHelper {
      * a fully qualified class name. It must have a default constructor and no serializable fields.
      *
      * <p>Other properties (such as checks for abstract classes) are validated at the entry points
-     * of the API, see {@link #prepareInstance(ReadableConfig, UserDefinedFunction)}.
+     * of the API, see {@link #prepareInstance(ReadableConfig, ClassLoader, UserDefinedFunction)}.
      */
     public static boolean isClassNameSerializable(UserDefinedFunction function) {
         final Class<?> functionClass = function.getClass();
@@ -334,6 +341,9 @@ public final class UserDefinedFunctionHelper {
     /**
      * Creates the runtime implementation of a {@link FunctionDefinition} as an instance of {@link
      * UserDefinedFunction}.
+     *
+     * <p>Note that the argument {@code builtInClassLoader} is going to be used only for built-in
+     * function, hence it requires the planner class loader, rather than the user classloader.
      *
      * @see SpecializedFunction
      */

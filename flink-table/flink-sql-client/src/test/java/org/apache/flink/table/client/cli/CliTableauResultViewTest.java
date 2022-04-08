@@ -32,6 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.types.Row;
