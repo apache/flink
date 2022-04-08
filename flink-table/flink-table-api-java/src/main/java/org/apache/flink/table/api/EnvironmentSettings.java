@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -56,8 +57,11 @@ public class EnvironmentSettings {
      */
     private final Configuration configuration;
 
-    private EnvironmentSettings(Configuration configuration) {
+    private final ClassLoader classLoader;
+
+    private EnvironmentSettings(Configuration configuration, ClassLoader classLoader) {
         this.configuration = configuration;
+        this.classLoader = classLoader;
     }
 
     /**
@@ -97,7 +101,8 @@ public class EnvironmentSettings {
      */
     @Deprecated
     public static EnvironmentSettings fromConfiguration(ReadableConfig configuration) {
-        return new EnvironmentSettings((Configuration) configuration);
+        return new EnvironmentSettings(
+                (Configuration) configuration, Thread.currentThread().getContextClassLoader());
     }
 
     /**
@@ -150,6 +155,7 @@ public class EnvironmentSettings {
     public static class Builder {
 
         private final Configuration configuration = new Configuration();
+        private ClassLoader classLoader;
 
         public Builder() {}
 
@@ -229,7 +235,7 @@ public class EnvironmentSettings {
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
-            return new EnvironmentSettings(configuration);
+            return new EnvironmentSettings(configuration, classLoader);
         }
     }
 }

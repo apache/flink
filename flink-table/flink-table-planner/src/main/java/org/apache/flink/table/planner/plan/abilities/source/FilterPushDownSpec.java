@@ -103,6 +103,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
             ExpressionResolver resolver =
                     ExpressionResolver.resolverFor(
                                     context.getTableConfig(),
+                                    context.getClassLoader(),
                                     name -> Optional.empty(),
                                     context.getFunctionCatalog()
                                             .asLookup(

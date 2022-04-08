@@ -491,6 +491,7 @@ public class ValuesOperationTreeBuilderTest {
         public OperationTreeBuilder getTreeBuilder() {
             return OperationTreeBuilder.create(
                     TableConfig.getDefault(),
+                    Thread.currentThread().getContextClassLoader(),
                     new FunctionLookupMock(Collections.emptyMap()),
                     new DataTypeFactoryMock(),
                     name -> Optional.empty(), // do not support

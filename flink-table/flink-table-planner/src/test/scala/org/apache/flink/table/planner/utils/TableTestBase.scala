@@ -17,16 +17,20 @@
  */
 package org.apache.flink.table.planner.utils
 
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
@@ -65,23 +69,22 @@ import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util
-import _root_.scala.collection.JavaConversions._
-import _root_.scala.io.Source
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.apache.calcite.sql.parser.SqlParserPos
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util
 import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.time.Duration
 
-/** Test base for testing Table API / SQL plans. */
+import _root_.scala.collection.JavaConversions._
+import _root_.scala.io.Source
+
+/**
+ * Test base for testing Table API / SQL plans.
+ */
 abstract class TableTestBase {
 
   // used for accurate exception information checking.
@@ -150,23 +153,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   }
 
-  /** Creates a table with the given DDL SQL string. */
+  /**
+   * Creates a table with the given DDL SQL string.
+   */
   def addTable(ddl: String): Unit = {
     getTableEnv.executeSql(ddl)
   }
 
   /**
-   * Create a [[DataStream]] with the given schema, and registers this DataStream under given name
-   * into the TableEnvironment's catalog.
+   * Create a [[DataStream]] with the given schema,
+   * and registers this DataStream under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param fields
-   *   field names
-   * @tparam T
-   *   field types
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param fields field names
+   * @tparam T field types
+   * @return returns the registered [[Table]].
    */
   def addDataStream[T: TypeInformation](name: String, fields: Expression*): Table = {
     val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
@@ -177,32 +178,25 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema, and registers this TableSource under a
-   * unique name into the TableEnvironment's catalog.
+   * Create a [[TestTableSource]] with the given schema,
+   * and registers this TableSource under a unique name into the TableEnvironment's catalog.
    *
-   * @param fields
-   *   field names
-   * @tparam T
-   *   field types
-   * @return
-   *   returns the registered [[Table]].
+   * @param fields field names
+   * @tparam T field types
+   * @return returns the registered [[Table]].
    */
   def addTableSource[T: TypeInformation](fields: Expression*): Table = {
     addTableSource[T](s"Table$getNextId", fields: _*)
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema, and registers this TableSource under given
-   * name into the TableEnvironment's catalog.
+   * Create a [[TestTableSource]] with the given schema,
+   * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param fields
-   *   field names
-   * @tparam T
-   *   field types
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param fields field names
+   * @tparam T field types
+   * @return returns the registered [[Table]].
    */
   def addTableSource[T: TypeInformation](name: String, fields: Expression*): Table = {
     val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
@@ -227,17 +221,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema, table stats and unique keys, and registers
-   * this TableSource under given name into the TableEnvironment's catalog.
+   * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
+   * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param types
-   *   field types
-   * @param fields
-   *   field names
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param types field types
+   * @param fields field names
+   * @return returns the registered [[Table]].
    */
   def addTableSource(
       name: String,
@@ -251,25 +241,22 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Register this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param tableSource
-   *   table source
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param tableSource table source
+   * @return returns the registered [[Table]].
    */
-  def addTableSource(name: String, tableSource: TableSource[_]): Table = {
-    getTableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(name, tableSource)
+  def addTableSource(
+      name: String,
+      tableSource: TableSource[_]): Table = {
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, tableSource)
     getTableEnv.from(name)
   }
 
   /**
    * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
    *
-   * @deprecated
-   *   Use [[addTemporarySystemFunction]].
+   * @deprecated Use [[addTemporarySystemFunction]].
    */
   @deprecated
   @Deprecated
@@ -277,20 +264,24 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     getTableEnv.registerFunction(name, function)
   }
 
-  /** Registers a [[UserDefinedFunction]] according to FLIP-65. */
+  /**
+   * Registers a [[UserDefinedFunction]] according to FLIP-65.
+   */
   def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
     getTableEnv.createTemporarySystemFunction(name, function)
   }
 
-  /** Registers a [[UserDefinedFunction]] class according to FLIP-65. */
+  /**
+   * Registers a [[UserDefinedFunction]] class according to FLIP-65.
+   */
   def addTemporarySystemFunction(name: String, function: Class[_ <: UserDefinedFunction]): Unit = {
     getTableEnv.createTemporarySystemFunction(name, function)
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given SELECT query. Note: An exception will be thrown if the given query can't be
-   * translated to exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given SELECT query.
+   * Note: An exception will be thrown if the given query can't be translated to exec plan.
    */
   def verifyPlan(query: String): Unit = {
     doVerifyPlan(
@@ -301,9 +292,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given SELECT query. The plans will contain the extra [[ExplainDetail]]s. Note: An exception
-   * will be thrown if the given query can't be translated to exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given SELECT query. The plans will contain the extra [[ExplainDetail]]s.
+   * Note: An exception will be thrown if the given query can't be translated to exec plan.
    */
   def verifyPlan(query: String, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
@@ -314,8 +305,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given INSERT statement.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given INSERT statement.
    */
   def verifyPlanInsert(insert: String): Unit = {
     doVerifyPlanInsert(
@@ -326,8 +317,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given INSERT statement. The plans will contain the extra [[ExplainDetail]]s.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given INSERT statement. The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyPlanInsert(insert: String, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlanInsert(
@@ -338,9 +329,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given [[Table]]. Note: An exception will be thrown if the given sql can't be translated to
-   * exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given [[Table]].
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlan(table: Table): Unit = {
     doVerifyPlan(
@@ -351,9 +342,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given [[Table]]. The plans will contain the extra [[ExplainDetail]]s. Note: An exception
-   * will be thrown if the given sql can't be translated to exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given [[Table]]. The plans will contain the extra [[ExplainDetail]]s.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlan(table: Table, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
@@ -364,9 +355,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given [[Table]] with the given sink table name. Note: An exception will be thrown if the
-   * given sql can't be translated to exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given [[Table]] with the given sink table name.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlanInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
@@ -376,10 +367,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan for
-   * the given [[Table]] with the given sink table name. The plans will contain the extra
-   * [[ExplainDetail]]s. Note: An exception will be thrown if the given sql can't be translated to
-   * exec plan.
+   * Verify the AST (abstract syntax tree), the optimized rel plan and the optimized exec plan
+   * for the given [[Table]] with the given sink table name.
+   * The plans will contain the extra [[ExplainDetail]]s.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlanInsert(
       table: Table,
@@ -394,8 +385,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan and the optimized exec plan
-   * for the given [[StatementSet]]. The plans will contain the extra [[ExplainDetail]]s. Note: An
-   * exception will be thrown if the given sql can't be translated to exec plan.
+   * for the given [[StatementSet]]. The plans will contain the extra [[ExplainDetail]]s.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlan(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
@@ -406,7 +397,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       () => Unit)
   }
 
-  /** Verify the AST (abstract syntax tree). */
+  /**
+   * Verify the AST (abstract syntax tree).
+   */
   def verifyAstPlan(stmtSet: StatementSet): Unit = {
     doVerifyPlan(
       stmtSet,
@@ -416,7 +409,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       () => Unit)
   }
 
-  /** Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s. */
+  /**
+   * Verify the AST (abstract syntax tree). The plans will contain the extra [[ExplainDetail]]s.
+   */
   def verifyAstPlan(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
       stmtSet,
@@ -450,8 +445,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given INSERT
-   * statement.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan
+   * for the given INSERT statement.
    */
   def verifyRelPlanInsert(insert: String): Unit = {
     doVerifyPlanInsert(
@@ -462,8 +457,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given INSERT
-   * statement. The plans will contain the extra [[ExplainDetail]]s.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan
+   * for the given INSERT statement. The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlanInsert(insert: String, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlanInsert(
@@ -473,7 +468,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       Array(PlanKind.AST, PlanKind.OPT_REL))
   }
 
-  /** Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]]. */
+  /**
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]].
+   */
   def verifyRelPlan(table: Table): Unit = {
     doVerifyPlan(
       table,
@@ -483,8 +480,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]]. The
-   * plans will contain the extra [[ExplainDetail]]s.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]].
+   * The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlan(table: Table, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
@@ -495,8 +492,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]] with
-   * the given sink table name.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]]
+   * with the given sink table name.
    */
   def verifyRelPlanInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
@@ -506,8 +503,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]] with
-   * the given sink table name. The plans will contain the extra [[ExplainDetail]]s.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]]
+   * with the given sink table name. The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlanInsert(
       table: Table,
@@ -521,8 +518,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given
-   * [[StatementSet]].
+   * Verify the AST (abstract syntax tree) and the optimized rel plan
+   * for the given [[StatementSet]].
    */
   def verifyRelPlan(stmtSet: StatementSet): Unit = {
     doVerifyPlan(
@@ -534,8 +531,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given
-   * [[StatementSet]]. The plans will contain the extra [[ExplainDetail]]s.
+   * Verify the AST (abstract syntax tree) and the optimized rel plan
+   * for the given [[StatementSet]]. The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlan(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
     doVerifyPlan(
@@ -559,8 +556,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]]. The
-   * rel plans will contain the output type ([[org.apache.calcite.rel.type.RelDataType]]).
+   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given [[Table]].
+   * The rel plans will contain the output type ([[org.apache.calcite.rel.type.RelDataType]]).
    */
   def verifyRelPlanWithType(table: Table): Unit = {
     doVerifyPlan(
@@ -571,9 +568,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized rel plan for the given
-   * [[StatementSet]]. The rel plans will contain the output type
-   * ([[org.apache.calcite.rel.type.RelDataType]]).
+   * Verify the AST (abstract syntax tree) and the optimized rel plan
+   * for the given [[StatementSet]].
+   * The rel plans will contain the output type ([[org.apache.calcite.rel.type.RelDataType]]).
    */
   def verifyRelPlanWithType(stmtSet: StatementSet): Unit = {
     doVerifyPlan(
@@ -585,16 +582,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify whether the optimized rel plan for the given SELECT query does not contain the
-   * `notExpected` strings.
+   * Verify whether the optimized rel plan for the given SELECT query
+   * does not contain the `notExpected` strings.
    */
   def verifyRelPlanNotExpected(query: String, notExpected: String*): Unit = {
     verifyRelPlanNotExpected(getTableEnv.sqlQuery(query), notExpected: _*)
   }
 
   /**
-   * Verify whether the optimized rel plan for the given [[Table]] does not contain the
-   * `notExpected` strings.
+   * Verify whether the optimized rel plan for the given [[Table]]
+   * does not contain the `notExpected` strings.
    */
   def verifyRelPlanNotExpected(table: Table, notExpected: String*): Unit = {
     require(notExpected.nonEmpty)
@@ -619,8 +616,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized exec plan for the given INSERT
-   * statement. Note: An exception will be thrown if the given sql can't be translated to exec plan.
+   * Verify the AST (abstract syntax tree) and the optimized exec plan
+   * for the given INSERT statement.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyExecPlanInsert(insert: String): Unit = {
     doVerifyPlanInsert(
@@ -643,9 +641,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized exec plan for the given [[Table]] with
-   * the given sink table name. Note: An exception will be thrown if the given sql can't be
-   * translated to exec plan.
+   * Verify the AST (abstract syntax tree) and the optimized exec plan
+   * for the given [[Table]] with the given sink table name.
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyExecPlanInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
@@ -655,9 +653,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the AST (abstract syntax tree) and the optimized exec plan for the given
-   * [[StatementSet]]. Note: An exception will be thrown if the given sql can't be translated to
-   * exec plan.
+   * Verify the AST (abstract syntax tree) and the optimized exec plan
+   * for the given [[StatementSet]].
+   * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyExecPlan(stmtSet: StatementSet): Unit = {
     doVerifyPlan(
@@ -668,12 +666,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       () => Unit)
   }
 
-  /** Verify the explain result for the given SELECT query. See more about [[Table#explain()]]. */
+  /**
+   * Verify the explain result for the given SELECT query. See more about [[Table#explain()]].
+   */
   def verifyExplain(query: String): Unit = verifyExplain(getTableEnv.sqlQuery(query))
 
   /**
-   * Verify the explain result for the given SELECT query. The explain result will contain the extra
-   * [[ExplainDetail]]s. See more about [[Table#explain()]].
+   * Verify the explain result for the given SELECT query. The explain result will contain
+   * the extra [[ExplainDetail]]s. See more about [[Table#explain()]].
    */
   def verifyExplain(query: String, extraDetails: ExplainDetail*): Unit = {
     val table = getTableEnv.sqlQuery(query)
@@ -681,8 +681,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the explain result for the given INSERT statement. See more about
-   * [[StatementSet#explain()]].
+   * Verify the explain result for the given INSERT statement.
+   * See more about [[StatementSet#explain()]].
    */
   def verifyExplainInsert(insert: String): Unit = {
     val statSet = getTableEnv.createStatementSet()
@@ -691,8 +691,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the explain result for the given INSERT statement. The explain result will contain the
-   * extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
+   * Verify the explain result for the given INSERT statement. The explain result will contain
+   * the extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
    */
   def verifyExplainInsert(insert: String, extraDetails: ExplainDetail*): Unit = {
     val statSet = getTableEnv.createStatementSet()
@@ -700,11 +700,14 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     verifyExplain(statSet, extraDetails: _*)
   }
 
-  /** Verify the explain result for the given sql clause which represents a [[ModifyOperation]]. */
+  /**
+   * Verify the explain result for the given sql clause which represents a [[ModifyOperation]].
+   */
   def verifyExplainSql(sql: String): Unit = {
     val operations = getTableEnv.asInstanceOf[TableEnvironmentImpl].getParser.parse(sql)
-    val relNode =
-      TableTestUtil.toRelNode(getTableEnv, operations.get(0).asInstanceOf[ModifyOperation])
+    val relNode = TableTestUtil.toRelNode(
+      getTableEnv,
+      operations.get(0).asInstanceOf[ModifyOperation])
     assertPlanEquals(
       Array(relNode),
       Array.empty[ExplainDetail],
@@ -713,22 +716,24 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       () => assertEqualsOrExpand("sql", sql))
   }
 
-  /** Verify the explain result for the given [[Table]]. See more about [[Table#explain()]]. */
+  /**
+   * Verify the explain result for the given [[Table]]. See more about [[Table#explain()]].
+   */
   def verifyExplain(table: Table): Unit = {
     doVerifyExplain(table.explain())
   }
 
   /**
-   * Verify the explain result for the given [[Table]]. The explain result will contain the extra
-   * [[ExplainDetail]]s. See more about [[Table#explain()]].
+   * Verify the explain result for the given [[Table]]. The explain result will contain
+   * the extra [[ExplainDetail]]s. See more about [[Table#explain()]].
    */
   def verifyExplain(table: Table, extraDetails: ExplainDetail*): Unit = {
     doVerifyExplain(table.explain(extraDetails: _*), extraDetails: _*)
   }
 
   /**
-   * Verify the explain result for the given [[Table]] with the given sink table name. See more
-   * about [[StatementSet#explain()]].
+   * Verify the explain result for the given [[Table]] with the given sink table name.
+   * See more about [[StatementSet#explain()]].
    */
   def verifyExplainInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
@@ -738,8 +743,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the explain result for the given [[Table]] with the given sink table name. The explain
-   * result will contain the extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
+   * Verify the explain result for the given [[Table]] with the given sink table name.
+   * The explain result will contain the extra [[ExplainDetail]]s.
+   * See more about [[StatementSet#explain()]].
    */
   def verifyExplainInsert(
       table: Table,
@@ -753,16 +759,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Verify the explain result for the given [[StatementSet]]. See more about
-   * [[StatementSet#explain()]].
+   * Verify the explain result for the given [[StatementSet]].
+   * See more about [[StatementSet#explain()]].
    */
   def verifyExplain(stmtSet: StatementSet): Unit = {
     doVerifyExplain(stmtSet.explain())
   }
 
   /**
-   * Verify the explain result for the given [[StatementSet]]. The explain result will contain the
-   * extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
+   * Verify the explain result for the given [[StatementSet]]. The explain result will contain
+   * the extra [[ExplainDetail]]s. See more about [[StatementSet#explain()]].
    */
   def verifyExplain(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
     doVerifyExplain(stmtSet.explain(extraDetails: _*), extraDetails: _*)
@@ -770,7 +776,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   final val PLAN_TEST_FORCE_OVERWRITE = "PLAN_TEST_FORCE_OVERWRITE"
 
-  /** Verify the json plan for the given insert statement. */
+  /**
+   * Verify the json plan for the given insert statement.
+   */
   def verifyJsonPlan(insert: String): Unit = {
     ExecNodeContext.resetIdCounter()
     val jsonPlan = getTableEnv.asInstanceOf[TableEnvironmentInternal].compilePlanSql(insert)
@@ -794,23 +802,20 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     } else {
       val expected = String.join("\n", Files.readAllLines(path))
       assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expected)),
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion))
-      )
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(expected)),
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion)))
     }
   }
 
   /**
    * Verify the given query and the expected plans translated from the SELECT query.
    *
-   * @param query
-   *   the SELECT query to check
-   * @param extraDetails
-   *   the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType
-   *   whether the rel plans contain the output type
-   * @param expectedPlans
-   *   the expected [[PlanKind]]s to check
+   * @param query the SELECT query to check
+   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType whether the rel plans contain the output type
+   * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlan(
       query: String,
@@ -831,14 +836,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the given query and the expected plans translated from the INSERT statement.
    *
-   * @param insert
-   *   the INSERT statement to check
-   * @param extraDetails
-   *   the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType
-   *   whether the rel plans contain the output type
-   * @param expectedPlans
-   *   the expected [[PlanKind]]s to check
+   * @param insert the INSERT statement to check
+   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType whether the rel plans contain the output type
+   * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlanInsert(
       insert: String,
@@ -858,14 +859,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[Table]].
    *
-   * @param table
-   *   the [[Table]] to check
-   * @param extraDetails
-   *   the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType
-   *   whether the rel plans contain the output type
-   * @param expectedPlans
-   *   the expected [[PlanKind]]s to check
+   * @param table the [[Table]] to check
+   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType whether the rel plans contain the output type
+   * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlan(
       table: Table,
@@ -879,17 +876,12 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[StatementSet]].
    *
-   * @param stmtSet
-   *   the [[StatementSet]] to check
-   * @param extraDetails
-   *   the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType
-   *   whether the rel plans contain the output type
-   * @param expectedPlans
-   *   the expected [[PlanKind]]s to check
-   * @param assertSqlEqualsOrExpandFunc
-   *   the function to check whether the sql equals to the expected if the `stmtSet` is only
-   *   translated from sql
+   * @param stmtSet the [[StatementSet]] to check
+   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType whether the rel plans contain the output type
+   * @param expectedPlans the expected [[PlanKind]]s to check
+   * @param assertSqlEqualsOrExpandFunc the function to check whether the sql equals to the expected
+   * if the `stmtSet` is only translated from sql
    */
   def doVerifyPlan(
       stmtSet: StatementSet,
@@ -901,10 +893,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
     if (relNodes.isEmpty) {
-      throw new TableException(
-        "No output table have been created yet. " +
-          "A program needs at least one output table that consumes data.\n" +
-          "Please create output table(s) for your program")
+      throw new TableException("No output table have been created yet. " +
+        "A program needs at least one output table that consumes data.\n" +
+        "Please create output table(s) for your program")
     }
 
     assertPlanEquals(
@@ -918,17 +909,12 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[RelNode]]s.
    *
-   * @param relNodes
-   *   the original (un-optimized) [[RelNode]]s to check
-   * @param extraDetails
-   *   the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType
-   *   whether the rel plans contain the output type
-   * @param expectedPlans
-   *   the expected [[PlanKind]]s to check
-   * @param assertSqlEqualsOrExpandFunc
-   *   the function to check whether the sql equals to the expected if the `relNodes` are translated
-   *   from sql
+   * @param relNodes the original (un-optimized) [[RelNode]]s to check
+   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType whether the rel plans contain the output type
+   * @param expectedPlans the expected [[PlanKind]]s to check
+   * @param assertSqlEqualsOrExpandFunc the function to check whether the sql equals to the expected
+   * if the `relNodes` are translated from sql
    */
   private def assertPlanEquals(
       relNodes: Array[RelNode],
@@ -939,12 +925,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     // build ast plan
     val astBuilder = new StringBuilder
-    relNodes.foreach {
-      sink =>
-        astBuilder
-          .append(System.lineSeparator)
-          .append(FlinkRelOptUtil
-            .toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withRowType = withRowType))
+    relNodes.foreach { sink =>
+      astBuilder
+        .append(System.lineSeparator)
+        .append(FlinkRelOptUtil.toString(
+          sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withRowType = withRowType))
     }
     val astPlan = astBuilder.toString()
 
@@ -982,13 +967,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val replaced = explainDetail match {
         case ExplainDetail.ESTIMATED_COST => replaceEstimatedCost(result)
         case ExplainDetail.JSON_EXECUTION_PLAN =>
-          replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(result)))
+            replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(result)))
         case _ => result
       }
       replaced
     }
     var replacedResult = explainResult
-    extraDetails.foreach(detail => replacedResult = replace(replacedResult, detail))
+    extraDetails.foreach {
+      detail =>
+        replacedResult = replace(replacedResult, detail)
+    }
     assertEqualsOrExpand("explain", TableTestUtil.replaceStageId(replacedResult), expand = false)
   }
 
@@ -1006,25 +994,23 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
     val optimizedPlan = optimizedRels.head match {
       case _: RelNode =>
-        optimizedRels
-          .map {
-            rel =>
-              FlinkRelOptUtil.toString(
-                rel,
-                detailLevel = explainLevel,
-                withChangelogTraits = withChangelogTraits,
-                withRowType = withRowType)
-          }
-          .mkString("\n")
+        optimizedRels.map { rel =>
+          FlinkRelOptUtil.toString(
+            rel,
+            detailLevel = explainLevel,
+            withChangelogTraits = withChangelogTraits,
+            withRowType = withRowType)
+        }.mkString("\n")
       case o =>
-        throw new TableException(
-          "The expected optimized plan is RelNode plan, " +
-            s"actual plan is ${o.getClass.getSimpleName} plan.")
+        throw new TableException("The expected optimized plan is RelNode plan, " +
+          s"actual plan is ${o.getClass.getSimpleName} plan.")
     }
     replaceEstimatedCost(optimizedPlan)
   }
 
-  /** Replace the estimated costs for the given plan, because it may be unstable. */
+  /**
+   * Replace the estimated costs for the given plan, because it may be unstable.
+   */
   protected def replaceEstimatedCost(s: String): String = {
     var str = s.replaceAll("\\r\\n", "\n")
     val scientificFormRegExpr = "[+-]?[\\d]+([\\.][\\d]*)?([Ee][+-]?[0-9]{0,2})?"
@@ -1074,19 +1060,14 @@ abstract class TableTestUtil(
   def getStreamEnv: StreamExecutionEnvironment = env
 
   /**
-   * Create a [[TestTableSource]] with the given schema, table stats and unique keys, and registers
-   * this TableSource under given name into the TableEnvironment's catalog.
+   * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
+   * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param types
-   *   field types
-   * @param fields
-   *   field names
-   * @param statistic
-   *   statistic of current table
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param types field types
+   * @param fields field names
+   * @param statistic statistic of current table
+   * @return returns the registered [[Table]].
    */
   def addTableSource(
       name: String,
@@ -1101,14 +1082,10 @@ abstract class TableTestUtil(
   /**
    * Register this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name
-   *   table name
-   * @param tableSource
-   *   table source
-   * @param statistic
-   *   statistic of current table
-   * @return
-   *   returns the registered [[Table]].
+   * @param name table name
+   * @param tableSource table source
+   * @param statistic statistic of current table
+   * @return returns the registered [[Table]].
    */
   def addTableSource(
       name: String,
@@ -1121,26 +1098,36 @@ abstract class TableTestUtil(
       testingTableEnv.getCurrentCatalog,
       testingTableEnv.getCurrentDatabase,
       name)
-    val operation = new RichTableSourceQueryOperation(identifier, tableSource, statistic)
+    val operation = new RichTableSourceQueryOperation(
+      identifier,
+      tableSource,
+      statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
     testingTableEnv.from(name)
   }
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    testingTableEnv.registerFunction(name, function)
+  def addFunction[T: TypeInformation](
+      name: String,
+      function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
@@ -1150,7 +1137,9 @@ abstract class TableTestUtil(
   }
 }
 
-abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
+abstract class ScalaTableTestUtil(
+    test: TableTestBase,
+    isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
@@ -1159,20 +1148,27 @@ abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
+  def addFunction[T: TypeInformation](
+      name: String,
+      function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
@@ -1180,7 +1176,9 @@ abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
       function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
-abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
+abstract class JavaTableTestUtil(
+    test: TableTestBase,
+    isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
@@ -1189,20 +1187,27 @@ abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
+  def addFunction[T: TypeInformation](
+      name: String,
+      function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
+  /**
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
   @deprecated
   @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
@@ -1210,7 +1215,9 @@ abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
       function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
-/** Utility for stream table test. */
+/**
+ * Utility for stream table test.
+ */
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
@@ -1220,14 +1227,10 @@ case class StreamTableTestUtil(
   /**
    * Register a table with specific row time field and offset.
    *
-   * @param tableName
-   *   table name
-   * @param sourceTable
-   *   table to register
-   * @param rowtimeField
-   *   row time field
-   * @param offset
-   *   offset to the row time field value
+   * @param tableName table name
+   * @param sourceTable table to register
+   * @param rowtimeField row time field
+   * @param offset offset to the row time field value
    */
   def addTableWithWatermark(
       tableName: String,
@@ -1273,10 +1276,8 @@ case class StreamTableTestUtil(
 
   def replaceStreamProgram(program: FlinkChainedProgram[StreamOptimizeContext]): Unit = {
     var calciteConfig = TableConfigUtils.getCalciteConfig(tableEnv.getConfig)
-    calciteConfig = CalciteConfig
-      .createBuilder(calciteConfig)
-      .replaceStreamProgram(program)
-      .build()
+    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
+      .replaceStreamProgram(program).build()
     tableEnv.getConfig.setPlannerConfig(calciteConfig)
   }
 
@@ -1287,11 +1288,12 @@ case class StreamTableTestUtil(
   }
 
   def enableMiniBatch(): Unit = {
-    tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     tableEnv.getConfig.set(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
-      Duration.ofSeconds(1))
-    tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+    tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
   }
 
   def createAppendTableSink(
@@ -1320,13 +1322,21 @@ case class StreamTableTestUtil(
   }
 }
 
-/** Utility for stream scala table test. */
-case class ScalaStreamTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, true) {}
+/**
+ * Utility for stream scala table test.
+ */
+case class ScalaStreamTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, true) {
+}
 
-/** Utility for stream java table test. */
-case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, true) {}
+/**
+ * Utility for stream java table test.
+ */
+case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, true) {
+}
 
-/** Utility for batch table test. */
+/**
+ * Utility for batch table test.
+ */
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
@@ -1350,10 +1360,8 @@ case class BatchTableTestUtil(
 
   def replaceBatchProgram(program: FlinkChainedProgram[BatchOptimizeContext]): Unit = {
     var calciteConfig = TableConfigUtils.getCalciteConfig(tableEnv.getConfig)
-    calciteConfig = CalciteConfig
-      .createBuilder(calciteConfig)
-      .replaceBatchProgram(program)
-      .build()
+    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
+      .replaceBatchProgram(program).build()
     tableEnv.getConfig.setPlannerConfig(calciteConfig)
   }
 
@@ -1372,13 +1380,21 @@ case class BatchTableTestUtil(
   }
 }
 
-/** Utility for batch scala table test. */
-case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, false) {}
+/**
+ * Utility for batch scala table test.
+ */
+case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, false) {
+}
 
-/** Utility for batch java table test. */
-case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {}
+/**
+ * Utility for batch java table test.
+ */
+case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {
+}
 
-/** Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing. */
+/**
+ * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing.
+ */
 class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
@@ -1428,7 +1444,7 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
   }
 }
 
-class TestingTableEnvironment private (
+class TestingTableEnvironment private(
     catalogManager: CatalogManager,
     moduleManager: ModuleManager,
     tableConfig: TableConfig,
@@ -1507,18 +1523,16 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    // temporary solution until FLINK-15635 is fixed
-    val classLoader = Thread.currentThread.getContextClassLoader
+    val classLoader = settings.getUserClassLoader
 
     val executorFactory = FactoryUtil.discoverFactory(
-      classLoader,
-      classOf[ExecutorFactory],
-      ExecutorFactory.DEFAULT_IDENTIFIER)
+      classLoader, classOf[ExecutorFactory], ExecutorFactory.DEFAULT_IDENTIFIER)
 
     val executor = executorFactory.create(settings.getConfiguration)
 
     tableConfig.setRootConfiguration(executor.getConfiguration)
     tableConfig.addConfiguration(settings.getConfiguration)
+
 
     val moduleManager = new ModuleManager
 
@@ -1536,11 +1550,12 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
+    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager,
+      classLoader)
 
-    val planner = PlannerFactoryUtil
-      .createPlanner(executor, tableConfig, moduleManager, catalogMgr, functionCatalog)
-      .asInstanceOf[PlannerBase]
+    val planner = PlannerFactoryUtil.createPlanner(
+      executor, tableConfig, classLoader,
+      moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,
@@ -1554,16 +1569,15 @@ object TestingTableEnvironment {
   }
 }
 
-/** [[PlanKind]] defines the types of plans to check in test cases. */
+/**
+ * [[PlanKind]] defines the types of plans to check in test cases.
+ */
 object PlanKind extends Enumeration {
   type PlanKind = Value
-
   /** Abstract Syntax Tree */
   val AST: Value = Value("AST")
-
   /** Optimized Rel Plan */
   val OPT_REL: Value = Value("OPT_REL")
-
   /** Optimized Execution Plan */
   val OPT_EXEC: Value = Value("OPT_EXEC")
 }
@@ -1574,7 +1588,9 @@ object TableTestUtil {
     EnvironmentSettings.newInstance().inStreamingMode().build()
   val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance().inBatchMode().build()
 
-  /** Convert operation tree in the given table to a RelNode tree. */
+  /**
+   * Convert operation tree in the given table to a RelNode tree.
+   */
   def toRelNode(table: Table): RelNode = {
     table
       .asInstanceOf[TableImpl]
@@ -1587,8 +1603,12 @@ object TableTestUtil {
       .build()
   }
 
-  /** Convert modify operation to a RelNode tree. */
-  def toRelNode(tEnv: TableEnvironment, modifyOperation: ModifyOperation): RelNode = {
+  /**
+   * Convert modify operation to a RelNode tree.
+   */
+  def toRelNode(
+      tEnv: TableEnvironment,
+      modifyOperation: ModifyOperation): RelNode = {
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
     planner.translateToRel(modifyOperation)
   }
@@ -1604,24 +1624,18 @@ object TableTestUtil {
     val execEnv = planner.getExecEnv
     val streamType = dataStream.getType
     // get field names and types for all non-replaced fields
-    val typeInfoSchema = fields
-      .map(
-        (f: Array[Expression]) => {
-          val fieldsInfo = FieldInfoUtils.getFieldsInfo(streamType, f)
-          // check if event-time is enabled
-          if (
-            fieldsInfo.isRowtimeDefined &&
-            (execEnv.getStreamTimeCharacteristic ne TimeCharacteristic.EventTime)
-          ) {
-            throw new ValidationException(
-              String.format(
-                "A rowtime attribute requires an EventTime time characteristic in stream " +
-                  "environment. But is: %s",
-                execEnv.getStreamTimeCharacteristic))
-          }
-          fieldsInfo
-        })
-      .getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
+    val typeInfoSchema = fields.map((f: Array[Expression]) => {
+      val fieldsInfo = FieldInfoUtils.getFieldsInfo(streamType, f)
+      // check if event-time is enabled
+      if (fieldsInfo.isRowtimeDefined &&
+        (execEnv.getStreamTimeCharacteristic ne TimeCharacteristic.EventTime)) {
+        throw new ValidationException(String.format(
+          "A rowtime attribute requires an EventTime time characteristic in stream " +
+            "environment. But is: %s",
+          execEnv.getStreamTimeCharacteristic))
+      }
+      fieldsInfo
+    }).getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
 
     val fieldCnt = typeInfoSchema.getFieldTypes.length
     val dataStreamQueryOperation = new InternalDataStreamQueryOperation(
@@ -1677,34 +1691,40 @@ object TableTestUtil {
   }
 
   /**
-   * Stage {id} is ignored, because id keeps incrementing in test class while
-   * StreamExecutionEnvironment is up
+   * Stage {id} is ignored, because id keeps incrementing in test class
+   * while StreamExecutionEnvironment is up
    */
   def replaceStageId(s: String): String = {
     s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
   }
 
   /**
-   * Stream node {id} is ignored, because id keeps incrementing in test class while
-   * StreamExecutionEnvironment is up
+   * Stream node {id} is ignored, because id keeps incrementing in test class
+   * while StreamExecutionEnvironment is up
    */
   def replaceStreamNodeId(s: String): String = {
     s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : ").trim
   }
 
-  /** ExecNode {id} is ignored, because id keeps incrementing in test class. */
+  /**
+   * ExecNode {id} is ignored, because id keeps incrementing in test class.
+   */
   def replaceExecNodeId(s: String): String = {
     s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
       .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
       .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
   }
 
-  /** Ignore flink version value. */
+  /**
+   * Ignore flink version value.
+   */
   def replaceFlinkVersion(s: String): String = {
     s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\": \"\"")
   }
 
-  /** Ignore exec node in operator name and description. */
+  /**
+   * Ignore exec node in operator name and description.
+   */
   def replaceNodeIdInOperator(s: String): String = {
     s.replaceAll("\"contents\"\\s*:\\s*\"\\[\\d+\\]:", "\"contents\" : \"[]:")
       .replaceAll("(\"type\"\\s*:\\s*\".*?)\\[\\d+\\]", "$1[]")

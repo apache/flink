@@ -236,7 +236,7 @@ public class SessionContext {
                         .build();
 
         FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, catalogManager, moduleManager);
+                new FunctionCatalog(configuration, catalogManager, moduleManager, classLoader);
         SessionState sessionState =
                 new SessionState(catalogManager, moduleManager, functionCatalog);
 

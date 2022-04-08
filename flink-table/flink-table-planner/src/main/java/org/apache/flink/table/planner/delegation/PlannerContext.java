@@ -99,7 +99,8 @@ public class PlannerContext {
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
-            List<RelTraitDef> traitDefs) {
+            List<RelTraitDef> traitDefs,
+            ClassLoader classLoader) {
         this.typeSystem = FlinkTypeSystem.INSTANCE;
         this.typeFactory = new FlinkTypeFactory(typeSystem);
         this.context =

@@ -30,28 +30,22 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalWindow} serialization and deserialization. */
-@RunWith(Parameterized.class)
-public class LogicalWindowSerdeTest {
+@Execution(CONCURRENT)
+class LogicalWindowSerdeTest {
 
-    @Parameterized.Parameter public LogicalWindow window;
-
-    @Parameterized.Parameters(name = "{0}")
-    public static List<LogicalWindow> testData() {
+    static List<LogicalWindow> testLogicalWindowSerde() {
         return Arrays.asList(
                 new TumblingGroupWindow(
                         new WindowReference(
@@ -105,15 +99,9 @@ public class LogicalWindowSerdeTest {
                         new ValueLiteralExpression(Duration.ofDays(10))));
     }
 
-    @Test
-    public void testLogicalWindowSerde() throws IOException {
-        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
-        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
-
-        assertThat(window)
-                .isEqualTo(
-                        objectReader.readValue(
-                                objectWriter.writeValueAsString(window), LogicalWindow.class));
+    @ParameterizedTest
+    @MethodSource("testLogicalWindowSerde")
+    void testLogicalWindowSerde(LogicalWindow window) throws IOException {
+        JsonSerdeTestUtil.testJsonRoundTrip(window, LogicalWindow.class);
     }
 }

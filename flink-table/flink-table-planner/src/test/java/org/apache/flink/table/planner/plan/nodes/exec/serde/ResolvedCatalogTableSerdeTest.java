@@ -73,7 +73,9 @@ class ResolvedCatalogTableSerdeTest {
         OPTIONS.put("c", "3");
     }
 
-    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    ResolvedCatalogTableSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
     private static final RexBuilder REX_BUILDER = new RexBuilder(FACTORY);
 
     private static final RexNode REX_NODE =
