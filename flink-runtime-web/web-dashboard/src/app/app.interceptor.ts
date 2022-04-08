@@ -35,7 +35,7 @@ export class AppInterceptor implements HttpInterceptor {
     const ignoreErrorMessage = ['File not found.'];
     const option: NzNotificationDataOptions = {
       nzDuration: 0,
-      nzStyle: { width: '1000px', 'white-space': 'pre-wrap' }
+      nzStyle: { width: 'auto', 'white-space': 'pre-wrap' }
     };
 
     return next.handle(req).pipe(
