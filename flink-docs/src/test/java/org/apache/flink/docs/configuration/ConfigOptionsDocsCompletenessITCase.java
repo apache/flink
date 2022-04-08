@@ -23,8 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +50,7 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getD
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
+import static org.assertj.core.api.Fail.fail;
 
 /**
  * This test verifies that all {@link ConfigOption ConfigOptions} in the configured {@link
@@ -58,10 +58,10 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.type
  * exist for the same key with different descriptions/default values), and that the documentation
  * does not refer to non-existent options.
  */
-public class ConfigOptionsDocsCompletenessITCase {
+class ConfigOptionsDocsCompletenessITCase {
 
     @Test
-    public void testCompleteness() throws IOException, ClassNotFoundException {
+    void testCompleteness() throws IOException, ClassNotFoundException {
         final Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
         final Map<String, List<ExistingOption>> existingOptions =
                 findExistingOptions(ignored -> true);
@@ -208,7 +208,7 @@ public class ConfigOptionsDocsCompletenessITCase {
                 sb.append("\t\t");
                 sb.append(problem);
             }
-            Assert.fail(sb.toString());
+            fail(sb.toString());
         }
     }
 
