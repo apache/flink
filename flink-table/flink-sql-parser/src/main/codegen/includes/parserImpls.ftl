@@ -595,8 +595,8 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
-    SqlIdentifier originColumnName;
-    SqlIdentifier newColumnName;
+    SqlIdentifier originColumnIdentifier;
+    SqlIdentifier newColumnIdentifier;
     AlterTableContext ctx = new AlterTableContext();
 }
 {
@@ -614,15 +614,15 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <RENAME>
-            originColumnName = SimpleIdentifier()
+            originColumnIdentifier = SimpleIdentifier()
         <TO>
-            newColumnName = SimpleIdentifier()
+            newColumnIdentifier = SimpleIdentifier()
         {
             return new SqlAlterTableRenameColumn(
                     startPos.plus(getPos()),
                     tableIdentifier,
-                    originColumnName,
-                    newColumnName);
+                    originColumnIdentifier,
+                    newColumnIdentifier);
         }
     |
         <RESET>

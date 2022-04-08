@@ -537,8 +537,8 @@ public class SqlToOperationConverter {
                     (SqlAlterTableRenameColumn) sqlAlterTable;
             return OperationConverterUtils.convertRenameColumn(
                     tableIdentifier,
-                    sqlAlterTableRenameColumn.getOriginColumnNameIdentifier().getSimple(),
-                    sqlAlterTableRenameColumn.getNewColumnNameIdentifier().getSimple(),
+                    sqlAlterTableRenameColumn.getOriginColumnIdentifier().getSimple(),
+                    sqlAlterTableRenameColumn.getNewColumnIdentifier().getSimple(),
                     (CatalogTable) baseTable,
                     optionalCatalogTable.get().getResolvedSchema());
         } else if (sqlAlterTable instanceof SqlAddPartitions) {

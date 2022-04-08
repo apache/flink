@@ -36,34 +36,37 @@ import java.util.Set;
 /** A finder used to look up referenced column name in a {@link ResolvedExpression}. */
 public class ColumnReferenceFinder {
 
+    private ColumnReferenceFinder() {}
+
     public static Set<String> findReferencedColumn(
-            ResolvedExpression resolvedExpression, List<String> inputFields) {
-        ColumnReferenceVisitor visitor = new ColumnReferenceVisitor(inputFields);
+            ResolvedExpression resolvedExpression, List<String> tableColumns) {
+        ColumnReferenceVisitor visitor = new ColumnReferenceVisitor(tableColumns);
         visitor.visit(resolvedExpression);
         return visitor.referencedColumns;
     }
 
     private static class ColumnReferenceVisitor extends ExpressionDefaultVisitor<Void> {
-        private final List<String> inputFields;
+        private final List<String> tableColumns;
         private final Set<String> referencedColumns;
 
-        public ColumnReferenceVisitor(List<String> inputFields) {
-            this.inputFields = inputFields;
+        public ColumnReferenceVisitor(List<String> tableColumns) {
+            this.tableColumns = tableColumns;
             this.referencedColumns = new HashSet<>();
         }
 
         @Override
         public Void visit(Expression expression) {
             if (expression instanceof LocalReferenceExpression) {
-                visit((LocalReferenceExpression) expression);
+                return visit((LocalReferenceExpression) expression);
             } else if (expression instanceof FieldReferenceExpression) {
-                visit((FieldReferenceExpression) expression);
+                return visit((FieldReferenceExpression) expression);
             } else if (expression instanceof RexNodeExpression) {
-                visit((RexNodeExpression) expression);
+                return visit((RexNodeExpression) expression);
             } else if (expression instanceof CallExpression) {
-                visit((CallExpression) expression);
+                return visit((CallExpression) expression);
+            } else {
+                return super.visit(expression);
             }
-            return null;
         }
 
         @Override
@@ -84,7 +87,7 @@ public class ColumnReferenceFinder {
             inputRefs.forEach(
                     inputRef -> {
                         int index = inputRef.getIndex();
-                        referencedColumns.add(inputFields.get(index));
+                        referencedColumns.add(tableColumns.get(index));
                     });
             return null;
         }

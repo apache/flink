@@ -31,31 +31,31 @@ import java.util.List;
  */
 public class SqlAlterTableRenameColumn extends SqlAlterTable {
 
-    private final SqlIdentifier originColumnNameIdentifier;
-    private final SqlIdentifier newColumnNameIdentifier;
+    private final SqlIdentifier originColumnIdentifier;
+    private final SqlIdentifier newColumnIdentifier;
 
     public SqlAlterTableRenameColumn(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            SqlIdentifier originColumnName,
-            SqlIdentifier newColumnName) {
+            SqlIdentifier originColumnIdentifier,
+            SqlIdentifier newColumnIdentifier) {
         super(pos, tableName, null);
-        this.originColumnNameIdentifier = originColumnName;
-        this.newColumnNameIdentifier = newColumnName;
+        this.originColumnIdentifier = originColumnIdentifier;
+        this.newColumnIdentifier = newColumnIdentifier;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                tableIdentifier, originColumnNameIdentifier, newColumnNameIdentifier);
+                tableIdentifier, originColumnIdentifier, newColumnIdentifier);
     }
 
-    public SqlIdentifier getOriginColumnNameIdentifier() {
-        return originColumnNameIdentifier;
+    public SqlIdentifier getOriginColumnIdentifier() {
+        return originColumnIdentifier;
     }
 
-    public SqlIdentifier getNewColumnNameIdentifier() {
-        return newColumnNameIdentifier;
+    public SqlIdentifier getNewColumnIdentifier() {
+        return newColumnIdentifier;
     }
 
     @Override
@@ -63,8 +63,8 @@ public class SqlAlterTableRenameColumn extends SqlAlterTable {
         writer.keyword("ALTER TABLE");
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         writer.keyword("RENAME");
-        originColumnNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        originColumnIdentifier.unparse(writer, leftPrec, rightPrec);
         writer.keyword("TO");
-        newColumnNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        newColumnIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }

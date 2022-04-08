@@ -153,15 +153,14 @@ public class OperationConverterUtils {
             String newColumnName,
             CatalogTable catalogTable,
             ResolvedSchema originResolveSchema) {
-
         Schema originSchema = catalogTable.getUnresolvedSchema();
-        List<String> columnNames =
+        List<String> tableColumns =
                 originSchema.getColumns().stream()
                         .map(Schema.UnresolvedColumn::getName)
                         .collect(Collectors.toList());
         // validate old column is exists or new column is duplicated or old column is
         // referenced by computed column
-        validateColumnName(originColumnName, newColumnName, columnNames, originResolveSchema);
+        validateColumnName(originColumnName, newColumnName, tableColumns, originResolveSchema);
 
         // validate old column is referenced by watermark
         List<org.apache.flink.table.catalog.WatermarkSpec> watermarkSpecs =
@@ -171,7 +170,7 @@ public class OperationConverterUtils {
                     String rowtimeAttribute = watermarkSpec.getRowtimeAttribute();
                     Set<String> referencedColumns =
                             ColumnReferenceFinder.findReferencedColumn(
-                                    watermarkSpec.getWatermarkExpression(), columnNames);
+                                    watermarkSpec.getWatermarkExpression(), tableColumns);
                     if (originColumnName.equals(rowtimeAttribute)
                             || referencedColumns.contains(originColumnName)) {
                         throw new ValidationException(
@@ -185,7 +184,8 @@ public class OperationConverterUtils {
 
         Schema.Builder builder = Schema.newBuilder();
         // build column
-        originSchema.getColumns().stream()
+        originSchema
+                .getColumns()
                 .forEach(
                         column -> {
                             if (originColumnName.equals(column.getName())) {
@@ -203,12 +203,12 @@ public class OperationConverterUtils {
                     originPrimaryKeyNames.stream()
                             .map(pkName -> pkName.equals(originColumnName) ? newColumnName : pkName)
                             .collect(Collectors.toList());
-
             builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
         }
 
         // build watermark
-        originSchema.getWatermarkSpecs().stream()
+        originSchema
+                .getWatermarkSpecs()
                 .forEach(
                         watermarkSpec ->
                                 builder.watermark(
@@ -234,18 +234,22 @@ public class OperationConverterUtils {
     private static void validateColumnName(
             String originColumnName,
             String newColumnName,
-            List<String> columnNames,
+            List<String> tableColumns,
             ResolvedSchema originResolvedSchema) {
-        int originColumnIndex = columnNames.indexOf(originColumnName);
-        if (originColumnIndex < 0) {
+        // validate old column
+        if (!tableColumns.contains(originColumnName)) {
             throw new ValidationException(
-                    String.format("Old column %s not found for RENAME COLUMN ", originColumnName));
+                    String.format(
+                            "Old column %s not found in table schema for RENAME COLUMN",
+                            originColumnName));
         }
 
-        int sameColumnNameIndex = columnNames.indexOf(newColumnName);
-        if (sameColumnNameIndex >= 0) {
+        // validate new column
+        if (tableColumns.contains(newColumnName)) {
             throw new ValidationException(
-                    String.format("New column %s existed for RENAME COLUMN ", newColumnName));
+                    String.format(
+                            "New column %s already existed in table schema for RENAME COLUMN",
+                            newColumnName));
         }
 
         // validate old column name is referenced by computed column case
@@ -256,7 +260,7 @@ public class OperationConverterUtils {
                             Column.ComputedColumn computedColumn = (Column.ComputedColumn) column;
                             Set<String> referencedColumn =
                                     ColumnReferenceFinder.findReferencedColumn(
-                                            computedColumn.getExpression(), columnNames);
+                                            computedColumn.getExpression(), tableColumns);
                             if (referencedColumn.contains(originColumnName)) {
                                 throw new ValidationException(
                                         String.format(
@@ -276,7 +280,7 @@ public class OperationConverterUtils {
         } else if (originColumn instanceof Schema.UnresolvedPhysicalColumn) {
             builder.column(
                     columnName, ((Schema.UnresolvedPhysicalColumn) originColumn).getDataType());
-        } else {
+        } else if (originColumn instanceof Schema.UnresolvedMetadataColumn) {
             Schema.UnresolvedMetadataColumn metadataColumn =
                     (Schema.UnresolvedMetadataColumn) originColumn;
             builder.columnByMetadata(
