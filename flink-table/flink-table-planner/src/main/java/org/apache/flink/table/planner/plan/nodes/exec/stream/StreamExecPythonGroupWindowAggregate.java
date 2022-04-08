@@ -211,7 +211,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             inputTimeFieldIndex =
                     timeFieldIndex(
                             planner.getTypeFactory().buildRelNodeRowType(inputRowType),
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(

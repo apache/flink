@@ -126,7 +126,7 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
         final SortWindowCodeGenerator windowCodeGenerator =
                 new SortWindowCodeGenerator(
                         new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         window,
                         inputTimeFieldIndex,
                         inputTimeIsDate,

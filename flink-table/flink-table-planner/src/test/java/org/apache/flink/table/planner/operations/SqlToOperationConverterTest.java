@@ -160,11 +160,7 @@ public class SqlToOperationConverterTest {
     private final PlannerContext plannerContext = plannerMocks.getPlannerContext();
     private final FunctionCatalog functionCatalog = plannerMocks.getFunctionCatalog();
 
-    private final Supplier<FlinkPlannerImpl> plannerSupplier =
-            () ->
-                    plannerContext.createFlinkPlanner(
-                            catalogManager.getCurrentCatalog(),
-                            catalogManager.getCurrentDatabase());
+    private final Supplier<FlinkPlannerImpl> plannerSupplier = plannerContext::createFlinkPlanner;
 
     private final Parser parser =
             new ParserImpl(
@@ -1823,8 +1819,7 @@ public class SqlToOperationConverterTest {
 
     private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
-        return plannerContext.createFlinkPlanner(
-                catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
+        return plannerContext.createFlinkPlanner();
     }
 
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {

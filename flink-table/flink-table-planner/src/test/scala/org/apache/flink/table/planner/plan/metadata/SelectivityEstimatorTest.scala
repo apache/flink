@@ -82,7 +82,7 @@ class SelectivityEstimatorTest {
       .build()
       .getPlannerContext
 
-    val relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    val relBuilder = plannerContext.createRelBuilder()
     relBuilder.clear()
     relBuilder.scan(util.Arrays.asList("test")).build().asInstanceOf[TableScan]
   }

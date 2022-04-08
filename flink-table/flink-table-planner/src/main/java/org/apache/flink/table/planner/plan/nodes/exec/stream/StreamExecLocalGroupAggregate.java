@@ -140,7 +140,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                         new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                         // the local aggregate result will be buffered, so need copy
                         true);

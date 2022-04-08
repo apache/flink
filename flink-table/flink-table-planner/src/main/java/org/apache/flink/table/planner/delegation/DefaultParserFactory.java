@@ -47,11 +47,7 @@ public class DefaultParserFactory implements ParserFactory {
     public Parser create(Context context) {
         return new ParserImpl(
                 context.getCatalogManager(),
-                () ->
-                        context.getPlannerContext()
-                                .createFlinkPlanner(
-                                        context.getCatalogManager().getCurrentCatalog(),
-                                        context.getCatalogManager().getCurrentDatabase()),
+                context.getPlannerContext()::createFlinkPlanner,
                 context.getPlannerContext()::createCalciteParser,
                 context.getPlannerContext().getSqlExprToRexConverterFactory());
     }

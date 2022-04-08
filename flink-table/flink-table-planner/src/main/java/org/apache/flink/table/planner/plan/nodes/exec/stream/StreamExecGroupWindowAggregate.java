@@ -214,7 +214,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             inputTimeFieldIndex =
                     timeFieldIndex(
                             planner.getTypeFactory().buildRelNodeRowType(inputRowType),
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
                 throw new TableException(
@@ -247,7 +247,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 createAggsHandler(
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
 

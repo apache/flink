@@ -142,7 +142,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
-                                planner.getRelBuilder(),
+                                planner.createRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
                 // over agg code gen must pass the constants
@@ -165,7 +165,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             List<OverWindowFrame> windowFrames =
                     createOverWindowFrames(
                             planner.getTypeFactory(),
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             config,
                             inputType,
                             sortSpec,

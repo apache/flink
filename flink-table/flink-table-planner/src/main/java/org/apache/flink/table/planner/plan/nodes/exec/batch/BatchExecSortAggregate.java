@@ -109,7 +109,7 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     AggWithoutKeysCodeGenerator.genWithoutKeys(
                             ctx,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             aggInfos,
                             inputRowType,
                             outputRowType,
@@ -120,7 +120,7 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     SortAggCodeGenerator.genWithKeys(
                             ctx,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             aggInfos,
                             inputRowType,
                             outputRowType,

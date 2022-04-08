@@ -122,7 +122,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
         final HashWindowCodeGenerator hashWindowCodeGenerator =
                 new HashWindowCodeGenerator(
                         new CodeGeneratorContext(config),
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         window,
                         inputTimeFieldIndex,
                         inputTimeIsDate,

@@ -130,7 +130,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
                                         TableSourceUtil.getRowtimeExtractionExpression(
                                                 desc.getTimestampExtractor(),
                                                 producedDataType,
-                                                planner.getRelBuilder(),
+                                                planner.createRelBuilder(),
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(

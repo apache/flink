@@ -160,7 +160,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         sliceAssigner,
                         aggInfoList,
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         inputRowType.getChildren(),
                         shiftTimeZone);
         final RowDataKeySelector selector =

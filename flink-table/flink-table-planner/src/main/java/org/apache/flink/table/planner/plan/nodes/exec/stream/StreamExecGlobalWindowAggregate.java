@@ -188,7 +188,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         true,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         shiftTimeZone);
 
         // handler used to merge the single local accumulator (on memory) into state accumulator
@@ -201,7 +201,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         true,
                         localAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         shiftTimeZone);
 
         // handler used to merge state accumulators for merging slices into window,
@@ -215,7 +215,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                         false,
                         globalAggInfoList.getAccTypes(),
                         config,
-                        planner.getRelBuilder(),
+                        planner.createRelBuilder(),
                         shiftTimeZone);
 
         final RowDataKeySelector selector =

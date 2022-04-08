@@ -113,7 +113,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     AggWithoutKeysCodeGenerator.genWithoutKeys(
                             ctx,
-                            planner.getRelBuilder(),
+                            planner.createRelBuilder(),
                             aggInfos,
                             inputRowType,
                             outputRowType,
@@ -127,7 +127,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
             generatedOperator =
                     new HashAggCodeGenerator(
                                     ctx,
-                                    planner.getRelBuilder(),
+                                    planner.createRelBuilder(),
                                     aggInfos,
                                     inputRowType,
                                     outputRowType,
