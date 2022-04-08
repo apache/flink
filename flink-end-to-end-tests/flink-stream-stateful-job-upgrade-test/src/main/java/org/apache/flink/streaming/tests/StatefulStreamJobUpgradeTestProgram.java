@@ -38,7 +38,6 @@ import java.util.List;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.extractTimestamp;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -95,11 +94,11 @@ public class StatefulStreamJobUpgradeTestProgram {
             throws Exception {
         Duration maxOutOfOrderness = extractTimestamp(pt);
         KeyedStream<Event, Integer> source =
-                env
-                        .addSource(createEventSource(pt))
+                env.addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
                         .keyBy(Event::getKey);
 
         List<TypeSerializer<ComplexPayload>> stateSer =
@@ -124,7 +123,8 @@ public class StatefulStreamJobUpgradeTestProgram {
                 env.addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
                         .map(new UpgradeEvent())
                         .keyBy(UpgradedEvent::getKey);
 

@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentials;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
@@ -144,7 +143,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
                         .name("PubSub source");
 
         List<String> output = new ArrayList<>();
-        DataStreamUtils.collect(fromPubSub).forEachRemaining(output::add);
+        fromPubSub.executeAndCollect();
 
         assertEquals("Wrong number of elements", input.size(), output.size());
         for (String test : input) {
