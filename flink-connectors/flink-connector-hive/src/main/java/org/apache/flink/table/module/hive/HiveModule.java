@@ -51,7 +51,6 @@ public class HiveModule implements Module {
             Collections.unmodifiableSet(
                     new HashSet<>(
                             Arrays.asList(
-                                    "count",
                                     "cume_dist",
                                     "current_date",
                                     "current_timestamp",
