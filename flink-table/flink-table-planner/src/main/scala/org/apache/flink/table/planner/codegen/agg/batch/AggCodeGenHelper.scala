@@ -718,11 +718,11 @@ object AggCodeGenHelper {
             val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
             val externalAccTerm = newName("acc")
             val externalAccCode = genToExternalConverter(ctx, externalAccType, aggBufferName)
+            val aggParametersCode = s"""${(Seq(externalAccTerm) ++ operandTerms).mkString(", ")}"""
             s"""
                |$externalAccTypeTerm $externalAccTerm = $externalAccCode;
                |${functionIdentifiers(function)}.accumulate(
-               |  $externalAccTerm,
-               |  ${operandTerms.mkString(", ")});
+               | $aggParametersCode);
                |$aggBufferName = ${genToInternalConverter(ctx, externalAccType)(externalAccTerm)};
                |${aggBufferExpr.nullTerm} = false;
           """.stripMargin

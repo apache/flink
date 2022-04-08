@@ -132,6 +132,10 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
     }
   }
 
+  def accumulate(acc: NonMergableCountAcc): Unit = {
+    acc.count = acc.count + 1
+  }
+
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
 
   override def getValue(acc: NonMergableCountAcc): Long = acc.count

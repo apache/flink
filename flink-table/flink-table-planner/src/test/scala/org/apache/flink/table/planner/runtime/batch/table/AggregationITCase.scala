@@ -246,15 +246,22 @@ class AggregationITCase extends BatchTestBase {
     val t2 = BatchTableEnvUtil
       .fromCollection(tEnv, new mutable.MutableList[(Int, String)], "a, b")
       .select('a.sum, myAgg('b), 'a.count)
+    // test agg with empty parameter
+    val t3 = BatchTableEnvUtil
+      .fromCollection(tEnv, new mutable.MutableList[(Int, String)], "a, b")
+      .select('a.sum, myAgg(), 'a.count)
 
     val expected1 = "null,0"
     val expected2 = "null,0,0"
+    val expected3 = "null,0,0"
 
     val results1 = executeQuery(t1)
     val results2 = executeQuery(t2)
+    val results3 = executeQuery(t3)
 
     TestBaseUtils.compareResultAsText(results1.asJava, expected1)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
 
   }
 
