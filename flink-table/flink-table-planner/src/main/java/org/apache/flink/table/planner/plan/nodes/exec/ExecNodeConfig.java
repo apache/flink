@@ -36,13 +36,23 @@ import java.util.Optional;
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
 
-    private final ReadableConfig tableConfig;
+    private final TableConfig tableConfig;
 
     private final ReadableConfig nodeConfig;
 
     ExecNodeConfig(TableConfig tableConfig, ReadableConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
         this.tableConfig = tableConfig;
+    }
+
+    /**
+     * Return the {@link PlannerBase#getTableConfig()}.
+     *
+     * @return the {@link PlannerBase#getTableConfig()}.
+     */
+    @Deprecated
+    public TableConfig getTableConfig() {
+        return tableConfig;
     }
 
     @Override
