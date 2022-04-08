@@ -17,7 +17,9 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -79,7 +81,8 @@ public class PythonConfigUtil {
 
     public static void configPythonOperator(StreamExecutionEnvironment env)
             throws IllegalAccessException, NoSuchFieldException {
-        final Configuration config = extractPythonConfiguration(env, env.getConfiguration());
+        final Configuration config =
+                extractPythonConfiguration(env.getCachedFiles(), env.getConfiguration());
 
         for (Transformation<?> transformation : env.getTransformations()) {
             alignTransformation(transformation);
@@ -99,9 +102,10 @@ public class PythonConfigUtil {
 
     /** Extract the configurations which is used in the Python operators. */
     public static Configuration extractPythonConfiguration(
-            StreamExecutionEnvironment env, ReadableConfig config) {
+            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
+            ReadableConfig config) {
         final Configuration pythonDependencyConfig =
-                PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
+                PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
         final PythonConfig pythonConfig = new PythonConfig(config, pythonDependencyConfig);
         return pythonConfig.toConfiguration();
     }

@@ -114,10 +114,8 @@ public class CommonPythonUtil {
             StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
                     clazz.getDeclaredMethod(
-                            "extractPythonConfiguration",
-                            StreamExecutionEnvironment.class,
-                            ReadableConfig.class);
-            return (Configuration) method.invoke(null, realEnv, tableConfig);
+                            "extractPythonConfiguration", List.class, ReadableConfig.class);
+            return (Configuration) method.invoke(null, realEnv.getCachedFiles(), tableConfig);
         } catch (NoSuchFieldException
                 | IllegalAccessException
                 | NoSuchMethodException
