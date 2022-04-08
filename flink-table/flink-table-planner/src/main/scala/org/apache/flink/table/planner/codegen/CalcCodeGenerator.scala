@@ -76,7 +76,7 @@ object CalcCodeGenerator {
       calcProjection: Seq[RexNode],
       calcCondition: Option[RexNode],
       tableConfig: ReadableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
     val processCode = generateProcessCode(

@@ -700,7 +700,7 @@ class MatchCodeGenerator(
         .map(expr => FlinkTypeFactory.toLogicalType(expr.getType))
 
       val aggsHandlerCodeGenerator = new AggsHandlerCodeGenerator(
-        CodeGeneratorContext(new Configuration),
+        new CodeGeneratorContext(new Configuration),
         relBuilder,
         inputFieldTypes,
         copyInputField = false).needAccumulate()

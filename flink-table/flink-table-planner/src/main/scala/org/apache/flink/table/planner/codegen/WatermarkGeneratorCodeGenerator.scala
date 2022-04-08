@@ -52,7 +52,7 @@ object WatermarkGeneratorCodeGenerator {
     val ctx = if (contextTerm.isDefined) {
       new WatermarkGeneratorFunctionContext(tableConfig, contextTerm.get)
     } else {
-      CodeGeneratorContext(tableConfig)
+      new CodeGeneratorContext(tableConfig)
     }
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")

@@ -91,7 +91,7 @@ public class PythonTableFunctionOperatorTest
                 udfOutputType,
                 joinRelType,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "UdtfInputProjection",
                         inputType,
                         udfInputType,

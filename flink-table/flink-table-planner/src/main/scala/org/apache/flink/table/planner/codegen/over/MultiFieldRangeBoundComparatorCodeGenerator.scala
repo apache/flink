@@ -42,7 +42,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       if (isLowerBound) s"return $comp >= 0 ? 1 : -1;" else s"return $comp > 0 ? 1 : -1;"
     }
 
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, input, current)
 
     val code =

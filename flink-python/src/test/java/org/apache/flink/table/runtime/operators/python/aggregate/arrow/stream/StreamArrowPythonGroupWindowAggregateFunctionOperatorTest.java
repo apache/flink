@@ -474,7 +474,7 @@ class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 },
                 UTC_ZONE_ID,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,

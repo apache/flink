@@ -376,7 +376,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                                 .collect(Collectors.toList()));
         final GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new Configuration()),
+                        new CodeGeneratorContext(new Configuration()),
                         name,
                         inputType,
                         forwardedFieldType,
