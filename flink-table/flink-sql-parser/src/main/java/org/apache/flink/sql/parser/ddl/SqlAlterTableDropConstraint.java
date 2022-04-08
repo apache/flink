@@ -24,11 +24,27 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import java.util.List;
+import javax.annotation.Nullable;
 
-/** ALTER TABLE [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name. */
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * SqlNode to describe ALTER DDL for drop constraint clause, here supports two kinds of syntax as
+ * follows.
+ *
+ * <pre>{@code
+ * -- drop primary key
+ *  ALTER TABLE [catalog_name.][db_name.]table_name DROP PRIMARY KEY;
+ *
+ *  -- drop constraint
+ *  ALTER TABLE [catalog_name.][db_name.]table_name DROP CONSTRAINT constraint_name;
+ * }</pre>
+ */
 public class SqlAlterTableDropConstraint extends SqlAlterTable {
-    private final SqlIdentifier constraintName;
+
+    private final boolean isPrimaryKey;
+    private final @Nullable SqlIdentifier constraintName;
 
     /**
      * Creates an alter table drop constraint node.
@@ -38,13 +54,21 @@ public class SqlAlterTableDropConstraint extends SqlAlterTable {
      * @param pos Parser position
      */
     public SqlAlterTableDropConstraint(
-            SqlIdentifier tableID, SqlIdentifier constraintName, SqlParserPos pos) {
+            SqlParserPos pos,
+            SqlIdentifier tableID,
+            boolean isPrimaryKey,
+            @Nullable SqlIdentifier constraintName) {
         super(pos, tableID);
+        this.isPrimaryKey = isPrimaryKey;
         this.constraintName = constraintName;
     }
 
-    public SqlIdentifier getConstraintName() {
-        return constraintName;
+    public boolean isPrimaryKey() {
+        return isPrimaryKey;
+    }
+
+    public Optional<SqlIdentifier> getConstraintName() {
+        return Optional.ofNullable(constraintName);
     }
 
     @Override
@@ -55,7 +79,11 @@ public class SqlAlterTableDropConstraint extends SqlAlterTable {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("DROP CONSTRAINT");
-        this.constraintName.unparse(writer, leftPrec, rightPrec);
+        if (isPrimaryKey) {
+            writer.keyword("DROP PRIMARY KEY");
+        } else {
+            writer.keyword("DROP CONSTRAINT");
+            this.constraintName.unparse(writer, leftPrec, rightPrec);
+        }
     }
 }

@@ -634,13 +634,50 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()));
         }
     |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
+        <DROP>
+        (
+            { SqlIdentifier columnName = null; }
+            columnName = SimpleIdentifier() {
+                return new SqlAlterTableDropColumns(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            false,
+                            new SqlNodeList(
+                                Collections.singletonList(columnName),
+                                getPos()));
+            }
+        |
+            { SqlNodeList columnNames = SqlNodeList.EMPTY; }
+            columnNames = ParenthesizedSimpleIdentifierList() {
+                return new SqlAlterTableDropColumns(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            true,
+                            columnNames);
+            }
+        |
+            <PRIMARY> <KEY> {
+                return new SqlAlterTableDropConstraint(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        true,
+                        null);
+            }
+        |
+            <CONSTRAINT> constraintName = SimpleIdentifier() {
+                return new SqlAlterTableDropConstraint(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            false,
+                            constraintName);
+            }
+        |
+            <WATERMARK> {
+                return new SqlAlterTableDropWatermark(
+                            startPos.plus(getPos()),
+                            tableIdentifier);
+            }
+        )
     |
         [
             <PARTITION>

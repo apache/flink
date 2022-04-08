@@ -82,6 +82,7 @@ import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -1383,16 +1384,235 @@ public class SqlToOperationConverterTest {
     @Test
     public void testAlterTableDropConstraint() throws Exception {
         prepareNonManagedTable(true);
-        // Test alter table add enforced
+        // Test alter drop constraint
         Operation operation = parse("alter table tb1 drop constraint ct1", SqlDialect.DEFAULT);
         assertThat(operation).isInstanceOf(AlterTableDropConstraintOperation.class);
         AlterTableDropConstraintOperation dropConstraint =
                 (AlterTableDropConstraintOperation) operation;
         assertThat(dropConstraint.asSummaryString())
                 .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP CONSTRAINT ct1");
+
+        // Test drop primary key
+        Operation operation2 = parse("alter table tb1 drop primary key", SqlDialect.DEFAULT);
+        assertThat(operation2).isInstanceOf(AlterTableDropConstraintOperation.class);
+        AlterTableDropConstraintOperation dropConstraint2 =
+                (AlterTableDropConstraintOperation) operation2;
+        assertThat(dropConstraint2.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 DROP PRIMARY KEY");
+
+        // Test drop constraint which is not existed
         assertThatThrownBy(() -> parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("CONSTRAINT [ct2] does not exist");
+
+        // Test drop primary key which is not existed
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .build(),
+                        "tb2",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalogManager.createTable(catalogTable, ObjectIdentifier.of("cat1", "db1", "tb2"), true);
+        assertThatThrownBy(() -> parse("alter table tb2 drop primary key", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Table `cat1`.`db1`.`tb2` does not exist primary key.");
+    }
+
+    @Test
+    public void testAlterTableDropWatermark() throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        catalogManager.registerCatalog("cat1", catalog);
+        catalog.createDatabase("db1", new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .watermark("c", "`c` - INTERVAL '5' SECOND")
+                                .build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+
+        ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("cat1", "db1", "tb1");
+        CatalogTable expectedTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        // test drop watermark
+        Operation operation = parse("alter table tb1 drop watermark", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        AlterTableSchemaOperation alterTableSchemaOp = (AlterTableSchemaOperation) operation;
+        assertThat(alterTableSchemaOp.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableSchemaOp.getCatalogTable()).isEqualTo(expectedTable);
+
+        // test drop which table without watermark
+        CatalogTable catalogTable2 =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .build(),
+                        "tb2",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalog.createTable(new ObjectPath("db1", "tb2"), catalogTable2, true);
+        assertThatThrownBy(() -> parse("alter table tb2 drop watermark", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Table `cat1`.`db1`.`tb2` does not exist watermark.");
+    }
+
+    @Test
+    public void testAlterTableDropColumn() throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        catalogManager.registerCatalog("cat1", catalog);
+        catalog.createDatabase("db1", new CatalogDatabaseImpl(Collections.emptyMap(), null), true);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder().column("a", DataTypes.STRING().notNull()).build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+
+        // drop column with table only has one column
+        assertThatThrownBy(() -> parse("alter table tb1 drop a", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Table `cat1`.`db1`.`tb1` only has one column, please use DROP TABLE syntax.");
+
+        CatalogTable catalogTable2 =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .column("d", DataTypes.INT())
+                                .columnByExpression("i", "cat1.`default`.my_udf1(b) + 1")
+                                .watermark("c", "`c` - INTERVAL '5' SECOND")
+                                .primaryKey("a")
+                                .build(),
+                        "tb2",
+                        Collections.singletonList("d"),
+                        Collections.emptyMap());
+        catalog.createTable(new ObjectPath("db1", "tb2"), catalogTable2, true);
+        functionCatalog.registerTempCatalogScalarFunction(
+                ObjectIdentifier.of("cat1", "default", "my_udf1"), Func0$.MODULE$);
+
+        // drop column which is referenced by computed column
+        assertThatThrownBy(() -> parse("alter table tb2 drop b", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column b is referenced by computed column `i` INT NOT NULL AS cat1.`default`.my_udf1(b) + 1,"
+                                + " currently doesn't allow to drop column which is referenced by computed column.");
+
+        // drop column which is referenced by watermark
+        assertThatThrownBy(() -> parse("alter table tb2 drop c", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Column c is referenced by watermark expression WATERMARK FOR `c`: TIMESTAMP(3) AS "
+                                + "`c` - INTERVAL '5' SECOND, currently doesn't allow to drop column which "
+                                + "is referenced by watermark expression.");
+
+        ObjectIdentifier expectedIdentifier = ObjectIdentifier.of("cat1", "db1", "tb2");
+        CatalogTable expectedPrimaryKeyTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .column("d", DataTypes.INT())
+                                .columnByExpression("i", "cat1.`default`.my_udf1(b) + 1")
+                                .watermark("c", "`c` - INTERVAL '5' SECOND")
+                                .build(),
+                        "tb2",
+                        Collections.singletonList("d"),
+                        Collections.emptyMap());
+
+        // drop column which is referenced by primary key and primary key only has one column
+        Operation operation = parse("alter table tb2 drop a", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        AlterTableSchemaOperation alterTableSchemaOp = (AlterTableSchemaOperation) operation;
+        assertThat(alterTableSchemaOp.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableSchemaOp.getCatalogTable()).isEqualTo(expectedPrimaryKeyTable);
+
+        CatalogTable expectedPartitionKeyTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3))
+                                .columnByExpression("i", "cat1.`default`.my_udf1(b) + 1")
+                                .watermark("c", "`c` - INTERVAL '5' SECOND")
+                                .primaryKey("a")
+                                .build(),
+                        "tb2",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+
+        // drop column which is referenced by partition key and partition key only has one column
+        Operation operation2 = parse("alter table tb2 drop d", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AlterTableSchemaOperation.class);
+        AlterTableSchemaOperation alterTableSchemaOp2 = (AlterTableSchemaOperation) operation2;
+        assertThat(alterTableSchemaOp2.getTableIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(alterTableSchemaOp2.getCatalogTable()).isEqualTo(expectedPartitionKeyTable);
+
+        CatalogTable catalogTable3 =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.INT().notNull())
+                                .column("c", DataTypes.INT())
+                                .column("d", DataTypes.INT())
+                                .column("e", DataTypes.STRING())
+                                .column("f", DataTypes.TIMESTAMP(3).notNull())
+                                .columnByMetadata("m", DataTypes.INT(), true)
+                                .columnByExpression("g", "TO_TIMESTAMP(e)")
+                                .watermark("f", "g - INTERVAL '5' SECOND")
+                                .primaryKey("a", "b")
+                                .build(),
+                        "tb3",
+                        Arrays.asList("c", "d"),
+                        Collections.emptyMap());
+        catalog.createTable(new ObjectPath("db1", "tb3"), catalogTable3, true);
+
+        ObjectIdentifier expectedIdentifier3 = ObjectIdentifier.of("cat1", "db1", "tb3");
+        CatalogTable expectedTable3 =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("c", DataTypes.INT())
+                                .column("e", DataTypes.STRING())
+                                .column("f", DataTypes.TIMESTAMP(3).notNull())
+                                .columnByExpression("g", "TO_TIMESTAMP(e)")
+                                .watermark("f", "g - INTERVAL '5' SECOND")
+                                .primaryKeyNamed("PK_a_b", "a")
+                                .build(),
+                        "tb3",
+                        Collections.singletonList("c"),
+                        Collections.emptyMap());
+        // drop column which is referenced by primary key and partition key simultaneously.
+        // Moreover, test drop column which is not in table
+        Operation operation3 = parse("alter table tb3 drop (b, d, m, n)", SqlDialect.DEFAULT);
+        assertThat(operation3).isInstanceOf(AlterTableSchemaOperation.class);
+        AlterTableSchemaOperation alterTableSchemaOp3 = (AlterTableSchemaOperation) operation3;
+        assertThat(alterTableSchemaOp3.getTableIdentifier()).isEqualTo(expectedIdentifier3);
+        assertThat(alterTableSchemaOp3.getCatalogTable()).isEqualTo(expectedTable3);
     }
 
     @Test

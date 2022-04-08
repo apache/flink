@@ -324,6 +324,21 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterTableDrop() {
+        // drop column
+        sql("alter table t1 drop c1").ok("ALTER TABLE `T1` DROP `C1`");
+        sql("alter table t1 drop (c1)").ok("ALTER TABLE `T1` DROP (\n  `C1`\n)");
+        sql("alter table t1 drop (c1, c2)").ok("ALTER TABLE `T1` DROP (\n  `C1`,\n  `C2`\n)");
+
+        // drop constraint
+        sql("alter table t1 drop primary key").ok("ALTER TABLE `T1` DROP PRIMARY KEY");
+        sql("alter table t1 drop constraint ct1").ok("ALTER TABLE `T1` DROP CONSTRAINT `CT1`");
+
+        // drop watermark
+        sql("alter table t1 drop watermark").ok("ALTER TABLE `T1` DROP WATERMARK");
+    }
+
+    @Test
     void testAlterTableCompact() {
         sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
 

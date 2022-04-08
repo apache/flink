@@ -938,6 +938,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             new CatalogTableImpl(
                                     TableSchemaUtils.dropConstraint(
                                             oriTable.getSchema(),
+                                            dropConstraintOperation.isPrimaryKey(),
                                             dropConstraintOperation.getConstraintName()),
                                     oriTable.getPartitionKeys(),
                                     oriTable.getOptions(),

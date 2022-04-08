@@ -26,7 +26,9 @@ import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropWatermark;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
@@ -147,7 +149,6 @@ import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
-import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
@@ -486,22 +487,10 @@ public class SqlToOperationConverter {
                     constraint.getConstraintName().orElse(null),
                     constraint.getColumnNames());
         } else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-            SqlAlterTableDropConstraint dropConstraint =
-                    ((SqlAlterTableDropConstraint) sqlAlterTable);
-            String constraintName = dropConstraint.getConstraintName().getSimple();
-            TableSchema oriSchema =
-                    TableSchema.fromResolvedSchema(
-                            baseTable
-                                    .getUnresolvedSchema()
-                                    .resolve(catalogManager.getSchemaResolver()));
-            if (!oriSchema
-                    .getPrimaryKey()
-                    .filter(pk -> pk.getName().equals(constraintName))
-                    .isPresent()) {
-                throw new ValidationException(
-                        String.format("CONSTRAINT [%s] does not exist", constraintName));
-            }
-            return new AlterTableDropConstraintOperation(tableIdentifier, constraintName);
+            return OperationConverterUtils.convertAlterTableDropConstraint(
+                    tableIdentifier,
+                    (CatalogTable) baseTable,
+                    (SqlAlterTableDropConstraint) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
             return OperationConverterUtils.convertAddReplaceColumns(
                     tableIdentifier,
@@ -539,6 +528,15 @@ public class SqlToOperationConverter {
                     tableIdentifier,
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropWatermark) {
+            return OperationConverterUtils.convertDropWatermark(
+                    tableIdentifier, (CatalogTable) baseTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableDropColumns) {
+            return OperationConverterUtils.convertDropColumns(
+                    tableIdentifier,
+                    (CatalogTable) baseTable,
+                    optionalCatalogTable.get().getResolvedSchema(),
+                    (SqlAlterTableDropColumns) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(

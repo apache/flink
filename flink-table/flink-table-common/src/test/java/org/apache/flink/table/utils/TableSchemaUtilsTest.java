@@ -24,6 +24,8 @@ import org.apache.flink.table.api.ValidationException;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -56,7 +58,8 @@ class TableSchemaUtilsTest {
                         .primaryKey("ct1", new String[] {"a"})
                         .watermark("t", "t", DataTypes.TIMESTAMP(3))
                         .build();
-        TableSchema newSchema = TableSchemaUtils.dropConstraint(originalSchema, "ct1");
+        TableSchema newSchema =
+                TableSchemaUtils.dropConstraint(originalSchema, false, Optional.ofNullable("ct1"));
         TableSchema expectedSchema =
                 TableSchema.builder()
                         .field("a", DataTypes.INT().notNull())
@@ -66,6 +69,10 @@ class TableSchemaUtilsTest {
                         .watermark("t", "t", DataTypes.TIMESTAMP(3))
                         .build();
         assertThat(newSchema).isEqualTo(expectedSchema);
+
+        TableSchema newSchema2 =
+                TableSchemaUtils.dropConstraint(originalSchema, true, Optional.empty());
+        assertThat(newSchema2).isEqualTo(expectedSchema);
 
         // Drop non-exist constraint.
         assertThatThrownBy(() -> TableSchemaUtils.dropConstraint(originalSchema, "ct2"))

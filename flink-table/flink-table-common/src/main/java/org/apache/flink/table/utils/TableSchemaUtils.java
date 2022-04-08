@@ -124,14 +124,20 @@ public class TableSchemaUtils {
     }
 
     /** Creates a new schema but drop the constraint with given name. */
-    public static TableSchema dropConstraint(TableSchema oriSchema, String constraintName) {
+    public static TableSchema dropConstraint(
+            TableSchema oriSchema, boolean isPrimaryKey, Optional<String> constraintName) {
         // Validate the constraint name is valid.
         Optional<UniqueConstraint> uniqueConstraintOpt = oriSchema.getPrimaryKey();
-        if (!uniqueConstraintOpt.isPresent()
-                || !uniqueConstraintOpt.get().getName().equals(constraintName)) {
-            throw new ValidationException(
-                    String.format("Constraint %s to drop does not exist", constraintName));
+        if (isPrimaryKey && !uniqueConstraintOpt.isPresent()) {
+            throw new ValidationException("Primary key to drop does not exist");
         }
+        if (constraintName.isPresent()
+                && (!uniqueConstraintOpt.isPresent()
+                        || !uniqueConstraintOpt.get().getName().equals(constraintName.get()))) {
+            throw new ValidationException(
+                    String.format("Constraint %s to drop does not exist", constraintName.get()));
+        }
+
         TableSchema.Builder builder = builderWithGivenColumns(oriSchema.getTableColumns());
         // Copy watermark specification.
         for (WatermarkSpec wms : oriSchema.getWatermarkSpecs()) {

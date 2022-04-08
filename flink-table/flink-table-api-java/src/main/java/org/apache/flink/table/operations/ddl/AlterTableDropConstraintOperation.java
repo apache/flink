@@ -20,24 +20,42 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import javax.annotation.Nullable;
+
+import java.util.Optional;
+
 /** Operation of "ALTER TABLE ADD [CONSTRAINT constraintName] ..." clause. * */
 public class AlterTableDropConstraintOperation extends AlterTableOperation {
-    private final String constraintName;
+
+    private final boolean isPrimaryKey;
+    private final @Nullable String constraintName;
 
     public AlterTableDropConstraintOperation(
-            ObjectIdentifier tableIdentifier, String constraintName) {
+            ObjectIdentifier tableIdentifier,
+            boolean isPrimaryKey,
+            @Nullable String constraintName) {
         super(tableIdentifier);
+        this.isPrimaryKey = isPrimaryKey;
         this.constraintName = constraintName;
     }
 
-    public String getConstraintName() {
-        return constraintName;
+    public boolean isPrimaryKey() {
+        return isPrimaryKey;
+    }
+
+    public Optional<String> getConstraintName() {
+        return Optional.ofNullable(constraintName);
     }
 
     @Override
     public String asSummaryString() {
-        return String.format(
-                "ALTER TABLE %s DROP CONSTRAINT %s",
-                tableIdentifier.asSummaryString(), constraintName);
+        if (isPrimaryKey) {
+            return String.format(
+                    "ALTER TABLE %s DROP PRIMARY KEY", tableIdentifier.asSummaryString());
+        } else {
+            return String.format(
+                    "ALTER TABLE %s DROP CONSTRAINT %s",
+                    tableIdentifier.asSummaryString(), constraintName);
+        }
     }
 }
