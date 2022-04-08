@@ -93,7 +93,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class PlannerContext {
 
     private final RelDataTypeSystem typeSystem = FlinkTypeSystem.INSTANCE;
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
+    private final FlinkTypeFactory typeFactory;
     private final SqlExprToRexConverterFactory rexConverterFactory =
             new DefaultSqlExprToRexConverterFactory();
     private final TableConfig tableConfig;
@@ -110,7 +110,8 @@ public class PlannerContext {
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
-            List<RelTraitDef> traitDefs) {
+            List<RelTraitDef> traitDefs,
+            ClassLoader classLoader) {
         this.tableConfig = tableConfig;
 
         this.context =
@@ -120,7 +121,9 @@ public class PlannerContext {
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        rexConverterFactory);
+                        rexConverterFactory,
+                        classLoader);
+        this.typeFactory = new FlinkTypeFactory(classLoader, typeSystem);
 
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;

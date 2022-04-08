@@ -91,9 +91,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
 
     public static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-
-        // temporary solution until FLINK-15635 is fixed
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ClassLoader classLoader = settings.getUserClassLoader();
 
         final Executor executor = lookupExecutor(classLoader, executionEnvironment);
 
@@ -116,11 +114,16 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         .build();
 
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager, classLoader);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
+                        executor,
+                        tableConfig,
+                        classLoader,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,

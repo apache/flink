@@ -63,6 +63,11 @@ public class SourceAbilityContext implements FlinkContext {
     }
 
     @Override
+    public ClassLoader getClassLoader() {
+        return context.getClassLoader();
+    }
+
+    @Override
     public TableConfig getTableConfig() {
         return context.getTableConfig();
     }

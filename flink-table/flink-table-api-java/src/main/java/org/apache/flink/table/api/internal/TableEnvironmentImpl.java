@@ -226,6 +226,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         this.operationTreeBuilder =
                 OperationTreeBuilder.create(
                         tableConfig,
+                        userClassLoader,
                         functionCatalog.asLookup(getParser()::parseIdentifier),
                         catalogManager.getDataTypeFactory(),
                         path -> {
@@ -269,8 +270,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
-        // temporary solution until FLINK-15635 is fixed
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ClassLoader classLoader = settings.getUserClassLoader();
 
         final ExecutorFactory executorFactory =
                 FactoryUtil.discoverFactory(
@@ -296,11 +296,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         .build();
 
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager, classLoader);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
+                        executor,
+                        tableConfig,
+                        classLoader,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
 
         return new TableEnvironmentImpl(
                 catalogManager,

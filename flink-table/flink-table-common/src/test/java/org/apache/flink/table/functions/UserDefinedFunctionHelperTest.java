@@ -82,7 +82,12 @@ public class UserDefinedFunctionHelperTest {
         if (testSpec.functionClass != null) {
             runnable = () -> validateClass(testSpec.functionClass);
         } else if (testSpec.functionInstance != null) {
-            runnable = () -> prepareInstance(new Configuration(), testSpec.functionInstance);
+            runnable =
+                    () ->
+                            prepareInstance(
+                                    new Configuration(),
+                                    UserDefinedFunctionHelperTest.class.getClassLoader(),
+                                    testSpec.functionInstance);
         } else {
             return;
         }

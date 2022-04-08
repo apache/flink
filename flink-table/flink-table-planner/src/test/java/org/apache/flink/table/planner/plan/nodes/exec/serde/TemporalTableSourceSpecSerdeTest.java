@@ -58,7 +58,10 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 /** Tests for {@link TemporalTableSourceSpec} serialization and deserialization. */
 @Execution(CONCURRENT)
 public class TemporalTableSourceSpecSerdeTest {
-    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    TemporalTableSourceSpecSerdeTest.class.getClassLoader(),
+                    FlinkTypeSystem.INSTANCE);
 
     private static final FlinkContext FLINK_CONTEXT =
             JsonSerdeTestUtil.configuredSerdeContext().getFlinkContext();

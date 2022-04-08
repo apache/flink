@@ -35,6 +35,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.jline.reader.MaskingCallback;
 import org.jline.terminal.Terminal;
@@ -107,7 +108,11 @@ public class CliResultViewTest {
                         schema,
                         false,
                         testConfig,
-                        new RowDataToStringConverterImpl(schema.toPhysicalRowDataType()));
+                        new RowDataToStringConverterImpl(
+                                schema.toPhysicalRowDataType(),
+                                DateTimeUtils.UTC_ZONE.toZoneId(),
+                                Thread.currentThread().getContextClassLoader(),
+                                false));
 
         try (CliClient cli =
                 new TestingCliClient(

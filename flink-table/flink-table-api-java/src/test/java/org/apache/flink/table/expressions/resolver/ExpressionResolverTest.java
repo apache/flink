@@ -351,6 +351,7 @@ public class ExpressionResolverTest {
         public ExpressionResolver getResolver() {
             return ExpressionResolver.resolverFor(
                             TableConfig.getDefault(),
+                            Thread.currentThread().getContextClassLoader(),
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),

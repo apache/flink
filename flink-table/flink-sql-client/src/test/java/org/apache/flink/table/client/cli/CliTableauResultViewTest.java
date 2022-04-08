@@ -32,6 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.types.Row;
@@ -85,7 +86,12 @@ public class CliTableauResultViewTest {
                         Column.physical("decimal(10, 5)", DataTypes.DECIMAL(10, 5)),
                         Column.physical(
                                 "timestamp", DataTypes.TIMESTAMP(6).bridgedTo(Timestamp.class)));
-        rowDataToStringConverter = new RowDataToStringConverterImpl(schema.toPhysicalRowDataType());
+        rowDataToStringConverter =
+                new RowDataToStringConverterImpl(
+                        schema.toPhysicalRowDataType(),
+                        DateTimeUtils.UTC_ZONE.toZoneId(),
+                        Thread.currentThread().getContextClassLoader(),
+                        false);
 
         List<Row> rows =
                 Arrays.asList(

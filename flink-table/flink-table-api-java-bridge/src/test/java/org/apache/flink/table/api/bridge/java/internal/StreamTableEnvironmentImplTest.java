@@ -80,7 +80,11 @@ public class StreamTableEnvironmentImplTest {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+                new FunctionCatalog(
+                        tableConfig,
+                        catalogManager,
+                        moduleManager,
+                        StreamTableEnvironmentImplTest.class.getClassLoader()),
                 tableConfig,
                 env,
                 new TestPlanner(elements.getTransformation()),

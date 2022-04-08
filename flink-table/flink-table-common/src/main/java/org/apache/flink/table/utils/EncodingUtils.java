@@ -139,6 +139,8 @@ public abstract class EncodingUtils {
         }
     }
 
+    /** @see #loadClass(String, ClassLoader) */
+    @Deprecated
     public static Class<?> loadClass(String qualifiedName) {
         return loadClass(qualifiedName, Thread.currentThread().getContextClassLoader());
     }
