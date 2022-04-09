@@ -28,13 +28,13 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -71,8 +71,8 @@ public class PeriodicStreamingJob {
                         .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                         .sum(0);
 
-        result.addSink(
-                        StreamingFileSink.forRowFormat(
+        result.sinkTo(
+                        FileSink.forRowFormat(
                                         new Path(outputPath), new SimpleStringEncoder<Tuple>())
                                 .build())
                 .setParallelism(1);

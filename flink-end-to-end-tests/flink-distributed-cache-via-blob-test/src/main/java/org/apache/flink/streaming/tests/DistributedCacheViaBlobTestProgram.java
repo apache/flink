@@ -20,8 +20,8 @@ package org.apache.flink.streaming.tests;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,12 +67,11 @@ public class DistributedCacheViaBlobTestProgram {
                                 Files.size(inputFile),
                                 inputDir.toAbsolutePath().toString(),
                                 containedFile.getFileName().toString()))
-                .addSink(
-                        StreamingFileSink.forRowFormat(
-                                        new org.apache.flink.core.fs.Path(
-                                                outputPath, SimpleStringEncoder<String>))
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new org.apache.flink.core.fs.Path(outputPath),
+                                        new SimpleStringEncoder<String>("UTF-8"))
                                 .build());
-        // .writeAsText(params.getRequired("output"), FileSystem.WriteMode.OVERWRITE);
 
         env.execute("Distributed Cache Via Blob Test Program");
     }
