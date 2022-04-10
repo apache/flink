@@ -37,20 +37,6 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
     private final DeserializationSchema<T> deserializationSchema;
 
     public KinesisDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
-        try {
-            Class<? extends DeserializationSchema> deserilizationClass =
-                    deserializationSchema.getClass();
-            if (!deserilizationClass
-                    .getMethod("deserialize", byte[].class, Collector.class)
-                    .isDefault()) {
-                throw new IllegalArgumentException(
-                        "Kinesis consumer does not support DeserializationSchema that implements "
-                                + "deserialization with a Collector. Unsupported DeserializationSchema: "
-                                + deserilizationClass.getName());
-            }
-        } catch (NoSuchMethodException e) {
-            // swallow the exception
-        }
         this.deserializationSchema = deserializationSchema;
     }
 
@@ -60,15 +46,16 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
     }
 
     @Override
-    public T deserialize(
+    public void deserialize(
             byte[] recordValue,
             String partitionKey,
             String seqNum,
             long approxArrivalTimestamp,
             String stream,
-            String shardId)
+            String shardId,
+            Collector<T> collector)
             throws IOException {
-        return deserializationSchema.deserialize(recordValue);
+        deserializationSchema.deserialize(recordValue, collector);
     }
 
     /*

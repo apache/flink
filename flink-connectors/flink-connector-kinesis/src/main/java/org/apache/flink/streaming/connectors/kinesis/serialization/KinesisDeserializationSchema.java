@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.serialization;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -57,17 +58,16 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
      *     the record
      * @param stream the name of the Kinesis stream that this record was sent to
      * @param shardId The identifier of the shard the record was sent to
-     * @return the deserialized message as an Java object ({@code null} if the message cannot be
-     *     deserialized).
      * @throws IOException
      */
-    T deserialize(
+    void deserialize(
             byte[] recordValue,
             String partitionKey,
             String seqNum,
             long approxArrivalTimestamp,
             String stream,
-            String shardId)
+            String shardId,
+            Collector<T> collector)
             throws IOException;
 
     /**

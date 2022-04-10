@@ -29,6 +29,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -108,13 +109,14 @@ public final class RowDataKinesisDeserializationSchema
     }
 
     @Override
-    public RowData deserialize(
+    public void deserialize(
             byte[] recordValue,
             String partitionKey,
             String seqNum,
             long approxArrivalTimestamp,
             String stream,
-            String shardId)
+            String shardId,
+            Collector<RowData> collector)
             throws IOException {
 
         RowData physicalRow = physicalDeserializer.deserialize(recordValue);
@@ -134,7 +136,7 @@ public final class RowDataKinesisDeserializationSchema
             }
         }
 
-        return new JoinedRowData(physicalRow.getRowKind(), physicalRow, metadataRow);
+        collector.collect(new JoinedRowData(physicalRow.getRowKind(), physicalRow, metadataRow));
     }
 
     @Override
