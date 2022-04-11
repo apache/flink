@@ -197,7 +197,7 @@ public class ShardConsumer<T> implements Runnable {
 
         final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
 
-        List<T> values;
+        final List<T> values;
         try {
             values =
                     deserializer.deserialize(
