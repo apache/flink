@@ -25,7 +25,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,9 +42,11 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -134,7 +135,8 @@ public class JsonRowDeserializationSchemaTest {
         row.setField(9, map);
         row.setField(10, nestedMap);
 
-        assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
+        assertThat(serializedJson)
+                .satisfies(matching(whenDeserializedWith(deserializationSchema).equalsTo(row)));
     }
 
     @Test
@@ -206,7 +208,9 @@ public class JsonRowDeserializationSchemaTest {
         nestedRow.setField(1, BigDecimal.valueOf(12));
         expected.setField(9, nestedRow);
 
-        assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
+        assertThat(serializedJson)
+                .satisfies(
+                        matching(whenDeserializedWith(deserializationSchema).equalsTo(expected)));
     }
 
     /** Tests deserialization with non-existing field name. */
@@ -226,24 +230,29 @@ public class JsonRowDeserializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowTypeInformation).build();
 
         Row row = new Row(1);
-        assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
+        assertThat(serializedJson)
+                .satisfies(matching(whenDeserializedWith(deserializationSchema).equalsTo(row)));
 
         deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowTypeInformation)
                         .failOnMissingField()
                         .build();
 
-        assertThat(
-                serializedJson,
-                whenDeserializedWith(deserializationSchema)
-                        .failsWithException(hasCause(instanceOf(IllegalStateException.class))));
+        assertThat(serializedJson)
+                .satisfies(
+                        matching(
+                                whenDeserializedWith(deserializationSchema)
+                                        .failsWithException(
+                                                hasCause(
+                                                        instanceOf(IllegalStateException.class)))));
 
         // ignore-parse-errors ignores missing field exception too
         deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowTypeInformation)
                         .ignoreParseErrors()
                         .build();
-        assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
+        assertThat(serializedJson)
+                .satisfies(matching(whenDeserializedWith(deserializationSchema).equalsTo(row)));
 
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(
@@ -261,7 +270,7 @@ public class JsonRowDeserializationSchemaTest {
             new JsonRowDeserializationSchema.Builder(
                             Types.ROW_NAMED(new String[] {"one", "two", "three"}, Types.LONG))
                     .build();
-            Assert.fail("Did not throw expected Exception");
+            fail("Did not throw expected Exception");
         } catch (IllegalArgumentException ignored) {
             // Expected
         }
@@ -289,21 +298,22 @@ public class JsonRowDeserializationSchemaTest {
         } else {
             expected = new Row(1);
         }
-        assertThat(
-                "Test Ignore Parse Error: " + spec.json,
-                spec.json.getBytes(),
-                whenDeserializedWith(ignoreErrorsSchema).equalsTo(expected));
+        assertThat(spec.json.getBytes())
+                .as("Test Ignore Parse Error: " + spec.json)
+                .satisfies(matching(whenDeserializedWith(ignoreErrorsSchema).equalsTo(expected)));
     }
 
     private void testParseErrors(TestSpec spec) {
         // expect exception if parse error is not ignored
         JsonRowDeserializationSchema failingSchema =
                 new JsonRowDeserializationSchema.Builder(spec.rowTypeInformation).build();
-        assertThat(
-                "Test Parse Error: " + spec.json,
-                spec.json.getBytes(),
-                whenDeserializedWith(failingSchema)
-                        .failsWithException(hasMessage(containsString(spec.errorMessage))));
+        assertThat(spec.json.getBytes())
+                .as("Test Parse Error: " + spec.json)
+                .satisfies(
+                        matching(
+                                whenDeserializedWith(failingSchema)
+                                        .failsWithException(
+                                                hasMessage(containsString(spec.errorMessage)))));
     }
 
     private static List<TestSpec> testData =

@@ -42,7 +42,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link OggJsonFormatFactory}. */
 public class OggJsonFormatFactoryTest extends TestLogger {
@@ -61,7 +61,7 @@ public class OggJsonFormatFactoryTest extends TestLogger {
                         true);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
@@ -69,7 +69,7 @@ public class OggJsonFormatFactoryTest extends TestLogger {
                 sinkMock.valueFormat.createRuntimeEncoder(
                         new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
 
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test

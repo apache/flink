@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JsonNodeDeserializationSchema}. */
 public class JsonNodeDeserializationSchemaTest {
@@ -39,7 +39,7 @@ public class JsonNodeDeserializationSchemaTest {
         JsonNodeDeserializationSchema schema = new JsonNodeDeserializationSchema();
         ObjectNode deserializedValue = schema.deserialize(serializedValue);
 
-        assertEquals(4, deserializedValue.get("key").asInt());
-        assertEquals("world", deserializedValue.get("value").asText());
+        assertThat(deserializedValue.get("key").asInt()).isEqualTo(4);
+        assertThat(deserializedValue.get("value").asText()).isEqualTo("world");
     }
 }

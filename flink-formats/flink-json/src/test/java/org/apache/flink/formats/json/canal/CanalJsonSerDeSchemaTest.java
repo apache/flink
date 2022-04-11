@@ -51,9 +51,7 @@ import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CanalJsonSerializationSchema} and {@link CanalJsonDeserializationSchema}. */
 public class CanalJsonSerDeSchemaTest {
@@ -90,7 +88,7 @@ public class CanalJsonSerDeSchemaTest {
 
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[0], collector);
-        assertEquals(0, collector.list.size());
+        assertThat(collector.list).isEmpty();
     }
 
     @Test
@@ -100,32 +98,32 @@ public class CanalJsonSerDeSchemaTest {
                 null,
                 null,
                 row -> {
-                    assertThat(row.getInt(0), equalTo(101));
-                    assertThat(row.getString(1).toString(), equalTo("scooter"));
-                    assertThat(row.getString(2).toString(), equalTo("Small 2-wheel scooter"));
-                    assertThat(row.getFloat(3), equalTo(3.14f));
-                    assertThat(row.getString(4).toString(), equalTo("inventory"));
-                    assertThat(row.getString(5).toString(), equalTo("products2"));
-                    assertThat(row.getMap(6).size(), equalTo(4));
-                    assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
-                    assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1589373515477L));
-                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1589373515000L));
+                    assertThat(row.getInt(0)).isEqualTo(101);
+                    assertThat(row.getString(1).toString()).isEqualTo("scooter");
+                    assertThat(row.getString(2).toString()).isEqualTo("Small 2-wheel scooter");
+                    assertThat(row.getFloat(3)).isEqualTo(3.14f);
+                    assertThat(row.getString(4).toString()).isEqualTo("inventory");
+                    assertThat(row.getString(5).toString()).isEqualTo("products2");
+                    assertThat(row.getMap(6).size()).isEqualTo(4);
+                    assertThat(row.getArray(7).getString(0).toString()).isEqualTo("id");
+                    assertThat(row.getTimestamp(8, 3).getMillisecond()).isEqualTo(1589373515477L);
+                    assertThat(row.getTimestamp(9, 3).getMillisecond()).isEqualTo(1589373515000L);
                 });
         testDeserializationWithMetadata(
                 "canal-data-filter-table.txt",
                 "mydb",
                 "product",
                 row -> {
-                    assertThat(row.getInt(0), equalTo(101));
-                    assertThat(row.getString(1).toString(), equalTo("scooter"));
-                    assertThat(row.getString(2).toString(), equalTo("Small 2-wheel scooter"));
-                    assertThat(row.getFloat(3), equalTo(3.14f));
-                    assertThat(row.getString(4).toString(), equalTo("mydb"));
-                    assertThat(row.getString(5).toString(), equalTo("product"));
-                    assertThat(row.getMap(6).size(), equalTo(4));
-                    assertThat(row.getArray(7).getString(0).toString(), equalTo("id"));
-                    assertThat(row.getTimestamp(8, 3).getMillisecond(), equalTo(1598944146308L));
-                    assertThat(row.getTimestamp(9, 3).getMillisecond(), equalTo(1598944132000L));
+                    assertThat(row.getInt(0)).isEqualTo(101);
+                    assertThat(row.getString(1).toString()).isEqualTo("scooter");
+                    assertThat(row.getString(2).toString()).isEqualTo("Small 2-wheel scooter");
+                    assertThat(row.getFloat(3)).isEqualTo(3.14f);
+                    assertThat(row.getString(4).toString()).isEqualTo("mydb");
+                    assertThat(row.getString(5).toString()).isEqualTo("product");
+                    assertThat(row.getMap(6).size()).isEqualTo(4);
+                    assertThat(row.getArray(7).getString(0).toString()).isEqualTo("id");
+                    assertThat(row.getTimestamp(8, 3).getMillisecond()).isEqualTo(1598944146308L);
+                    assertThat(row.getTimestamp(9, 3).getMillisecond()).isEqualTo(1598944132000L);
                 });
     }
 
@@ -211,7 +209,7 @@ public class CanalJsonSerDeSchemaTest {
                         "-D(103,12-pack drill bits,12-pack of drill bits with sizes ranging from #40 to #3,0.8)");
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         // test Serialization
         CanalJsonSerializationSchema serializationSchema =
@@ -257,7 +255,7 @@ public class CanalJsonSerDeSchemaTest {
                         "{\"data\":[{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":5.17}],\"type\":\"DELETE\"}",
                         "{\"data\":[{\"id\":103,\"name\":\"12-pack drill bits\",\"description\":\"12-pack of drill bits with sizes ranging from #40 to #3\",\"weight\":0.8}],\"type\":\"DELETE\"}");
 
-        assertEquals(expectedResult, result);
+        assertThat(result).isEqualTo(expectedResult);
     }
 
     private void testDeserializationWithMetadata(
@@ -271,7 +269,7 @@ public class CanalJsonSerDeSchemaTest {
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertEquals(9, collector.list.size());
+        assertThat(collector.list).hasSize(9);
         testConsumer.accept(collector.list.get(0));
     }
 
@@ -300,7 +298,7 @@ public class CanalJsonSerDeSchemaTest {
 
     private static List<String> readLines(String resource) throws IOException {
         final URL url = CanalJsonSerDeSchemaTest.class.getClassLoader().getResource(resource);
-        assert url != null;
+        assertThat(url).isNotNull();
         Path path = new File(url.getFile()).toPath();
         return Files.readAllLines(path);
     }

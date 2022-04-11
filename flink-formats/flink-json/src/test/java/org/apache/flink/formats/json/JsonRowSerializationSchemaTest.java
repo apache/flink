@@ -31,9 +31,9 @@ import java.sql.Timestamp;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link JsonRowSerializationSchema}. */
 public class JsonRowSerializationSchemaTest {
@@ -61,11 +61,12 @@ public class JsonRowSerializationSchemaTest {
         final JsonRowDeserializationSchema deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
-        assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+        assertThat(row)
+                .satisfies(
+                        matching(
+                                whenSerializedWith(serializationSchema)
+                                        .andDeserializedWith(deserializationSchema)
+                                        .equalsTo(row)));
     }
 
     @Test
@@ -85,7 +86,7 @@ public class JsonRowSerializationSchemaTest {
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
         byte[] bytes = serializationSchema.serialize(row1);
-        assertEquals(row1, deserializationSchema.deserialize(bytes));
+        assertThat(deserializationSchema.deserialize(bytes)).isEqualTo(row1);
 
         final Row row2 = new Row(3);
         row2.setField(0, 10);
@@ -93,7 +94,7 @@ public class JsonRowSerializationSchemaTest {
         row2.setField(2, "newStr");
 
         bytes = serializationSchema.serialize(row2);
-        assertEquals(row2, deserializationSchema.deserialize(bytes));
+        assertThat(deserializationSchema.deserialize(bytes)).isEqualTo(row2);
     }
 
     @Test
@@ -129,7 +130,7 @@ public class JsonRowSerializationSchemaTest {
             String json = jsons[i];
             Row row = deserializationSchema.deserialize(json.getBytes());
             String result = new String(serializationSchema.serialize(row));
-            assertEquals(expected[i], result);
+            assertThat(result).isEqualTo(expected[i]);
         }
     }
 
@@ -155,11 +156,12 @@ public class JsonRowSerializationSchemaTest {
         final JsonRowDeserializationSchema deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
-        assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+        assertThat(row)
+                .satisfies(
+                        matching(
+                                whenSerializedWith(serializationSchema)
+                                        .andDeserializedWith(deserializationSchema)
+                                        .equalsTo(row)));
     }
 
     @Test
@@ -173,10 +175,11 @@ public class JsonRowSerializationSchemaTest {
 
         final JsonRowSerializationSchema serializationSchema =
                 new JsonRowSerializationSchema.Builder(rowSchema).build();
-        assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .failsWithException(instanceOf(RuntimeException.class)));
+        assertThat(row)
+                .satisfies(
+                        matching(
+                                whenSerializedWith(serializationSchema)
+                                        .failsWithException(instanceOf(RuntimeException.class))));
     }
 
     @Test
@@ -235,10 +238,11 @@ public class JsonRowSerializationSchemaTest {
         final JsonRowDeserializationSchema deserializationSchema =
                 new JsonRowDeserializationSchema.Builder(rowSchema).build();
 
-        assertThat(
-                row,
-                whenSerializedWith(serializationSchema)
-                        .andDeserializedWith(deserializationSchema)
-                        .equalsTo(row));
+        assertThat(row)
+                .satisfies(
+                        matching(
+                                whenSerializedWith(serializationSchema)
+                                        .andDeserializedWith(deserializationSchema)
+                                        .equalsTo(row)));
     }
 }

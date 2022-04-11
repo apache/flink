@@ -47,7 +47,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MaxwellJsonFormatFactory}. */
 public class MaxwellJsonFormatFactoryTest extends TestLogger {
@@ -77,7 +77,7 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
         final Map<String, String> options = getAllOptions();
 
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
@@ -85,10 +85,10 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
                 scanSourceMock.valueFormat.createRuntimeDecoder(
                         ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
@@ -96,7 +96,7 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
                 sinkMock.valueFormat.createRuntimeEncoder(
                         new SinkRuntimeProviderContext(false), SCHEMA.toPhysicalRowDataType());
 
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test

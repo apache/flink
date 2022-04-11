@@ -48,8 +48,8 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link DebeziumJsonFormatFactory}. */
 public class DebeziumJsonFormatFactoryTest extends TestLogger {
@@ -69,7 +69,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         final Map<String, String> options = getAllOptions();
 
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
@@ -77,7 +77,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                 scanSourceMock.valueFormat.createRuntimeDecoder(
                         ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
 
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         final DebeziumJsonSerializationSchema expectedSer =
                 new DebeziumJsonSerializationSchema(
@@ -88,7 +88,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         true);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-        assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
@@ -96,7 +96,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                 sinkMock.valueFormat.createRuntimeEncoder(
                         new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
 
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -131,7 +131,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         DeserializationSchema<RowData> actualDeser =
                 scanSourceMock.valueFormat.createRuntimeDecoder(
                         ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         try {
             final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
@@ -140,12 +140,12 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
             // should fail
             sinkMock.valueFormat.createRuntimeEncoder(
                     new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertEquals(
-                    e.getCause().getCause().getMessage(),
-                    "Debezium JSON serialization doesn't support "
-                            + "'debezium-json.schema-include' option been set to true.");
+            assertThat(
+                            "Debezium JSON serialization doesn't support "
+                                    + "'debezium-json.schema-include' option been set to true.")
+                    .isEqualTo(e.getCause().getCause().getMessage());
         }
     }
 

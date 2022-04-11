@@ -47,7 +47,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CanalJsonFormatFactory}. */
 public class CanalJsonFormatFactoryTest extends TestLogger {
@@ -68,7 +68,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         .setTimestampFormat(TimestampFormat.SQL)
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test Ser
         CanalJsonSerializationSchema expectedSer =
@@ -79,7 +79,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         "null",
                         false);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -103,7 +103,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         .setTable("mytable")
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test Ser
         CanalJsonSerializationSchema expectedSer =
@@ -114,7 +114,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         "nullKey",
                         true);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -185,7 +185,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
             Map<String, String> options) {
         DynamicTableSource source = createTableSource(SCHEMA, options);
 
-        assert source instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        assertThat(source).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) source;
 
@@ -197,7 +197,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
             Map<String, String> options) {
         DynamicTableSink sink = createTableSink(SCHEMA, options);
 
-        assert sink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+        assertThat(sink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) sink;
 

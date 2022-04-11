@@ -28,7 +28,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JsonRowSchemaConverter}. */
 public class JsonRowSchemaConverterTest {
@@ -66,7 +66,7 @@ public class JsonRowSchemaConverterTest {
                         Types.VOID,
                         Types.ROW_NAMED(new String[] {"organizationUnit"}, Types.ROW()));
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -95,14 +95,14 @@ public class JsonRowSchemaConverterTest {
                                 Types.STRING,
                                 Types.STRING));
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
     public void testAtomicType() {
         final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'number' }");
 
-        assertEquals(Types.BIG_DEC, result);
+        assertThat(result).isEqualTo(Types.BIG_DEC);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -125,7 +125,7 @@ public class JsonRowSchemaConverterTest {
     public void testMissingProperties() {
         final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'object' }");
 
-        assertEquals(Types.ROW(), result);
+        assertThat(result).isEqualTo(Types.ROW());
     }
 
     @Test
@@ -133,7 +133,7 @@ public class JsonRowSchemaConverterTest {
         final TypeInformation<?> result =
                 JsonRowSchemaConverter.convert("{ type: ['string', 'null'] }");
 
-        assertEquals(Types.STRING, result);
+        assertThat(result).isEqualTo(Types.STRING);
     }
 
     @Test
@@ -141,6 +141,6 @@ public class JsonRowSchemaConverterTest {
         final TypeInformation<?> result =
                 JsonRowSchemaConverter.convert("{ type: 'string', format: 'date-time' }");
 
-        assertEquals(Types.SQL_TIMESTAMP, result);
+        assertThat(result).isEqualTo(Types.SQL_TIMESTAMP);
     }
 }

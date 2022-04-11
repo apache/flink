@@ -23,7 +23,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test Filesystem connector with DebeziumJson. */
 public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
@@ -117,7 +117,7 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .collect(Collectors.toList());
         iter.close();
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
     }
 
     @Test
@@ -140,17 +140,17 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .map(Row::toString)
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
 
         // check partition value
         for (Row row : list) {
-            Assert.assertEquals(1, row.getField(4));
+            assertThat(row.getField(4)).isEqualTo(1);
         }
     }
 
     private static byte[] readBytes(String resource) throws IOException {
         final URL url = DebeziumJsonSerDeSchemaTest.class.getClassLoader().getResource(resource);
-        assert url != null;
+        assertThat(url).isNotNull();
         Path path = new File(url.getFile()).toPath();
         return Files.readAllBytes(path);
     }

@@ -23,7 +23,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test Filesystem connector with OGG Json. */
 public class OggJsonFileSystemITCase extends StreamingTestBase {
@@ -68,7 +68,7 @@ public class OggJsonFileSystemITCase extends StreamingTestBase {
 
     private static byte[] readBytes(String resource) throws IOException {
         final URL url = OggJsonSerDeSchemaTest.class.getClassLoader().getResource(resource);
-        assert url != null;
+        assertThat(url).isNotNull();
         Path path = new File(url.getFile()).toPath();
         return Files.readAllBytes(path);
     }
@@ -124,7 +124,7 @@ public class OggJsonFileSystemITCase extends StreamingTestBase {
                         .collect(Collectors.toList());
         iter.close();
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
     }
 
     @Test
@@ -147,11 +147,11 @@ public class OggJsonFileSystemITCase extends StreamingTestBase {
                         .map(Row::toString)
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(EXPECTED, results);
+        assertThat(results).isEqualTo(EXPECTED);
 
         // check partition value
         for (Row row : list) {
-            Assert.assertEquals(1, row.getField(4));
+            assertThat(row.getField(4)).isEqualTo(1);
         }
     }
 }
