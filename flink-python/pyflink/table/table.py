@@ -40,32 +40,56 @@ __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', '
 
 
 class Table(object):
-
     """
-    A :class:`~pyflink.table.Table` is the core component of the Table API.
+    A :class:`~pyflink.table.Table` object is the core abstraction of the Table API.
     Similar to how the DataStream API has DataStream,
     the Table API is built around :class:`~pyflink.table.Table`.
 
-    Use the methods of :class:`~pyflink.table.Table` to transform data.
+    A :class:`~pyflink.table.Table` object describes a pipeline of data transformations. It does not
+    contain the data itself in any way. Instead, it describes how to read data from a table source,
+    and how to eventually write data to a table sink. The declared pipeline can be
+    printed, optimized, and eventually executed in a cluster. The pipeline can work with bounded or
+    unbounded streams which enables both streaming and batch scenarios.
+
+    By the definition above, a :class:`~pyflink.table.Table` object can actually be considered as
+    a view in SQL terms.
+
+    The initial :class:`~pyflink.table.Table` object is constructed by a
+    :class:`~pyflink.table.TableEnvironment`. For example,
+    :func:`~pyflink.table.TableEnvironment.from_path` obtains a table from a catalog.
+    Every :class:`~pyflink.table.Table` object has a schema that is available through
+    :func:`~pyflink.table.Table.get_schema`. A :class:`~pyflink.table.Table` object is
+    always associated with its original table environment during programming.
+
+    Every transformation (i.e. :func:`~pyflink.table.Table.select`} or
+    :func:`~pyflink.table.Table.filter` on a :class:`~pyflink.table.Table` object leads to a new
+    :class:`~pyflink.table.Table` object.
+
+    Use :func:`~pyflink.table.Table.execute` to execute the pipeline and retrieve the transformed
+    data locally during development. Otherwise, use :func:`~pyflink.table.Table.execute_insert` to
+    write the data into a table sink.
+
+    Many methods of this class take one or more :class:`~pyflink.table.Expression` as parameters.
+    For fluent definition of expressions and easier readability, we recommend to add a star import:
 
     Example:
     ::
 
-        >>> env = StreamExecutionEnvironment.get_execution_environment()
-        >>> env.set_parallelism(1)
-        >>> t_env = StreamTableEnvironment.create(env)
-        >>> ...
-        >>> t_env.register_table_source("source", ...)
-        >>> t = t_env.from_path("source")
-        >>> t.select(...)
-        >>> ...
-        >>> t_env.register_table_sink("result", ...)
-        >>> t.execute_insert("result")
+        >>> from pyflink.table.expressions import *
 
-    Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
-    :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`
-    take arguments in an expression string. Please refer to the documentation for
-    the expression syntax.
+    Check the documentation for more programming language specific APIs.
+
+    The following example shows how to work with a :class:`~pyflink.table.Table` object.
+
+    Example:
+    ::
+
+        >>> from pyflink.table import TableEnvironment
+        >>> from pyflink.table.expressions import *
+        >>> env_settings = EnvironmentSettings.in_streaming_mode()
+        >>> t_env = TableEnvironment.create(env_settings)
+        >>> table = t_env.from_path("my_table").select(col("colA").trim(), col("colB") + 12)
+        >>> table.execute().print()
     """
 
     def __init__(self, j_table, t_env):

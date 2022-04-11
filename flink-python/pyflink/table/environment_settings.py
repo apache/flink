@@ -39,13 +39,13 @@ class EnvironmentSettings(object):
         ...     .with_built_in_database_name("my_database") \\
         ...     .build()
 
-    :func:`EnvironmentSettings.in_streaming_mode` or :func:`EnvironmentSettings.in_batch_mode`
+    :func:`~EnvironmentSettings.in_streaming_mode` or :func:`~EnvironmentSettings.in_batch_mode`
     might be convenient as shortcuts.
     """
 
     class Builder(object):
         """
-        A builder for :class:`EnvironmentSettings`.
+        A builder for :class:`~EnvironmentSettings`.
         """
 
         def __init__(self):
