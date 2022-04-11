@@ -1215,15 +1215,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 getMainThreadExecutor());
     }
 
+    @VisibleForTesting
     CompletableFuture<Void> getJobTerminationFuture(JobID jobId) {
-        if (jobManagerRunnerRegistry.isRegistered(jobId)) {
-            return FutureUtils.completedExceptionally(
-                    new DispatcherException(
-                            String.format("Job with job id %s is still running.", jobId)));
-        } else {
-            return jobManagerRunnerTerminationFutures.getOrDefault(
-                    jobId, CompletableFuture.completedFuture(null));
-        }
+        return jobManagerRunnerTerminationFutures.getOrDefault(
+                jobId, CompletableFuture.completedFuture(null));
     }
 
     private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {
