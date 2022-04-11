@@ -102,7 +102,7 @@ public class PlannerMocks {
                 true,
                 ExpressionResolver.resolverFor(
                         tableConfig,
-                        Thread.currentThread().getContextClassLoader(),
+                        PlannerMocks.class.getClassLoader(),
                         name -> {
                             throw new UnsupportedOperationException();
                         },

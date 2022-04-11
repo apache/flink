@@ -244,7 +244,11 @@ public final class UserDefinedFunctionHelper {
         }
     }
 
-    /** Prepares a {@link UserDefinedFunction} instance for usage in the API. */
+    /**
+     * Prepares a {@link UserDefinedFunction} instance for usage in the API.
+     *
+     * @return A cloned instance of the function, to be used by the runtime.
+     */
     public static <T extends UserDefinedFunction> T prepareInstance(
             ReadableConfig config, ClassLoader userClassLoader, T function) {
         validateClass(function.getClass(), false);

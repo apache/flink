@@ -319,7 +319,8 @@ object StreamTableEnvironmentImpl {
       .executionConfig(executionEnvironment.getConfig)
       .build
 
-    val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager, classLoader)
+    val functionCatalog = new FunctionCatalog(
+      tableConfig, catalogManager, moduleManager, classLoader)
 
     val planner = PlannerFactoryUtil.createPlanner(
       executor, tableConfig, classLoader, moduleManager, catalogManager, functionCatalog)
