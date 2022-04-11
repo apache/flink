@@ -64,7 +64,7 @@ of new files in the folder and read new files incrementally.
         <td><h5>streaming-source.partition.include</h5></td>
         <td style="word-wrap: break-word;">all</td>
         <td>String</td>
-        <td>Option to set the partitions to read, the supported option are `all` and `latest`, the `all` means read all partitions; the `latest` means read latest partition in order of 'streaming-source.partition.order', the `latest` only works` when the streaming hive source table used as temporal table. By default the option is `all`.
+        <td>Option to set the partitions to read, the supported option are `all` and `latest`, the `all` means read all partitions; the `latest` means read latest partition in order of 'streaming-source.partition.order', the `latest` only works when the streaming hive source table used as temporal table. By default the option is `all`.
             Flink supports temporal join the latest hive partition by enabling 'streaming-source.enable' and setting 'streaming-source.partition.include' to 'latest', at the same time, user can assign the partition compare order and data update interval by configuring following partition-related options.  
         </td>
     </tr>     
