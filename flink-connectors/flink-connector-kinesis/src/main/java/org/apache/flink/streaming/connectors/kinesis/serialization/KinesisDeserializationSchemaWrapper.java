@@ -19,11 +19,14 @@ package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A simple wrapper for using the {@link DeserializationSchema} with the {@link
@@ -61,20 +64,26 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
     }
 
     @Override
-    public void deserialize(
+    public List<T> deserialize(
             byte[] recordValue,
             String partitionKey,
             String seqNum,
             long approxArrivalTimestamp,
             String stream,
-            String shardId,
-            Collector<T> collector)
+            String shardId)
             throws IOException {
+
+        List<T> out = new ArrayList<>();
         if (useCollector) {
-            deserializationSchema.deserialize(recordValue, collector);
+            ListCollector<T> coll = new ListCollector<>(out);
+            deserializationSchema.deserialize(recordValue, coll);
         } else {
-            collector.collect(deserializationSchema.deserialize(recordValue));
+            T val = deserializationSchema.deserialize(recordValue);
+            if (val != null) {
+                out.add(val);
+            }
         }
+        return out;
     }
 
     /*

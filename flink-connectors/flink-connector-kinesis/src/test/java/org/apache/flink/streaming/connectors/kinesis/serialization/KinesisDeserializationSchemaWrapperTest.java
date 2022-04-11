@@ -9,6 +9,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+/**
+ * Tests for the {@link KinesisDeserializationSchemaWrapper} using Deserialization schemas with and
+ * without a Collector.
+ */
 public class KinesisDeserializationSchemaWrapperTest {
 
     @Test

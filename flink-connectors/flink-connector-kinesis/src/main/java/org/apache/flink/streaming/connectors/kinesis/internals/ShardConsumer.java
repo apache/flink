@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
@@ -34,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Optional.ofNullable;
@@ -199,17 +197,16 @@ public class ShardConsumer<T> implements Runnable {
 
         final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
 
-        List<T> out = new ArrayList<>();
-        ListCollector<T> coll = new ListCollector<>(out);
+        List<T> items;
         try {
-            deserializer.deserialize(
-                    dataBytes,
-                    record.getPartitionKey(),
-                    record.getSequenceNumber(),
-                    approxArrivalTimestamp,
-                    subscribedShard.getStreamName(),
-                    subscribedShard.getShard().getShardId(),
-                    coll);
+            items =
+                    deserializer.deserialize(
+                            dataBytes,
+                            record.getPartitionKey(),
+                            record.getSequenceNumber(),
+                            approxArrivalTimestamp,
+                            subscribedShard.getStreamName(),
+                            subscribedShard.getShard().getShardId());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -220,7 +217,7 @@ public class ShardConsumer<T> implements Runnable {
                                 record.getSequenceNumber(), record.getSubSequenceNumber())
                         : new SequenceNumber(record.getSequenceNumber());
 
-        for (T val : out) {
+        for (T val : items) {
             fetcherRef.emitRecordAndUpdateState(
                     val,
                     approxArrivalTimestamp,

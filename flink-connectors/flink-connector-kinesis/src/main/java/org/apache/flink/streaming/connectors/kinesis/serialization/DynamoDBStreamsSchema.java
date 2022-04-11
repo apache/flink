@@ -18,29 +18,29 @@
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.util.Collector;
 
 import com.amazonaws.services.dynamodbv2.model.Record;
 import com.amazonaws.services.dynamodbv2.streamsadapter.model.RecordObjectMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 /** Schema used for deserializing DynamoDB streams records. */
 public class DynamoDBStreamsSchema implements KinesisDeserializationSchema<Record> {
     private static final ObjectMapper MAPPER = new RecordObjectMapper();
 
     @Override
-    public void deserialize(
+    public List<Record> deserialize(
             byte[] message,
             String partitionKey,
             String seqNum,
             long approxArrivalTimestamp,
             String stream,
-            String shardId,
-            Collector<Record> collector)
+            String shardId)
             throws IOException {
-        collector.collect(MAPPER.readValue(message, Record.class));
+        return Collections.singletonList(MAPPER.readValue(message, Record.class));
     }
 
     @Override
