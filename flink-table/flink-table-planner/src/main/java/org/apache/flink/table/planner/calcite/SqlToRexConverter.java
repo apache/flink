@@ -18,27 +18,21 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 
-import org.apache.calcite.config.CalciteConnectionConfigImpl;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.tools.FrameworkConfig;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.Properties;
 import java.util.stream.Stream;
 
-/** Standard implementation of {@link SqlExprToRexConverter}. */
-public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
+/** Converts SQL expressions to {@link RexNode}. */
+@Internal
+public class SqlToRexConverter {
 
     private final FlinkPlannerImpl planner;
 
@@ -48,25 +42,23 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
 
     private final @Nullable RelDataType outputType;
 
-    public SqlExprToRexConverterImpl(
-            FrameworkConfig config,
-            FlinkTypeFactory typeFactory,
-            RelOptCluster cluster,
+    public SqlToRexConverter(
+            FlinkPlannerImpl planner,
             SqlDialect sqlDialect,
             RelDataType inputRowType,
             @Nullable RelDataType outputType) {
-        this.planner =
-                new FlinkPlannerImpl(
-                        config,
-                        (isLenient) -> createEmptyCatalogReader(typeFactory),
-                        typeFactory,
-                        cluster);
+        this.planner = planner;
         this.sqlDialect = sqlDialect;
         this.inputRowType = inputRowType;
         this.outputType = outputType;
     }
 
-    @Override
+    /**
+     * Converts the given SQL expression string to an expanded string with fully qualified function
+     * calls and escaped identifiers.
+     *
+     * <p>E.g. {@code my_udf(f0) + 1} to {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     */
     public String expand(String expr) {
         final CalciteParser parser = planner.parser();
         final SqlNode node = parser.parseExpression(expr);
@@ -74,30 +66,26 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
         return validated.toSqlString(sqlDialect).getSql();
     }
 
-    @Override
+    /**
+     * Converts a SQL expression to a {@link RexNode} expression.
+     *
+     * @param expr SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     */
     public RexNode convertToRexNode(String expr) {
         final CalciteParser parser = planner.parser();
         return planner.rex(parser.parseExpression(expr), inputRowType, outputType);
     }
 
-    @Override
+    /**
+     * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
+     *
+     * @param exprs SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     */
     public RexNode[] convertToRexNodes(String[] exprs) {
         final CalciteParser parser = planner.parser();
         return Stream.of(exprs)
                 .map(parser::parseExpression)
                 .map(node -> planner.rex(node, inputRowType, null))
                 .toArray(RexNode[]::new);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Utilities
-    // ------------------------------------------------------------------------------------------
-
-    private static CalciteCatalogReader createEmptyCatalogReader(FlinkTypeFactory typeFactory) {
-        return new FlinkCalciteCatalogReader(
-                CalciteSchema.createRootSchema(false),
-                Collections.emptyList(),
-                typeFactory,
-                new CalciteConnectionConfigImpl(new Properties()));
     }
 }

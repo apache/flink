@@ -283,8 +283,8 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val logicalWatermarkAssigner: RelNode = {
     val scan = relBuilder.scan("TemporalTable2").build()
     val flinkContext = unwrapContext(cluster)
-    val watermarkRexNode = flinkContext.getSqlExprToRexConverterFactory
-      .create(scan.getTable.getRowType, null)
+    val watermarkRexNode = flinkContext.getRexFactory
+      .createSqlToRexConverter(scan.getTable.getRowType, null)
       .convertToRexNode("rowtime - INTERVAL '10' SECOND")
 
     relBuilder.push(scan)
