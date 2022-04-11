@@ -40,8 +40,8 @@ import org.powermock.api.mockito.PowerMockito.{mock, when}
 /** Agg test base to mock agg information and etc. */
 abstract class AggTestBase(isBatchMode: Boolean) {
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
-    Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE)
+  val typeFactory: FlinkTypeFactory =
+    new FlinkTypeFactory(Thread.currentThread().getContextClassLoader, FlinkTypeSystem.INSTANCE)
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()

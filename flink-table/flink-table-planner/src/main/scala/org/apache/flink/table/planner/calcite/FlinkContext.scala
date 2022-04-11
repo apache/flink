@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.api.TableConfig
@@ -25,17 +24,13 @@ import org.apache.flink.table.module.ModuleManager
 import org.apache.calcite.plan.Context
 import org.apache.calcite.rex.RexNode
 
-/**
-  * A [[Context]] to allow the store data within the planner session and access it within rules.
-  */
+/** A [[Context]] to allow the store data within the planner session and access it within rules. */
 trait FlinkContext extends Context {
 
   /** Returns whether the planner is in batch mode. */
   def isBatchMode: Boolean
 
-  /**
-   * Returns the [[ClassLoader]].
-   */
+  /** Returns the [[ClassLoader]]. */
   def getClassLoader: ClassLoader
 
   /** Returns the [[TableConfig]] defined in [[org.apache.flink.table.api.TableEnvironment]]. */
