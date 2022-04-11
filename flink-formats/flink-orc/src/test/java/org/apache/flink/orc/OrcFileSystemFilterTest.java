@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit Tests for {@link OrcFileFormatFactory}. */
 public class OrcFileSystemFilterTest {
@@ -54,7 +54,7 @@ public class OrcFileSystemFilterTest {
         OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(equalExpression);
         OrcFilters.Predicate predicate2 =
                 new OrcFilters.Equals("long1", PredicateLeaf.Type.LONG, 10);
-        assertTrue(predicate1.toString().equals(predicate2.toString()));
+        assertThat(predicate1.toString()).isEqualTo(predicate2.toString());
 
         // greater than
         CallExpression greaterExpression =
@@ -64,7 +64,7 @@ public class OrcFileSystemFilterTest {
         OrcFilters.Predicate predicate4 =
                 new OrcFilters.Not(
                         new OrcFilters.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10));
-        assertTrue(predicate3.toString().equals(predicate4.toString()));
+        assertThat(predicate3.toString()).isEqualTo(predicate4.toString());
 
         // less than
         CallExpression lessExpression =
@@ -73,6 +73,6 @@ public class OrcFileSystemFilterTest {
         OrcFilters.Predicate predicate5 = OrcFilters.toOrcPredicate(lessExpression);
         OrcFilters.Predicate predicate6 =
                 new OrcFilters.LessThan("long1", PredicateLeaf.Type.LONG, 10);
-        assertTrue(predicate5.toString().equals(predicate6.toString()));
+        assertThat(predicate5.toString()).isEqualTo(predicate6.toString());
     }
 }

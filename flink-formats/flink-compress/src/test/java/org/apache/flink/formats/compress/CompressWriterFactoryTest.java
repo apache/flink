@@ -44,9 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CompressWriterFactory}. */
 public class CompressWriterFactoryTest extends TestLogger {
@@ -167,17 +165,17 @@ public class CompressWriterFactoryTest extends TestLogger {
     private void validateResults(File folder, List<String> expected, CompressionCodec codec)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).isNotNull();
+        assertThat(buckets).hasSize(1);
 
         final File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(1, partFiles.length);
+        assertThat(partFiles).isNotNull();
+        assertThat(partFiles).hasSize(1);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
             final List<String> fileContent = readFile(partFile, codec);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 
