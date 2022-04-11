@@ -38,6 +38,8 @@ under the License.
 在启动 CheckPoint 机制时，状态会随着 CheckPoint 而持久化，以防止数据丢失、保障恢复时的一致性。
 状态内部的存储格式、状态在 CheckPoint 时如何持久化以及持久化在哪里均取决于选择的 **State Backend**。
 
+<a name="available-state-backends"></a>
+
 # 可用的 State Backends
 
 Flink 内置了以下这些开箱即用的 state backends ：
@@ -47,6 +49,8 @@ Flink 内置了以下这些开箱即用的 state backends ：
 
 如果不设置，默认使用 HashMapStateBackend。
 
+
+<a name="the-hashmapstatebackend"></a>
 
 ### HashMapStateBackend
 
@@ -60,6 +64,8 @@ HashMapStateBackend 的适用场景：
 建议同时将 [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
 与 EmbeddedRocksDBStateBackend 不同的是，由于 HashMapStateBackend 将数据以对象形式存储在堆中，因此重用这些对象数据是不安全的。
+
+<a name="the-embeddedrocksdbstatebackend"></a>
 
 ### EmbeddedRocksDBStateBackend
 
@@ -91,6 +97,8 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 每个 slot 中的 RocksDB instance 的内存大小是有限制的，详情请见 [这里]({{< ref "docs/ops/state/large_state_tuning" >}})。
 
+<a name="choose-the-right-state-backend"></a>
+
 # 选择合适的 State Backend
 
 在选择 `HashMapStateBackend` 和 `RocksDB` 的时候，其实就是在性能与可扩展性之间权衡。`HashMapStateBackend` 是非常快的，因为每个状态的读取和算子对于 objects 的更新都是在 Java 的 heap 上；但是状态的大小受限于集群中可用的内存。
@@ -102,10 +110,14 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 从 1.13 版本开始，所有的 state backends 都会生成一种普适的格式。因此，如果想切换 state backend 的话，那么最好先升级你的 Flink 版本，在新版本中生成 savepoint，在这之后你才可以使用一个不同的 state backend 来读取并恢复它。
 {{< /hint >}}
 
+<a name="configuring-a-state-backend"></a>
+
 ## 设置 State Backend
 
 如果没有明确指定，将使用 jobmanager 做为默认的 state backend。你能在 **flink-conf.yaml** 中为所有 Job 设置其他默认的 State Backend。
 每一个 Job 的 state backend 配置会覆盖默认的 state backend 配置，如下所示：
+
+<a name="setting-the-per-job-state-backend"></a>
 
 ### 设置每个 Job 的 State Backend
 
@@ -141,6 +153,7 @@ env.setStateBackend(new HashMapStateBackend())
   **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
 {{< /hint >}}
 
+<a name="setting-default-state-backend"></a>
 
 ### 设置默认的（全局的） State Backend
 
@@ -166,9 +179,13 @@ state.backend: filesystem
 state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 ```
 
+<a name="rocksdb-state-backend-details"></a>
+
 # RocksDB State Backend 进阶
 
 *该小节描述 RocksDB state backend 的更多细节*
+
+<a name="incremental-checkpoints"></a>
 
 ### 增量快照
 
@@ -183,6 +200,8 @@ RocksDB 支持*增量快照*。不同于产生一个包含所有数据的全量�
   - 在代码中按照右侧方式配置（来覆盖默认配置）：`EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 需要注意的是，一旦启用了增量快照，网页上展示的 `Checkpointed Data Size` 只代表增量上传的数据量，而不是一次快照的完整数据量。
+
+<a name="memory-management"></a>
 
 ### 内存管理
 
@@ -213,6 +232,8 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 或者可以复用上述 cache/write-buffer-manager 机制，但将内存大小设置为与 Flink 的托管内存大小无关的固定大小（通过 `state.backend.rocksdb.memory.fixed-per-slot` 选项）。
 注意在这两种情况下，用户都需要确保在 JVM 之外有足够的内存可供 RocksDB 使用。
 
+<a name="timers-heap-vs-rocksdb"></a>
+
 ### 计时器（内存 vs. RocksDB）
 
 计时器（Timer）用于安排稍后的操作（基于事件时间或处理时间），例如触发窗口或回调 `ProcessFunction`。
@@ -222,6 +243,8 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 您可以通过将 `state.backend.rocksdb.timer-service.factory` 配置项设置为 `heap`（而不是默认的 `rocksdb`）来将计时器存储在堆上。
 
 <span class="label label-info">注意</span> *在 RocksDB state backend 中使用基于堆的计时器的组合当前不支持计时器状态的异步快照。其他状态（如 keyed state）可以被异步快照。*
+
+<a name="enabling-rocksdb-native-metrics"></a>
 
 ### 开启 RocksDB 原生监控指标
 
@@ -432,6 +455,8 @@ env.enable_changelog_statebackend(true)
 - 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
 {{< top >}}
+
+<a name="migrating-from-legacy-backends"></a>
 
 ## 自旧版本迁移
 
