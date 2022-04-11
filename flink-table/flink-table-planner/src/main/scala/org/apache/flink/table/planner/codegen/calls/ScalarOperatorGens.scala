@@ -1764,9 +1764,9 @@ object ScalarOperatorGens {
   }
 
   /**
-   * Note that this cast context is going to use the thread context classloader.
-   * This is fine when the context will be used to generate casting for primitive types,
-   * but it might create problems when dealing with user provided types.
+   * Note that this cast context is going to use the thread context classloader. This is fine when
+   * the context will be used to generate casting for primitive types, but it might create problems
+   * when dealing with user provided types.
    */
   def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
     new CastRule.Context {
