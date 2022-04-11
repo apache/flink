@@ -38,8 +38,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link JdbcCatalogFactory}. */
 public class JdbcCatalogFactoryTest {
@@ -98,14 +97,14 @@ public class JdbcCatalogFactoryTest {
 
         checkEquals(catalog, (JdbcCatalog) actualCatalog);
 
-        assertTrue(((JdbcCatalog) actualCatalog).getInternal() instanceof PostgresCatalog);
+        assertThat(((JdbcCatalog) actualCatalog).getInternal()).isInstanceOf(PostgresCatalog.class);
     }
 
     private static void checkEquals(JdbcCatalog c1, JdbcCatalog c2) {
-        assertEquals(c1.getName(), c2.getName());
-        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-        assertEquals(c1.getUsername(), c2.getUsername());
-        assertEquals(c1.getPassword(), c2.getPassword());
-        assertEquals(c1.getBaseUrl(), c2.getBaseUrl());
+        assertThat(c2.getName()).isEqualTo(c1.getName());
+        assertThat(c2.getDefaultDatabase()).isEqualTo(c1.getDefaultDatabase());
+        assertThat(c2.getUsername()).isEqualTo(c1.getUsername());
+        assertThat(c2.getPassword()).isEqualTo(c1.getPassword());
+        assertThat(c2.getBaseUrl()).isEqualTo(c1.getBaseUrl());
     }
 }

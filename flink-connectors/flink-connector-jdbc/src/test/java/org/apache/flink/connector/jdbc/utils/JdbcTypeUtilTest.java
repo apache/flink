@@ -25,15 +25,15 @@ import org.junit.Test;
 import java.sql.Types;
 
 import static org.apache.flink.connector.jdbc.utils.JdbcTypeUtil.logicalTypeToSqlType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Testing the type conversions from Flink to SQL types. */
 public class JdbcTypeUtilTest {
 
     @Test
     public void testTypeConversions() {
-        assertEquals(Types.INTEGER, logicalTypeToSqlType(LogicalTypeRoot.INTEGER));
+        assertThat(logicalTypeToSqlType(LogicalTypeRoot.INTEGER)).isEqualTo(Types.INTEGER);
         testUnsupportedType(LogicalTypeRoot.RAW);
         testUnsupportedType(LogicalTypeRoot.MAP);
     }
@@ -41,7 +41,7 @@ public class JdbcTypeUtilTest {
     private static void testUnsupportedType(LogicalTypeRoot logicalTypeRoot) {
         try {
             logicalTypeToSqlType(logicalTypeRoot);
-            fail();
+            fail("unknown failure");
         } catch (IllegalArgumentException ignored) {
         }
     }

@@ -36,7 +36,6 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -50,6 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -108,13 +109,13 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the failure
-            Assert.assertTrue(e.getCause().getMessage().contains("artificial failure for record"));
+            assertThat(e.getCause().getMessage()).contains("artificial failure for record");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -147,14 +148,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the failure
-            Assert.assertTrue(
-                    e.getCause().getCause().getMessage().contains("artificial failure for record"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("artificial failure for record");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -217,14 +218,14 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the failure from the 2nd request
-            Assert.assertTrue(
-                    e.getCause().getCause().getMessage().contains("artificial failure for record"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("artificial failure for record");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -256,14 +257,13 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the bulk request failure
-            Assert.assertTrue(
-                    e.getCause().getMessage().contains("artificial failure for bulk request"));
+            assertThat(e.getCause().getMessage()).contains("artificial failure for bulk request");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -295,17 +295,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
-                    e.getCause()
-                            .getCause()
-                            .getMessage()
-                            .contains("artificial failure for bulk request"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("artificial failure for bulk request");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -364,17 +361,14 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
-                    e.getCause()
-                            .getCause()
-                            .getMessage()
-                            .contains("artificial failure for bulk request"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("artificial failure for bulk request");
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        fail("unknown failure");
     }
 
     /**
@@ -427,7 +421,7 @@ public class ElasticsearchSinkBaseTest {
         }
 
         // current number of pending request should be 1 due to the re-add
-        Assert.assertEquals(1, sink.getNumPendingRequests());
+        assertThat(sink.getNumPendingRequests()).isEqualTo(1);
 
         // this time, let the bulk request succeed, so no-more requests are re-added
         sink.setMockItemFailuresListForNextBulkItemResponses(
@@ -482,8 +476,8 @@ public class ElasticsearchSinkBaseTest {
         sink.open(mock(Configuration.class));
         sink.close();
 
-        Assert.assertTrue(sinkFunction.openCalled);
-        Assert.assertTrue(sinkFunction.closeCalled);
+        assertThat(sinkFunction.openCalled).isTrue();
+        assertThat(sinkFunction.closeCalled).isTrue();
     }
 
     private static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {

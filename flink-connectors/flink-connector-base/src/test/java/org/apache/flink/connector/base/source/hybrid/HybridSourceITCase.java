@@ -47,8 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** MiniCluster-based integration test for the {@link HybridSource}. */
 public class HybridSourceITCase extends TestLogger {
@@ -205,7 +204,7 @@ public class HybridSourceITCase extends TestLogger {
 
     private static void verifyResult(List<Integer> result) {
         Collections.sort(result);
-        assertThat(result, equalTo(EXPECTED_RESULT));
+        assertThat(result).isEqualTo(EXPECTED_RESULT);
     }
 
     // ------------------------------------------------------------------------

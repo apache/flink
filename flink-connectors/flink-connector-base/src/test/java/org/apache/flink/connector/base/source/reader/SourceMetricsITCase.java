@@ -56,13 +56,12 @@ import java.util.concurrent.CyclicBarrier;
 
 import static org.apache.flink.metrics.testutils.MetricMatchers.isCounter;
 import static org.apache.flink.metrics.testutils.MetricMatchers.isGauge;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
 
 /** Tests whether all provided metrics of a {@link Source} are of the expected values (FLIP-33). */
 public class SourceMetricsITCase extends TestLogger {
@@ -169,7 +168,7 @@ public class SourceMetricsITCase extends TestLogger {
             boolean hasTimestamps) {
         List<OperatorMetricGroup> groups =
                 reporter.findOperatorMetricGroups(jobId, "MetricTestingSource");
-        assertThat(groups, hasSize(parallelism));
+        assertThat(groups).hasSize(parallelism);
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
@@ -177,37 +176,39 @@ public class SourceMetricsITCase extends TestLogger {
             // there are only 2 splits assigned; so two groups will not update metrics
             if (group.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {
                 // assert that optional metrics are not initialized when no split assigned
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
-                assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
+                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .satisfies(
+                                matching(
+                                        isGauge(
+                                                equalTo(
+                                                        InternalSourceReaderMetricGroup
+                                                                .UNDEFINED))));
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG)).isNull();
                 continue;
             }
             subtaskWithMetrics++;
             // I/O metrics
-            assertThat(
-                    group.getIOMetricGroup().getNumRecordsInCounter(),
-                    isCounter(equalTo(processedRecordsPerSubtask)));
-            assertThat(
-                    group.getIOMetricGroup().getNumBytesInCounter(),
-                    isCounter(
-                            equalTo(
-                                    processedRecordsPerSubtask
-                                            * MockRecordEmitter.RECORD_SIZE_IN_BYTES)));
+            assertThat(group.getIOMetricGroup().getNumRecordsInCounter())
+                    .satisfies(matching(isCounter(equalTo(processedRecordsPerSubtask))));
+            assertThat(group.getIOMetricGroup().getNumBytesInCounter())
+                    .satisfies(
+                            matching(
+                                    isCounter(
+                                            equalTo(
+                                                    processedRecordsPerSubtask
+                                                            * MockRecordEmitter
+                                                                    .RECORD_SIZE_IN_BYTES))));
             // MockRecordEmitter is just incrementing errors every even record
-            assertThat(
-                    metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS),
-                    isCounter(equalTo(processedRecordsPerSubtask / 2)));
+            assertThat(metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS))
+                    .satisfies(matching(isCounter(equalTo(processedRecordsPerSubtask / 2))));
             if (hasTimestamps) {
                 // Timestamp assigner subtracting EVENTTIME_LAG from wall clock
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .satisfies(matching(isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON))));
                 // Watermark is derived from timestamp, so it has to be in the same order of
                 // magnitude
-                assertThat(
-                        metrics.get(MetricNames.WATERMARK_LAG),
-                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG))
+                        .satisfies(matching(isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON))));
                 // Calculate the additional watermark lag (on top of event time lag)
                 Long watermarkLag =
                         ((Gauge<Long>) metrics.get(MetricNames.WATERMARK_LAG)).getValue()
@@ -216,24 +217,36 @@ public class SourceMetricsITCase extends TestLogger {
                                                         MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
                                         .getValue();
                 // That should correspond to the out-of-order boundedness
-                assertThat(watermarkLag, isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON));
+                assertThat(watermarkLag)
+                        .satisfies(matching(isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON)));
             } else {
                 // assert that optional metrics are not initialized when no timestamp assigned
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
-                assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
+                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .satisfies(
+                                matching(
+                                        isGauge(
+                                                equalTo(
+                                                        InternalSourceReaderMetricGroup
+                                                                .UNDEFINED))));
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG)).isNull();
             }
 
             long pendingRecords = numTotalPerSubtask - processedRecordsPerSubtask;
-            assertThat(metrics.get(MetricNames.PENDING_RECORDS), isGauge(equalTo(pendingRecords)));
-            assertThat(
-                    metrics.get(MetricNames.PENDING_BYTES),
-                    isGauge(equalTo(pendingRecords * MockRecordEmitter.RECORD_SIZE_IN_BYTES)));
+            assertThat(metrics.get(MetricNames.PENDING_RECORDS))
+                    .satisfies(matching(isGauge(equalTo(pendingRecords))));
+            assertThat(metrics.get(MetricNames.PENDING_BYTES))
+                    .satisfies(
+                            matching(
+                                    isGauge(
+                                            equalTo(
+                                                    pendingRecords
+                                                            * MockRecordEmitter
+                                                                    .RECORD_SIZE_IN_BYTES))));
             // test is keeping source idle time metric busy with the barrier
-            assertThat(metrics.get(MetricNames.SOURCE_IDLE_TIME), isGauge(equalTo(0L)));
+            assertThat(metrics.get(MetricNames.SOURCE_IDLE_TIME))
+                    .satisfies(matching(isGauge(equalTo(0L))));
         }
-        assertThat(subtaskWithMetrics, equalTo(numSplits));
+        assertThat(subtaskWithMetrics).isEqualTo(numSplits);
     }
 
     private Matcher<Long> isCloseTo(long value, long epsilon) {

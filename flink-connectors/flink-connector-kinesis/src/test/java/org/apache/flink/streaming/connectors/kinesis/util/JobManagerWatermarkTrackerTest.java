@@ -26,9 +26,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link JobManagerWatermarkTracker}. */
 public class JobManagerWatermarkTrackerTest {
@@ -91,8 +92,8 @@ public class JobManagerWatermarkTrackerTest {
 
         @Override
         public void run(SourceContext<Integer> ctx) {
-            Assert.assertEquals(998, tracker.updateWatermark(998));
-            Assert.assertEquals(999, tracker.updateWatermark(999));
+            assertThat(tracker.updateWatermark(998)).isEqualTo(998);
+            assertThat(tracker.updateWatermark(999)).isEqualTo(999);
         }
 
         @Override

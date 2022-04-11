@@ -46,10 +46,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link JdbcRowOutputFormat}. */
 public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
@@ -76,8 +74,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
                             .finish();
             jdbcOutputFormat.open(0, 1);
         } catch (Exception e) {
-            assertTrue(findThrowable(e, IOException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, IOException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -94,8 +92,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
             jdbcOutputFormat.open(0, 1);
             fail("expect exception");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, IOException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, IOException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -112,8 +110,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
             setRuntimeContext(jdbcOutputFormat, true);
             jdbcOutputFormat.open(0, 1);
         } catch (Exception e) {
-            assertTrue(findThrowable(e, IOException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, IOException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -127,8 +125,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
                             .finish();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, NullPointerException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, NullPointerException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -155,8 +153,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
             jdbcOutputFormat.writeRecord(row);
             jdbcOutputFormat.close();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, SQLDataException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, SQLDataException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -191,8 +189,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
             jdbcOutputFormat.writeRecord(row);
             jdbcOutputFormat.close();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, ClassCastException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -230,8 +228,8 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
 
             jdbcOutputFormat.close();
         } catch (Exception e) {
-            assertTrue(findThrowable(e, RuntimeException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, RuntimeException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -257,15 +255,15 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 
@@ -286,20 +284,23 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
                 jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                assertThat(resultSet.next()).isFalse();
             }
             jdbcOutputFormat.writeRecord(toRow(TEST_DATA[2]));
             try (ResultSet resultSet = statement.executeQuery()) {
                 int recordCount = 0;
                 while (resultSet.next()) {
-                    assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                    assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                    assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                    assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                    assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                    assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                    assertThat(resultSet.getObject("title"))
+                            .isEqualTo(TEST_DATA[recordCount].title);
+                    assertThat(resultSet.getObject("author"))
+                            .isEqualTo(TEST_DATA[recordCount].author);
+                    assertThat(resultSet.getObject("price"))
+                            .isEqualTo(TEST_DATA[recordCount].price);
+                    assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
                     recordCount++;
                 }
-                assertEquals(3, recordCount);
+                assertThat(recordCount).isEqualTo(3);
             }
         } finally {
             jdbcOutputFormat.close();
@@ -336,15 +337,15 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 

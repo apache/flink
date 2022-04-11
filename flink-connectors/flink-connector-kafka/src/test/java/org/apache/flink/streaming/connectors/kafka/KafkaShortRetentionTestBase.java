@@ -45,8 +45,8 @@ import java.io.Serializable;
 import java.util.Properties;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms. This way, we
@@ -286,7 +286,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
             fail("should fail with an exception");
         } catch (IllegalArgumentException e) {
             // expected
-            assertTrue(e.getMessage().contains("none"));
+            assertThat(e.getMessage()).contains("none");
         }
 
         kafkaServer.deleteTestTopic(topic);

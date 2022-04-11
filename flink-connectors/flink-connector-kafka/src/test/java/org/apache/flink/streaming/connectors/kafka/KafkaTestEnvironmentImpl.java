@@ -65,7 +65,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** An implementation of the KafkaServerProvider. */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {

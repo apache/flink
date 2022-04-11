@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for HiveTableUtil. */
 public class HiveTableUtilTest {
@@ -64,12 +64,12 @@ public class HiveTableUtilTest {
                         DataTypes.BOOLEAN());
         Optional<String> filter =
                 HiveTableUtil.makePartitionFilter(2, partColNames, Arrays.asList(p1Exp), hiveShim);
-        assertEquals("(p1 = 1)", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p1 = 1)");
 
         filter =
                 HiveTableUtil.makePartitionFilter(
                         2, partColNames, Arrays.asList(p1Exp, p3Exp), hiveShim);
-        assertEquals("(p1 = 1) and (p3 = 1.1)", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p1 = 1) and (p3 = 1.1)");
 
         filter =
                 HiveTableUtil.makePartitionFilter(
@@ -82,6 +82,6 @@ public class HiveTableUtilTest {
                                         Arrays.asList(p1Exp, p3Exp),
                                         DataTypes.BOOLEAN())),
                         hiveShim);
-        assertEquals("(p2 = 'a') and ((p1 = 1) or (p3 = 1.1))", filter.orElse(null));
+        assertThat(filter.orElse(null)).isEqualTo("(p2 = 'a') and ((p1 = 1) or (p3 = 1.1))");
     }
 }

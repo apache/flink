@@ -47,11 +47,8 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.Matchers.lessThan;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * IT cases for the {@link FlinkKafkaProducer}.
@@ -112,10 +109,9 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
             }
 
             if (initialActiveThreads.isPresent()) {
-                assertThat(
-                        "active threads count",
-                        Thread.activeCount(),
-                        lessThan(initialActiveThreads.get() + allowedEpsilonThreadCountGrow));
+                assertThat(Thread.activeCount())
+                        .as("active threads count")
+                        .isLessThan(initialActiveThreads.get() + allowedEpsilonThreadCountGrow);
             } else {
                 initialActiveThreads = Optional.of(Thread.activeCount());
             }
@@ -193,7 +189,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         try {
             testHarness.processElement(44, 4);
             testHarness.snapshot(2, 5);
-            fail();
+            fail("unknown failure");
         } catch (Exception ex) {
             // expected
         }
@@ -637,9 +633,9 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         deleteTestTopic(topic);
         checkProducerLeak();
 
-        assertNotNull(transactionalIdUsed);
+        assertThat(transactionalIdUsed).isNotNull();
         String expectedTransactionalIdPrefix = taskName + "-" + operatorID.toHexString();
-        assertThat(transactionalIdUsed, startsWith(expectedTransactionalIdPrefix));
+        assertThat(transactionalIdUsed).startsWith(expectedTransactionalIdPrefix);
     }
 
     @Test
@@ -671,8 +667,8 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
         deleteTestTopic(topic);
         checkProducerLeak();
 
-        assertNotNull(transactionalIdUsed);
-        assertThat(transactionalIdUsed, startsWith(transactionalIdPrefix));
+        assertThat(transactionalIdUsed).isNotNull();
+        assertThat(transactionalIdUsed).startsWith(transactionalIdPrefix);
     }
 
     @Test

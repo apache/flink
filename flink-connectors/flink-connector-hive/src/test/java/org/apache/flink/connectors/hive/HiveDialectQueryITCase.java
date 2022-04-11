@@ -50,7 +50,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test hive query compatibility. */
 public class HiveDialectQueryITCase {
@@ -187,59 +187,59 @@ public class HiveDialectQueryITCase {
                         .sorted()
                         .collect(Collectors.toList());
         if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 3, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 3, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 3, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 3, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 3, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results1.toString());
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 1, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 1, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 1, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 1, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 1, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results2.toString());
+            assertThat(results1.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 3, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 3, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 3, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 3, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 3, 1],"
+                                    + " +I[5, null, 1, 1]]");
+            assertThat(results2.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 1, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 1, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 1, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 1, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 1, 1],"
+                                    + " +I[5, null, 1, 1]]");
         } else {
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 0, 1],"
-                            + " +I[1, null, 1, 1],"
-                            + " +I[2, 2, 0, 1],"
-                            + " +I[2, null, 1, 1],"
-                            + " +I[3, 3, 0, 1],"
-                            + " +I[3, null, 1, 1],"
-                            + " +I[4, 4, 0, 1],"
-                            + " +I[4, null, 1, 1],"
-                            + " +I[5, 5, 0, 1],"
-                            + " +I[5, null, 1, 1]]",
-                    results1.toString());
-            assertEquals(
-                    "["
-                            + "+I[1, 1, 0, 1],"
-                            + " +I[1, null, 0, 1],"
-                            + " +I[2, 2, 0, 1],"
-                            + " +I[2, null, 0, 1],"
-                            + " +I[3, 3, 0, 1],"
-                            + " +I[3, null, 0, 1],"
-                            + " +I[4, 4, 0, 1],"
-                            + " +I[4, null, 0, 1],"
-                            + " +I[5, 5, 0, 1],"
-                            + " +I[5, null, 0, 1]]",
-                    results2.toString());
+            assertThat(results1.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 0, 1],"
+                                    + " +I[1, null, 1, 1],"
+                                    + " +I[2, 2, 0, 1],"
+                                    + " +I[2, null, 1, 1],"
+                                    + " +I[3, 3, 0, 1],"
+                                    + " +I[3, null, 1, 1],"
+                                    + " +I[4, 4, 0, 1],"
+                                    + " +I[4, null, 1, 1],"
+                                    + " +I[5, 5, 0, 1],"
+                                    + " +I[5, null, 1, 1]]");
+            assertThat(results2.toString())
+                    .isEqualTo(
+                            "["
+                                    + "+I[1, 1, 0, 1],"
+                                    + " +I[1, null, 0, 1],"
+                                    + " +I[2, 2, 0, 1],"
+                                    + " +I[2, null, 0, 1],"
+                                    + " +I[3, 3, 0, 1],"
+                                    + " +I[3, null, 0, 1],"
+                                    + " +I[4, 4, 0, 1],"
+                                    + " +I[4, null, 0, 1],"
+                                    + " +I[5, 5, 0, 1],"
+                                    + " +I[5, null, 0, 1]]");
         }
     }
 
@@ -260,29 +260,29 @@ public class HiveDialectQueryITCase {
             if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
                 // the grouping function in older version (2.2.0) hive has some serious bug and is
                 // barely usable, therefore we only care about the group__id here
-                assertEquals(
-                        "["
-                                + "+I[1, 2, 3, 7, 1, 1],"
-                                + " +I[1, 2, null, 3, 1, 0],"
-                                + " +I[1, null, 3, 5, 1, 1],"
-                                + " +I[1, null, null, 1, 1, 0],"
-                                + " +I[null, 2, 3, 6, 0, 1],"
-                                + " +I[null, 2, null, 2, 0, 0],"
-                                + " +I[null, null, 3, 4, 0, 1],"
-                                + " +I[null, null, null, 0, 0, 0]]",
-                        results.toString());
+                assertThat(results.toString())
+                        .isEqualTo(
+                                "["
+                                        + "+I[1, 2, 3, 7, 1, 1],"
+                                        + " +I[1, 2, null, 3, 1, 0],"
+                                        + " +I[1, null, 3, 5, 1, 1],"
+                                        + " +I[1, null, null, 1, 1, 0],"
+                                        + " +I[null, 2, 3, 6, 0, 1],"
+                                        + " +I[null, 2, null, 2, 0, 0],"
+                                        + " +I[null, null, 3, 4, 0, 1],"
+                                        + " +I[null, null, null, 0, 0, 0]]");
             } else {
-                assertEquals(
-                        "["
-                                + "+I[1, 2, 3, 0, 0, 0],"
-                                + " +I[1, 2, null, 1, 0, 1],"
-                                + " +I[1, null, 3, 2, 0, 0],"
-                                + " +I[1, null, null, 3, 0, 1],"
-                                + " +I[null, 2, 3, 4, 1, 0],"
-                                + " +I[null, 2, null, 5, 1, 1],"
-                                + " +I[null, null, 3, 6, 1, 0],"
-                                + " +I[null, null, null, 7, 1, 1]]",
-                        results.toString());
+                assertThat(results.toString())
+                        .isEqualTo(
+                                "["
+                                        + "+I[1, 2, 3, 0, 0, 0],"
+                                        + " +I[1, 2, null, 1, 0, 1],"
+                                        + " +I[1, null, 3, 2, 0, 0],"
+                                        + " +I[1, null, null, 3, 0, 1],"
+                                        + " +I[null, 2, 3, 4, 1, 0],"
+                                        + " +I[null, 2, null, 5, 1, 1],"
+                                        + " +I[null, null, 3, 6, 1, 0],"
+                                        + " +I[null, null, null, 7, 1, 1]]");
             }
         } finally {
             tableEnv.executeSql("drop table temp");
@@ -303,9 +303,9 @@ public class HiveDialectQueryITCase {
             List<Row> result =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from test_values").collect());
-            assertEquals(
-                    "[+I[1, -2, 3, 4, 1.1, 1.1, 1.10000, 2021-08-04T16:26:33.400, 2021-08-04, null, 123, 56, false]]",
-                    result.toString());
+            assertThat(result.toString())
+                    .isEqualTo(
+                            "[+I[1, -2, 3, 4, 1.1, 1.1, 1.10000, 2021-08-04T16:26:33.400, 2021-08-04, null, 123, 56, false]]");
         } finally {
             tableEnv.executeSql("drop table test_values");
         }
@@ -323,7 +323,7 @@ public class HiveDialectQueryITCase {
                             tableEnv.executeSql(
                                             "select *  from test2b join test2a on test2b.a = test2a.a[1]")
                                     .collect());
-            assertEquals("[+I[2, [1, 2]]]", result.toString());
+            assertThat(result.toString()).isEqualTo("[+I[2, [1, 2]]]");
         } finally {
             tableEnv.executeSql("drop table test2a");
             tableEnv.executeSql("drop table test2b");
@@ -476,7 +476,7 @@ public class HiveDialectQueryITCase {
             this.statements = statements;
             this.results = results;
             this.sortResults = sortResults;
-            assertEquals(statements.size(), results.size());
+            assertThat(results).hasSize(statements.size());
         }
     }
 }

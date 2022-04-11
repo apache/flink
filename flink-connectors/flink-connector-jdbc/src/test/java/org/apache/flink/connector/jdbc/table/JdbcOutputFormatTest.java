@@ -54,10 +54,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test suite for {@link JdbcOutputFormatBuilder}. */
 public class JdbcOutputFormatTest extends JdbcDataTestBase {
@@ -115,8 +113,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             outputFormat.open(0, 1);
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, IOException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, IOException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -146,7 +144,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             outputFormat.open(0, 1);
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, IllegalStateException.class).isPresent());
+            assertThat(findThrowable(e, IllegalStateException.class)).isPresent();
         }
     }
 
@@ -183,7 +181,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             outputFormat.close();
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
+            assertThat(findThrowable(e, ClassCastException.class)).isPresent();
         }
     }
 
@@ -220,7 +218,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             outputFormat.close();
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, ClassCastException.class).isPresent());
+            assertThat(findThrowable(e, ClassCastException.class)).isPresent();
         }
     }
 
@@ -263,8 +261,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 
             fail("Expected exception is not thrown.");
         } catch (Exception e) {
-            assertTrue(findThrowable(e, RuntimeException.class).isPresent());
-            assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
+            assertThat(findThrowable(e, RuntimeException.class)).isPresent();
+            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
         }
     }
 
@@ -309,15 +307,15 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 
@@ -362,7 +360,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                                 TEST_DATA[i].qty));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                assertThat(resultSet.next()).isFalse();
             }
             outputFormat.writeRecord(
                     buildGenericData(
@@ -374,14 +372,17 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
             try (ResultSet resultSet = statement.executeQuery()) {
                 int recordCount = 0;
                 while (resultSet.next()) {
-                    assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                    assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                    assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                    assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                    assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                    assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                    assertThat(resultSet.getObject("title"))
+                            .isEqualTo(TEST_DATA[recordCount].title);
+                    assertThat(resultSet.getObject("author"))
+                            .isEqualTo(TEST_DATA[recordCount].author);
+                    assertThat(resultSet.getObject("price"))
+                            .isEqualTo(TEST_DATA[recordCount].price);
+                    assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
                     recordCount++;
                 }
-                assertEquals(3, recordCount);
+                assertThat(recordCount).isEqualTo(3);
             }
         } finally {
             outputFormat.close();
@@ -428,7 +429,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                                 TEST_DATA[i].qty));
             }
             try (ResultSet resultSet = statement.executeQuery()) {
-                assertFalse(resultSet.next());
+                assertThat(resultSet.next()).isFalse();
             }
         } finally {
             outputFormat.close();
@@ -485,15 +486,15 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
                 ResultSet resultSet = statement.executeQuery()) {
             int recordCount = 0;
             while (resultSet.next()) {
-                assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-                assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-                assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-                assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-                assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+                assertThat(resultSet.getObject("id")).isEqualTo(TEST_DATA[recordCount].id);
+                assertThat(resultSet.getObject("title")).isEqualTo(TEST_DATA[recordCount].title);
+                assertThat(resultSet.getObject("author")).isEqualTo(TEST_DATA[recordCount].author);
+                assertThat(resultSet.getObject("price")).isEqualTo(TEST_DATA[recordCount].price);
+                assertThat(resultSet.getObject("qty")).isEqualTo(TEST_DATA[recordCount].qty);
 
                 recordCount++;
             }
-            assertEquals(TEST_DATA.length, recordCount);
+            assertThat(recordCount).isEqualTo(TEST_DATA.length);
         }
     }
 

@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -32,7 +31,8 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for all DataTypes and Dialects of JDBC connector. */
 @RunWith(Parameterized.class)
@@ -170,7 +170,7 @@ public class JdbcDataTypeTest {
     }
 
     private static TestItem createTestItem(Object... args) {
-        assert args.length >= 2;
+        assertThat(args.length).isGreaterThanOrEqualTo(2);
         TestItem item = TestItem.fromDialectAndType((String) args[0], (String) args[1]);
         if (args.length == 3) {
             item.withExpectError((String) args[2]);
@@ -192,13 +192,13 @@ public class JdbcDataTypeTest {
         if (testItem.expectError != null) {
             try {
                 tEnv.sqlQuery("SELECT * FROM T");
-                fail();
+                fail("unknown failure");
             } catch (ValidationException ex) {
-                Assert.assertEquals(testItem.expectError, ex.getCause().getMessage());
+                assertThat(ex.getCause()).hasMessage(testItem.expectError);
             } catch (UnsupportedOperationException ex) {
-                Assert.assertEquals(testItem.expectError, ex.getMessage());
+                assertThat(ex).hasMessage(testItem.expectError);
             } catch (Exception e) {
-                fail(e);
+                fail("unknown failure", e);
             }
         } else {
             tEnv.sqlQuery("SELECT * FROM T");

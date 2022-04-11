@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests of a baseline generic sink that implements the AsyncSinkBase. */
 public class AsyncSinkBaseITCase {
@@ -43,13 +43,11 @@ public class AsyncSinkBaseITCase {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
                 .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
-        Exception e =
-                assertThrows(
-                        JobExecutionException.class,
-                        () -> env.execute("Integration Test: AsyncSinkBaseITCase"));
-        assertEquals(
-                "Intentional error on persisting 1_000_000 to ArrayListDestination",
-                e.getCause().getCause().getMessage());
+        assertThatThrownBy(() -> env.execute("Integration Test: AsyncSinkBaseITCase"))
+                .isInstanceOf(JobExecutionException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                "Intentional error on persisting 1_000_000 to ArrayListDestination"));
     }
 
     @Test

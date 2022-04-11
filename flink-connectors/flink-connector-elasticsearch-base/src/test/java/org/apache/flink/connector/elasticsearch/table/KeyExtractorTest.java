@@ -24,7 +24,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -36,6 +35,8 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KeyExtractor}. */
 public class KeyExtractorTest {
@@ -51,7 +52,7 @@ public class KeyExtractorTest {
                 KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        Assertions.assertEquals(key, "12");
+        assertThat(key).isEqualTo("12");
     }
 
     @Test
@@ -62,7 +63,7 @@ public class KeyExtractorTest {
                 KeyExtractor.createKeyExtractor(logicalTypesWithIndex, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        Assertions.assertEquals(key, null);
+        assertThat(key).isNull();
     }
 
     @Test
@@ -85,7 +86,7 @@ public class KeyExtractorTest {
                                 StringData.fromString("ABCD"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.parse("2012-12-12T12:12:12"))));
-        Assertions.assertEquals(key, "12_2012-12-12T12:12:12");
+        assertThat(key).isEqualTo("12_2012-12-12T12:12:12");
     }
 
     @Test
@@ -140,8 +141,8 @@ public class KeyExtractorTest {
                                 TimestampData.fromInstant(Instant.parse("2013-01-13T13:13:13Z")),
                                 (int) (LocalTime.parse("14:14:14").toNanoOfDay() / 1_000_000),
                                 (int) LocalDate.parse("2015-05-15").toEpochDay()));
-        Assertions.assertEquals(
-                key,
-                "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15");
+        assertThat(key)
+                .isEqualTo(
+                        "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15");
     }
 }

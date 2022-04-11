@@ -24,8 +24,8 @@ import org.apache.derby.jdbc.EmbeddedXADataSource;
 import org.junit.Test;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * {@link JdbcXaSinkFunction} tests using Derby DB. Derby supports XA but doesn't use MVCC, so we
@@ -69,7 +69,7 @@ public class JdbcXaSinkDerbyTest extends JdbcXaSinkTestBase {
         xaHelper.assertPreparedTxCountEquals(1); // tx should still be there
         buildAndInit(); // should cleanup on startup
         xaHelper.assertPreparedTxCountEquals(0);
-        assertEquals(0, xaHelper.countInDb());
+        assertThat(xaHelper.countInDb()).isEqualTo(0);
     }
 
     @Test
