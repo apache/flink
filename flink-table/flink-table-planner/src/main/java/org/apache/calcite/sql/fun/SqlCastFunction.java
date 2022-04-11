@@ -18,6 +18,7 @@
 package org.apache.calcite.sql.fun;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import com.google.common.collect.ImmutableSetMultimap;
@@ -159,6 +160,8 @@ public class SqlCastFunction extends SqlFunction {
     }
 
     private boolean canCastFrom(RelDataType toType, RelDataType fromType) {
+        LogicalType sourceType = FlinkTypeFactory.toLogicalType(fromType);
+        LogicalType targetType = FlinkTypeFactory.toLogicalType(toType);
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
         switch (fromTypeName) {
             case ARRAY:
@@ -170,10 +173,9 @@ public class SqlCastFunction extends SqlFunction {
                 // We use our casting checker logic only for these types,
                 //  as the differences with calcite casting checker logic generates issues
                 //  later in the calcite stack.
-                return LogicalTypeCasts.supportsExplicitCast(
-                        FlinkTypeFactory.toLogicalType(fromType),
-                        FlinkTypeFactory.toLogicalType(toType));
+                return LogicalTypeCasts.supportsExplicitCast(sourceType, targetType);
             default:
+                LogicalTypeCasts.validate(sourceType, targetType);
                 return SqlTypeUtil.canCastFrom(toType, fromType, true);
         }
     }
