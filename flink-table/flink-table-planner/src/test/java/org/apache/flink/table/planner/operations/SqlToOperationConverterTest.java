@@ -1256,6 +1256,10 @@ public class SqlToOperationConverterTest {
                 Arrays.asList(TableChange.set("k1", "v1"), TableChange.set("K2", "V2")),
                 "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
 
+        assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 set ()", SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("ALTER TABLE SET does not support empty key.");
+
         // test alter table reset
         checkAlterNonExistTable("alter table %s nonexistent reset ('k')");
         operation = parse("alter table if exists cat1.db1.tb1 reset ('k')");

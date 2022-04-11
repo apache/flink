@@ -580,6 +580,12 @@ public class SqlToOperationConverter {
             ObjectIdentifier tableIdentifier,
             CatalogTable oldTable,
             SqlAlterTableOptions alterTableOptions) {
+        Map<String, String> setOptions =
+                OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList());
+        if (setOptions.isEmpty()) {
+            throw new ValidationException("ALTER TABLE SET does not support empty key.");
+        }
+
         LinkedHashMap<String, String> partitionKVs = alterTableOptions.getPartitionKVs();
         // it's altering partitions
         if (partitionKVs != null) {
@@ -595,8 +601,7 @@ public class SqlToOperationConverter {
                                                             partitionSpec.getPartitionSpec(),
                                                             tableIdentifier)));
             Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
-            newProps.putAll(
-                    OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList()));
+            newProps.putAll(setOptions);
             return new AlterPartitionPropertiesOperation(
                     tableIdentifier,
                     partitionSpec,
