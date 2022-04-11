@@ -197,9 +197,9 @@ public class ShardConsumer<T> implements Runnable {
 
         final long approxArrivalTimestamp = record.getApproximateArrivalTimestamp().getTime();
 
-        List<T> items;
+        List<T> values;
         try {
-            items =
+            values =
                     deserializer.deserialize(
                             dataBytes,
                             record.getPartitionKey(),
@@ -217,7 +217,7 @@ public class ShardConsumer<T> implements Runnable {
                                 record.getSequenceNumber(), record.getSubSequenceNumber())
                         : new SequenceNumber(record.getSequenceNumber());
 
-        for (T val : items) {
+        for (T val : values) {
             fetcherRef.emitRecordAndUpdateState(
                     val,
                     approxArrivalTimestamp,
