@@ -73,7 +73,7 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
         if (useCollector) {
             deserializationSchema.deserialize(recordValue, collector);
         } else {
-            deserializationSchema.deserialize(recordValue);
+            collector.collect(deserializationSchema.deserialize(recordValue));
         }
     }
 
