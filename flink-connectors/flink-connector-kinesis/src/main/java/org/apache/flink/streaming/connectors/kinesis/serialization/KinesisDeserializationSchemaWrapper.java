@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
@@ -35,8 +36,22 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
     private static final long serialVersionUID = 9143148962928375886L;
 
     private final DeserializationSchema<T> deserializationSchema;
+    private final boolean useCollector;
 
     public KinesisDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
+
+        boolean useCollector = false;
+        try {
+            Class<? extends DeserializationSchema> deserializationClass =
+                    deserializationSchema.getClass();
+            useCollector =
+                    !deserializationClass
+                            .getMethod("deserialize", byte[].class, Collector.class)
+                            .isDefault();
+        } catch (NoSuchMethodException e) {
+            // swallow the exception
+        }
+        this.useCollector = useCollector;
         this.deserializationSchema = deserializationSchema;
     }
 
@@ -55,7 +70,11 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
             String shardId,
             Collector<T> collector)
             throws IOException {
-        deserializationSchema.deserialize(recordValue, collector);
+        if (useCollector) {
+            deserializationSchema.deserialize(recordValue, collector);
+        } else {
+            deserializationSchema.deserialize(recordValue);
+        }
     }
 
     /*
@@ -69,5 +88,10 @@ public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializ
     @Override
     public TypeInformation<T> getProducedType() {
         return deserializationSchema.getProducedType();
+    }
+
+    @VisibleForTesting
+    protected boolean isUseCollector() {
+        return useCollector;
     }
 }
