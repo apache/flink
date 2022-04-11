@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -996,15 +997,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 getMainThreadExecutor());
     }
 
+    @VisibleForTesting
     CompletableFuture<Void> getJobTerminationFuture(JobID jobId) {
-        if (runningJobs.containsKey(jobId)) {
-            return FutureUtils.completedExceptionally(
-                    new DispatcherException(
-                            String.format("Job with job id %s is still running.", jobId)));
-        } else {
-            return jobManagerRunnerTerminationFutures.getOrDefault(
-                    jobId, CompletableFuture.completedFuture(null));
-        }
+        return jobManagerRunnerTerminationFutures.getOrDefault(
+                jobId, CompletableFuture.completedFuture(null));
     }
 
     private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {
