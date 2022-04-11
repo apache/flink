@@ -21,7 +21,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, RexFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -185,8 +185,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
         override def getModuleManager: ModuleManager = planner.moduleManager
 
-        override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-          context.getSqlExprToRexConverterFactory
+        override def getRexFactory: RexFactory = context.getRexFactory
 
         override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
@@ -301,8 +300,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
   private def getUniqueKeys(relNode: RelNode): util.Set[_ <: util.Set[String]] = {
     val rowType = relNode.getRowType
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(
-      planner.createRelBuilder.getCluster.getMetadataQuery)
+    val fmq =
+      FlinkRelMetadataQuery.reuseOrCreate(planner.createRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
       uniqueKeys.filter(_.nonEmpty).map {

@@ -19,12 +19,39 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.parse.CalciteParser;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlNode;
+
+import javax.annotation.Nullable;
+
+import java.util.stream.Stream;
 
 /** Converts SQL expressions to {@link RexNode}. */
 @Internal
-public interface SqlExprToRexConverter {
+public class SqlToRexConverter {
+
+    private final FlinkPlannerImpl planner;
+
+    private final SqlDialect sqlDialect;
+
+    private final RelDataType inputRowType;
+
+    private final @Nullable RelDataType outputType;
+
+    public SqlToRexConverter(
+            FlinkPlannerImpl planner,
+            SqlDialect sqlDialect,
+            RelDataType inputRowType,
+            @Nullable RelDataType outputType) {
+        this.planner = planner;
+        this.sqlDialect = sqlDialect;
+        this.inputRowType = inputRowType;
+        this.outputType = outputType;
+    }
 
     /**
      * Converts the given SQL expression string to an expanded string with fully qualified function
@@ -32,19 +59,33 @@ public interface SqlExprToRexConverter {
      *
      * <p>E.g. {@code my_udf(f0) + 1} to {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
-    String expand(String expr);
+    public String expand(String expr) {
+        final CalciteParser parser = planner.parser();
+        final SqlNode node = parser.parseExpression(expr);
+        final SqlNode validated = planner.validateExpression(node, inputRowType, outputType);
+        return validated.toSqlString(sqlDialect).getSql();
+    }
 
     /**
      * Converts a SQL expression to a {@link RexNode} expression.
      *
      * @param expr a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
-    RexNode convertToRexNode(String expr);
+    public RexNode convertToRexNode(String expr) {
+        final CalciteParser parser = planner.parser();
+        return planner.rex(parser.parseExpression(expr), inputRowType, outputType);
+    }
 
     /**
      * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
      *
      * @param exprs a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
-    RexNode[] convertToRexNodes(String[] exprs);
+    public RexNode[] convertToRexNodes(String[] exprs) {
+        final CalciteParser parser = planner.parser();
+        return Stream.of(exprs)
+                .map(parser::parseExpression)
+                .map(node -> planner.rex(node, inputRowType, null))
+                .toArray(RexNode[]::new);
+    }
 }

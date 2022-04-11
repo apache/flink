@@ -27,7 +27,7 @@ class FlinkContextImpl(
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
-    toRexFactory: SqlExprToRexConverterFactory)
+    rexFactory: RexFactory)
   extends FlinkContext {
 
   override def isBatchMode: Boolean = inBatchMode
@@ -40,5 +40,5 @@ class FlinkContextImpl(
 
   override def getCatalogManager: CatalogManager = catalogManager
 
-  override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory = toRexFactory
+  override def getRexFactory: RexFactory = rexFactory
 }

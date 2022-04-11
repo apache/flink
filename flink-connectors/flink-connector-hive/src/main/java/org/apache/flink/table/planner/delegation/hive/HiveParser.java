@@ -169,7 +169,7 @@ public class HiveParser extends ParserImpl {
                 catalogManager,
                 validatorSupplier,
                 calciteParserSupplier,
-                plannerContext.getSqlExprToRexConverterFactory());
+                plannerContext.getRexFactory());
         this.plannerContext = plannerContext;
         this.catalogReader = plannerContext.createCatalogReader(false);
         this.frameworkConfig = plannerContext.createFrameworkConfig();

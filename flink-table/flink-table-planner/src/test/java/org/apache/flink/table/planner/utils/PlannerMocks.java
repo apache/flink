@@ -88,7 +88,7 @@ public class PlannerMocks {
                         catalogManager,
                         () -> planner,
                         planner::parser,
-                        plannerContext.getSqlExprToRexConverterFactory());
+                        plannerContext.getRexFactory());
 
         catalogManager.initSchemaResolver(
                 true,

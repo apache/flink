@@ -167,7 +167,7 @@ public class SqlToOperationConverterTest {
                     catalogManager,
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
-                    plannerContext.getSqlExprToRexConverterFactory());
+                    plannerContext.getRexFactory());
 
     @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
