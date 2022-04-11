@@ -30,28 +30,28 @@ under the License.
 
 ## 概述
 
-Flink 应用要想大规模可靠地运行，必须要满足如下两个条件：
+Flink 应用要想在大规模场景下可靠地运行，必须要满足如下两个条件：
 
-  - 应用程序需要能够可靠地获取 checkpoints
-  - 在应用失败后，资源需要有足够的能力赶上数据输入流
+  - 应用程序需要能够可靠地创建 checkpoints
+  - 在应用故障后，需要有足够的资源追赶数据输入流
 
 第一部分讨论如何大规模获得良好性能的 checkpoints 。
-最后一部分解释了一些关于要使用多少资源的最佳实践规划。
+后一部分解释了一些关于要规划使用多少资源的最佳实践。
 
 
 ## 监控状态和 Checkpoints
 
-监控 checkpoint 行为最简单的方法是通过 UI 的 checkpoint 部分。 文档在 [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}) 说明了如何查看可用的 checkpoint 指标。
+监控 checkpoint 行为最简单的方法是通过 UI 的 checkpoint 部分。 [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}) 的文档说明了如何查看可用的 checkpoint 指标。
 
-这两个数字（均通过 Task 级别 [Checkpointing 指标]({{< ref "docs/ops/metrics" >}}#checkpointing) 展示）
-以及在 [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}))中，当看 checkpoint 详细信息时，特别有趣的是:
+这两个指标（均通过 Task 级别 [Checkpointing 指标]({{< ref "docs/ops/metrics" >}}#checkpointing) 展示）
+以及在 [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}))中，当查看 checkpoint 详细信息时，特别有趣的是:
 
-  - 算子收到第一个 checkpoint barrier 的时间。当触发 checkpoint 的时间一直很高时，这意味着 *checkpoint barrier* 需要很长时间才能从 source 到达 operators。 这通常表明系统处于反压下运行。
+  - 算子收到第一个 checkpoint barrier 的时间。当触发 checkpoint 的延迟时间一直很高时，这意味着 *checkpoint barrier* 需要很长时间才能从 source 到达 operators。 这通常表明系统处于反压下运行。
 
   - Alignment Duration，为处理第一个和最后一个 checkpoint barrier 之间的时间。在 unaligned checkpoints 下，`exactly-once` 和 `at-least-once` checkpoints 的 subtasks 处理来自上游 subtasks 的所有数据，且没有任何中断。
     然而，对于 aligned `exactly-once` checkpoints，已经收到 checkpoint barrier 的通道被阻止继续发送数据，直到所有剩余的通道都赶上并接收它们的 checkpoint barrier（对齐时间）。
 
-理想情况下，这两个值都应该很低 - 较高的数值意味着 checkpoint barriers 在 job graph 的移动速度较慢，由于一些反压（没有足够的资源来处理传入的记录）。 这也可以通过增加处理记录的端到端延迟来观察到。
+理想情况下，这两个值都应该很低 - 较高的数值意味着由于存在反压（没有足够的资源来处理传入的记录），导致 checkpoint barriers 在作业中的移动速度较慢，这也可以通过处理记录的端到端延迟在增加来观察到。
 请注意，在出现瞬态反压、数据倾斜或网络问题时，这些数值偶尔会很高。
 
 [Unaligned checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints) 可用于加快传播时间的 checkpoint barriers。 但是请注意，这并不能解决导致反压的根本问题(端到端记录延迟仍然很高)。
@@ -59,18 +59,18 @@ Flink 应用要想大规模可靠地运行，必须要满足如下两个条件�
 ## Checkpoint 调优
 应用程序可以配置定期触发 checkpoints。 当 checkpoint 完成时间超过 checkpoint 间隔时，在正在进行的 checkpoint 完成之前，不会触发下一个 checkpoint 。默认情况下，一旦正在进行的 checkpoint 完成，将立即触发下一个 checkpoint 。
 
-当 checkpoints 花费的时间经常超过 checkpoints 基本间隔时(例如，因为状态比计划的更大，或者 checkpoints 所在的存储空间暂时变慢)，
+当 checkpoints 完成的时间经常超过 checkpoints 基本间隔时(例如，因为状态比计划的更大，或者 checkpoints 所在的存储系统访问暂时变慢)，
 系统不断地进行 checkpoints（一旦完成，新的 checkpoints 就会立即启动）。这可能意味着过多的资源被不断地束缚在 checkpointing 中，并且 checkpoint 算子进行得缓慢。 此行为对使用 checkpointed 状态的流式应用程序的影响较小，但仍可能对整体应用程序性能产生影响。
 
-为了防止这种情况，应用程序可以定义 checkpoints 之间的*最小持续时间*：
+为了防止这种情况，应用程序可以定义 checkpoints 之间的*最小间隔时间*：
 
 `StreamExecutionEnvironment.getCheckpointConfig().setMinPauseBetweenCheckpoints(milliseconds)`
 
-此持续时间是指从最近一个 checkpoint 结束到下一个 checkpoint 开始之间必须经过的最小时间间隔。下图说明了这如何影响 checkpointing 。
+此间隔时间是指从最近一个 checkpoint 结束到下一个 checkpoint 开始之间必须经过的最小时间间隔。下图说明了这如何影响 checkpointing 。
 
 {{< img src="/fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior." >}}
 
-*注意：* 可以配置应用程序（通过`CheckpointConfig`）允许同时进行多个 checkpoints 。 对于 Flink 中状态较大的应用程序，这通常会将过多的资源绑定到 checkpointing 。
+*注意：* 可以配置应用程序（通过`CheckpointConfig`）允许同时进行多个 checkpoints 。 对于 Flink 中状态较大的应用程序，这通常会将过多的资源使用在 checkpointing 上。
 当手动触发 savepoint 时，它可能与正在进行的 checkpoint 同时进行。
 
 ## RocksDB 调优
@@ -81,12 +81,12 @@ RocksDB 的性能可能因配置而异，本节讲述了一些使用 RocksDB Sta
 
 ### 增量 Checkpoint
 在减少 checkpoints 花费的时间方面，开启增量 checkpoints 应该是首要考虑因素。
-与完整 checkpoints 相比，增量 checkpoints 可以显着减少 checkpointing 时间，因为增量 checkpoints 仅记录与先前完成的 checkpoint 相比的更改，而不是生成 state backend 完整、独立的备份。
+与完整 checkpoints 相比，增量 checkpoints 可以显着减少 checkpointing 时间，因为增量 checkpoints 仅存储与先前完成的 checkpoint 不同的增量文件，而不是存储全量数据备份。
 有关更多背景信息，请参阅 [RocksDB 中的增量 Checkpoints]({{< ref "docs/ops/state/state_backends" >}}#incremental-checkpoints)。
 ### RocksDB 或 JVM 堆中的计时器
 
 计时器（Timer） 默认存储在 RocksDB 中，这是更健壮和可扩展的选择。
-当性能调优作业只有几个计时器(没有窗口，在 ProcessFunction 中不使用计时器)时，将这些计时器放在堆中可以提高性能。
+当性能调优作业只有少量计时器(没有窗口，且在 ProcessFunction 中不使用计时器)时，将这些计时器放在堆中可以提高性能。
 请谨慎使用此功能，因为基于堆的计时器可能会增加 checkpointing 时间，并且自然无法扩展到内存之外。
 有关如何配置基于堆的计时器的详细信息，请参阅 [计时器（内存 vs. RocksDB）]({{< ref "docs/ops/state/state_backends" >}}#timers-heap-vs-rocksdb)。
 
@@ -142,7 +142,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
 **重要**：为了方便以后添加资源，请务必将数据流程序的*最大并行度*设置为合理的数字。 最大并行度定义了在重新缩放程序时（通过 savepoint ）可以设置程序并行度的高度。
 
-Flink 的内部以多个*键组(key groups)* 的最大并行度为粒度跟踪并行状态。
+Flink 的内部以*键组(key groups)* 的最大并行度为粒度跟踪分布式状态。
 Flink 的设计力求使最大并行度的值达到很高的效率，即使执行程序时并行度很低。
 
 ## 压缩
@@ -173,8 +173,8 @@ JobManager 反过来收集所有 tasks 的句柄并将它们捆绑到一个 chec
 Task 本地状态恢复正是针对这个恢复时间长的问题，其主要思想如下：对于每个 checkpoint ，每个 task 不仅将 task 状态写入分布式存储中，
 而且还在 task 本地存储(例如本地磁盘或内存)中保存状态快照的次要副本。请注意，快照的主存储仍然必须是分布式存储，因为本地存储不能确保节点故障下的持久性，也不能为其他节点提供重新分发状态的访问，所以这个功能仍然需要主副本。
 
-然而，对于每个 task 可以重新调度到以前的位置进行恢复的 task ，我们可以从次要本地状态副本恢复，并避免远程读取状态的成本。考虑到*许多故障不是节点故障，节点故障通常一次只影响一个或非常少的节点*，
-在恢复过程中，大多数 task 很可能会返回到它们以前的位置，并发现它们的本地状态完好无损。
+然而，对于每个 task 可以重新调度到以前的位置进行恢复的 task ，我们可以从次要本地状态副本恢复，并避免远程读取状态的成本。考虑到*许多故障不是节点故障，即使节点故障通常一次只影响一个或非常少的节点*，
+在恢复过程中，大多数 task 很可能会重新部署到它们以前的位置，并发现它们的本地状态完好无损。
 这就是 task 本地恢复有效地减少恢复时间的原因。
 
 请注意，根据所选的 state backend 和 checkpointing 策略，在每个 checkpoint 创建和存储次要本地状态副本时，可能会有一些额外的成本。
