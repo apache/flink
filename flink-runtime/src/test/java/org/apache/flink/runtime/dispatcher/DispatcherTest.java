@@ -420,7 +420,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())));
 
         // wait for job to finish
-        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
         // sanity check
         assertThat(
                 dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.CANCELED));
@@ -454,7 +454,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())));
 
         // wait for job to finish
-        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
         // sanity check
         assertThat(
                 dispatcherGateway.requestJobStatus(jobId, TIMEOUT).get(), is(JobStatus.FINISHED));
@@ -541,7 +541,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         testFailure));
 
         // wait till job has failed
-        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
         // get failure cause
         ArchivedExecutionGraph execGraph =
@@ -949,7 +949,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
         assertOnlyContainsSingleJobWithState(
                 JobStatus.SUSPENDED, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
@@ -995,6 +995,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // run second job, which completes with FINISHED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
+
         assertOnlyContainsSingleJobWithState(
                 JobStatus.FINISHED, dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get());
     }
@@ -1010,7 +1012,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
+        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
         final MultipleJobsDetails multipleJobsDetails =
                 dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get();
