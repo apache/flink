@@ -20,6 +20,15 @@ from pyflink.java_gateway import get_gateway
 
 
 class OutputTag(object):
+    """
+    An :class:`OutputTag` is a typed and named tag to use for tagging side outputs of an operator.
+
+    Example:
+    ::
+
+        >>> info = OutputTag("late-data", Types.TUPLE([Types.STRING(), Types.LONG()]))
+
+    """
 
     def __init__(self, tag_id: str, type_info: TypeInformation = None):
         if tag_id == "":
@@ -36,5 +45,6 @@ class OutputTag(object):
         gateway = get_gateway()
         j_obj = gateway.jvm.org.apache.flink.util.OutputTag(self.tag_id,
                                                             self.type_info.get_java_type_info())
+        # deal with serializability
         self.type_info._j_typeinfo = None
         return j_obj

@@ -21,6 +21,7 @@ from pyflink.common import Row
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
+from pyflink.datastream.window import WindowOperationDescriptor
 from pyflink.fn_execution import pickle
 from pyflink.fn_execution.datastream.process_function import \
     InternalKeyedProcessFunctionOnTimerContext, InternalKeyedProcessFunctionContext, \
@@ -288,10 +289,11 @@ def extract_stateful_function(user_defined_function_proto,
             raise Exception("Unsupported func_type: " + str(func_type))
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
-        window_operation_descriptor = user_defined_func
+        window_operation_descriptor = user_defined_func  # type: WindowOperationDescriptor
         window_assigner = window_operation_descriptor.assigner
         window_trigger = window_operation_descriptor.trigger
         allowed_lateness = window_operation_descriptor.allowed_lateness
+        late_data_output_tag = window_operation_descriptor.late_data_output_tag
         window_state_descriptor = window_operation_descriptor.window_state_descriptor
         internal_window_function = window_operation_descriptor.internal_window_function
         window_serializer = window_operation_descriptor.window_serializer
@@ -305,7 +307,8 @@ def extract_stateful_function(user_defined_function_proto,
             window_state_descriptor,
             internal_window_function,
             window_trigger,
-            allowed_lateness)
+            allowed_lateness,
+            late_data_output_tag)
         internal_timer_service.set_namespace_serializer(window_serializer)
 
         def open_func():

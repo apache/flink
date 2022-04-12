@@ -18,7 +18,7 @@
 import typing
 import uuid
 from enum import Enum
-from typing import Callable, Union, List, cast
+from typing import Callable, Union, List, cast, Optional
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
@@ -1644,6 +1644,7 @@ class WindowedStream(object):
         self._keyed_stream = keyed_stream
         self._window_assigner = window_assigner
         self._allowed_lateness = 0
+        self._late_data_output_tag = None  # type: Optional[OutputTag]
         self._window_trigger = None  # type: Trigger
 
     def get_execution_environment(self):
@@ -1668,6 +1669,20 @@ class WindowedStream(object):
         Setting an allowed lateness is only valid for event-time windows.
         """
         self._allowed_lateness = time_ms
+        return self
+
+    def side_output_late_data(self, output_tag: OutputTag):
+        """
+        Send late arriving data to the side output identified by the given :class:`OutputTag`. Data
+        is considered late after the watermark has passed the end of the window plus the allowed
+        lateness set using :func:`allowed_lateness`.
+
+        You can get the stream of late data using :func:`~DataStream.get_side_output` on the
+        :class:`DataStream` resulting from the windowed operation with the same :class:`OutputTag`.
+
+        .. versionadded:: 1.16.0
+        """
+        self._late_data_output_tag = output_tag
         return self
 
     def reduce(self,
@@ -1843,6 +1858,7 @@ class WindowedStream(object):
             self._window_assigner,
             self._window_trigger,
             self._allowed_lateness,
+            self._late_data_output_tag,
             window_state_descriptor,
             window_serializer,
             internal_window_function)
