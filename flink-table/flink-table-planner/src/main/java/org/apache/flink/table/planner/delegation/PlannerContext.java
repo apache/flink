@@ -110,7 +110,10 @@ public class PlannerContext {
                         functionCatalog,
                         catalogManager,
                         new RexFactory(
-                                typeFactory, this::createFlinkPlanner, this::getCalciteSqlDialect));
+                                typeFactory,
+                                this::createFlinkPlanner,
+                                this::getCalciteSqlDialect,
+                                this::createRelBuilder));
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,
@@ -156,14 +159,8 @@ public class PlannerContext {
     }
 
     public FlinkRelBuilder createRelBuilder() {
-        final FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false);
-
         final FlinkPlannerImpl planner = createFlinkPlanner();
-
-        // Sets up the ViewExpander explicitly for FlinkRelBuilder.
-        final Context chain = Contexts.of(context, planner.createToRelContext());
-
-        return FlinkRelBuilder.of(chain, cluster, relOptSchema);
+        return createRelBuilder(planner);
     }
 
     public FlinkPlannerImpl createFlinkPlanner() {
@@ -204,6 +201,15 @@ public class PlannerContext {
 
     public RelOptCluster getCluster() {
         return cluster;
+    }
+
+    private FlinkRelBuilder createRelBuilder(FlinkPlannerImpl planner) {
+        final FlinkCalciteCatalogReader calciteCatalogReader = createCatalogReader(false);
+
+        // Sets up the ViewExpander explicitly for FlinkRelBuilder.
+        final Context chain = Contexts.of(context, planner.createToRelContext());
+
+        return FlinkRelBuilder.of(chain, cluster, calciteCatalogReader);
     }
 
     private SchemaPlus getRootSchema(SchemaPlus schema) {
@@ -303,7 +309,8 @@ public class PlannerContext {
                 new FunctionCatalogOperatorTable(
                         context.getFunctionCatalog(),
                         context.getCatalogManager().getDataTypeFactory(),
-                        typeFactory),
+                        typeFactory,
+                        context.getRexFactory()),
                 FlinkSqlOperatorTable.instance());
     }
 }

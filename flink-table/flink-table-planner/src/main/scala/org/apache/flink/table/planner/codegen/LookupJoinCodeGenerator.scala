@@ -158,7 +158,9 @@ object LookupJoinCodeGenerator {
       lookupFunction,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      tableConfig)
+      tableConfig,
+      // no need to support expression evaluation at this point
+      null)
 
     val inference =
       createLookupTypeInference(dataTypeFactory, callContext, lookupFunctionBase, udf, functionName)

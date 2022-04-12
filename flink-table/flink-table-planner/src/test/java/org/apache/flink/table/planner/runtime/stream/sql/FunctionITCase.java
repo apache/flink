@@ -36,6 +36,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -47,10 +49,13 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.Test;
 
+import java.lang.invoke.MethodHandle;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
@@ -63,6 +68,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -997,6 +1003,52 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    public void testSpecializedFunctionWithExpressionEvaluation() {
+        final List<Row> sourceData =
+                Arrays.asList(
+                        Row.of("Bob", new Integer[] {1, 2, 3}, new BigDecimal("123.000")),
+                        Row.of("Bob", new Integer[] {4, 5, 6}, new BigDecimal("123.456")),
+                        Row.of("Alice", new Integer[] {1, 2, 3}, null),
+                        Row.of("Alice", null, new BigDecimal("123.456")));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql(
+                        "CREATE TABLE SourceTable("
+                                + "  s STRING, "
+                                + "  a ARRAY<INT>,"
+                                + "  d DECIMAL(6, 3)"
+                                + ")"
+                                + "WITH ("
+                                + "  'connector' = 'COLLECTION'"
+                                + ")");
+
+        tEnv().createTemporarySystemFunction(
+                        "RowEqualityScalarFunction", RowEqualityScalarFunction.class);
+
+        final TableResult result =
+                tEnv().executeSql(
+                                "SELECT "
+                                        + "  s, "
+                                        + "  RowEqualityScalarFunction((a, d), (a, 123.456)), "
+                                        + "  RowEqualityScalarFunction((a, 123.456), (a, d))"
+                                        + "FROM SourceTable");
+
+        final List<Row> actual = CollectionUtil.iteratorToList(result.collect());
+        final List<Row> expected =
+                Arrays.asList(
+                        Row.of("Bob", null, null),
+                        Row.of(
+                                "Bob",
+                                Row.of(new Long[] {4L, 5L, 6L}, 123.456),
+                                Row.of(new Long[] {4L, 5L, 6L}, 123.456)),
+                        Row.of("Alice", null, null),
+                        Row.of("Alice", Row.of(null, 123.456), Row.of(null, 123.456)));
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
     public void testTimestampNotNull() {
         List<Row> sourceData = Arrays.asList(Row.of(1), Row.of(2));
         TestCollectionTableFactory.reset();
@@ -1366,6 +1418,81 @@ public class FunctionITCase extends StreamingTestBase {
         public TypeOfScalarFunction specialize(SpecializedContext context) {
             final List<DataType> dataTypes = context.getCallContext().getArgumentDataTypes();
             return new TypeOfScalarFunction(dataTypes.get(0).toString());
+        }
+    }
+
+    /** A specialized "compile time" function for evaluating expressions. */
+    public static class RowEqualityScalarFunction extends ScalarFunction
+            implements SpecializedFunction {
+
+        private static final DataType IN_ROW_TYPE =
+                DataTypes.ROW(
+                        DataTypes.FIELD("nested0", DataTypes.ARRAY(DataTypes.INT())),
+                        DataTypes.FIELD("nested1", DataTypes.DECIMAL(6, 3)));
+
+        private static final DataType OUT_ROW_TYPE =
+                DataTypes.ROW(
+                        DataTypes.FIELD("result0", DataTypes.ARRAY(DataTypes.BIGINT())),
+                        DataTypes.FIELD("result1", DataTypes.DOUBLE()));
+
+        private final ExpressionEvaluator rowEqualizer;
+        private final ExpressionEvaluator rowCaster;
+        private transient MethodHandle rowEqualizerHandle;
+        private transient MethodHandle rowCasterHandle;
+
+        public RowEqualityScalarFunction(
+                ExpressionEvaluator rowEqualizer, ExpressionEvaluator rowCaster) {
+            this.rowEqualizer = rowEqualizer;
+            this.rowCaster = rowCaster;
+        }
+
+        public RowEqualityScalarFunction() {
+            this(null, null); // filled during specialization
+        }
+
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .typedArguments(IN_ROW_TYPE, IN_ROW_TYPE)
+                    .outputTypeStrategy(call -> Optional.of(OUT_ROW_TYPE))
+                    .build();
+        }
+
+        @Override
+        public RowEqualityScalarFunction specialize(SpecializedContext context) {
+            final ExpressionEvaluator rowEqualizer =
+                    context.createEvaluator(
+                            $("a").isEqual($("b")).ifNull($("on_null")),
+                            DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class),
+                            DataTypes.FIELD("a", IN_ROW_TYPE),
+                            DataTypes.FIELD("b", IN_ROW_TYPE),
+                            DataTypes.FIELD(
+                                    "on_null",
+                                    DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class)));
+            final ExpressionEvaluator rowCaster =
+                    context.createEvaluator(
+                            BuiltInFunctionDefinitions.CAST, OUT_ROW_TYPE, IN_ROW_TYPE);
+            return new RowEqualityScalarFunction(rowEqualizer, rowCaster);
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            Preconditions.checkNotNull(rowEqualizer);
+            Preconditions.checkNotNull(rowCaster);
+            rowEqualizerHandle = rowEqualizer.open(context);
+            rowCasterHandle = rowCaster.open(context);
+        }
+
+        public Row eval(Row a, Row b) {
+            try {
+                final boolean isEqual = (boolean) rowEqualizerHandle.invokeExact(a, b, true);
+                if (isEqual) {
+                    return (Row) rowCasterHandle.invokeExact(a);
+                }
+                return null;
+            } catch (Throwable t) {
+                throw new FlinkRuntimeException(t);
+            }
         }
     }
 }

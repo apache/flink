@@ -19,6 +19,15 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
+import org.apache.flink.table.planner.delegation.ParserImpl;
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -28,25 +37,34 @@ import org.apache.calcite.sql.SqlDialect;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 
 /** Planner internal factory for parsing/translating to {@link RexNode}. */
 @Internal
 public class RexFactory {
 
     private final FlinkTypeFactory typeFactory;
-
+    // we use suppliers to read from TableConfig lazily
     private final Supplier<FlinkPlannerImpl> plannerSupplier;
-
     private final Supplier<SqlDialect> sqlDialectSupplier;
+    private final Function<FlinkPlannerImpl, FlinkRelBuilder> relBuilderSupplier;
 
     public RexFactory(
             FlinkTypeFactory typeFactory,
             Supplier<FlinkPlannerImpl> plannerSupplier,
-            Supplier<SqlDialect> sqlDialectSupplier) {
+            Supplier<SqlDialect> sqlDialectSupplier,
+            Function<FlinkPlannerImpl, FlinkRelBuilder> relBuilderSupplier) {
         this.typeFactory = typeFactory;
         this.plannerSupplier = plannerSupplier;
         this.sqlDialectSupplier = sqlDialectSupplier;
+        this.relBuilderSupplier = relBuilderSupplier;
     }
 
     /**
@@ -75,5 +93,49 @@ public class RexFactory {
         }
 
         return createSqlToRexConverter(convertedInputRowType, convertedOutputType);
+    }
+
+    /** Converts {@link Expression} to {@link RexNode}. */
+    public RexNode convertExpressionToRex(
+            List<RowType.RowField> args, Expression expression, @Nullable LogicalType outputType) {
+        final FlinkPlannerImpl planner = plannerSupplier.get();
+        final FlinkRelBuilder relBuilder = relBuilderSupplier.apply(planner);
+        final FlinkContext context = unwrapContext(relBuilder);
+        final Parser parser = createParser(context, planner);
+
+        final RelDataType argRowType = typeFactory.buildRelNodeRowType(new RowType(args));
+
+        final ExpressionResolverBuilder resolverBuilder =
+                createExpressionResolverBuilder(context, parser);
+        if (outputType != null) {
+            resolverBuilder.withOutputDataType(DataTypes.of(outputType));
+        } else {
+            resolverBuilder.withOutputDataType(null);
+        }
+        final LocalReferenceExpression[] localRefs =
+                args.stream()
+                        .map(a -> localRef(a.getName(), DataTypes.of(a.getType())))
+                        .toArray(LocalReferenceExpression[]::new);
+        final ExpressionResolver resolver = resolverBuilder.withLocalReferences(localRefs).build();
+
+        final ResolvedExpression resolvedExpression =
+                resolver.resolve(Collections.singletonList(expression)).get(0);
+
+        relBuilder.values(argRowType);
+        return resolvedExpression.accept(new ExpressionConverter(relBuilder));
+    }
+
+    private ExpressionResolverBuilder createExpressionResolverBuilder(
+            FlinkContext context, Parser parser) {
+        return ExpressionResolver.resolverFor(
+                context.getTableConfig(),
+                name -> Optional.empty(),
+                context.getFunctionCatalog().asLookup(parser::parseIdentifier),
+                context.getCatalogManager().getDataTypeFactory(),
+                parser::parseSqlExpression);
+    }
+
+    private Parser createParser(FlinkContext context, FlinkPlannerImpl planner) {
+        return new ParserImpl(context.getCatalogManager(), () -> planner, planner::parser, this);
     }
 }

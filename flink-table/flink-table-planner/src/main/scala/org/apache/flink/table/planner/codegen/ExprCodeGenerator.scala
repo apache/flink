@@ -351,6 +351,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
+    // for specific custom code generation
+    if (input1Type == null) {
+      return GeneratedExpression(
+        inputRef.getName,
+        inputRef.getName + "IsNull",
+        NO_CODE,
+        FlinkTypeFactory.toLogicalType(inputRef.getType))
+    }
+    // for the general cases with a previous call to bindInput()
     val input1Arity = input1Type match {
       case r: RowType => r.getFieldCount
       case _ => 1

@@ -23,11 +23,14 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexFactory;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
 import java.util.Optional;
+
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 
 /** Rule to convert {@link CallExpression}. */
 @Internal
@@ -51,5 +54,9 @@ public interface CallExpressionConvertRule {
         FlinkTypeFactory getTypeFactory();
 
         DataTypeFactory getDataTypeFactory();
+
+        default RexFactory getRexFactory() {
+            return unwrapContext(getRelBuilder()).getRexFactory();
+        }
     }
 }
