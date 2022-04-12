@@ -375,14 +375,11 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         }
         // Try FUNC
         final String publicName = BuiltInSqlOperator.extractNameFromQualifiedName(internalName);
-        // FunctionIdentifier require the name should not be empty
-        if (!publicName.isEmpty()) {
-            final Optional<SqlOperator> latestOperator =
-                    lookupOptionalSqlOperator(
-                            FunctionIdentifier.of(publicName), syntax, serdeContext, true);
-            if (latestOperator.isPresent()) {
-                return latestOperator.get();
-            }
+        final Optional<SqlOperator> latestOperator =
+                lookupOptionalSqlOperator(
+                        FunctionIdentifier.of(publicName), syntax, serdeContext, true);
+        if (latestOperator.isPresent()) {
+            return latestOperator.get();
         }
 
         throw new TableException(
