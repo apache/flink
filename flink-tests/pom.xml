@@ -45,6 +45,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -249,6 +256,14 @@ under the License.
         <dependency>
 			<groupId>com.github.oshi</groupId>
 			<artifactId>oshi-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- For UpsertTestDynamicTableSinkITCase -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
