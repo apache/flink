@@ -333,17 +333,9 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             syntax = SqlSyntax.FUNCTION;
         }
 
-        SqlKind sqlKind = null;
-        if (jsonNode.has(FIELD_NAME_SQL_KIND)) {
-            sqlKind = SqlKind.valueOf(jsonNode.get(FIELD_NAME_SQL_KIND).asText());
-        }
-
         if (jsonNode.has(FIELD_NAME_INTERNAL_NAME)) {
             return deserializeInternalFunction(
-                    jsonNode.required(FIELD_NAME_INTERNAL_NAME).asText(),
-                    syntax,
-                    sqlKind,
-                    serdeContext);
+                    jsonNode.required(FIELD_NAME_INTERNAL_NAME).asText(), syntax, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_CATALOG_NAME)) {
             return deserializeCatalogFunction(jsonNode, syntax, serdeContext);
         } else if (jsonNode.has(FIELD_NAME_CLASS)) {
@@ -351,6 +343,9 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         } else if (jsonNode.has(FIELD_NAME_SYSTEM_NAME)) {
             return deserializeSystemFunction(
                     jsonNode.required(FIELD_NAME_SYSTEM_NAME).asText(), syntax, serdeContext);
+        } else if (jsonNode.has(FIELD_NAME_SQL_KIND)) {
+            return deserializeInternalFunction(
+                    syntax, SqlKind.valueOf(jsonNode.get(FIELD_NAME_SQL_KIND).asText()));
         } else {
             throw new TableException("Invalid function call.");
         }
@@ -370,10 +365,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static SqlOperator deserializeInternalFunction(
-            String internalName,
-            SqlSyntax syntax,
-            @Nullable SqlKind sqlKind,
-            SerdeContext serdeContext) {
+            String internalName, SqlSyntax syntax, SerdeContext serdeContext) {
         // Try $FUNC$1
         final Optional<SqlOperator> internalOperator =
                 lookupOptionalSqlOperator(
@@ -393,8 +385,15 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             }
         }
 
-        final Optional<SqlOperator> stdOperator =
-                lookupOptionalSqlOperator(publicName, syntax, sqlKind);
+        throw new TableException(
+                String.format(
+                        "Could not resolve internal system function '%s'. "
+                                + "This is a bug, please file an issue.",
+                        internalName));
+    }
+
+    private static SqlOperator deserializeInternalFunction(SqlSyntax syntax, SqlKind sqlKind) {
+        final Optional<SqlOperator> stdOperator = lookupOptionalSqlOperator("", syntax, sqlKind);
         if (stdOperator.isPresent()) {
             return stdOperator.get();
         }
@@ -403,7 +402,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 String.format(
                         "Could not resolve internal system function '%s'. "
                                 + "This is a bug, please file an issue.",
-                        internalName));
+                        sqlKind.name()));
     }
 
     private static SqlOperator deserializeFunctionClass(

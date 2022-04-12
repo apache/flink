@@ -73,6 +73,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected TableResult compileSqlAndExecutePlan(String sql) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
+        // try to execute the string json plan to validate to ser/de result
         String jsonPlan = compiledPlan.asJsonString();
         CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
         return newCompiledPlan.execute();
