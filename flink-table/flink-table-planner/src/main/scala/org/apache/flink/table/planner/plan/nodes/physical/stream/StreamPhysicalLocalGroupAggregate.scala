@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
@@ -34,7 +34,8 @@ import java.util
 /**
  * Stream physical RelNode for unbounded local group aggregate.
  *
- * @see [[StreamPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[StreamPhysicalGroupAggregateBase]] for more info.
  */
 class StreamPhysicalLocalGroupAggregate(
     cluster: RelOptCluster,
@@ -53,7 +54,8 @@ class StreamPhysicalLocalGroupAggregate(
     aggCalls,
     aggCallNeedRetractions,
     needRetraction,
-    isStateBackendDataViews = false)
+    isStateBackendDataViews = false
+  )
 
   override def requireWatermark: Boolean = false
 
@@ -79,16 +81,18 @@ class StreamPhysicalLocalGroupAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType),
-        grouping.nonEmpty)
+    super
+      .explainTerms(pw)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("partialFinalType", partialFinalType, partialFinalType != PartialFinalType.NONE)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping,
-        isLocal = true))
+      .item(
+        "select",
+        RelExplainUtil.streamGroupAggregationToString(
+          inputRowType,
+          getRowType,
+          aggInfoList,
+          grouping,
+          isLocal = true))
   }
 
   override def translateToExecNode(): ExecNode[_] = {

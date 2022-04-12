@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
@@ -34,8 +33,8 @@ import org.junit.Before
 import java.util
 
 /**
- * A base class for rel node test.
- * TODO refactor the metadata test to extract the common logic for all related tests.
+ * A base class for rel node test. TODO refactor the metadata test to extract the common logic for
+ * all related tests.
  */
 class RelNodeTestBase {
   val plannerContext: PlannerContext = PlannerMocks.create().getPlannerContext
@@ -55,9 +54,12 @@ class RelNodeTestBase {
 
   /**
    * Build a [[LogicalTableScan]] based on a [[MockMetaTable]] using given field names and types.
-    @param fieldNames String array
-   * @param fieldTypes [[LogicalType]] array
-   * @return a [[LogicalTableScan]]
+   * @param fieldNames
+   *   String array
+   * @param fieldTypes
+   *   [[LogicalType]] array
+   * @return
+   *   a [[LogicalTableScan]]
    */
   def buildLogicalTableScan(
       fieldNames: Array[String],

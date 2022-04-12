@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
@@ -30,7 +29,9 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testInputTypeGeneralization(): Unit = {
-    testAllApis(array(1, 2.0, 3.0), "ARRAY[1, cast(2.0 AS DOUBLE), cast(3.0 AS DOUBLE)]",
+    testAllApis(
+      array(1, 2.0, 3.0),
+      "ARRAY[1, cast(2.0 AS DOUBLE), cast(3.0 AS DOUBLE)]",
       "[1.0, 2.0, 3.0]")
   }
 
@@ -44,14 +45,18 @@ class ArrayTypeTest extends ArrayTypeTestBase {
     // object literals
     testTableApi(array(BigDecimal(1), BigDecimal(1)), "[1, 1]")
 
-    testAllApis(array(array(array(1), array(1))), "ARRAY[ARRAY[ARRAY[1], ARRAY[1]]]",
+    testAllApis(
+      array(array(array(1), array(1))),
+      "ARRAY[ARRAY[ARRAY[1], ARRAY[1]]]",
       "[[[1], [1]]]")
 
     testAllApis(array(1 + 1, 3 * 3), "ARRAY[1 + 1, 3 * 3]", "[2, 9]")
 
     testAllApis(array(nullOf(DataTypes.INT), 1), "ARRAY[NULLIF(1,1), 1]", "[NULL, 1]")
 
-    testAllApis(array(array(nullOf(DataTypes.INT), 1)), "ARRAY[ARRAY[NULLIF(1,1), 1]]",
+    testAllApis(
+      array(array(nullOf(DataTypes.INT), 1)),
+      "ARRAY[ARRAY[NULLIF(1,1), 1]]",
       "[[NULL, 1]]")
 
     // implicit conversion
@@ -59,11 +64,15 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
     testTableApi(Array[Integer](1, 2, 3), "[1, 2, 3]")
 
-    testAllApis(Array(localDate("1985-04-11"), localDate("2018-07-26")),
-      "ARRAY[DATE '1985-04-11', DATE '2018-07-26']", "[1985-04-11, 2018-07-26]")
+    testAllApis(
+      Array(localDate("1985-04-11"), localDate("2018-07-26")),
+      "ARRAY[DATE '1985-04-11', DATE '2018-07-26']",
+      "[1985-04-11, 2018-07-26]")
 
-    testAllApis(Array(gLocalTime("14:15:16"), gLocalTime("17:18:19")),
-      "ARRAY[TIME '14:15:16', TIME '17:18:19']", "[14:15:16, 17:18:19]")
+    testAllApis(
+      Array(gLocalTime("14:15:16"), gLocalTime("17:18:19")),
+      "ARRAY[TIME '14:15:16', TIME '17:18:19']",
+      "[14:15:16, 17:18:19]")
 
     // There is no timestamp literal function in Java String Table API,
     // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
@@ -81,33 +90,39 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       Array(
         JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456789),
         JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456789)),
-      "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]")
+      "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]"
+    )
 
     testTableApi(
       Array(
         JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456700),
         JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456700)),
-      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]")
+      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]"
+    )
 
     testTableApi(
       Array(
         JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123456000),
         JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123456000)),
-      "[1985-04-11 14:15:16.123456, 2018-07-26 17:18:19.123456]")
+      "[1985-04-11 14:15:16.123456, 2018-07-26 17:18:19.123456]"
+    )
 
     testTableApi(
       Array(
         JLocalDateTime.of(1985, 4, 11, 14, 15, 16, 123400000),
         JLocalDateTime.of(2018, 7, 26, 17, 18, 19, 123400000)),
-      "[1985-04-11 14:15:16.1234, 2018-07-26 17:18:19.1234]")
+      "[1985-04-11 14:15:16.1234, 2018-07-26 17:18:19.1234]"
+    )
 
     testSqlApi(
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16.123456789', TIMESTAMP '2018-07-26 17:18:19.123456789']",
-      "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]")
+      "[1985-04-11 14:15:16.123456789, 2018-07-26 17:18:19.123456789]"
+    )
 
     testSqlApi(
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16.1234567', TIMESTAMP '2018-07-26 17:18:19.1234567']",
-      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]")
+      "[1985-04-11 14:15:16.1234567, 2018-07-26 17:18:19.1234567]"
+    )
 
     testSqlApi(
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16.123456', TIMESTAMP '2018-07-26 17:18:19.123456']",
@@ -117,12 +132,16 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16.1234', TIMESTAMP '2018-07-26 17:18:19.1234']",
       "[1985-04-11 14:15:16.1234, 2018-07-26 17:18:19.1234]")
 
-    testAllApis(Array(BigDecimal(2.0002), BigDecimal(2.0003)),
-      "ARRAY[CAST(2.0002 AS DECIMAL(10,4)), CAST(2.0003 AS DECIMAL(10,4))]", "[2.0002, 2.0003]")
+    testAllApis(
+      Array(BigDecimal(2.0002), BigDecimal(2.0003)),
+      "ARRAY[CAST(2.0002 AS DECIMAL(10,4)), CAST(2.0003 AS DECIMAL(10,4))]",
+      "[2.0002, 2.0003]")
 
     testAllApis(Array(Array(x = true)), "ARRAY[ARRAY[TRUE]]", "[[TRUE]]")
 
-    testAllApis(Array(Array(1, 2, 3), Array(3, 2, 1)), "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
+    testAllApis(
+      Array(Array(1, 2, 3), Array(3, 2, 1)),
+      "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
       "[[1, 2, 3], [3, 2, 1]]")
 
     // implicit type cast only works on SQL APIs.

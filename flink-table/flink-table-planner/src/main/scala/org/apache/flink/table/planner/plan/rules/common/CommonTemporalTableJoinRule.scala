@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.common
 
 import org.apache.flink.table.api.TableException
@@ -32,12 +31,12 @@ import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess}
 
 /**
-  * Base implementation that matches temporal join node.
-  *
-  * <p> The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into
-  * a Join to make join condition can be pushed-down. The join will be translated into
-  * [[StreamPhysicalLookupJoin]] in physical or translated into [[StreamPhysicalTemporalJoin]].
-  */
+ * Base implementation that matches temporal join node.
+ *
+ * <p> The initial temporal table join (FOR SYSTEM_TIME AS OF) is a Correlate, rewrite it into a
+ * Join to make join condition can be pushed-down. The join will be translated into
+ * [[StreamPhysicalLookupJoin]] in physical or translated into [[StreamPhysicalTemporalJoin]].
+ */
 trait CommonTemporalTableJoinRule {
 
   protected def matches(snapshot: FlinkLogicalSnapshot): Boolean = {
@@ -46,11 +45,12 @@ trait CommonTemporalTableJoinRule {
     snapshot.getPeriod match {
       // it should be left table's field and is a time attribute
       case r: RexFieldAccess
-        if r.getType.isInstanceOf[TimeIndicatorRelDataType] &&
-          r.getReferenceExpr.isInstanceOf[RexCorrelVariable] => // pass
+          if r.getType.isInstanceOf[TimeIndicatorRelDataType] &&
+            r.getReferenceExpr.isInstanceOf[RexCorrelVariable] => // pass
       case _ =>
-        throw new TableException("Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
+        throw new TableException(
+          "Temporal table join currently only supports " +
+            "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
     }
 
     true
@@ -75,11 +75,10 @@ trait CommonTemporalTableJoinRule {
 
   private def getTableScan(snapshotInput: RelNode): Option[TableScan] = {
     snapshotInput match {
-      case tableScan: TableScan
-      => Some(tableScan)
+      case tableScan: TableScan => Some(tableScan)
       // computed column on lookup table
-      case project: LogicalProject if trimHep(project.getInput).isInstanceOf[TableScan]
-      => Some(trimHep(project.getInput).asInstanceOf[TableScan])
+      case project: LogicalProject if trimHep(project.getInput).isInstanceOf[TableScan] =>
+        Some(trimHep(project.getInput).asInstanceOf[TableScan])
       case _ => None
     }
   }

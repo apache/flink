@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
-
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
@@ -25,20 +23,19 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.Assert.{assertFalse, assertTrue}
 import org.junit.Test
 
-/**
-  * Tests for [[FlinkHepRuleSetProgram]].
-  */
+/** Tests for [[FlinkHepRuleSetProgram]]. */
 class FlinkHepRuleSetProgramTest {
 
   @Test
   def testBuildFlinkHepRuleSetProgram(): Unit = {
     FlinkHepRuleSetProgramBuilder.newBuilder
-      .add(RuleSets.ofList(
-        CoreRules.FILTER_REDUCE_EXPRESSIONS,
-        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
-        CoreRules.CALC_REDUCE_EXPRESSIONS,
-        CoreRules.JOIN_REDUCE_EXPRESSIONS
-      ))
+      .add(
+        RuleSets.ofList(
+          CoreRules.FILTER_REDUCE_EXPRESSIONS,
+          CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+          CoreRules.CALC_REDUCE_EXPRESSIONS,
+          CoreRules.JOIN_REDUCE_EXPRESSIONS
+        ))
       .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
       .setMatchLimit(10)
       .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
@@ -63,12 +60,14 @@ class FlinkHepRuleSetProgramTest {
   @Test
   def testRuleOperations(): Unit = {
     val program = FlinkHepRuleSetProgramBuilder.newBuilder
-      .add(RuleSets.ofList(
-        CoreRules.FILTER_REDUCE_EXPRESSIONS,
-        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
-        CoreRules.CALC_REDUCE_EXPRESSIONS,
-        CoreRules.JOIN_REDUCE_EXPRESSIONS
-      )).build()
+      .add(
+        RuleSets.ofList(
+          CoreRules.FILTER_REDUCE_EXPRESSIONS,
+          CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+          CoreRules.CALC_REDUCE_EXPRESSIONS,
+          CoreRules.JOIN_REDUCE_EXPRESSIONS
+        ))
+      .build()
 
     assertTrue(program.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
     assertTrue(program.contains(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
@@ -76,9 +75,8 @@ class FlinkHepRuleSetProgramTest {
     assertTrue(program.contains(CoreRules.JOIN_REDUCE_EXPRESSIONS))
     assertFalse(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
 
-    program.remove(RuleSets.ofList(
-      CoreRules.FILTER_REDUCE_EXPRESSIONS,
-      CoreRules.PROJECT_REDUCE_EXPRESSIONS))
+    program.remove(
+      RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS, CoreRules.PROJECT_REDUCE_EXPRESSIONS))
     assertFalse(program.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
     assertFalse(program.contains(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
     assertTrue(program.contains(CoreRules.CALC_REDUCE_EXPRESSIONS))
@@ -89,9 +87,9 @@ class FlinkHepRuleSetProgramTest {
     assertFalse(program.contains(CoreRules.JOIN_REDUCE_EXPRESSIONS))
     assertTrue(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
 
-    program.add(RuleSets.ofList(
-      CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE,
-      CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))
+    program.add(
+      RuleSets
+        .ofList(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE, CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))
     assertTrue(program.contains(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE))
     assertTrue(program.contains(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE))
     assertTrue(program.contains(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))

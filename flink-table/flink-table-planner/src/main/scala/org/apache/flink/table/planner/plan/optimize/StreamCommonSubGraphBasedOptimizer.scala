@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
@@ -43,9 +42,7 @@ import java.util.Collections
 
 import scala.collection.JavaConversions._
 
-/**
-  * A [[CommonSubGraphBasedOptimizer]] for Stream.
-  */
+/** A [[CommonSubGraphBasedOptimizer]] for Stream. */
 class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
@@ -54,21 +51,24 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     // build RelNodeBlock plan
     val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tableConfig)
     // infer trait properties for sink block
-    sinkBlocks.foreach { sinkBlock =>
-      // don't require update before by default
-      sinkBlock.setUpdateBeforeRequired(false)
+    sinkBlocks.foreach {
+      sinkBlock =>
+        // don't require update before by default
+        sinkBlock.setUpdateBeforeRequired(false)
 
-      val miniBatchInterval: MiniBatchInterval = if (tableConfig.get(
-        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency = tableConfig.get(
-          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
-        Preconditions.checkArgument(miniBatchLatency > 0,
-          "MiniBatch Latency must be greater than 0 ms.", null)
-        new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
-      }  else {
-        MiniBatchIntervalTrait.NONE.getMiniBatchInterval
-      }
-      sinkBlock.setMiniBatchInterval(miniBatchInterval)
+        val miniBatchInterval: MiniBatchInterval =
+          if (tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
+            val miniBatchLatency =
+              tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
+            Preconditions.checkArgument(
+              miniBatchLatency > 0,
+              "MiniBatch Latency must be greater than 0 ms.",
+              null)
+            new MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
+          } else {
+            MiniBatchIntervalTrait.NONE.getMiniBatchInterval
+          }
+        sinkBlock.setMiniBatchInterval(miniBatchInterval)
     }
 
     if (sinkBlocks.size == 1) {
@@ -89,9 +89,13 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     // infer modifyKind property for each blocks independently
     sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
     // infer and propagate updateKind and miniBatchInterval property for each blocks
-    sinkBlocks.foreach { b =>
-      propagateUpdateKindAndMiniBatchInterval(
-        b, b.isUpdateBeforeRequired, b.getMiniBatchInterval, isSinkBlock = true)
+    sinkBlocks.foreach {
+      b =>
+        propagateUpdateKindAndMiniBatchInterval(
+          b,
+          b.isUpdateBeforeRequired,
+          b.getMiniBatchInterval,
+          isSinkBlock = true)
     }
     // clear the intermediate result
     sinkBlocks.foreach(resetIntermediateResult)
@@ -140,14 +144,19 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   /**
-    * Generates the optimized [[RelNode]] tree from the original relational node tree.
-    *
-    * @param relNode The root node of the relational expression tree.
-    * @param updateBeforeRequired True if UPDATE_BEFORE message is required for updates
-    * @param miniBatchInterval mini-batch interval of the block.
-    * @param isSinkBlock True if the given block is sink block.
-    * @return The optimized [[RelNode]] tree
-    */
+   * Generates the optimized [[RelNode]] tree from the original relational node tree.
+   *
+   * @param relNode
+   *   The root node of the relational expression tree.
+   * @param updateBeforeRequired
+   *   True if UPDATE_BEFORE message is required for updates
+   * @param miniBatchInterval
+   *   mini-batch interval of the block.
+   * @param isSinkBlock
+   *   True if the given block is sink block.
+   * @return
+   *   The optimized [[RelNode]] tree
+   */
   private def optimizeTree(
       relNode: RelNode,
       updateBeforeRequired: Boolean,
@@ -162,40 +171,46 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     val context = unwrapContext(relNode)
 
-    programs.optimize(relNode, new StreamOptimizeContext() {
+    programs.optimize(
+      relNode,
+      new StreamOptimizeContext() {
 
-      override def isBatchMode: Boolean = false
+        override def isBatchMode: Boolean = false
 
-      override def getTableConfig: TableConfig = tableConfig
+        override def getTableConfig: TableConfig = tableConfig
 
-      override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
+        override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
-      override def getCatalogManager: CatalogManager = planner.catalogManager
+        override def getCatalogManager: CatalogManager = planner.catalogManager
 
-      override def getModuleManager: ModuleManager = planner.moduleManager
+        override def getModuleManager: ModuleManager = planner.moduleManager
 
-      override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
-        context.getSqlExprToRexConverterFactory
+        override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
+          context.getSqlExprToRexConverterFactory
 
-      override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.getRelBuilder
 
-      override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
+        override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
-      def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
+        def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
-      override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
-    })
+        override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
+      }
+    )
   }
 
   /**
-   * Infer updateKind and MiniBatchInterval property for each block.
-   * Optimize order: from parent block to child blocks.
-   * NOTES: this method should not change the original RelNode tree.
+   * Infer updateKind and MiniBatchInterval property for each block. Optimize order: from parent
+   * block to child blocks. NOTES: this method should not change the original RelNode tree.
    *
-   * @param block              The [[RelNodeBlock]] instance.
-   * @param updateBeforeRequired True if UPDATE_BEFORE message is required for updates
-   * @param miniBatchInterval  mini-batch interval of the block.
-   * @param isSinkBlock        True if the given block is sink block.
+   * @param block
+   *   The [[RelNodeBlock]] instance.
+   * @param updateBeforeRequired
+   *   True if UPDATE_BEFORE message is required for updates
+   * @param miniBatchInterval
+   *   mini-batch interval of the block.
+   * @param isSinkBlock
+   *   True if the given block is sink block.
    */
   private def propagateUpdateKindAndMiniBatchInterval(
       block: RelNodeBlock,
@@ -204,8 +219,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       isSinkBlock: Boolean): Unit = {
     val blockLogicalPlan = block.getPlan
     // infer updateKind and miniBatchInterval with required trait
-    val optimizedPlan = optimizeTree(
-      blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock)
+    val optimizedPlan =
+      optimizeTree(blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock)
     // propagate the inferred updateKind and miniBatchInterval to the child blocks
     propagateTraits(optimizedPlan)
 
@@ -220,7 +235,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     def propagateTraits(rel: RelNode): Unit = rel match {
       case _: StreamPhysicalDataStreamScan | _: StreamPhysicalIntermediateTableScan |
-           _: StreamPhysicalLegacyTableSourceScan | _: StreamPhysicalTableSourceScan =>
+          _: StreamPhysicalLegacyTableSourceScan | _: StreamPhysicalTableSourceScan =>
         val scan = rel.asInstanceOf[TableScan]
         val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
         val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
@@ -241,10 +256,11 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   /**
-    * Reset the intermediate result including newOutputNode and outputTableName
-    *
-    * @param block the [[RelNodeBlock]] instance.
-    */
+   * Reset the intermediate result including newOutputNode and outputTableName
+   *
+   * @param block
+   *   the [[RelNodeBlock]] instance.
+   */
   private def resetIntermediateResult(block: RelNodeBlock): Unit = {
     block.setNewOutputNode(null)
     block.setOutputTableName(null)
@@ -268,7 +284,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(relNode)
     val windowProperties = fmq.getRelWindowProperties(relNode)
-    val statistic = FlinkStatistic.builder()
+    val statistic = FlinkStatistic
+      .builder()
       .uniqueKeys(uniqueKeys)
       .relModifiedMonotonicity(monotonicity)
       .relWindowProperties(windowProperties)
@@ -287,12 +304,11 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
-      uniqueKeys.filter(_.nonEmpty).map { uniqueKey =>
-        val keys = new util.HashSet[String]()
-        uniqueKey.asList().foreach { idx =>
-          keys.add(rowType.getFieldNames.get(idx))
-        }
-        keys
+      uniqueKeys.filter(_.nonEmpty).map {
+        uniqueKey =>
+          val keys = new util.HashSet[String]()
+          uniqueKey.asList().foreach(idx => keys.add(rowType.getFieldNames.get(idx)))
+          keys
       }
     } else {
       null

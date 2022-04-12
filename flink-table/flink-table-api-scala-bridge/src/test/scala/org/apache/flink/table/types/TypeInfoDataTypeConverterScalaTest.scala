@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.types
 
 import org.apache.flink.api.scala.createTypeInformation
@@ -31,9 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
-/**
- * Scala tests for [[TypeInfoDataTypeConverter]].
- */
+/** Scala tests for [[TypeInfoDataTypeConverter]]. */
 @RunWith(classOf[Parameterized])
 class TypeInfoDataTypeConverterScalaTest(testSpec: TypeInfoDataTypeConverterTest.TestSpec) {
 
@@ -58,7 +55,8 @@ object TypeInfoDataTypeConverterScalaTest {
               "primitiveIntField",
               DataTypes.INT().notNull().bridgedTo(java.lang.Integer.TYPE)),
             DataTypes.FIELD("doubleField", DataTypes.DOUBLE().notNull()),
-            DataTypes.FIELD("stringField", DataTypes.STRING().nullable()))
+            DataTypes.FIELD("stringField", DataTypes.STRING().nullable())
+          )
           .notNull()),
     TestSpec
       .forType(createTypeInformation[(java.lang.Double, java.lang.Float)])
@@ -80,8 +78,8 @@ object TypeInfoDataTypeConverterScalaTest {
   // ----------------------------------------------------------------------------------------------
 
   case class ScalaCaseClass(
-    primitiveIntField: Int,
-    doubleField: java.lang.Double,
-    stringField: String
+      primitiveIntField: Int,
+      doubleField: java.lang.Double,
+      stringField: String
   )
 }

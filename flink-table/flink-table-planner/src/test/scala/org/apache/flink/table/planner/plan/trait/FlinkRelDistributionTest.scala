@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.`trait`
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.util.ImmutableIntList
-import org.apache.calcite.util.mapping.{MappingType, Mappings}
+import org.apache.calcite.util.mapping.{Mappings, MappingType}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
 
@@ -48,12 +48,12 @@ class FlinkRelDistributionTest {
 
     val rangeAsc1 = FlinkRelDistribution.range(new RelFieldCollation(1, Direction.ASCENDING))
     val rangeDesc1 = FlinkRelDistribution.range(new RelFieldCollation(1, Direction.DESCENDING))
-    val range12 = FlinkRelDistribution.range(
-      new RelFieldCollation(1), new RelFieldCollation(2))
-    val range21 = FlinkRelDistribution.range(
-      new RelFieldCollation(2), new RelFieldCollation(1))
+    val range12 = FlinkRelDistribution.range(new RelFieldCollation(1), new RelFieldCollation(2))
+    val range21 = FlinkRelDistribution.range(new RelFieldCollation(2), new RelFieldCollation(1))
     val range123 = FlinkRelDistribution.range(
-      new RelFieldCollation(1), new RelFieldCollation(2), new RelFieldCollation(3))
+      new RelFieldCollation(1),
+      new RelFieldCollation(2),
+      new RelFieldCollation(3))
     assertFalse(rangeAsc1.satisfies(rangeDesc1))
     assertTrue(rangeAsc1.satisfies(rangeAsc1))
     assertTrue(rangeDesc1.satisfies(rangeDesc1))
@@ -134,31 +134,35 @@ class FlinkRelDistributionTest {
     mapping.set(2, 1)
     val finalMapping = mapping.inverse()
     val hash1 = FlinkRelDistribution.hash(ImmutableIntList.of(1), requireStrict = false)
-    assertEquals(FlinkRelDistribution.hash(ImmutableIntList.of(2), requireStrict = false),
+    assertEquals(
+      FlinkRelDistribution.hash(ImmutableIntList.of(2), requireStrict = false),
       hash1.apply(finalMapping))
     val hash2 = FlinkRelDistribution.hash(ImmutableIntList.of(2), requireStrict = false)
     assertEquals(FlinkRelDistribution.ANY, hash2.apply(finalMapping))
     val hash12 = FlinkRelDistribution.hash(ImmutableIntList.of(1, 2), requireStrict = false)
     assertEquals(FlinkRelDistribution.ANY, hash12.apply(finalMapping))
     val hash01 = FlinkRelDistribution.hash(ImmutableIntList.of(0, 1), requireStrict = false)
-    assertEquals(FlinkRelDistribution.hash(ImmutableIntList.of(6, 2), requireStrict = false),
+    assertEquals(
+      FlinkRelDistribution.hash(ImmutableIntList.of(6, 2), requireStrict = false),
       hash01.apply(finalMapping))
     val strictHash01 = FlinkRelDistribution.hash(ImmutableIntList.of(0, 1))
-    assertEquals(FlinkRelDistribution.hash(ImmutableIntList.of(6, 2)),
+    assertEquals(
+      FlinkRelDistribution.hash(ImmutableIntList.of(6, 2)),
       strictHash01.apply(finalMapping))
 
     val rangeAsc1 = FlinkRelDistribution.range(new RelFieldCollation(1, Direction.ASCENDING))
-    assertEquals(FlinkRelDistribution.range(new RelFieldCollation(2)),
+    assertEquals(
+      FlinkRelDistribution.range(new RelFieldCollation(2)),
       rangeAsc1.apply(finalMapping))
     val rangeDesc1 = FlinkRelDistribution.range(new RelFieldCollation(1, Direction.DESCENDING))
-    assertEquals(FlinkRelDistribution.range(new RelFieldCollation(2, Direction.DESCENDING)),
+    assertEquals(
+      FlinkRelDistribution.range(new RelFieldCollation(2, Direction.DESCENDING)),
       rangeDesc1.apply(finalMapping))
-    val range12 = FlinkRelDistribution.range(
-      new RelFieldCollation(1), new RelFieldCollation(2))
+    val range12 = FlinkRelDistribution.range(new RelFieldCollation(1), new RelFieldCollation(2))
     assertEquals(FlinkRelDistribution.ANY, range12.apply(finalMapping))
-    val range01 = FlinkRelDistribution.range(
-      new RelFieldCollation(0), new RelFieldCollation(1))
-    assertEquals(FlinkRelDistribution.range(new RelFieldCollation(6), new RelFieldCollation(2)),
+    val range01 = FlinkRelDistribution.range(new RelFieldCollation(0), new RelFieldCollation(1))
+    assertEquals(
+      FlinkRelDistribution.range(new RelFieldCollation(6), new RelFieldCollation(2)),
       range01.apply(finalMapping))
   }
 

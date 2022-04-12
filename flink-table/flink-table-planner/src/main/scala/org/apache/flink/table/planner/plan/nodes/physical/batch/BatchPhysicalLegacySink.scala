@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -35,7 +34,8 @@ import java.util
 /**
  * Batch physical RelNode to to write data into an external sink defined by a [[TableSink]].
  *
- * @tparam T The return type of the [[TableSink]].
+ * @tparam T
+ *   The return type of the [[TableSink]].
  */
 class BatchPhysicalLegacySink[T](
     cluster: RelOptCluster,

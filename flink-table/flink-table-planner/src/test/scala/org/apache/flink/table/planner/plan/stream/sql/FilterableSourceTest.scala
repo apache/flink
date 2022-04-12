@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.{Before, Test}
 
-/**
- * Tests for pushing filter into table scan
- */
+/** Tests for pushing filter into table scan */
 class FilterableSourceTest extends TableTestBase {
   private val util = streamTestUtil()
 
@@ -123,8 +121,7 @@ class FilterableSourceTest extends TableTestBase {
         |""".stripMargin
 
     util.tableEnv.executeSql(ddl)
-    util.verifyExecPlan(
-      "SELECT * FROM WithWatermark WHERE lowercase_name = 'foo'")
+    util.verifyExecPlan("SELECT * FROM WithWatermark WHERE lowercase_name = 'foo'")
   }
 
   @Test
@@ -134,21 +131,21 @@ class FilterableSourceTest extends TableTestBase {
     util.tableEnv.createTemporarySystemFunction("func", new JavaFunc5)
     val ddl =
       """
-         | CREATE Table UdfTable (
-         |   a INT,
-         |   b BIGINT,
-         |   c timestamp(3),
-         |   d as func(c, a),
-         |   f STRING,
-         |   WATERMARK FOR c as func(func(d, a), a)
-         | ) with (
-         |   'connector' = 'values',
-         |   'bounded' = 'false',
-         |   'filterable-fields' = 'f',
-         |   'enable-watermark-push-down' = 'true',
-         |   'disable-lookup' = 'true'
-         | )
-         |""".stripMargin
+        | CREATE Table UdfTable (
+        |   a INT,
+        |   b BIGINT,
+        |   c timestamp(3),
+        |   d as func(c, a),
+        |   f STRING,
+        |   WATERMARK FOR c as func(func(d, a), a)
+        | ) with (
+        |   'connector' = 'values',
+        |   'bounded' = 'false',
+        |   'filterable-fields' = 'f',
+        |   'enable-watermark-push-down' = 'true',
+        |   'disable-lookup' = 'true'
+        | )
+        |""".stripMargin
     util.tableEnv.executeSql(ddl)
     util.verifyExecPlan("SELECT * FROM UdfTable WHERE UPPER(f) = 'welcome'")
   }

@@ -130,7 +130,6 @@ class SemiAntiJoinTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-
   @Test
   def testInWithUncorrelated_Having(): Unit = {
     val sqlQuery =

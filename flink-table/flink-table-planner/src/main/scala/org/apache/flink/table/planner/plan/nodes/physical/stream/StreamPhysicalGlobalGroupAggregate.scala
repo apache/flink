@@ -25,14 +25,15 @@ import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
 
 /**
  * Stream physical RelNode for unbounded global group aggregate.
  *
- * @see [[StreamPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[StreamPhysicalGroupAggregateBase]] for more info.
  */
 class StreamPhysicalGlobalGroupAggregate(
     cluster: RelOptCluster,
@@ -59,7 +60,8 @@ class StreamPhysicalGlobalGroupAggregate(
     needRetraction,
     indexOfCountStar,
     isStateBackendDataViews = false,
-    needDistinctInfo = true)
+    needDistinctInfo = true
+  )
 
   lazy val globalAggInfoList: AggregateInfoList = AggregateUtil.transformToStreamAggregateInfoList(
     unwrapTypeFactory(inputRel),
@@ -69,7 +71,8 @@ class StreamPhysicalGlobalGroupAggregate(
     needRetraction,
     indexOfCountStar,
     isStateBackendDataViews = true,
-    needDistinctInfo = true)
+    needDistinctInfo = true
+  )
 
   override def requireWatermark: Boolean = false
 
@@ -91,16 +94,21 @@ class StreamPhysicalGlobalGroupAggregate(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRel.getRowType), grouping.nonEmpty)
+    super
+      .explainTerms(pw)
+      .itemIf(
+        "groupBy",
+        RelExplainUtil.fieldToString(grouping, inputRel.getRowType),
+        grouping.nonEmpty)
       .itemIf("partialFinalType", partialFinalType, partialFinalType != PartialFinalType.NONE)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRel.getRowType,
-        getRowType,
-        globalAggInfoList,
-        grouping,
-        isGlobal = true))
+      .item(
+        "select",
+        RelExplainUtil.streamGroupAggregationToString(
+          inputRel.getRowType,
+          getRowType,
+          globalAggInfoList,
+          grouping,
+          isGlobal = true))
       .itemIf("indexOfCountStar", indexOfCountStar.getOrElse(-1), indexOfCountStar.nonEmpty)
   }
 

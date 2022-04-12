@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
@@ -27,13 +26,11 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
 import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
+import org.apache.calcite.util.mapping.{Mapping, Mappings, MappingType}
 
 import scala.collection.JavaConversions._
 
-/**
-  * Base batch physical RelNode for [[Calc]].
-  */
+/** Base batch physical RelNode for [[Calc]]. */
 abstract class BatchPhysicalCalcBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -54,8 +51,10 @@ abstract class BatchPhysicalCalcBase(
     val projects = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
     def getProjectMapping: Mapping = {
-      val mapping = Mappings.create(MappingType.INVERSE_FUNCTION,
-        getInput.getRowType.getFieldCount, projects.size)
+      val mapping = Mappings.create(
+        MappingType.INVERSE_FUNCTION,
+        getInput.getRowType.getFieldCount,
+        projects.size)
       projects.zipWithIndex.foreach {
         case (project, index) =>
           project match {

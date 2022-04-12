@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -40,38 +39,88 @@ abstract class JoinReorderTestBase extends TableTestBase {
   def setup(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)
 
-    util.addTableSource("T1", types, Array("a1", "b1", "c1"), FlinkStatistic.builder()
-      .tableStats(new TableStats(1000000L, Map(
-        "a1" -> new ColumnStats(1000000L, 0L, 4.0, 4, null, null),
-        "b1" -> new ColumnStats(10L, 0L, 8.0, 8, null, null)
-      ))).build())
+    util.addTableSource(
+      "T1",
+      types,
+      Array("a1", "b1", "c1"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            1000000L,
+            Map(
+              "a1" -> new ColumnStats(1000000L, 0L, 4.0, 4, null, null),
+              "b1" -> new ColumnStats(10L, 0L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
 
-    util.addTableSource("T2", types, Array("a2", "b2", "c2"), FlinkStatistic.builder()
-      .tableStats(new TableStats(10000L, Map(
-        "a2" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
-        "b2" -> new ColumnStats(5000L, 0L, 8.0, 8, null, null)
-      ))).build())
+    util.addTableSource(
+      "T2",
+      types,
+      Array("a2", "b2", "c2"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            10000L,
+            Map(
+              "a2" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
+              "b2" -> new ColumnStats(5000L, 0L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
 
-    util.addTableSource("T3", types, Array("a3", "b3", "c3"), FlinkStatistic.builder()
-      .tableStats(new TableStats(10L, Map(
-        "a3" -> new ColumnStats(5L, 0L, 4.0, 4, null, null),
-        "b3" -> new ColumnStats(2L, 0L, 8.0, 8, null, null)
-      ))).build())
+    util.addTableSource(
+      "T3",
+      types,
+      Array("a3", "b3", "c3"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            10L,
+            Map(
+              "a3" -> new ColumnStats(5L, 0L, 4.0, 4, null, null),
+              "b3" -> new ColumnStats(2L, 0L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
 
-    util.addTableSource("T4", types, Array("a4", "b4", "c4"), FlinkStatistic.builder()
-      .tableStats(new TableStats(100L, Map(
-        "a4" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
-        "b4" -> new ColumnStats(20L, 0L, 8.0, 8, null, null)
-      ))).build())
+    util.addTableSource(
+      "T4",
+      types,
+      Array("a4", "b4", "c4"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            100L,
+            Map(
+              "a4" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
+              "b4" -> new ColumnStats(20L, 0L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
 
-    util.addTableSource("T5", types, Array("a5", "b5", "c5"), FlinkStatistic.builder()
-      .tableStats(new TableStats(500000L, Map(
-        "a5" -> new ColumnStats(200000L, 0L, 4.0, 4, null, null),
-        "b5" -> new ColumnStats(200L, 0L, 8.0, 8, null, null)
-      ))).build())
+    util.addTableSource(
+      "T5",
+      types,
+      Array("a5", "b5", "c5"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            500000L,
+            Map(
+              "a5" -> new ColumnStats(200000L, 0L, 4.0, 4, null, null),
+              "b5" -> new ColumnStats(200L, 0L, 8.0, 8, null, null)
+            )))
+        .build()
+    )
 
-    util.getTableEnv.getConfig.set(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, Boolean.box(true))
+    util.getTableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, Boolean.box(true))
   }
 
   @Test
@@ -237,37 +286,66 @@ abstract class JoinReorderTestBase extends TableTestBase {
   @Test
   def testDeriveNullFilterAfterJoinReorder(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
-    val builderA = ColumnStats.Builder.builder()
+    val builderA = ColumnStats.Builder
+      .builder()
       .setNdv(200000L)
       .setNullCount(50000L)
       .setAvgLen(4.0)
       .setMaxLen(4)
-    val builderB = ColumnStats.Builder.builder()
+    val builderB = ColumnStats.Builder
+      .builder()
       .setNdv(100000L)
       .setNullCount(0L)
       .setAvgLen(8.0)
       .setMaxLen(8)
 
-    util.addTableSource("T6", types, Array("a6", "b6"), FlinkStatistic.builder()
-      .tableStats(new TableStats(500000L, Map(
-        "a6" -> builderA.build(),
-        "b6" -> builderB.build()
-      ))).build())
+    util.addTableSource(
+      "T6",
+      types,
+      Array("a6", "b6"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            500000L,
+            Map(
+              "a6" -> builderA.build(),
+              "b6" -> builderB.build()
+            )))
+        .build())
 
-    util.addTableSource("T7", types, Array("a7", "b7"), FlinkStatistic.builder()
-      .tableStats(new TableStats(500000L, Map(
-        "a7" -> builderA.build(),
-        "b7" -> builderB.build()
-      ))).build())
+    util.addTableSource(
+      "T7",
+      types,
+      Array("a7", "b7"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            500000L,
+            Map(
+              "a7" -> builderA.build(),
+              "b7" -> builderB.build()
+            )))
+        .build())
 
-    util.addTableSource("T8", types, Array("a8", "b8"), FlinkStatistic.builder()
-      .tableStats(new TableStats(500000L, Map(
-        "a8" -> builderA.build(),
-        "b8" -> builderB.build()
-      ))).build())
+    util.addTableSource(
+      "T8",
+      types,
+      Array("a8", "b8"),
+      FlinkStatistic
+        .builder()
+        .tableStats(
+          new TableStats(
+            500000L,
+            Map(
+              "a8" -> builderA.build(),
+              "b8" -> builderB.build()
+            )))
+        .build())
 
-    util.getTableEnv.getConfig.set(
-      JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
+    util.getTableEnv.getConfig
+      .set(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
     val sql =
       s"""
          |SELECT * FROM T6

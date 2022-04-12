@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.hadoop.mapred
 
 import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormatBase
+
 import org.apache.hadoop.mapred.{JobConf, OutputCommitter, OutputFormat}
 
 @Public

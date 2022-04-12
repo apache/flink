@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -34,9 +33,9 @@ import java.util.Collections
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Join]] that is a relational expression
-  * which combines two relational expressions according to some condition in Flink.
-  */
+ * Sub-class of [[Join]] that is a relational expression which combines two relational expressions
+ * according to some condition in Flink.
+ */
 class FlinkLogicalJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -44,8 +43,15 @@ class FlinkLogicalJoin(
     right: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, Collections.emptyList[RelHint](),
-    left, right, condition, Set.empty[CorrelationId], joinType)
+  extends Join(
+    cluster,
+    traitSet,
+    Collections.emptyList[RelHint](),
+    left,
+    right,
+    condition,
+    Set.empty[CorrelationId],
+    joinType)
   with FlinkLogicalRel {
 
   override def copy(
@@ -79,9 +85,7 @@ class FlinkLogicalJoin(
 
 }
 
-/**
-  * Support all joins.
-  */
+/** Support all joins. */
 private class FlinkLogicalJoinConverter
   extends ConverterRule(
     classOf[LogicalJoin],

@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestLegacyFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestInputFormatTableSource, TestLegacyFilterableTableSource, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -44,7 +43,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
       Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
       Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
+      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001))
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -54,20 +54,24 @@ class LegacyTableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime"))
 
     val result = tEnv.sqlQuery("SELECT name, val, id FROM T").toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "Mary,10,1",
-      "Bob,20,2",
-      "Mike,30,3",
-      "Liz,40,4")
+    val expected = Seq("Mary,10,1", "Bob,20,2", "Mike,30,3", "Liz,40,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -77,20 +81,28 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
       Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
       Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
+      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001))
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(
-        Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime"))
 
     val result = tEnv.sqlQuery("SELECT rtime, name, id FROM T").toAppendStream[Row]
     val sink = new TestingAppendSink
@@ -111,7 +123,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
       Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
       Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
+      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001))
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -121,9 +134,17 @@ class LegacyTableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime"))
 
     val sqlQuery = "SELECT name, id FROM T"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -131,11 +152,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "Mary,1",
-      "Bob,2",
-      "Mike,3",
-      "Liz,4")
+    val expected = Seq("Mary,1", "Bob,2", "Mike,3", "Liz,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -144,7 +161,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
       Row.of(new JInt(2), new JLong(2L), new JLong(20L), "Bob"),
       Row.of(new JInt(3), new JLong(2L), new JLong(30L), "Mike"),
-      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz"))
+      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz")
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -154,9 +172,17 @@ class LegacyTableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime"))
 
     val sqlQuery = "SELECT COUNT(1) FROM T WHERE ptime > 0"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -173,7 +199,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
       Row.of(new JInt(2), new JLong(2L), new JLong(20L), "Bob"),
       Row.of(new JInt(3), new JLong(2L), new JLong(30L), "Mike"),
-      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz"))
+      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz")
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -183,9 +210,17 @@ class LegacyTableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime"))
 
     val result = tEnv.sqlQuery("SELECT rtime FROM T").toAppendStream[Row]
     val sink = new TestingAppendSink
@@ -206,7 +241,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Row.of(new JLong(1), new JInt(1), "Mary", new JLong(10)),
       Row.of(new JLong(2), new JInt(2), "Bob", new JLong(20)),
       Row.of(new JLong(2), new JInt(3), "Mike", new JLong(30)),
-      Row.of(new JLong(2001), new JInt(4), "Liz", new JLong(40)))
+      Row.of(new JLong(2001), new JInt(4), "Liz", new JLong(40))
+    )
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -217,10 +253,18 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Array("p-rtime", "p-id", "p-name", "p-val"))
     val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestLegacyProjectableTableSource(
-        false, tableSchema, returnType, data, "rtime", "ptime", mapping))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestLegacyProjectableTableSource(
+          false,
+          tableSchema,
+          returnType,
+          data,
+          "rtime",
+          "ptime",
+          mapping))
 
     val result = tEnv.sqlQuery("SELECT name, rtime, val FROM T").toAppendStream[Row]
     val sink = new TestingAppendSink
@@ -238,27 +282,31 @@ class LegacyTableSourceITCase extends StreamingTestBase {
   @Test
   def testNestedProject(): Unit = {
     val data = Seq(
-      Row.of(new JLong(1),
+      Row.of(
+        new JLong(1),
         Row.of(
           Row.of("Sarah", new JInt(100)),
           Row.of(new JInt(1000), new JBool(true))
         ),
         Row.of("Peter", new JInt(10000)),
         "Mary"),
-      Row.of(new JLong(2),
+      Row.of(
+        new JLong(2),
         Row.of(
           Row.of("Rob", new JInt(200)),
           Row.of(new JInt(2000), new JBool(false))
         ),
         Row.of("Lucy", new JInt(20000)),
         "Bob"),
-      Row.of(new JLong(3),
+      Row.of(
+        new JLong(3),
         Row.of(
           Row.of("Mike", new JInt(300)),
           Row.of(new JInt(3000), new JBool(true))
         ),
         Row.of("Betty", new JInt(30000)),
-        "Liz"))
+        "Liz")
+    )
 
     val nested1 = new RowTypeInfo(
       Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
@@ -280,9 +328,11 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestNestedProjectableTableSource(false, tableSchema, returnType, data))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestNestedProjectableTableSource(false, tableSchema, returnType, data))
 
     val sqlQuery =
       """
@@ -298,10 +348,8 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,Sarah,10000,true,1000",
-      "2,Rob,20000,false,2000",
-      "3,Mike,30000,true,3000")
+    val expected =
+      Seq("1,Sarah,10000,true,1000", "2,Rob,20000,false,2000", "3,Mike,30000,true,3000")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -340,17 +388,15 @@ class LegacyTableSourceITCase extends StreamingTestBase {
   def testCsvTableSource(): Unit = {
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "persons")
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(
-      "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
+    tEnv
+      .sqlQuery("SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
       .toAppendStream[Row]
       .addSink(sink)
 
     env.execute()
 
-    val expected = mutable.MutableList(
-      "1,Mike,Smith,12.3",
-      "2,Bob,Taylor,45.6",
-      "3,Sam,Miller,7.89")
+    val expected =
+      mutable.MutableList("1,Mike,Smith,12.3", "2,Bob,Taylor,45.6", "3,Sam,Miller,7.89")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -384,11 +430,15 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
   @Test
   def testInputFormatSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+    val tableSchema = TableSchema
+      .builder()
+      .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
+      .build()
     TestInputFormatTableSource.createTemporaryTable(
-      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
+      tEnv,
+      tableSchema,
+      TestData.smallData3,
+      "MyInputFormatTable")
     val sink = new TestingAppendSink()
     tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
 
@@ -404,13 +454,12 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
   @Test
   def testDecimalSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d"),
-      Array(
-        DataTypes.INT(),
-        DataTypes.DECIMAL(5, 2),
-        DataTypes.VARCHAR(5),
-        DataTypes.CHAR(5))).build()
+    val tableSchema = TableSchema
+      .builder()
+      .fields(
+        Array("a", "b", "c", "d"),
+        Array(DataTypes.INT(), DataTypes.DECIMAL(5, 2), DataTypes.VARCHAR(5), DataTypes.CHAR(5)))
+      .build()
 
     val data = Seq(
       row(1, new java.math.BigDecimal(5.1), "1", "1"),
@@ -434,9 +483,9 @@ class LegacyTableSourceITCase extends StreamingTestBase {
   }
 
   /**
-    * StreamTableSource must use type info in DataStream, so it will lose precision.
-    * Just support default precision decimal.
-    */
+   * StreamTableSource must use type info in DataStream, so it will lose precision. Just support
+   * default precision decimal.
+   */
   @Test
   def testLegacyDecimalSourceUsingStreamTableSource(): Unit = {
     val tableSchema = new TableSchema(

@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData, TimestampData}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 import org.apache.flink.table.utils.DateTimeUtils
 
 import org.apache.calcite.rex.RexNode
@@ -40,11 +39,11 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import scala.collection.JavaConversions._
 
 /**
-  * Utility class for partition pruning.
-  *
-  * Creates partition filter instance (a [[RichMapFunction]]) with partition predicates by code-gen,
-  * and then evaluates all partition values against the partition filter to get final partitions.
-  */
+ * Utility class for partition pruning.
+ *
+ * Creates partition filter instance (a [[RichMapFunction]]) with partition predicates by code-gen,
+ * and then evaluates all partition values against the partition filter to get final partitions.
+ */
 object PartitionPruner {
 
   // current supports partition field type
@@ -66,14 +65,19 @@ object PartitionPruner {
   )
 
   /**
-    * get pruned partitions from all partitions by partition filters
-    *
-    * @param partitionFieldNames Partition field names.
-    * @param partitionFieldTypes Partition field types.
-    * @param allPartitions       All partition values.
-    * @param partitionPredicate  A predicate that will be applied against partition values.
-    * @return Pruned partitions.
-    */
+   * get pruned partitions from all partitions by partition filters
+   *
+   * @param partitionFieldNames
+   *   Partition field names.
+   * @param partitionFieldTypes
+   *   Partition field types.
+   * @param allPartitions
+   *   All partition values.
+   * @param partitionPredicate
+   *   A predicate that will be applied against partition values.
+   * @return
+   *   Pruned partitions.
+   */
   def prunePartitions(
       tableConfig: TableConfig,
       partitionFieldNames: Array[String],
@@ -123,27 +127,24 @@ object PartitionPruner {
     try {
       richMapFunction.open(new Configuration)
       // do filter against all partitions
-      allPartitions.foreach { partition =>
-        val row = convertPartitionToRow(
-          TableConfigUtils.getLocalTimeZone(tableConfig),
-          partitionFieldNames,
-          partitionFieldTypes,
-          partition)
-        collector.collect(richMapFunction.map(row))
+      allPartitions.foreach {
+        partition =>
+          val row = convertPartitionToRow(
+            TableConfigUtils.getLocalTimeZone(tableConfig),
+            partitionFieldNames,
+            partitionFieldTypes,
+            partition)
+          collector.collect(richMapFunction.map(row))
       }
     } finally {
       richMapFunction.close()
     }
 
     // get pruned partitions
-    allPartitions.zipWithIndex.filter {
-      case (_, index) => results.get(index)
-    }.map(_._1)
+    allPartitions.zipWithIndex.filter { case (_, index) => results.get(index) }.map(_._1)
   }
 
-  /**
-    * create new Row from partition, set partition values to corresponding positions of row.
-    */
+  /** create new Row from partition, set partition values to corresponding positions of row. */
   private def convertPartitionToRow(
       timeZone: ZoneId,
       partitionFieldNames: Array[String],
@@ -158,10 +159,7 @@ object PartitionPruner {
     row
   }
 
-  private def convertPartitionFieldValue(
-      timeZone: ZoneId,
-      v: String,
-      t: LogicalType): Any = {
+  private def convertPartitionFieldValue(timeZone: ZoneId, v: String, t: LogicalType): Any = {
     if (v == null) {
       return null
     }
@@ -181,12 +179,13 @@ object PartitionPruner {
       case TIME_WITHOUT_TIME_ZONE => DateTimeUtils.parseTime(v)
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         DateTimeUtils.parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
-        DateTimeUtils
-          .parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
-          .toLocalDateTime
-          .atZone(timeZone)
-          .toInstant)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        TimestampData.fromInstant(
+          DateTimeUtils
+            .parseTimestampData(v, LogicalTypeChecks.getPrecision(t))
+            .toLocalDateTime
+            .atZone(timeZone)
+            .toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }

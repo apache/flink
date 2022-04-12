@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -62,24 +61,30 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   @Test
   def testTemporalTypeEqualsInvalidStringLiteral(): Unit = {
     testExpectedSqlException(
-      "f15 = 'invalid'", "Error when casting CHAR(7) NOT NULL to DATE",
+      "f15 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to DATE",
       classOf[ValidationException])
     testExpectedSqlException(
-      "'invalid' = f15", "Error when casting CHAR(7) NOT NULL to DATE",
-      classOf[ValidationException])
-
-    testExpectedSqlException(
-      "f21 = 'invalid'", "Error when casting CHAR(7) NOT NULL to TIME",
-      classOf[ValidationException])
-    testExpectedSqlException(
-      "'invalid' = f21", "Error when casting CHAR(7) NOT NULL to TIME",
+      "'invalid' = f15",
+      "Error when casting CHAR(7) NOT NULL to DATE",
       classOf[ValidationException])
 
     testExpectedSqlException(
-      "f22 = 'invalid'", "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      "f21 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to TIME",
       classOf[ValidationException])
     testExpectedSqlException(
-      "'invalid' = f22", "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      "'invalid' = f21",
+      "Error when casting CHAR(7) NOT NULL to TIME",
+      classOf[ValidationException])
+
+    testExpectedSqlException(
+      "f22 = 'invalid'",
+      "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
+      classOf[ValidationException])
+    testExpectedSqlException(
+      "'invalid' = f22",
+      "Error when casting CHAR(7) NOT NULL to TIMESTAMP(6)",
       classOf[ValidationException])
   }
 }

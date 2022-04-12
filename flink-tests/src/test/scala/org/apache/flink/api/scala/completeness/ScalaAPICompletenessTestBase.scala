@@ -17,17 +17,18 @@
  */
 package org.apache.flink.api.scala.completeness
 
-import java.lang.reflect.Method
-
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert._
 import org.junit.Test
+
+import java.lang.reflect.Method
 
 import scala.language.existentials
 
 /**
- * Test base for checking whether the Scala API is up to feature parity with the Java API.
- * Right now is very simple, it is only checked whether a method with the same name exists.
+ * Test base for checking whether the Scala API is up to feature parity with the Java API. Right now
+ * is very simple, it is only checked whether a method with the same name exists.
  *
  * When adding excluded methods to the lists you should give a good reason in a comment.
  *
@@ -35,14 +36,10 @@ import scala.language.existentials
  */
 abstract class ScalaAPICompletenessTestBase extends TestLogger {
 
-  /**
-   * Determines whether a method is excluded by name.
-   */
+  /** Determines whether a method is excluded by name. */
   protected def isExcludedByName(method: Method): Boolean
 
-  /**
-   * Utility to be called during the test.
-   */
+  /** Utility to be called during the test. */
   protected def checkMethods(
       javaClassName: String,
       scalaClassName: String,
@@ -51,12 +48,14 @@ abstract class ScalaAPICompletenessTestBase extends TestLogger {
     val javaMethods = javaClass.getMethods
       .filterNot(_.isAccessible)
       .filterNot(isExcludedByName)
-      .map(m => m.getName).toSet
+      .map(m => m.getName)
+      .toSet
 
     val scalaMethods = scalaClass.getMethods
       .filterNot(_.isAccessible)
       .filterNot(isExcludedByName)
-      .map(m => m.getName).toSet
+      .map(m => m.getName)
+      .toSet
 
     val missingMethods = javaMethods -- scalaMethods
 
@@ -77,10 +76,8 @@ abstract class ScalaAPICompletenessTestBase extends TestLogger {
       false
     }
   }
-  
-  /**
-   * Tests to be performed to ensure API completeness.
-   */
+
+  /** Tests to be performed to ensure API completeness. */
   @Test
   protected def testCompleteness(): Unit
 }

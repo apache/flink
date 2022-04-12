@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
@@ -31,9 +30,7 @@ import org.apache.calcite.rex.RexNode
 
 import scala.collection.JavaConversions._
 
-/**
- * Stream physical RelNode for [[WatermarkAssigner]].
- */
+/** Stream physical RelNode for [[WatermarkAssigner]]. */
 class StreamPhysicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -53,20 +50,20 @@ class StreamPhysicalWatermarkAssigner(
     new StreamPhysicalWatermarkAssigner(cluster, traitSet, input, rowtime, watermark)
   }
 
-  /**
-   * Fully override this method to have a better display name of this RelNode.
-   */
+  /** Fully override this method to have a better display name of this RelNode. */
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inFieldNames = inputRel.getRowType.getFieldNames.toList
     val rowtimeFieldName = inFieldNames(rowtimeFieldIndex)
     pw.input("input", getInput())
       .item("rowtime", rowtimeFieldName)
-      .item("watermark", getExpressionString(
-        watermarkExpr,
-        inFieldNames,
-        None,
-        preferExpressionFormat(pw),
-        pw.getDetailLevel))
+      .item(
+        "watermark",
+        getExpressionString(
+          watermarkExpr,
+          inFieldNames,
+          None,
+          preferExpressionFormat(pw),
+          pw.getDetailLevel))
   }
 
   override def translateToExecNode(): ExecNode[_] = {

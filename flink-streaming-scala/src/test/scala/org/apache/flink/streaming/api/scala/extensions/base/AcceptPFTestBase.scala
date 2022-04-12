@@ -21,22 +21,16 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.util.TestLogger
+
 import org.scalatest.junit.JUnitSuiteLike
 
-/**
-  * Common facilities to test the `acceptPartialFunctions` extension
-  */
-private[extensions] abstract class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
+/** Common facilities to test the `acceptPartialFunctions` extension */
+abstract private[extensions] class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {
 
   private val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-  protected val tuples = env.fromElements(
-    1 -> "hello",
-    2 -> "world",
-    3 -> "foo",
-    4 -> "bar",
-    5 -> "baz",
-    6 -> "quux")
+  protected val tuples =
+    env.fromElements(1 -> "hello", 2 -> "world", 3 -> "foo", 4 -> "bar", 5 -> "baz", 6 -> "quux")
   protected val caseObjects = env.fromElements(
     KeyValuePair(1, "hello"),
     KeyValuePair(2, "world"),

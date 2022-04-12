@@ -15,21 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.io
-
-import java.util.Locale
 
 import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.util.FileUtils
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.Assert._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+
+import java.util.Locale
 
 @RunWith(classOf[Parameterized])
 class ScalaCsvReaderWithPOJOITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -104,8 +104,8 @@ class ScalaCsvReaderWithPOJOITCase(mode: TestExecutionMode) extends MultipleProg
   def testPOJOTypeWithFieldsOrderAndFieldsSelection(): Unit = {
     val dataPath = createInputData("2.20,3,ABC\n5.1,5,DEF\n3.30,1,DEF\n3.30,10,GHI")
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val data = env.readCsvFile[POJOItem](dataPath, includedFields = Array(1, 2),
-      pojoFields = Array("f3", "f1"))
+    val data = env
+      .readCsvFile[POJOItem](dataPath, includedFields = Array(1, 2), pojoFields = Array("f3", "f1"))
 
     implicit val typeInfo = createTypeInformation[(String, Int)]
     data.writeAsText(resultPath, WriteMode.OVERWRITE)

@@ -121,11 +121,12 @@ object CalcCodeGenerator {
     condition.foreach(_.accept(ScalarFunctionsValidator))
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
-        .bindInput(inputType, inputTerm = inputTerm)
+      .bindInput(inputType, inputTerm = inputTerm)
 
     val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
-      projection.zipWithIndex.forall { case (rexNode, index) =>
-        rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
+      projection.zipWithIndex.forall {
+        case (rexNode, index) =>
+          rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
       }
 
     def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
@@ -136,10 +137,8 @@ object CalcCodeGenerator {
 
     def produceProjectionCode: String = {
       val projectionExprs = projection.map(exprGenerator.generateExpression)
-      val projectionExpression = exprGenerator.generateResultExpression(
-        projectionExprs,
-        outRowType,
-        outRowClass)
+      val projectionExpression =
+        exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
 
       val projectionExpressionCode = projectionExpression.code
 
@@ -157,8 +156,9 @@ object CalcCodeGenerator {
     }
 
     if (condition.isEmpty && onlyFilter) {
-      throw new TableException("This calc has no useful projection and no filter. " +
-        "It should be removed by CalcRemoveRule.")
+      throw new TableException(
+        "This calc has no useful projection and no filter. " +
+          "It should be removed by CalcRemoveRule.")
     } else if (condition.isEmpty) { // only projection
       val projectionCode = produceProjectionCode
       s"""
@@ -185,7 +185,9 @@ object CalcCodeGenerator {
 
         val projectionInputCode = ctx.reusableInputUnboxingExprs
           .filter(entry => !filterInputSet.contains(entry._1))
-          .values.map(_.code).mkString("\n")
+          .values
+          .map(_.code)
+          .mkString("\n")
         s"""
            |${if (eagerInputUnboxingCode) filterInputCode else ""}
            |${filterCondition.code}

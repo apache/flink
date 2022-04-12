@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -81,7 +80,8 @@ class TableScanITCase extends StreamingTestBase {
       Row.of(Int.box(1), Long.box(11), "Mary"),
       Row.of(Int.box(2), Long.box(12), "Peter"),
       Row.of(Int.box(3), Long.box(13), "Bob"),
-      Row.of(Int.box(4), Long.box(14), "Liz"))
+      Row.of(Int.box(4), Long.box(14), "Liz")
+    )
 
     val schema = new TableSchema(
       Array("key", "rowtime", "payload"),
@@ -142,21 +142,24 @@ class TableScanITCase extends StreamingTestBase {
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    tEnv
+      .sqlQuery(sqlQuery)
+      .toAppendStream[Row]
       // append current watermark to each row to verify that original watermarks were preserved
       .process(new ProcessFunction[Row, Row] {
 
-      override def processElement(
-          value: Row,
-          ctx: ProcessFunction[Row, Row]#Context,
-          out: Collector[Row]): Unit = {
-        val res = new Row(3)
-        res.setField(0, value.getField(0))
-        res.setField(1, value.getField(1))
-        res.setField(2, ctx.timerService().currentWatermark())
-        out.collect(res)
-      }
-    }).addSink(sink)
+        override def processElement(
+            value: Row,
+            ctx: ProcessFunction[Row, Row]#Context,
+            out: Collector[Row]): Unit = {
+          val res = new Row(3)
+          res.setField(0, value.getField(0))
+          res.setField(1, value.getField(1))
+          res.setField(2, ctx.timerService().currentWatermark())
+          out.collect(res)
+        }
+      })
+      .addSink(sink)
     env.execute()
 
     val expected = Seq("1,A,1", "2,B,1", "6,C,10", "6,D,20")

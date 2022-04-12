@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
@@ -32,8 +31,8 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import java.util
 
 /**
- * Stream physical RelNode which normalizes a changelog stream which maybe an upsert stream or
- * a changelog stream containing duplicate events. This node normalize such stream into a regular
+ * Stream physical RelNode which normalizes a changelog stream which maybe an upsert stream or a
+ * changelog stream containing duplicate events. This node normalize such stream into a regular
  * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without
  * duplication.
  */
@@ -61,7 +60,8 @@ class StreamPhysicalChangelogNormalize(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val fieldNames = getRowType.getFieldNames
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
   }
 

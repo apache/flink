@@ -15,31 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
-import java.io.ObjectInputStream
-
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
-import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer.lookupConstructor
+
+import java.io.ObjectInputStream
 
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
 
 /**
-  * This is a non macro-generated, concrete Scala case class serializer.
-  *
-  * <p>We need this serializer to replace the previously macro generated,
-  * anonymous [[CaseClassSerializer]].
-  */
+ * This is a non macro-generated, concrete Scala case class serializer.
+ *
+ * <p>We need this serializer to replace the previously macro generated, anonymous
+ * [[CaseClassSerializer]].
+ */
 @SerialVersionUID(1L)
 class ScalaCaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]]
-    ) extends CaseClassSerializer[T](clazz, scalaFieldSerializers)
+) extends CaseClassSerializer[T](clazz, scalaFieldSerializers)
   with SelfResolvingTypeSerializer[T] {
 
   @transient
@@ -100,10 +99,10 @@ object ScalaCaseClassSerializer {
     val primaryConstructorSymbol = classSymbol.toType
       .decl(universe.termNames.CONSTRUCTOR)
       .alternatives
-      .collectFirst({
+      .collectFirst {
         case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
           constructorSymbol
-      })
+      }
       .head
       .asMethod
 

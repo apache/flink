@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
@@ -25,7 +24,7 @@ import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator}
 import org.apache.flink.table.types.DataType
@@ -36,9 +35,7 @@ import org.apache.calcite.rex.RexNode
 import java.io.File
 import java.util
 
-/**
-  * A code generator for generating [[WatermarkGenerator]]s.
-  */
+/** A code generator for generating [[WatermarkGenerator]]s. */
 object WatermarkGeneratorCodeGenerator {
 
   def generateWatermarkGenerator(
@@ -48,8 +45,10 @@ object WatermarkGeneratorCodeGenerator {
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
     // validation
     val watermarkOutputType = FlinkTypeFactory.toLogicalType(watermarkExpr.getType)
-    if (!(watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE ||
-      watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+    if (
+      !(watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE ||
+        watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+    ) {
       throw new CodeGenException(
         "WatermarkGenerator only accepts output data type of TIMESTAMP or TIMESTAMP_LTZ," +
           " but is " + watermarkOutputType)
@@ -68,9 +67,9 @@ object WatermarkGeneratorCodeGenerator {
     if (contextTerm.isDefined) {
       ctx.addReusableMember(
         s"""
-          |private transient ${classOf[WatermarkGeneratorSupplier.Context].getCanonicalName}
-          |${contextTerm.get};
-          |""".stripMargin
+           |private transient ${classOf[WatermarkGeneratorSupplier.Context].getCanonicalName}
+           |${contextTerm.get};
+           |""".stripMargin
       )
       ctx.addReusableInitStatement(
         s"""
@@ -78,7 +77,6 @@ object WatermarkGeneratorCodeGenerator {
            |${contextTerm.get} =
            |(${classOf[WatermarkGeneratorSupplier.Context].getCanonicalName}) references[len-1];
            |""".stripMargin
-
       )
     }
 
@@ -118,32 +116,33 @@ object WatermarkGeneratorCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedWatermarkGenerator(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
+    new GeneratedWatermarkGenerator(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 }
 
 class WatermarkGeneratorFunctionContext(
     tableConfig: ReadableConfig,
-    contextTerm: String = "parameters") extends CodeGeneratorContext(tableConfig) {
+    contextTerm: String = "parameters")
+  extends CodeGeneratorContext(tableConfig) {
 
   override def addReusableFunction(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       runtimeContextTerm: String = null): String = {
     super.addReusableFunction(
-      function, classOf[WatermarkGeneratorCodeGeneratorFunctionContextWrapper], this.contextTerm)
+      function,
+      classOf[WatermarkGeneratorCodeGeneratorFunctionContextWrapper],
+      this.contextTerm)
   }
 
-  override def addReusableConverter(
-      dataType: DataType,
-      classLoaderTerm: String = null): String = {
+  override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
     super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
 }
 
 class WatermarkGeneratorCodeGeneratorFunctionContextWrapper(
-    context: WatermarkGeneratorSupplier.Context) extends FunctionContext(null) {
+    context: WatermarkGeneratorSupplier.Context)
+  extends FunctionContext(null) {
 
   override def getMetricGroup: MetricGroup = context.getMetricGroup
 

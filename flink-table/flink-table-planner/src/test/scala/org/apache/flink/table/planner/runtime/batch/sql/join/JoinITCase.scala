@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
@@ -37,9 +36,9 @@ import org.apache.flink.table.planner.utils.TestingTableEnvironment
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.types.Row
 
+import org.junit.{Assert, Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Test}
 
 import java.util
 
@@ -78,25 +77,24 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testLongJoinWithBigRange(): Unit = {
     registerCollection(
       "inputT1",
-      Seq(
-        row(Long.box(Long.MaxValue), Double.box(1)),
-        row(Long.box(Long.MinValue), Double.box(1))),
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
       new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "a, b")
+      "a, b"
+    )
     registerCollection(
       "inputT2",
-      Seq(
-        row(Long.box(Long.MaxValue), Double.box(1)),
-        row(Long.box(Long.MinValue), Double.box(1))),
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
       new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "c, d")
+      "c, d"
+    )
 
     checkResult(
       "SELECT a, b, c, d FROM inputT1, inputT2 WHERE a = c",
       Seq(
         row(Long.box(Long.MaxValue), Double.box(1), Long.box(Long.MaxValue), Double.box(1)),
         row(Long.box(Long.MinValue), Double.box(1), Long.box(Long.MinValue), Double.box(1))
-      ))
+      )
+    )
   }
 
   @Test
@@ -109,7 +107,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       stmtSet.addInsert("outputTable", table)
       val testingTEnv = tEnv.asInstanceOf[TestingTableEnvironment]
       val testingStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
-      val transforms = testingTEnv.getPlanner.asInstanceOf[PlannerBase]
+      val transforms = testingTEnv.getPlanner
+        .asInstanceOf[PlannerBase]
         .translate(testingStmtSet.getOperations)
       var haveTwoOp = false
 
@@ -122,14 +121,15 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         }
       }
 
-      transforms.map(findTwoInputTransform).foreach { transform =>
-        transform.getOperatorFactory match {
-          case factory: CodeGenOperatorFactory[_] =>
-            if (factory.getGeneratedClass.getCode.contains("LongHashJoinOperator")) {
-              haveTwoOp = true
-            }
-          case _ =>
-        }
+      transforms.map(findTwoInputTransform).foreach {
+        transform =>
+          transform.getOperatorFactory match {
+            case factory: CodeGenOperatorFactory[_] =>
+              if (factory.getGeneratedClass.getCode.contains("LongHashJoinOperator")) {
+                haveTwoOp = true
+              }
+            case _ =>
+          }
       }
       Assert.assertTrue(haveTwoOp)
     }
@@ -138,14 +138,28 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testOneSideSmjFieldError(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
-      registerCollection("PojoSmallTable3", smallData3,
-        new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO,
+      registerCollection(
+        "PojoSmallTable3",
+        smallData3,
+        new RowTypeInfo(
+          INT_TYPE_INFO,
+          LONG_TYPE_INFO,
           new GenericTypeInfoWithoutComparator[String](classOf[String])),
-        "a, b, c", nullablesOfSmallData3)
-      registerCollection("PojoTable5", data5,
-        new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, INT_TYPE_INFO,
-          new GenericTypeInfoWithoutComparator[String](classOf[String]), LONG_TYPE_INFO),
-        "d, e, f, g, h", nullablesOfData5)
+        "a, b, c",
+        nullablesOfSmallData3
+      )
+      registerCollection(
+        "PojoTable5",
+        data5,
+        new RowTypeInfo(
+          INT_TYPE_INFO,
+          LONG_TYPE_INFO,
+          INT_TYPE_INFO,
+          new GenericTypeInfoWithoutComparator[String](classOf[String]),
+          LONG_TYPE_INFO),
+        "d, e, f, g, h",
+        nullablesOfData5
+      )
 
       checkResult(
         "SELECT c, g FROM (SELECT h, g, f, e, d FROM PojoSmallTable3, PojoTable5 WHERE b = e)," +
@@ -156,7 +170,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
           row("Hello", "Hallo Welt"),
           row("Hello world", "Hallo Welt"),
           row("Hello world", "Hallo Welt")
-        ))
+        )
+      )
     }
   }
 
@@ -184,9 +199,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testJoinNoMatches(): Unit = {
-    checkResult(
-      "SELECT c, g FROM SmallTable3, Table5 where c = g",
-      Seq())
+    checkResult("SELECT c, g FROM SmallTable3, Table5 where c = g", Seq())
   }
 
   @Test
@@ -216,7 +229,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("Hello world", "Hallo Welt"),
         row("Hello world, how are you?", "Hallo Welt wie"),
         row("I am fine.", "Hallo Welt wie")
-      ))
+      )
+    )
   }
 
   @Test
@@ -226,7 +240,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(
         row("Hello world, how are you?", "Hallo Welt wie"),
         row("I am fine.", "Hallo Welt wie")
-      ))
+      )
+    )
   }
 
   @Test
@@ -240,7 +255,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("Hello world", "ABC"),
         row("I am fine.", "HIJ"),
         row("I am fine.", "IJK")
-      ))
+      )
+    )
   }
 
   @Test
@@ -256,7 +272,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("2", "Hello world"),
         row("2", "Hello world"),
         row("3", "Hello world")
-      ))
+      )
+    )
   }
 
   @Test
@@ -264,17 +281,33 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = h",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
-        row("Hello world, how are you?", null), row("Luke Skywalker", null),
-        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-        row("NullTuple", null), row("NullTuple", null)
-      ))
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null),
+        row("Luke Skywalker", null),
+        row("Comment#1", null),
+        row("Comment#2", null),
+        row("Comment#3", null),
+        row("Comment#4", null),
+        row("Comment#5", null),
+        row("Comment#6", null),
+        row("Comment#7", null),
+        row("Comment#8", null),
+        row("Comment#9", null),
+        row("Comment#10", null),
+        row("Comment#11", null),
+        row("Comment#12", null),
+        row("Comment#13", null),
+        row("Comment#14", null),
+        row("Comment#15", null),
+        row("NullTuple", null),
+        row("NullTuple", null)
+      )
+    )
   }
 
   @Test
@@ -282,17 +315,34 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b <= h",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
-        row("Hello world, how are you?", null), row("Luke Skywalker", null),
-        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-        row("NullTuple", null), row("NullTuple", null)
-      ))
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("Hello world", "BCD"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null),
+        row("Luke Skywalker", null),
+        row("Comment#1", null),
+        row("Comment#2", null),
+        row("Comment#3", null),
+        row("Comment#4", null),
+        row("Comment#5", null),
+        row("Comment#6", null),
+        row("Comment#7", null),
+        row("Comment#8", null),
+        row("Comment#9", null),
+        row("Comment#10", null),
+        row("Comment#11", null),
+        row("Comment#12", null),
+        row("Comment#13", null),
+        row("Comment#14", null),
+        row("Comment#15", null),
+        row("NullTuple", null),
+        row("NullTuple", null)
+      )
+    )
   }
 
   @Test
@@ -300,17 +350,34 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = 2",
       Seq(
-        row("Hi", null), row("Hello", "Hallo Welt"), row("Hello", "Hallo Welt wie"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("Hello world", "BCD"), row("I am fine.", null),
-        row("Hello world, how are you?", null), row("Luke Skywalker", null),
-        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-        row("NullTuple", null), row("NullTuple", null)
-      ))
+        row("Hi", null),
+        row("Hello", "Hallo Welt"),
+        row("Hello", "Hallo Welt wie"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("Hello world", "BCD"),
+        row("I am fine.", null),
+        row("Hello world, how are you?", null),
+        row("Luke Skywalker", null),
+        row("Comment#1", null),
+        row("Comment#2", null),
+        row("Comment#3", null),
+        row("Comment#4", null),
+        row("Comment#5", null),
+        row("Comment#6", null),
+        row("Comment#7", null),
+        row("Comment#8", null),
+        row("Comment#9", null),
+        row("Comment#10", null),
+        row("Comment#11", null),
+        row("Comment#12", null),
+        row("Comment#13", null),
+        row("Comment#14", null),
+        row("Comment#15", null),
+        row("NullTuple", null),
+        row("NullTuple", null)
+      )
+    )
   }
 
   @Test
@@ -318,14 +385,25 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable3 RIGHT JOIN NullTable5 ON a = d and b = h",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
-        row(null, "Hallo Welt wie"), row(null, "BCD"), row(null, "CDE"),
-        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-        row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
-        row(null, "NullTuple"), row(null, "NullTuple")
-      ))
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK"),
+        row(null, "Hallo Welt wie"),
+        row(null, "BCD"),
+        row(null, "CDE"),
+        row(null, "DEF"),
+        row(null, "EFG"),
+        row(null, "FGH"),
+        row(null, "GHI"),
+        row(null, "JKL"),
+        row(null, "KLM"),
+        row(null, "NullTuple"),
+        row(null, "NullTuple")
+      )
+    )
   }
 
   @Test
@@ -333,17 +411,34 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b <= h",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
-        row("Hello world, how are you?", null), row("Luke Skywalker", null),
-        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-        row("NullTuple", null), row("NullTuple", null)
-      ))
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("Hello world", "BCD"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null),
+        row("Luke Skywalker", null),
+        row("Comment#1", null),
+        row("Comment#2", null),
+        row("Comment#3", null),
+        row("Comment#4", null),
+        row("Comment#5", null),
+        row("Comment#6", null),
+        row("Comment#7", null),
+        row("Comment#8", null),
+        row("Comment#9", null),
+        row("Comment#10", null),
+        row("Comment#11", null),
+        row("Comment#12", null),
+        row("Comment#13", null),
+        row("Comment#14", null),
+        row("Comment#15", null),
+        row("NullTuple", null),
+        row("NullTuple", null)
+      )
+    )
   }
 
   @Test
@@ -351,17 +446,34 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b = 2",
       Seq(
-        row("Hi", null), row("Hello", "Hallo Welt"), row("Hello", "Hallo Welt wie"),
-        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-        row("Hello world", "BCD"), row("I am fine.", null),
-        row("Hello world, how are you?", null), row("Luke Skywalker", null),
-        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-        row("NullTuple", null), row("NullTuple", null)
-      ))
+        row("Hi", null),
+        row("Hello", "Hallo Welt"),
+        row("Hello", "Hallo Welt wie"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("Hello world", "BCD"),
+        row("I am fine.", null),
+        row("Hello world, how are you?", null),
+        row("Luke Skywalker", null),
+        row("Comment#1", null),
+        row("Comment#2", null),
+        row("Comment#3", null),
+        row("Comment#4", null),
+        row("Comment#5", null),
+        row("Comment#6", null),
+        row("Comment#7", null),
+        row("Comment#8", null),
+        row("Comment#9", null),
+        row("Comment#10", null),
+        row("Comment#11", null),
+        row("Comment#12", null),
+        row("Comment#13", null),
+        row("Comment#14", null),
+        row("Comment#15", null),
+        row("NullTuple", null),
+        row("NullTuple", null)
+      )
+    )
   }
 
   @Test
@@ -370,21 +482,44 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       checkResult(
         "SELECT c, g FROM NullTable3 FULL JOIN NullTable5 ON a = d and b = h",
         Seq(
-          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-          row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-          row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
-          row(null, "Hallo Welt wie"), row(null, "BCD"), row(null, "CDE"),
-          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-          row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
-          row("Hello world, how are you?", null), row("Luke Skywalker", null),
-          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-          row("NullTuple", null), row("NullTuple", null),
-          row(null, "NullTuple"), row(null, "NullTuple")
-        ))
+          row("Hi", "Hallo"),
+          row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt wie gehts?"),
+          row("Hello world", "ABC"),
+          row("I am fine.", "HIJ"),
+          row("I am fine.", "IJK"),
+          row(null, "Hallo Welt wie"),
+          row(null, "BCD"),
+          row(null, "CDE"),
+          row(null, "DEF"),
+          row(null, "EFG"),
+          row(null, "FGH"),
+          row(null, "GHI"),
+          row(null, "JKL"),
+          row(null, "KLM"),
+          row("Hello world, how are you?", null),
+          row("Luke Skywalker", null),
+          row("Comment#1", null),
+          row("Comment#2", null),
+          row("Comment#3", null),
+          row("Comment#4", null),
+          row("Comment#5", null),
+          row("Comment#6", null),
+          row("Comment#7", null),
+          row("Comment#8", null),
+          row("Comment#9", null),
+          row("Comment#10", null),
+          row("Comment#11", null),
+          row("Comment#12", null),
+          row("Comment#13", null),
+          row("Comment#14", null),
+          row("Comment#15", null),
+          row("NullTuple", null),
+          row("NullTuple", null),
+          row(null, "NullTuple"),
+          row(null, "NullTuple")
+        )
+      )
     }
   }
 
@@ -395,25 +530,48 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         "SELECT c, g FROM NullTable3 FULL JOIN NullTable5 ON a = d and b <= h",
         Seq(
           // join matcher
-          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
-          row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
-          row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+          row("Hi", "Hallo"),
+          row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt wie gehts?"),
+          row("Hello world", "ABC"),
+          row("Hello world", "BCD"),
+          row("I am fine.", "HIJ"),
+          row("I am fine.", "IJK"),
 
           // preserved left
-          row("Hello world, how are you?", null), row("Luke Skywalker", null),
-          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-          row("NullTuple", null), row("NullTuple", null),
+          row("Hello world, how are you?", null),
+          row("Luke Skywalker", null),
+          row("Comment#1", null),
+          row("Comment#2", null),
+          row("Comment#3", null),
+          row("Comment#4", null),
+          row("Comment#5", null),
+          row("Comment#6", null),
+          row("Comment#7", null),
+          row("Comment#8", null),
+          row("Comment#9", null),
+          row("Comment#10", null),
+          row("Comment#11", null),
+          row("Comment#12", null),
+          row("Comment#13", null),
+          row("Comment#14", null),
+          row("Comment#15", null),
+          row("NullTuple", null),
+          row("NullTuple", null),
 
           // preserved right
-          row(null, "Hallo Welt wie"), row(null, "CDE"),
-          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-          row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
-          row(null, "NullTuple"), row(null, "NullTuple")
-        ))
+          row(null, "Hallo Welt wie"),
+          row(null, "CDE"),
+          row(null, "DEF"),
+          row(null, "EFG"),
+          row(null, "FGH"),
+          row(null, "GHI"),
+          row(null, "JKL"),
+          row(null, "KLM"),
+          row(null, "NullTuple"),
+          row(null, "NullTuple")
+        )
+      )
     }
   }
 
@@ -430,20 +588,43 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
           row("I am fine.", "GHI"),
 
           // preserved left
-          row("Hi", null), row("Hello world", null), row("Luke Skywalker", null),
-          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
-          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
-          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
-          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
-          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
-          row("NullTuple", null), row("NullTuple", null),
+          row("Hi", null),
+          row("Hello world", null),
+          row("Luke Skywalker", null),
+          row("Comment#1", null),
+          row("Comment#2", null),
+          row("Comment#3", null),
+          row("Comment#4", null),
+          row("Comment#5", null),
+          row("Comment#6", null),
+          row("Comment#7", null),
+          row("Comment#8", null),
+          row("Comment#9", null),
+          row("Comment#10", null),
+          row("Comment#11", null),
+          row("Comment#12", null),
+          row("Comment#13", null),
+          row("Comment#14", null),
+          row("Comment#15", null),
+          row("NullTuple", null),
+          row("NullTuple", null),
 
           // preserved right
-          row(null, "Hallo"), row(null, "Hallo Welt"), row(null, "Hallo Welt wie gehts?"),
-          row(null, "ABC"), row(null, "BCD"), row(null, "CDE"), row(null, "FGH"),
-          row(null, "HIJ"), row(null, "IJK"), row(null, "JKL"), row(null, "KLM"),
-          row(null, "NullTuple"), row(null, "NullTuple")
-        ))
+          row(null, "Hallo"),
+          row(null, "Hallo Welt"),
+          row(null, "Hallo Welt wie gehts?"),
+          row(null, "ABC"),
+          row(null, "BCD"),
+          row(null, "CDE"),
+          row(null, "FGH"),
+          row(null, "HIJ"),
+          row(null, "IJK"),
+          row(null, "JKL"),
+          row(null, "KLM"),
+          row(null, "NullTuple"),
+          row(null, "NullTuple")
+        )
+      )
     }
   }
 
@@ -453,14 +634,24 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       checkResult(
         "SELECT c, g FROM SmallTable3 FULL OUTER JOIN Table5 ON b = e",
         Seq(
-          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+          row("Hi", "Hallo"),
+          row("Hello", "Hallo Welt"),
           row("Hello world", "Hallo Welt"),
-          row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
-          row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
-          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-          row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
-          row(null, "JKL"), row(null, "KLM")
-        ))
+          row(null, "Hallo Welt wie gehts?"),
+          row(null, "Hallo Welt wie"),
+          row(null, "ABC"),
+          row(null, "BCD"),
+          row(null, "CDE"),
+          row(null, "DEF"),
+          row(null, "EFG"),
+          row(null, "FGH"),
+          row(null, "GHI"),
+          row(null, "HIJ"),
+          row(null, "IJK"),
+          row(null, "JKL"),
+          row(null, "KLM")
+        )
+      )
     }
   }
 
@@ -470,9 +661,13 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       checkResult(
         "SELECT t1.c, t2.c FROM SmallTable3 t1 FULL OUTER JOIN SmallTable3 t2 ON t1.b > t2.b",
         Seq(
-          row("Hello world", "Hi"), row("Hello", "Hi"), row("Hi", null),
-          row(null, "Hello"), row(null, "Hello world")
-        ))
+          row("Hello world", "Hi"),
+          row("Hello", "Hi"),
+          row("Hi", null),
+          row(null, "Hello"),
+          row(null, "Hello world")
+        )
+      )
     }
   }
 
@@ -483,8 +678,11 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         "SELECT c, mc FROM SmallTable3 t1 FULL OUTER JOIN " +
           "(SELECT min(b) AS mb, max(c) AS mc FROM SmallTable3) t2 ON b > mb",
         Seq(
-          row("Hello world", "Hi"), row("Hello", "Hi"), row("Hi", null)
-        ))
+          row("Hello world", "Hi"),
+          row("Hello", "Hi"),
+          row("Hi", null)
+        )
+      )
     }
   }
 
@@ -495,8 +693,12 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         "SELECT c, mc FROM SmallTable3 t1 FULL OUTER JOIN " +
           "(SELECT max(b) AS mb, max(c) AS mc FROM SmallTable3) t2 ON b > mb",
         Seq(
-          row("Hello world", null), row("Hello", null), row("Hi", null), row(null, "Hi")
-        ))
+          row("Hello world", null),
+          row("Hello", null),
+          row("Hi", null),
+          row(null, "Hi")
+        )
+      )
     }
   }
 
@@ -505,14 +707,24 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM Table5 LEFT OUTER JOIN SmallTable3 ON b = e",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
         row("Hello world", "Hallo Welt"),
-        row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
-        row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
-        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-        row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
-        row(null, "JKL"), row(null, "KLM")
-      ))
+        row(null, "Hallo Welt wie gehts?"),
+        row(null, "Hallo Welt wie"),
+        row(null, "ABC"),
+        row(null, "BCD"),
+        row(null, "CDE"),
+        row(null, "DEF"),
+        row(null, "EFG"),
+        row(null, "FGH"),
+        row(null, "GHI"),
+        row(null, "HIJ"),
+        row(null, "IJK"),
+        row(null, "JKL"),
+        row(null, "KLM")
+      )
+    )
   }
 
   @Test
@@ -520,21 +732,29 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "SELECT c, g FROM SmallTable3 RIGHT OUTER JOIN Table5 ON b = e",
       Seq(
-        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
         row("Hello world", "Hallo Welt"),
-        row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
-        row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
-        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
-        row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
-        row(null, "JKL"), row(null, "KLM")
-      ))
+        row(null, "Hallo Welt wie gehts?"),
+        row(null, "Hallo Welt wie"),
+        row(null, "ABC"),
+        row(null, "BCD"),
+        row(null, "CDE"),
+        row(null, "DEF"),
+        row(null, "EFG"),
+        row(null, "FGH"),
+        row(null, "GHI"),
+        row(null, "HIJ"),
+        row(null, "IJK"),
+        row(null, "JKL"),
+        row(null, "KLM")
+      )
+    )
   }
 
   @Test
   def testJoinWithAggregation(): Unit = {
-    checkResult(
-      "SELECT COUNT(g), COUNT(b) FROM SmallTable3, Table5 WHERE a = d",
-      Seq(row(6L, 6L)))
+    checkResult("SELECT COUNT(g), COUNT(b) FROM SmallTable3, Table5 WHERE a = d", Seq(row(6L, 6L)))
   }
 
   @Test
@@ -561,9 +781,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testSelect(): Unit = {
-    checkResult(
-      "select t.a from (select 1 as a)t",
-      Seq(row(1)))
+    checkResult("select t.a from (select 1 as a)t", Seq(row(1)))
   }
 
   @Test
@@ -592,12 +810,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testCorrelatedExist2(): Unit = {
-    val data: Seq[Row] = Seq(
-      row(0L),
-      row(123456L),
-      row(-123456L),
-      row(2147483647L),
-      row(-2147483647L))
+    val data: Seq[Row] =
+      Seq(row(0L), row(123456L), row(-123456L), row(2147483647L), row(-2147483647L))
     registerCollection("t1", data, new RowTypeInfo(LONG_TYPE_INFO), "f1")
 
     checkResult(
@@ -609,22 +823,17 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testCorrelatedNotExist(): Unit = {
     checkResult(
       "select * from l where not exists (select * from r where l.a = r.c and l.b <> r.d)",
-      Seq(row(1, 2.0), row(1, 2.0), row(6, null), row(null, 5.0), row(null, null)))
+      Seq(row(1, 2.0), row(1, 2.0), row(6, null), row(null, 5.0), row(null, null))
+    )
   }
 
   @Test
   def testUncorrelatedScalar(): Unit = {
-    checkResult(
-      "select (select 1) as b",
-      Seq(row(1)))
+    checkResult("select (select 1) as b", Seq(row(1)))
 
-    checkResult(
-      "select (select 1 as b)",
-      Seq(row(1)))
+    checkResult("select (select 1 as b)", Seq(row(1)))
 
-    checkResult(
-      "select (select 1 as a) as b",
-      Seq(row(1)))
+    checkResult("select (select 1 as a) as b", Seq(row(1)))
   }
 
   @Test
@@ -637,8 +846,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testComparisonsScalar(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
-      checkEmptyResult(
-        "select a, b from l where a = (select c from r where 1 = 2)")
+      checkEmptyResult("select a, b from l where a = (select c from r where 1 = 2)")
 
       checkResult(
         "select a, b from l where a >= 1.0 * (select avg(d) from r where c > 2)",
@@ -657,7 +865,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType == SortMergeJoin) {
       checkResult(
         "SELECT c, g FROM NullTable3, NullTable5 " +
-            "WHERE (a = d OR (a IS NULL AND d IS NULL)) AND b = h",
+          "WHERE (a = d OR (a IS NULL AND d IS NULL)) AND b = h",
         Seq(
           row("Hi", "Hallo"),
           row("Hello", "Hallo Welt"),
@@ -669,25 +877,32 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
           row("NullTuple", "NullTuple"),
           row("NullTuple", "NullTuple"),
           row("NullTuple", "NullTuple")
-        ))
+        )
+      )
 
       checkResult(
         "SELECT c, g FROM NullTable3, NullTable5 " +
-            "WHERE (a = d OR (a IS NULL AND d IS NULL)) and c = 'NullTuple'",
+          "WHERE (a = d OR (a IS NULL AND d IS NULL)) and c = 'NullTuple'",
         Seq(
           row("NullTuple", "NullTuple"),
           row("NullTuple", "NullTuple"),
           row("NullTuple", "NullTuple"),
           row("NullTuple", "NullTuple")
-        ))
+        )
+      )
 
       registerCollection(
-        "NullT", Seq(row(null, null, "c")), type3, "a, b, c", allNullablesOfNullData3)
+        "NullT",
+        Seq(row(null, null, "c")),
+        type3,
+        "a, b, c",
+        allNullablesOfNullData3)
       checkResult(
         "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
-            "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
-            "AND (T1.b = T2.b OR (T1.b IS NULL AND T2.b IS NULL)) AND T1.c = T2.c",
-        Seq(row("null", "null", "c")))
+          "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
+          "AND (T1.b = T2.b OR (T1.b IS NULL AND T2.b IS NULL)) AND T1.c = T2.c",
+        Seq(row("null", "null", "c"))
+      )
     }
   }
 
@@ -846,10 +1061,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     registerFunction("funcWithOpen", new FuncWithOpen)
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
-      Seq(
-        row("Hi", "Hallo"),
-        row("Hello", "Hallo Welt"),
-        row("Hello world", "Hallo Welt"))
+      Seq(row("Hi", "Hallo"), row("Hello", "Hallo Welt"), row("Hello world", "Hallo Welt"))
     )
   }
 }

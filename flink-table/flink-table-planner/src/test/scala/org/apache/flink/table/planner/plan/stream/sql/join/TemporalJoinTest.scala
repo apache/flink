@@ -20,113 +20,104 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 import org.apache.flink.table.api.{ExplainDetail, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.Assert.{assertTrue, fail}
 import org.junit.{Before, Test}
+import org.junit.Assert.{assertTrue, fail}
 
-/**
- * Test temporal join in stream mode.
- */
+/** Test temporal join in stream mode. */
 class TemporalJoinTest extends TableTestBase {
 
   val util: StreamTableTestUtil = streamTestUtil()
 
   @Before
   def before(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE Orders (
-        | amount INT,
-        | currency STRING,
-        | rowtime TIMESTAMP(3),
-        | proctime AS PROCTIME(),
-        | WATERMARK FOR rowtime AS rowtime
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE Orders (
+                    | amount INT,
+                    | currency STRING,
+                    | rowtime TIMESTAMP(3),
+                    | proctime AS PROCTIME(),
+                    | WATERMARK FOR rowtime AS rowtime
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesHistory (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesHistory (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesHistoryWithPK (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime,
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values',
-        | 'disable-lookup' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesHistoryWithPK (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'disable-lookup' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesBinlogWithComputedColumn (
-        | currency STRING,
-        | rate INT,
-        | rate1 AS rate + 1,
-        | proctime AS PROCTIME(),
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime,
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values',
-        | 'changelog-mode' = 'I,UB,UA,D',
-        | 'disable-lookup' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesBinlogWithComputedColumn (
+                    | currency STRING,
+                    | rate INT,
+                    | rate1 AS rate + 1,
+                    | proctime AS PROCTIME(),
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'changelog-mode' = 'I,UB,UA,D',
+                    | 'disable-lookup' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesBinlogWithoutWatermark (
-        | currency STRING,
-        | rate INT,
-        | rate1 AS rate + 1,
-        | proctime AS PROCTIME(),
-        | rowtime TIMESTAMP(3),
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values',
-        | 'changelog-mode' = 'I,UB,UA,D',
-        | 'disable-lookup' = 'true'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesBinlogWithoutWatermark (
+                    | currency STRING,
+                    | rate INT,
+                    | rate1 AS rate + 1,
+                    | proctime AS PROCTIME(),
+                    | rowtime TIMESTAMP(3),
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'changelog-mode' = 'I,UB,UA,D',
+                    | 'disable-lookup' = 'true'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesOnly (
-        | currency STRING,
-        | rate INT,
-        | proctime AS PROCTIME()
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesOnly (
+                    | currency STRING,
+                    | rate INT,
+                    | proctime AS PROCTIME()
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
 
-    util.addTable(
-      """
-        |CREATE TABLE RatesHistoryLegacy (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime,
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'COLLECTION',
-        | 'is-bounded' = 'false'
-        |)
+    util.addTable("""
+                    |CREATE TABLE RatesHistoryLegacy (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'COLLECTION',
+                    | 'is-bounded' = 'false'
+                    |)
       """.stripMargin)
 
     util.addTable(
@@ -145,34 +136,33 @@ class TemporalJoinTest extends TableTestBase {
         "  ) T " +
         "  WHERE T.rowNum = 1")
 
-    util.addTable("CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
-      "FROM RatesHistory " +
-      "GROUP BY currency ")
+    util.addTable(
+      "CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
+        "FROM RatesHistory " +
+        "GROUP BY currency ")
 
-    util.tableEnv.executeSql(
-      s"""
-          |CREATE TABLE OrdersLtz (
-          | amount INT,
-          | currency STRING,
-          | ts BIGINT,
-          | rowtime AS TO_TIMESTAMP_LTZ(ts, 3),
-          | WATERMARK FOR rowtime AS rowtime
-          |) WITH (
-          | 'connector' = 'values'
-          |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE OrdersLtz (
+                                | amount INT,
+                                | currency STRING,
+                                | ts BIGINT,
+                                | rowtime AS TO_TIMESTAMP_LTZ(ts, 3),
+                                | WATERMARK FOR rowtime AS rowtime
+                                |) WITH (
+                                | 'connector' = 'values'
+                                |)
       """.stripMargin)
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE RatesLtz (
-         | currency STRING,
-         | rate INT,
-         | ts BIGINT,
-         | rowtime as TO_TIMESTAMP_LTZ(ts, 3),
-         | WATERMARK FOR rowtime AS rowtime,
-         | PRIMARY KEY(currency) NOT ENFORCED
-         |) WITH (
-         | 'connector' = 'values'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE RatesLtz (
+                                | currency STRING,
+                                | rate INT,
+                                | ts BIGINT,
+                                | rowtime as TO_TIMESTAMP_LTZ(ts, 3),
+                                | WATERMARK FOR rowtime AS rowtime,
+                                | PRIMARY KEY(currency) NOT ENFORCED
+                                |) WITH (
+                                | 'connector' = 'values'
+                                |)
       """.stripMargin)
   }
 
@@ -205,7 +195,6 @@ class TemporalJoinTest extends TableTestBase {
 
     util.verifyExecPlan(sqlQuery)
   }
-
 
   @Test
   def testEventTimeTemporalJoinOnTimestampLtzRowtime(): Unit = {
@@ -394,15 +383,14 @@ class TemporalJoinTest extends TableTestBase {
 
   @Test
   def testInvalidTemporalTablJoin(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE leftTableWithoutTimeAttribute (
-        | amount INT,
-        | currency STRING,
-        | ts TIMESTAMP(3)
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE leftTableWithoutTimeAttribute (
+                    | amount INT,
+                    | currency STRING,
+                    | ts TIMESTAMP(3)
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
     val sqlQuery1 = "SELECT * FROM leftTableWithoutTimeAttribute AS o JOIN " +
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.ts AS r ON o.currency = r.currency"
@@ -420,18 +408,18 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery2,
       "Temporal table's primary key [currency0] must be included in the equivalence" +
         " condition of temporal join, but current temporal join condition is [amount=rate].",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
 
-    util.addTable(
-      """
-        |CREATE TABLE versionedTableWithoutPk (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | WATERMARK FOR rowtime AS rowtime
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE versionedTableWithoutPk (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
 
     val sqlQuery3 = "SELECT * " +
@@ -445,18 +433,18 @@ class TemporalJoinTest extends TableTestBase {
         "FlinkLogicalJoin(condition=[AND(=($1, $4), " +
         "__INITIAL_TEMPORAL_JOIN_CONDITION($2, $6, __TEMPORAL_JOIN_LEFT_KEY($1), " +
         "__TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
 
-    util.addTable(
-      """
-        |CREATE TABLE versionedTableWithoutTimeAttribute (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE versionedTableWithoutTimeAttribute (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
     val sqlQuery4 = "SELECT * " +
       "FROM Orders AS o JOIN " +
@@ -466,19 +454,19 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery4,
       s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
         s"versioned table, but no row time attribute can be found.",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
 
-    util.addTable(
-      """
-        |CREATE TABLE versionedTableWithoutRowtime (
-        | currency STRING,
-        | rate INT,
-        | rowtime TIMESTAMP(3),
-        | proctime AS PROCTIME(),
-        | PRIMARY KEY(currency) NOT ENFORCED
-        |) WITH (
-        | 'connector' = 'values'
-        |)
+    util.addTable("""
+                    |CREATE TABLE versionedTableWithoutRowtime (
+                    | currency STRING,
+                    | rate INT,
+                    | rowtime TIMESTAMP(3),
+                    | proctime AS PROCTIME(),
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values'
+                    |)
       """.stripMargin)
     val sqlQuery5 = "SELECT * " +
       "FROM Orders AS o JOIN " +
@@ -488,7 +476,8 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery5,
       s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
         s"versioned table, but no row time attribute can be found.",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
 
     val sqlQuery6 = "SELECT * FROM RatesHistory " +
       "FOR SYSTEM_TIME AS OF TIMESTAMP '2020-11-11 13:12:13'"
@@ -496,7 +485,8 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery6,
       "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
         "'2020-11-11 13:12:13' is not supported yet.",
-      classOf[AssertionError])
+      classOf[AssertionError]
+    )
 
     val sqlQuery7 = "SELECT * FROM RatesHistory FOR SYSTEM_TIME AS OF " +
       "TO_TIMESTAMP(FROM_UNIXTIME(1))"
@@ -504,72 +494,71 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery7,
       "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with an expression call " +
         "'TO_TIMESTAMP(FROM_UNIXTIME(1))' is not supported yet.",
-      classOf[AssertionError])
+      classOf[AssertionError]
+    )
 
     val sqlQuery8 =
       s"""
-          |SELECT *
-          | FROM OrdersLtz AS o JOIN
-          | RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r
-          | ON o.currency = r.currency
+         |SELECT *
+         | FROM OrdersLtz AS o JOIN
+         | RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r
+         | ON o.currency = r.currency
           """.stripMargin
     expectExceptionThrown(
       sqlQuery8,
       "Event-Time Temporal Table Join requires same rowtime type in left table and versioned" +
         " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
   }
 
   @Test
   def testEventTimeTemporalJoinToSinkWithPk(): Unit = {
     val tEnv = util.tableEnv
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE orders_rowtime (
-         |  order_id BIGINT,
-         |  currency STRING,
-         |  currency_no STRING,
-         |  amount BIGINT,
-         |  order_time TIMESTAMP(3),
-         |  WATERMARK FOR order_time AS order_time,
-         |  PRIMARY KEY (order_id) NOT ENFORCED
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'I,UA,UB,D',
-         |  'data-id' = 'rowTimeOrderDataId'
-         |)
-         |""".stripMargin)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE versioned_currency_with_multi_key (
-         |  currency STRING,
-         |  currency_no STRING,
-         |  rate  BIGINT,
-         |  currency_time TIMESTAMP(3),
-         |  WATERMARK FOR currency_time AS currency_time - interval '10' SECOND,
-         |  PRIMARY KEY(currency, currency_no) NOT ENFORCED
-         |) WITH (
-         |  'connector' = 'values',
-         |  'changelog-mode' = 'I,UA,UB,D',
-         |  'data-id' = 'rowTimeCurrencyDataId'
-         |)
-         |""".stripMargin)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE rowtime_default_sink (
-         |  order_id BIGINT,
-         |  currency STRING,
-         |  amount BIGINT,
-         |  l_time TIMESTAMP(3),
-         |  rate BIGINT,
-         |  r_time TIMESTAMP(3),
-         |  PRIMARY KEY(order_id) NOT ENFORCED
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'false',
-         |  'changelog-mode' = 'I,UA,UB,D'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE orders_rowtime (
+                       |  order_id BIGINT,
+                       |  currency STRING,
+                       |  currency_no STRING,
+                       |  amount BIGINT,
+                       |  order_time TIMESTAMP(3),
+                       |  WATERMARK FOR order_time AS order_time,
+                       |  PRIMARY KEY (order_id) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'changelog-mode' = 'I,UA,UB,D',
+                       |  'data-id' = 'rowTimeOrderDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE versioned_currency_with_multi_key (
+                       |  currency STRING,
+                       |  currency_no STRING,
+                       |  rate  BIGINT,
+                       |  currency_time TIMESTAMP(3),
+                       |  WATERMARK FOR currency_time AS currency_time - interval '10' SECOND,
+                       |  PRIMARY KEY(currency, currency_no) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'changelog-mode' = 'I,UA,UB,D',
+                       |  'data-id' = 'rowTimeCurrencyDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE rowtime_default_sink (
+                       |  order_id BIGINT,
+                       |  currency STRING,
+                       |  amount BIGINT,
+                       |  l_time TIMESTAMP(3),
+                       |  rate BIGINT,
+                       |  r_time TIMESTAMP(3),
+                       |  PRIMARY KEY(order_id) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
     val sql =
       """
         |INSERT INTO rowtime_default_sink
@@ -582,10 +571,9 @@ class TemporalJoinTest extends TableTestBase {
   }
 
   private def expectExceptionThrown(
-    sql: String,
-    keywords: String,
-    clazz: Class[_ <: Throwable] = classOf[ValidationException])
-  : Unit = {
+      sql: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
     try {
       verifyTranslationSuccess(sql)
       fail(s"Expected a $clazz, but no exception is thrown.")

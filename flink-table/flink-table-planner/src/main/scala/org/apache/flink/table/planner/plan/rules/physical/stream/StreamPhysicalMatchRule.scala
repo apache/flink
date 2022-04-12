@@ -26,8 +26,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalM
 import org.apache.flink.table.planner.plan.utils.{MatchUtil, RexDefaultVisitor}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SqlAggFunction
@@ -63,7 +63,8 @@ class StreamPhysicalMatchRule
     } else {
       FlinkRelDistribution.SINGLETON
     }
-    val requiredTraitSet = rel.getCluster.getPlanner.emptyTraitSet()
+    val requiredTraitSet = rel.getCluster.getPlanner
+      .emptyTraitSet()
       .replace(requiredDistribution)
       .replace(FlinkConventions.STREAM_PHYSICAL)
 
@@ -72,12 +73,15 @@ class StreamPhysicalMatchRule
 
     try {
       Class
-        .forName("org.apache.flink.cep.pattern.Pattern",
+        .forName(
+          "org.apache.flink.cep.pattern.Pattern",
           false,
           Thread.currentThread().getContextClassLoader)
     } catch {
-      case ex: ClassNotFoundException => throw new TableException(
-        "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.", ex)
+      case ex: ClassNotFoundException =>
+        throw new TableException(
+          "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.",
+          ex)
     }
 
     new StreamPhysicalMatch(
@@ -116,19 +120,19 @@ class StreamPhysicalMatchRule
   }
 
   private def validateAmbiguousColumnsOnRowPerMatch(
-    partitionKeys: ImmutableBitSet,
-    measuresNames: mutable.Set[String],
-    inputSchema: RelDataType,
-    expectedSchema: RelDataType)
-  : Unit = {
+      partitionKeys: ImmutableBitSet,
+      measuresNames: mutable.Set[String],
+      inputSchema: RelDataType,
+      expectedSchema: RelDataType): Unit = {
     val actualSize = partitionKeys.toArray.length + measuresNames.size
     val expectedSize = expectedSchema.getFieldCount
     if (actualSize != expectedSize) {
-      //try to find ambiguous column
+      // try to find ambiguous column
 
       val ambiguousColumns = partitionKeys.toArray
         .map(inputSchema.getFieldList.get(_).getName)
-        .filter(measuresNames.contains).mkString("{", ", ", "}")
+        .filter(measuresNames.contains)
+        .mkString("{", ", ", "}")
 
       throw new ValidationException(s"Columns ambiguously defined: $ambiguousColumns")
     }

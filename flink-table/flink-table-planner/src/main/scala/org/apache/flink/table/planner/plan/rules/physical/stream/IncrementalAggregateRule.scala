@@ -34,18 +34,23 @@ import java.lang.{Boolean => JBoolean}
 import java.util.Collections
 
 /**
- * Rule that matches final [[StreamPhysicalGlobalGroupAggregate]] on [[StreamPhysicalExchange]]
- * on final [[StreamPhysicalLocalGroupAggregate]] on partial [[StreamPhysicalGlobalGroupAggregate]],
- * and combines the final [[StreamPhysicalLocalGroupAggregate]] and
- * the partial [[StreamPhysicalGlobalGroupAggregate]] into a
- * [[StreamPhysicalIncrementalGroupAggregate]].
+ * Rule that matches final [[StreamPhysicalGlobalGroupAggregate]] on [[StreamPhysicalExchange]] on
+ * final [[StreamPhysicalLocalGroupAggregate]] on partial [[StreamPhysicalGlobalGroupAggregate]],
+ * and combines the final [[StreamPhysicalLocalGroupAggregate]] and the partial
+ * [[StreamPhysicalGlobalGroupAggregate]] into a [[StreamPhysicalIncrementalGroupAggregate]].
  */
 class IncrementalAggregateRule
   extends RelOptRule(
-    operand(classOf[StreamPhysicalGlobalGroupAggregate], // final global agg
-      operand(classOf[StreamPhysicalExchange], // key by
-        operand(classOf[StreamPhysicalLocalGroupAggregate], // final local agg
-          operand(classOf[StreamPhysicalGlobalGroupAggregate], any())))), // partial global agg
+    operand(
+      classOf[StreamPhysicalGlobalGroupAggregate], // final global agg
+      operand(
+        classOf[StreamPhysicalExchange], // key by
+        operand(
+          classOf[StreamPhysicalLocalGroupAggregate], // final local agg
+          operand(classOf[StreamPhysicalGlobalGroupAggregate], any())
+        )
+      )
+    ), // partial global agg
     "IncrementalAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -56,13 +61,13 @@ class IncrementalAggregateRule
     val tableConfig = unwrapTableConfig(call)
 
     // whether incremental aggregate is enabled
-    val incrementalAggEnabled = tableConfig.get(
-      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
+    val incrementalAggEnabled =
+      tableConfig.get(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
-      finalLocalAgg.partialFinalType == PartialFinalType.FINAL &&
-      finalGlobalAgg.partialFinalType == PartialFinalType.FINAL &&
-      incrementalAggEnabled
+    finalLocalAgg.partialFinalType == PartialFinalType.FINAL &&
+    finalGlobalAgg.partialFinalType == PartialFinalType.FINAL &&
+    incrementalAggEnabled
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -97,10 +102,8 @@ class IncrementalAggregateRule
 
     val globalAgg = if (partialAggCountStarInserted) {
       val globalAggInputAccType = finalLocalAgg.getRowType
-      Preconditions.checkState(RelOptUtil.areRowTypesEqual(
-        incrAggOutputRowType,
-        globalAggInputAccType,
-        false))
+      Preconditions.checkState(
+        RelOptUtil.areRowTypesEqual(incrAggOutputRowType, globalAggInputAccType, false))
       finalGlobalAgg.copy(finalGlobalAgg.getTraitSet, Collections.singletonList(newExchange))
     } else {
       // adapt the needRetract of final global agg to be same as that of partial agg
@@ -115,7 +118,8 @@ class IncrementalAggregateRule
         partialGlobalAgg.globalAggInfoList.indexOfCountStar,
         // the local agg is not works on state
         isStateBackendDataViews = false,
-        needDistinctInfo = true)
+        needDistinctInfo = true
+      )
 
       // check whether the global agg required input row type equals the incr agg output row type
       val globalAggInputAccType = AggregateUtil.inferLocalAggRowType(
@@ -124,10 +128,8 @@ class IncrementalAggregateRule
         finalGlobalAgg.grouping,
         finalGlobalAgg.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
-      Preconditions.checkState(RelOptUtil.areRowTypesEqual(
-        incrAggOutputRowType,
-        globalAggInputAccType,
-        false))
+      Preconditions.checkState(
+        RelOptUtil.areRowTypesEqual(incrAggOutputRowType, globalAggInputAccType, false))
 
       new StreamPhysicalGlobalGroupAggregate(
         finalGlobalAgg.getCluster,
@@ -153,10 +155,11 @@ object IncrementalAggregateRule {
   // It is a experimental config, will may be removed later.
   @Experimental
   val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
-  key("table.optimizer.incremental-agg-enabled")
+    key("table.optimizer.incremental-agg-enabled")
       .booleanType()
       .defaultValue(JBoolean.valueOf(true))
-      .withDescription("When both local aggregation and distinct aggregation splitting " +
+      .withDescription(
+        "When both local aggregation and distinct aggregation splitting " +
           "are enabled, a distinct aggregation will be optimized into four aggregations, " +
           "i.e., local-agg1, global-agg1, local-agg2 and global-Agg2. We can combine global-agg1" +
           " and local-agg2 into a single operator (we call it incremental agg because " +

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -27,9 +26,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Tests for [[FlinkJoinPushExpressionsRule]].
-  */
+/** Tests for [[FlinkJoinPushExpressionsRule]]. */
 class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -47,7 +44,8 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
           FlinkRewriteSubQueryRule.FILTER,
           FlinkSubQueryRemoveRule.FILTER,
           JoinConditionTypeCoerceRule.INSTANCE,
-          FlinkJoinPushExpressionsRule.INSTANCE))
+          FlinkJoinPushExpressionsRule.INSTANCE
+        ))
         .build()
     )
     util.replaceBatchProgram(programs)

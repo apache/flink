@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
@@ -23,16 +22,15 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
-import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestSinkUtil, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestingAppendSink, TestSinkUtil}
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+
 import org.junit.{Assert, Before, Test}
+import org.junit.Assert.assertEquals
 
-import scala.collection.{Seq, mutable}
+import scala.collection.{mutable, Seq}
 
-/**
-  * Streaming [[FileSystemITCaseBase]].
-  */
+/** Streaming [[FileSystemITCaseBase]]. */
 abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSystemITCaseBase {
 
   @Before
@@ -70,11 +68,13 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
     try {
       sinkResults.foreach(checkFunc)
     } catch {
-      case e: AssertionError => throw new AssertionError(
-        s"""
-           |Results do not match for query:
-           |  $sqlQuery
-       """.stripMargin, e)
+      case e: AssertionError =>
+        throw new AssertionError(
+          s"""
+             |Results do not match for query:
+             |  $sqlQuery
+       """.stripMargin,
+          e)
     }
   }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.catalog.CatalogTable
@@ -33,9 +32,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[LegacySink]] that is a relational expression
-  * which writes out data of input node into a [[TableSink]].
-  */
+ * Sub-class of [[LegacySink]] that is a relational expression which writes out data of input node
+ * into a [[TableSink]].
+ */
 class FlinkLogicalLegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -50,7 +49,14 @@ class FlinkLogicalLegacySink(
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalLegacySink(
-      cluster, traitSet, inputs.head, hints, sink, sinkName, catalogTable, staticPartitions)
+      cluster,
+      traitSet,
+      inputs.head,
+      hints,
+      sink,
+      sinkName,
+      catalogTable,
+      staticPartitions)
   }
 
 }
@@ -88,6 +94,13 @@ object FlinkLogicalLegacySink {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalLegacySink(
-      cluster, traitSet, input, hints, sink, sinkName, catalogTable, staticPartitions)
+      cluster,
+      traitSet,
+      input,
+      hints,
+      sink,
+      sinkName,
+      catalogTable,
+      staticPartitions)
   }
 }

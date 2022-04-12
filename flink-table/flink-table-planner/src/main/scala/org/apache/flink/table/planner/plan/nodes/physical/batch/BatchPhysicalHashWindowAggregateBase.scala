@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -26,14 +25,12 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
-/**
- * Batch physical RelNode for hash-based window aggregate.
- */
+/** Batch physical RelNode for hash-based window aggregate. */
 abstract class BatchPhysicalHashWindowAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

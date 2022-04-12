@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
@@ -55,7 +54,7 @@ class AggregateValidationTest extends TableTestBase {
 
     table
       .groupBy('a)
-      .aggregate('b.sum as 'd)
+      .aggregate('b.sum.as('d))
       // must fail. Cannot use AggregateFunction in select right after aggregate
       .select('d.sum)
   }
@@ -66,7 +65,7 @@ class AggregateValidationTest extends TableTestBase {
 
     table
       .groupBy('a)
-      .aggregate('b.sum as 'd)
+      .aggregate('b.sum.as('d))
       // must fail. Cannot use window properties in select right after aggregate
       .select('d.start)
   }
@@ -78,7 +77,7 @@ class AggregateValidationTest extends TableTestBase {
     util.addFunction("func", new TableFunc0)
     val resultTable = table
       .groupBy('a)
-      .aggregate('b.sum as 'd)
+      .aggregate('b.sum.as('d))
       // must fail. Cannot use TableFunction in select after aggregate
       .select(call("func", "abc"))
 
@@ -92,7 +91,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate('c.upperCase as 'd)
+      .aggregate('c.upperCase.as('d))
       .select('a, 'd)
   }
 
@@ -104,7 +103,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate(call("func", $"c") as "d")
+      .aggregate(call("func", $"c").as("d"))
       .select('a, 'd)
   }
 
@@ -114,8 +113,9 @@ class AggregateValidationTest extends TableTestBase {
     // If there are two parameters, second one must be character literal.
     expectExceptionThrown(
       "SELECT listagg(c, d) FROM T GROUP BY a",
-    "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
-      classOf[ValidationException])
+      "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
+      classOf[ValidationException]
+    )
   }
 
   @Test
@@ -125,7 +125,8 @@ class AggregateValidationTest extends TableTestBase {
     expectExceptionThrown(
       "SELECT LISTAGG(c, 1) FROM T GROUP BY a",
       "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
-      classOf[ValidationException])
+      classOf[ValidationException]
+    )
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -133,8 +134,7 @@ class AggregateValidationTest extends TableTestBase {
   private def expectExceptionThrown(
       sql: String,
       keywords: String,
-      clazz: Class[_ <: Throwable] = classOf[ValidationException])
-  : Unit = {
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
     try {
       util.tableEnv.toAppendStream[Row](util.tableEnv.sqlQuery(sql))
       fail(s"Expected a $clazz, but no exception is thrown.")

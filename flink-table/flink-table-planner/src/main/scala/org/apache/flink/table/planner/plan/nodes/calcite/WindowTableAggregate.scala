@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -24,8 +23,8 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -33,9 +32,9 @@ import java.util
 import scala.collection.JavaConverters._
 
 /**
-  * Relational operator that represents a window table aggregate. A TableAggregate is similar to the
-  * [[org.apache.calcite.rel.core.Aggregate]] but may output 0 or more records for a group.
-  */
+ * Relational operator that represents a window table aggregate. A TableAggregate is similar to the
+ * [[org.apache.calcite.rel.core.Aggregate]] but may output 0 or more records for a group.
+ */
 abstract class WindowTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -56,17 +55,19 @@ abstract class WindowTableAggregate(
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
     builder.addAll(aggregateRowType.getFieldList)
-    namedProperties.asScala.foreach { namedProp =>
-      builder.add(
-        namedProp.getName,
-        typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
-      )
+    namedProperties.asScala.foreach {
+      namedProp =>
+        builder.add(
+          namedProp.getName,
+          typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
+        )
     }
     builder.build()
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("window", window)
       .item("properties", namedProperties.asScala.map(_.getName).mkString(", "))
   }

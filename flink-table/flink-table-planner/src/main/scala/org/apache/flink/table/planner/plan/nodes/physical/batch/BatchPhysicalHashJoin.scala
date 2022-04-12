@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -30,17 +29,15 @@ import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Batch physical RelNode for hash [[Join]].
-  */
+/** Batch physical RelNode for hash [[Join]]. */
 class BatchPhysicalHashJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -82,7 +79,8 @@ class BatchPhysicalHashJoin(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("isBroadcast", "true", isBroadcast)
       .item("build", if (leftIsBuild) "left" else "right")
       .itemIf("tryDistinctBuildRow", "true", tryDistinctBuildRow)
@@ -100,7 +98,7 @@ class BatchPhysicalHashJoin(
     val (buildRowCount, buildRowSize) = if (leftIsBuild) {
       (leftRowCnt, FlinkRelMdUtil.binaryRowAverageSize(getLeft))
     } else {
-      (rightRowCnt,  FlinkRelMdUtil.binaryRowAverageSize(getRight))
+      (rightRowCnt, FlinkRelMdUtil.binaryRowAverageSize(getRight))
     }
     // We aim for a 200% utilization of the bucket table when all the partition buffers are full.
     // TODO use BinaryHashBucketArea.RECORD_BYTES instead of 8
@@ -141,8 +139,7 @@ class BatchPhysicalHashJoin(
     }
 
     val toRestrictHashDistributionByKeys = (distribution: FlinkRelDistribution) =>
-      getCluster.getPlanner
-        .emptyTraitSet
+      getCluster.getPlanner.emptyTraitSet
         .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(distribution)
     val leftRequiredTraits = toRestrictHashDistributionByKeys(leftRequiredDistribution)
@@ -195,12 +192,14 @@ class BatchPhysicalHashJoin(
     } else {
       InputProperty.DamBehavior.PIPELINED
     }
-    val buildEdge = InputProperty.builder()
+    val buildEdge = InputProperty
+      .builder()
       .requiredDistribution(buildRequiredDistribution)
       .damBehavior(InputProperty.DamBehavior.BLOCKING)
       .priority(0)
       .build()
-    val probeEdge = InputProperty.builder()
+    val probeEdge = InputProperty
+      .builder()
       .requiredDistribution(probeRequiredDistribution)
       .damBehavior(probeDamBehavior)
       .priority(1)

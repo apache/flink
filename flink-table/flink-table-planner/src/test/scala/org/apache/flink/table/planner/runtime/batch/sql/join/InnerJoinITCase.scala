@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
@@ -28,9 +27,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
@@ -188,7 +187,9 @@ object InnerJoinITCase {
   @Parameterized.Parameters(name = "{0}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
-      Array(BroadcastHashJoin), Array(HashJoin), Array(SortMergeJoin), Array(NestedLoopJoin))
+      Array(BroadcastHashJoin),
+      Array(HashJoin),
+      Array(SortMergeJoin),
+      Array(NestedLoopJoin))
   }
 }
-

@@ -15,31 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
+import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.tools.RelBuilderFactory
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
-  * Planner rule that reduces unless grouping columns.
-  *
-  * Find (minimum) unique group for the grouping columns, and use it as new grouping columns.
-  */
-class AggregateReduceGroupingRule(relBuilderFactory: RelBuilderFactory) extends RelOptRule(
-  operand(classOf[Aggregate], any),
-  relBuilderFactory,
-  "AggregateReduceGroupingRule") {
+ * Planner rule that reduces unless grouping columns.
+ *
+ * Find (minimum) unique group for the grouping columns, and use it as new grouping columns.
+ */
+class AggregateReduceGroupingRule(relBuilderFactory: RelBuilderFactory)
+  extends RelOptRule(
+    operand(classOf[Aggregate], any),
+    relBuilderFactory,
+    "AggregateReduceGroupingRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: Aggregate = call.rel(0)
@@ -84,17 +84,18 @@ class AggregateReduceGroupingRule(relBuilderFactory: RelBuilderFactory) extends 
       index => indexOldToNewMap += (index -> index)
     }
 
-    val aggCallsForDroppedGrouping = uselessGrouping.map { column =>
-      val fieldType = inputRowType.getFieldList.get(column).getType
-      val fieldName = inputRowType.getFieldNames.get(column)
-      AggregateCall.create(
-        FlinkSqlOperatorTable.AUXILIARY_GROUP,
-        false,
-        false,
-        ImmutableList.of(column),
-        -1,
-        fieldType,
-        fieldName)
+    val aggCallsForDroppedGrouping = uselessGrouping.map {
+      column =>
+        val fieldType = inputRowType.getFieldList.get(column).getType
+        val fieldName = inputRowType.getFieldNames.get(column)
+        AggregateCall.create(
+          FlinkSqlOperatorTable.AUXILIARY_GROUP,
+          false,
+          false,
+          ImmutableList.of(column),
+          -1,
+          fieldType,
+          fieldName)
     }.toList
 
     val newAggCalls = aggCallsForDroppedGrouping ++ agg.getAggCallList
@@ -110,7 +111,8 @@ class AggregateReduceGroupingRule(relBuilderFactory: RelBuilderFactory) extends 
     builder.push(newAgg)
     val projects = (0 until aggRowType.getFieldCount).map {
       index =>
-        val refIndex = indexOldToNewMap.getOrElse(index,
+        val refIndex = indexOldToNewMap.getOrElse(
+          index,
           throw new IllegalArgumentException(s"Illegal index: $index"))
         builder.field(refIndex)
     }

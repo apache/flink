@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api.{DataTypes, LiteralStringExpression, UnresolvedFieldExpression}
@@ -67,33 +66,17 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   def testCompareOperator(): Unit = {
 
     // f18 and f19 have same length.
-    testSqlApi(
-      "f18 > f19",
-      "TRUE")
-    testSqlApi(
-      "f18 >= f19",
-      "TRUE")
-    testSqlApi(
-      "f18 < f19",
-      "FALSE")
-    testSqlApi(
-      "f18 <= f19",
-      "FALSE")
-    testSqlApi(
-      "f18 = f18",
-      "TRUE")
+    testSqlApi("f18 > f19", "TRUE")
+    testSqlApi("f18 >= f19", "TRUE")
+    testSqlApi("f18 < f19", "FALSE")
+    testSqlApi("f18 <= f19", "FALSE")
+    testSqlApi("f18 = f18", "TRUE")
 
     // f20's length is short than f19's, but great than it.
-    testSqlApi(
-      "f19 < f20",
-      "TRUE")
+    testSqlApi("f19 < f20", "TRUE")
 
-    testSqlApi(
-      "x'68656C6C6F20636F6465' < x'68656C6C6F2063617374'",
-      "FALSE")
-    testSqlApi(
-      "x'68656C6C6F20636F6465' > x'68656C6C6F2063617374'",
-      "TRUE")
+    testSqlApi("x'68656C6C6F20636F6465' < x'68656C6C6F2063617374'", "FALSE")
+    testSqlApi("x'68656C6C6F20636F6465' > x'68656C6C6F2063617374'", "TRUE")
 
   }
 
@@ -111,17 +94,11 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("f13.f1 IS NOT NULL", "FALSE")
 
     // boolean literals
-    testSqlApi(
-      "true",
-      "TRUE")
+    testSqlApi("true", "TRUE")
 
-    testSqlApi(
-      "fAlse",
-      "FALSE")
+    testSqlApi("fAlse", "FALSE")
 
-    testSqlApi(
-      "tRuE",
-      "TRUE")
+    testSqlApi("tRuE", "TRUE")
 
     // case when
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
@@ -204,37 +181,25 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("uuid() = f15", "NULL")
 
     testSqlApi("f21 = date_format(cast(f21 as timestamp), 'HH:mm:ss')", "TRUE")
-    testSqlApi(
-      "f21 = date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss')",
-      "FALSE")
+    testSqlApi("f21 = date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss')", "FALSE")
     testSqlApi("f21 = uuid()", "NULL")
     testSqlApi("date_format(cast(f21 as timestamp), 'HH:mm:ss') = f21", "TRUE")
-    testSqlApi(
-      "date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss') = f21",
-      "FALSE")
+    testSqlApi("date_format(cast(f21 as timestamp) + interval '1' hour, 'HH:mm:ss') = f21", "FALSE")
     testSqlApi("uuid() = f21", "NULL")
 
     testSqlApi("f22 = date_format(f22, 'yyyy-MM-dd HH:mm:ss')", "TRUE")
-    testSqlApi(
-      "f22 = date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss')",
-      "FALSE")
+    testSqlApi("f22 = date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss')", "FALSE")
     testSqlApi("f22 = uuid()", "NULL")
     testSqlApi("date_format(f22, 'yyyy-MM-dd HH:mm:ss') = f22", "TRUE")
-    testSqlApi(
-      "date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = f22",
-      "FALSE")
+    testSqlApi("date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = f22", "FALSE")
     testSqlApi("uuid() = f22", "NULL")
 
-    testSqlApi(
-      "cast(f22 as timestamp_ltz) = date_format(f22, 'yyyy-MM-dd HH:mm:ss')",
-      "TRUE")
+    testSqlApi("cast(f22 as timestamp_ltz) = date_format(f22, 'yyyy-MM-dd HH:mm:ss')", "TRUE")
     testSqlApi(
       "cast(f22 as timestamp_ltz) = date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss')",
       "FALSE")
     testSqlApi("cast(f22 as timestamp_ltz) = uuid()", "NULL")
-    testSqlApi(
-      "date_format(f22, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)",
-      "TRUE")
+    testSqlApi("date_format(f22, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)", "TRUE")
     testSqlApi(
       "date_format(f22 + interval '1' second, 'yyyy-MM-dd HH:mm:ss') = cast(f22 as timestamp_ltz)",
       "FALSE")
@@ -247,9 +212,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "non-numeric".tryCast(DataTypes.BIGINT()),
       "TRY_CAST ('non-numeric' AS BIGINT)",
       "NULL")
-    testAllApis(
-      'f10.tryCast(DataTypes.BIGINT()),
-      "TRY_CAST (f10 AS BIGINT)",
-      "NULL")
+    testAllApis('f10.tryCast(DataTypes.BIGINT()), "TRY_CAST (f10 AS BIGINT)", "NULL")
   }
 }

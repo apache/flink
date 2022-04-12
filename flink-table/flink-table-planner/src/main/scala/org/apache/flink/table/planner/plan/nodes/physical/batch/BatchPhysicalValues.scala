@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -26,17 +25,15 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Batch physical RelNode for [[Values]].
-  */
+/** Batch physical RelNode for [[Values]]. */
 class BatchPhysicalValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -52,7 +49,8 @@ class BatchPhysicalValues(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("values", getRowType.getFieldNames.toList.mkString(", "))
   }
 

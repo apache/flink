@@ -35,31 +35,30 @@ import org.apache.calcite.rel.RelNode
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that matches [[FlinkLogicalAggregate]] which all aggregate function buffer are fix length,
-  * and converts it to
-  * {{{
-  *   BatchPhysicalHashAggregate (global)
-  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *      +- BatchPhysicalLocalHashAggregate (local)
-  *         +- input of agg
-  * }}}
-  * when all aggregate functions are mergeable
-  * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
-  * {{{
-  *   BatchPhysicalHashAggregate
-  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *      +- input of agg
-  * }}}
-  * when some aggregate functions are not mergeable
-  * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
-  *
-  * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
-  * this rule will try to create two possibilities above, and chooses the best one based on cost.
-  */
+ * Rule that matches [[FlinkLogicalAggregate]] which all aggregate function buffer are fix length,
+ * and converts it to
+ * {{{
+ *   BatchPhysicalHashAggregate (global)
+ *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *      +- BatchPhysicalLocalHashAggregate (local)
+ *         +- input of agg
+ * }}}
+ * when all aggregate functions are mergeable and
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+ * {{{
+ *   BatchPhysicalHashAggregate
+ *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *      +- input of agg
+ * }}}
+ * when some aggregate functions are not mergeable or
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+ *
+ * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE, this rule will
+ * try to create two possibilities above, and chooses the best one based on cost.
+ */
 class BatchPhysicalHashAggRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalAggregate],
-      operand(classOf[RelNode], any)),
+    operand(classOf[FlinkLogicalAggregate], operand(classOf[RelNode], any)),
     "BatchPhysicalHashAggRule")
   with BatchPhysicalAggRuleBase {
 
@@ -71,7 +70,7 @@ class BatchPhysicalHashAggRule
     val agg: FlinkLogicalAggregate = call.rel(0)
     // HashAgg cannot process aggregate whose agg buffer is not fix length
     isAggBufferFixedLength(agg) &&
-      !agg.getAggCallList.exists(isPythonAggregate(_))
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -133,21 +132,22 @@ class BatchPhysicalHashAggRule
           }
       }
       val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
-      globalDistributions.foreach { globalDistribution =>
-        val requiredTraitSet = localHashAgg.getTraitSet.replace(globalDistribution)
-        val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
-        val globalHashAgg = new BatchPhysicalHashAggregate(
-          agg.getCluster,
-          aggProvidedTraitSet,
-          newLocalHashAgg,
-          agg.getRowType,
-          newLocalHashAgg.getRowType,
-          inputRowType,
-          globalGroupSet,
-          globalAuxGroupSet,
-          globalAggCallToAggFunction,
-          isMerge = true)
-        call.transformTo(globalHashAgg)
+      globalDistributions.foreach {
+        globalDistribution =>
+          val requiredTraitSet = localHashAgg.getTraitSet.replace(globalDistribution)
+          val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
+          val globalHashAgg = new BatchPhysicalHashAggregate(
+            agg.getCluster,
+            aggProvidedTraitSet,
+            newLocalHashAgg,
+            agg.getRowType,
+            newLocalHashAgg.getRowType,
+            inputRowType,
+            globalGroupSet,
+            globalAuxGroupSet,
+            globalAggCallToAggFunction,
+            isMerge = true)
+          call.transformTo(globalHashAgg)
       }
     }
 
@@ -161,23 +161,24 @@ class BatchPhysicalHashAggRule
       } else {
         Seq(FlinkRelDistribution.SINGLETON)
       }
-      requiredDistributions.foreach { requiredDistribution =>
-        val requiredTraitSet = input.getTraitSet
-          .replace(FlinkConventions.BATCH_PHYSICAL)
-          .replace(requiredDistribution)
-        val newInput = RelOptRule.convert(input, requiredTraitSet)
-        val hashAgg = new BatchPhysicalHashAggregate(
-          agg.getCluster,
-          aggProvidedTraitSet,
-          newInput,
-          agg.getRowType,
-          input.getRowType,
-          input.getRowType,
-          groupSet,
-          auxGroupSet,
-          aggCallToAggFunction,
-          isMerge = false)
-        call.transformTo(hashAgg)
+      requiredDistributions.foreach {
+        requiredDistribution =>
+          val requiredTraitSet = input.getTraitSet
+            .replace(FlinkConventions.BATCH_PHYSICAL)
+            .replace(requiredDistribution)
+          val newInput = RelOptRule.convert(input, requiredTraitSet)
+          val hashAgg = new BatchPhysicalHashAggregate(
+            agg.getCluster,
+            aggProvidedTraitSet,
+            newInput,
+            agg.getRowType,
+            input.getRowType,
+            input.getRowType,
+            groupSet,
+            auxGroupSet,
+            aggCallToAggFunction,
+            isMerge = false)
+          call.transformTo(hashAgg)
       }
     }
   }

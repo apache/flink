@@ -17,19 +17,18 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
 import scala.collection.JavaConverters._
 
-/**
- * TypeInformation for [[Enumeration]] values.
- */
+/** TypeInformation for [[Enumeration]] values. */
 @Public
 class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value])
-  extends TypeInformation[E#Value] with AtomicType[E#Value] {
+  extends TypeInformation[E#Value]
+  with AtomicType[E#Value] {
 
   type T = E#Value
 
@@ -47,7 +46,6 @@ class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value]
   override def getTypeClass = clazz
   @PublicEvolving
   override def getGenericParameters = Map.empty[String, TypeInformation[_]].asJava
-
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
@@ -69,8 +67,8 @@ class EnumValueTypeInfo[E <: Enumeration](val enum: E, val clazz: Class[E#Value]
     obj match {
       case enumValueTypeInfo: EnumValueTypeInfo[E] =>
         enumValueTypeInfo.canEqual(this) &&
-          enum.equals(enumValueTypeInfo.enum) &&
-          clazz.equals(enumValueTypeInfo.clazz)
+        enum.equals(enumValueTypeInfo.enum) &&
+        clazz.equals(enumValueTypeInfo.clazz)
       case _ => false
     }
   }

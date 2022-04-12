@@ -44,24 +44,23 @@ import scala.collection.JavaConversions._
  *           +- Sort (exists if group keys are not empty)
  *              +- input of agg
  * }}}
- * when all aggregate functions are mergeable
- * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+ * when all aggregate functions are mergeable and
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
  * {{{
  *   BatchPhysicalSortAggregate
  *   +- Sort (exists if group keys are not empty)
  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
  *         +- input of agg
  * }}}
- * when some aggregate functions are not mergeable
- * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+ * when some aggregate functions are not mergeable or
+ * [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
  *
- * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
- * this rule will try to create two possibilities above, and chooses the best one based on cost.
+ * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE, this rule will
+ * try to create two possibilities above, and chooses the best one based on cost.
  */
 class BatchPhysicalSortAggRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalAggregate],
-      operand(classOf[RelNode], any)),
+    operand(classOf[FlinkLogicalAggregate], operand(classOf[RelNode], any)),
     "BatchPhysicalSortAggRule")
   with BatchPhysicalAggRuleBase {
 
@@ -69,7 +68,7 @@ class BatchPhysicalSortAggRule
     val tableConfig = unwrapTableConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
     !isOperatorDisabled(tableConfig, OperatorType.SortAgg) &&
-      !agg.getAggCallList.exists(isPythonAggregate(_))
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -136,24 +135,25 @@ class BatchPhysicalSortAggRule
           }
       }
       val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
-      globalDistributions.foreach { globalDistribution =>
-        val requiredTraitSet = localSortAgg.getTraitSet
-          .replace(globalDistribution)
-          .replace(globalCollation)
+      globalDistributions.foreach {
+        globalDistribution =>
+          val requiredTraitSet = localSortAgg.getTraitSet
+            .replace(globalDistribution)
+            .replace(globalCollation)
 
-        val newInputForFinalAgg = RelOptRule.convert(localSortAgg, requiredTraitSet)
-        val globalSortAgg = new BatchPhysicalSortAggregate(
-          agg.getCluster,
-          aggProvidedTraitSet,
-          newInputForFinalAgg,
-          agg.getRowType,
-          newInputForFinalAgg.getRowType,
-          newLocalInput.getRowType,
-          globalGroupSet,
-          globalAuxGroupSet,
-          globalAggCallToAggFunction,
-          isMerge = true)
-        call.transformTo(globalSortAgg)
+          val newInputForFinalAgg = RelOptRule.convert(localSortAgg, requiredTraitSet)
+          val globalSortAgg = new BatchPhysicalSortAggregate(
+            agg.getCluster,
+            aggProvidedTraitSet,
+            newInputForFinalAgg,
+            agg.getRowType,
+            newInputForFinalAgg.getRowType,
+            newLocalInput.getRowType,
+            globalGroupSet,
+            globalAuxGroupSet,
+            globalAggCallToAggFunction,
+            isMerge = true)
+          call.transformTo(globalSortAgg)
       }
     }
 
@@ -167,28 +167,29 @@ class BatchPhysicalSortAggRule
       } else {
         Seq(FlinkRelDistribution.SINGLETON)
       }
-      requiredDistributions.foreach { requiredDistribution =>
-        var requiredTraitSet = input.getTraitSet
-          .replace(FlinkConventions.BATCH_PHYSICAL)
-          .replace(requiredDistribution)
-        if (agg.getGroupCount != 0) {
-          val sortCollation = createRelCollation(groupSet)
-          requiredTraitSet = requiredTraitSet.replace(sortCollation)
-        }
-        val newInput = RelOptRule.convert(input, requiredTraitSet)
-        val sortAgg = new BatchPhysicalSortAggregate(
-          agg.getCluster,
-          aggProvidedTraitSet,
-          newInput,
-          agg.getRowType,
-          newInput.getRowType,
-          newInput.getRowType,
-          groupSet,
-          auxGroupSet,
-          aggCallToAggFunction,
-          isMerge = false
-        )
-        call.transformTo(sortAgg)
+      requiredDistributions.foreach {
+        requiredDistribution =>
+          var requiredTraitSet = input.getTraitSet
+            .replace(FlinkConventions.BATCH_PHYSICAL)
+            .replace(requiredDistribution)
+          if (agg.getGroupCount != 0) {
+            val sortCollation = createRelCollation(groupSet)
+            requiredTraitSet = requiredTraitSet.replace(sortCollation)
+          }
+          val newInput = RelOptRule.convert(input, requiredTraitSet)
+          val sortAgg = new BatchPhysicalSortAggregate(
+            agg.getCluster,
+            aggProvidedTraitSet,
+            newInput,
+            agg.getRowType,
+            newInput.getRowType,
+            newInput.getRowType,
+            groupSet,
+            auxGroupSet,
+            aggCallToAggFunction,
+            isMerge = false
+          )
+          call.transformTo(sortAgg)
       }
     }
   }
