@@ -18,15 +18,12 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
 /** {@link MetricReporterFactory} for {@link DatadogHttpReporter}. */
-@InterceptInstantiationViaReflection(
-        reporterClassName = "org.apache.flink.metrics.datadog.DatadogHttpReporter")
 public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
     @Override

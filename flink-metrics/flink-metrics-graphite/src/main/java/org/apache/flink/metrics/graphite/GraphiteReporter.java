@@ -21,7 +21,6 @@ package org.apache.flink.metrics.graphite;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.graphite.Graphite;
@@ -34,8 +33,6 @@ import java.util.concurrent.TimeUnit;
  * allows using it as a Flink reporter.
  */
 @PublicEvolving
-@InstantiateViaFactory(
-        factoryClassName = "org.apache.flink.metrics.graphite.GraphiteReporterFactory")
 public class GraphiteReporter extends ScheduledDropwizardReporter {
 
     public static final String ARG_PROTOCOL = "protocol";
