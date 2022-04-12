@@ -634,9 +634,9 @@ SqlAlterTable SqlAlterTable() :
                 // TODO: remove it after supports convert SqlNode to Operation
                 if (ctx.constraints.size() > 0) {
                     return new SqlAlterTableAddConstraint(
-                        tableIdentifier,
-                        ctx.constraints.get(0),
-                        startPos.plus(getPos()));
+                                tableIdentifier,
+                                ctx.constraints.get(0),
+                                startPos.plus(getPos()));
                 } else {
                     withParen = false;
                 }
@@ -651,12 +651,12 @@ SqlAlterTable SqlAlterTable() :
         )
         {
             return new SqlAlterTableAdd(
-                startPos.plus(getPos()),
-                tableIdentifier,
-                withParen,
-                new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
-                ctx.watermark,
-                ctx.constraints);
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        withParen,
+                        new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                        ctx.watermark,
+                        ctx.constraints);
         }
     |
         <MODIFY>
@@ -674,12 +674,12 @@ SqlAlterTable SqlAlterTable() :
         )
         {
             return new SqlAlterTableModify(
-                startPos.plus(getPos()),
-                tableIdentifier,
-                withParen,
-                new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
-                ctx.watermark,
-                ctx.constraints);
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        withParen,
+                        new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                        ctx.watermark,
+                        ctx.constraints);
         }
 
     |

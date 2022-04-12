@@ -103,11 +103,9 @@ public class SqlAlterTableAdd extends SqlAlterTable {
                 printIndent(writer);
                 column.unparse(writer, leftPrec, rightPrec);
             }
-            if (constraint.size() > 0) {
-                for (SqlTableConstraint constraint : constraint) {
-                    printIndent(writer);
-                    constraint.unparse(writer, leftPrec, rightPrec);
-                }
+            for (SqlTableConstraint constraint : constraint) {
+                printIndent(writer);
+                constraint.unparse(writer, leftPrec, rightPrec);
             }
             if (watermark != null) {
                 printIndent(writer);
