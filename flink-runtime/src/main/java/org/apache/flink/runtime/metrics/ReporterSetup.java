@@ -71,6 +71,7 @@ public final class ReporterSetup {
 
     // regex pattern to extract the name from reporter configuration keys, e.g. "rep" from
     // "metrics.reporter.rep.class"
+    @SuppressWarnings("deprecation")
     private static final Pattern reporterClassPattern =
             Pattern.compile(
                     Pattern.quote(ConfigConstants.METRICS_REPORTER_PREFIX)
@@ -360,6 +361,7 @@ public final class ReporterSetup {
         return reporterSetups;
     }
 
+    @SuppressWarnings("deprecation")
     private static Optional<MetricReporter> loadReporter(
             final String reporterName,
             final Configuration reporterConfig,
@@ -375,6 +377,15 @@ public final class ReporterSetup {
         }
 
         if (reporterClassName != null) {
+            LOG.warn(
+                    "The reporter configuration of '{}' configures the reporter class, which is a deprecated approach to configure reporters."
+                            + " Please configure a factory class instead: '{}{}.{}: <factoryClass>' to ensure that the configuration"
+                            + " continues to work with future versions.",
+                    reporterName,
+                    ConfigConstants.METRICS_REPORTER_PREFIX,
+                    reporterName,
+                    MetricOptions.REPORTER_FACTORY_CLASS.key());
+
             final Optional<MetricReporterFactory> interceptingFactory =
                     reporterFactories.values().stream()
                             .filter(
@@ -434,6 +445,7 @@ public final class ReporterSetup {
         return Optional.of(factory.createMetricReporter(metricConfig));
     }
 
+    @SuppressWarnings("deprecation")
     private static Optional<MetricReporter> loadViaReflection(
             final String reporterClassName,
             final String reporterName,
@@ -448,15 +460,6 @@ public final class ReporterSetup {
         if (alternativeFactoryAnnotation != null) {
             final String alternativeFactoryClassName =
                     alternativeFactoryAnnotation.factoryClassName();
-            LOG.info(
-                    "The reporter configuration of {} is out-dated (but still supported)."
-                            + " Please configure a factory class instead: '{}{}.{}: {}' to ensure that the configuration"
-                            + " continues to work with future versions.",
-                    reporterName,
-                    MetricOptions.REPORTER_CLASS.key(),
-                    reporterName,
-                    MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                    alternativeFactoryClassName);
             return loadViaFactory(
                     alternativeFactoryClassName, reporterName, reporterConfig, reporterFactories);
         }

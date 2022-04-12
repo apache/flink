@@ -67,8 +67,8 @@ public class MetricOptions {
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
 
-    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
-    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
+    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
+    @Deprecated
     public static final ConfigOption<String> REPORTER_CLASS =
             key("class")
                     .stringType()
