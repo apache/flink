@@ -25,7 +25,7 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
-from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.table.operations import BundleOperation, BaseOperation as TableOperation
 from pyflink.fn_execution.profiler import Profiler
 
 
@@ -128,6 +128,10 @@ class FunctionOperation(Operation):
                     self.process_element(value)
                 for p in self._output_processors.get(DEFAULT_OUTPUT_TAG, []):
                     p.process_outputs(o, self.operation.finish_bundle())
+            elif isinstance(self.operation, TableOperation):
+                for value in o.value:
+                    for p in self._output_processors.get(DEFAULT_OUTPUT_TAG, []):
+                        p.process_outputs(o, self.operation.process_element(value))
             else:
                 for value in o.value:
                     # TODO: do we need tag grouping?

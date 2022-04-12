@@ -91,6 +91,7 @@ import java.util.stream.Collectors;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.SIDE_OUTPUT_CODER_PREFIX;
 import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
@@ -453,7 +454,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
                     sideOutputCoderDescriptors.entrySet()) {
                 String collectionId = entry.getKey();
-                String collectionCoderId = "side_coder-" + collectionId;
+                String collectionCoderId = SIDE_OUTPUT_CODER_PREFIX + collectionId;
                 componentsBuilder.putPcollections(
                         collectionId,
                         RunnerApi.PCollection.newBuilder()

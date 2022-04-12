@@ -160,25 +160,25 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 transformBuilder.putInputs(MAIN_INPUT_NAME, COLLECTION_PREFIX + (i - 1));
             }
 
-            // prepare outputs
+            // prepare side outputs
             if (i == userDefinedDataStreamFunctions.size() - 1
                     && sideOutputCoderDescriptors != null) {
                 for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
                         sideOutputCoderDescriptors.entrySet()) {
-                    transformBuilder.putOutputs(entry.getKey(), entry.getKey() + "-revise");
+                    String reviseCollectionId = COLLECTION_PREFIX + "revise-" + entry.getKey();
+                    String reviseCoderId = CODER_PREFIX + "revise-" + entry.getKey();
+                    transformBuilder.putOutputs(entry.getKey(), reviseCollectionId);
                     componentsBuilder
                             .putPcollections(
-                                    entry.getKey() + "-revise",
+                                    reviseCollectionId,
                                     RunnerApi.PCollection.newBuilder()
                                             .setWindowingStrategyId(WINDOW_STRATEGY)
-                                            .setCoderId(CODER_PREFIX + "revise-" + entry.getKey())
+                                            .setCoderId(reviseCoderId)
                                             .build())
-                            .putCoders(
-                                    CODER_PREFIX + "revise-" + entry.getKey(),
-                                    createCoderProto(inputCoderDescriptor));
+                            .putCoders(reviseCoderId, createCoderProto(inputCoderDescriptor));
                 }
             }
-
+            // prepare outputs
             transformBuilder.putOutputs(MAIN_OUTPUT_NAME, COLLECTION_PREFIX + i);
             componentsBuilder
                     .putPcollections(
@@ -192,21 +192,25 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             componentsBuilder.putTransforms(transformName, transformBuilder.build());
         }
 
-        // Add REVISE_OUTPUT transformation
+        // Add REVISE_OUTPUT transformation for side outputs
         if (sideOutputCoderDescriptors != null) {
             for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
                     sideOutputCoderDescriptors.entrySet()) {
-                String name = TRANSFORM_ID_PREFIX + "revise-" + entry.getKey();
+                String reviseTransformId = TRANSFORM_ID_PREFIX + "revise-" + entry.getKey();
+                String reviseCollectionId = COLLECTION_PREFIX + "revise-" + entry.getKey();
+                String outputCollectionId = entry.getKey();
                 componentsBuilder.putTransforms(
-                        name,
-                        buildReviseTransform(name, entry.getKey() + "-revise", entry.getKey()));
+                        reviseTransformId,
+                        buildReviseTransform(
+                                reviseTransformId, reviseCollectionId, outputCollectionId));
             }
         }
-        String name = TRANSFORM_ID_PREFIX + "revise";
+        // Add REVISE_OUTPUT transformation for main output
+        String reviseTransformId = TRANSFORM_ID_PREFIX + "revise";
         componentsBuilder.putTransforms(
-                name,
+                reviseTransformId,
                 buildReviseTransform(
-                        name,
+                        reviseTransformId,
                         COLLECTION_PREFIX + (userDefinedDataStreamFunctions.size() - 1),
                         OUTPUT_COLLECTION_ID));
     }

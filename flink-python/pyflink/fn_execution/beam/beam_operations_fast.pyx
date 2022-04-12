@@ -22,14 +22,13 @@
 from libc.stdint cimport *
 
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
+from apache_beam.runners.worker.bundle_processor import DataOutputOperation
 from apache_beam.utils cimport windowed_value
 from apache_beam.utils.windowed_value cimport WindowedValue
 
+from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
-
-from apache_beam.runners.worker.bundle_processor import DataOutputOperation
-from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
-from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.table.operations import BundleOperation, BaseOperation as TableOperation
 from pyflink.fn_execution.profiler import Profiler
 
 
@@ -57,7 +56,10 @@ cdef class NetworkInputProcessor(InputProcessor):
 cdef class IntermediateInputProcessor(InputProcessor):
 
     def __init__(self, input_values):
-        self._input_values = input_values
+        if isinstance(input_values, list):
+            self._input_values = iter(input_values)
+        else:
+            self._input_values = input_values
         self._next_value = None
 
     cpdef has_next(self):
@@ -112,19 +114,8 @@ cdef class FunctionOperation(Operation):
 
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
-        consumer = consumers['output'][0]
-        if isinstance(consumer, DataOutputOperation):
-            self._output_processor = NetworkOutputProcessor(consumer)
-
-            _value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-            if isinstance(_value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
-                self._is_python_coder = False
-            else:
-                self._is_python_coder = True
-        else:
-            self._output_processor = IntermediateOutputProcessor(consumer)
-            self._is_python_coder = False
-
+        self._output_processors = FunctionOperation._create_output_processors(consumers)  \
+            # type: Dict[str, List[OutputProcessor]]
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
@@ -150,28 +141,34 @@ cdef class FunctionOperation(Operation):
     cpdef teardown(self):
         with self.scoped_finish_state:
             self.operation.close()
-            self._output_processor.close()
+            for ps in self._output_processors.values():
+                for p in ps:
+                    p.close()
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
         cdef InputProcessor input_processor
         with self.scoped_process_state:
-            if self._is_python_coder:
-                for value in o.value:
-                    self._output_processor.process_outputs(o, self.process_element(value))
+            if isinstance(o.value, InputStreamWrapper):
+                input_processor = NetworkInputProcessor(o.value)
             else:
-                if isinstance(o.value, InputStreamWrapper):
-                    input_processor = NetworkInputProcessor(o.value)
-                else:
-                    input_processor = IntermediateInputProcessor(o.value)
-                if isinstance(self.operation, BundleOperation):
-                    while input_processor.has_next():
-                        self.process_element(input_processor.next())
-                    self._output_processor.process_outputs(o, self.operation.finish_bundle())
-                else:
-                    while input_processor.has_next():
-                        result = self.process_element(input_processor.next())
-                        self._output_processor.process_outputs(o, result)
+                input_processor = IntermediateInputProcessor(o.value)
+            if isinstance(self.operation, BundleOperation):
+                while input_processor.has_next():
+                    self.process_element(input_processor.next())
+                for p in self._output_processors.get(DEFAULT_OUTPUT_TAG, []):
+                    p.process_outputs(o, self.operation.finish_bundle())
+            elif isinstance(self.operation, TableOperation):
+                while input_processor.has_next():
+                    result = self.process_element(input_processor.next())
+                    for p in self._output_processors.get(DEFAULT_OUTPUT_TAG, []):
+                        p.process_outputs(o, result)
+            else:
+                while input_processor.has_next():
+                    result = self.process_element(input_processor.next())
+                    for tag, row in result:
+                        for p in self._output_processors.get(tag, []):
+                            p.process_outputs(o, [row])
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()
@@ -188,6 +185,18 @@ cdef class FunctionOperation(Operation):
         :param tag_to_pcollection_id: useless for user metric
         """
         return self.user_monitoring_infos(transform_id)
+
+    @staticmethod
+    def _create_output_processors(consumers_map):
+        def _create_processor(consumer):
+            if isinstance(consumer, DataOutputOperation):
+                return NetworkOutputProcessor(consumer)
+            else:
+                return IntermediateOutputProcessor(consumer)
+
+        return {tag: [_create_processor(c) for c in consumers] for tag, consumers in
+                consumers_map.items()}
+
 
     cdef object generate_operation(self):
         pass
@@ -219,7 +228,6 @@ cdef class StatefulFunctionOperation(FunctionOperation):
 
     cpdef process_timer(self, tag, timer_data):
         cdef BOutputStream output_stream
-        self._output_processor.process_outputs(
-            self._reusable_windowed_value,
-            # the field user_key holds the timer data
-            self.operation.process_timer(timer_data.user_key))
+        for tag, row in self.operation.process_timer(timer_data.user_key):
+            for p in self._output_processors.get(tag, []):
+                p.process_outputs(self._reusable_windowed_value, [row])
