@@ -822,20 +822,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("TIME '12:44:31'", "12:44:31")
     testSqlApi("TO_DATE('2018-03-18')", "2018-03-18")
 
-    // EXTRACT
-    //testSqlApi("TO_DATE(1521331200)", "2018-03-18")
-    testSqlApi("EXTRACT(HOUR FROM TIME '06:07:08')", "6")
-    testSqlApi("EXTRACT(MINUTE FROM TIME '06:07:08')", "7")
-    //testSqlApi("EXTRACT(HOUR FROM TO_TIME('06:07:08'))", "6")  NO TO_TIME funciton
-    testSqlApi("EXTRACT(HOUR FROM CAST('06:07:08' AS TIME))", "6")
-    testSqlApi("EXTRACT(DAY FROM CAST('2018-03-18' AS DATE))", "18")
-    testSqlApi("EXTRACT(DAY FROM DATE '2018-03-18')", "18")
-    testSqlApi("EXTRACT(DAY FROM TO_DATE('2018-03-18'))", "18")
-    testSqlApi("EXTRACT(MONTH FROM TO_DATE('2018-01-01'))", "1")
-    testSqlApi("EXTRACT(YEAR FROM TO_DATE('2018-01-01'))", "2018")
-    testSqlApi("EXTRACT(QUARTER FROM TO_DATE('2018-01-01'))", "1")
-    testSqlApi("EXTRACT(EPOCH FROM TO_DATE('2018-01-01'))", "1514764800")
-
     // Floor & Ceil
     // TODO: fix this legacy bug
     //testSqlApi("CEIL(TO_DATE('2018-03-18') TO DAY)", "2018-04-01")
