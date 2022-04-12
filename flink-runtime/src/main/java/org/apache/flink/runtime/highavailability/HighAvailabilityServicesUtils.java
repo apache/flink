@@ -34,7 +34,6 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClie
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -81,25 +80,17 @@ public class HighAvailabilityServicesUtils {
     private static HighAvailabilityServices createZooKeeperHaServices(
             Configuration configuration, Executor executor, FatalErrorHandler fatalErrorHandler)
             throws Exception {
-        final boolean useOldHaServices =
-                configuration.get(HighAvailabilityOptions.USE_OLD_HA_SERVICES);
-
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
 
         final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-        if (useOldHaServices) {
-            return new ZooKeeperHaServices(
-                    curatorFrameworkWrapper, executor, configuration, blobStoreService);
-        } else {
-            return new ZooKeeperMultipleComponentLeaderElectionHaServices(
-                    curatorFrameworkWrapper,
-                    configuration,
-                    executor,
-                    blobStoreService,
-                    fatalErrorHandler);
-        }
+        return new ZooKeeperMultipleComponentLeaderElectionHaServices(
+                curatorFrameworkWrapper,
+                configuration,
+                executor,
+                blobStoreService,
+                fatalErrorHandler);
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(

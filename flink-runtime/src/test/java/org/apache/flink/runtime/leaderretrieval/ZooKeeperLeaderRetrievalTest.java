@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperMultipleComponentLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
@@ -83,12 +83,13 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
         highAvailabilityServices =
-                new ZooKeeperHaServices(
+                new ZooKeeperMultipleComponentLeaderElectionHaServices(
                         ZooKeeperUtils.startCuratorFramework(
                                 config, testingFatalErrorHandlerResource.getFatalErrorHandler()),
-                        EXECUTOR_RESOURCE.getExecutor(),
                         config,
-                        new VoidBlobStore());
+                        EXECUTOR_RESOURCE.getExecutor(),
+                        new VoidBlobStore(),
+                        testingFatalErrorHandlerResource.getFatalErrorHandler());
     }
 
     @After
