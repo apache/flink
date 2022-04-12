@@ -49,7 +49,7 @@ metrics.reporter.my_jmx_reporter.port: 9020-9040
 metrics.reporter.my_jmx_reporter.scope.variables.excludes: job_id;task_attempt_num
 metrics.reporter.my_jmx_reporter.scope.variables.additional: cluster_name:my_test_cluster,tag_name:tag_value
 
-metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.GraphiteReporter
+metrics.reporter.my_other_reporter.factory.class: org.apache.flink.metrics.graphite.GraphiteReporterFactory
 metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
 ```
@@ -180,7 +180,7 @@ Parameters:
 Example configuration:
 
 ```yaml
-metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
 ```
 
 Flink metric types are mapped to Prometheus metric types as follows: 
@@ -206,7 +206,7 @@ Parameters:
 Example configuration:
 
 ```yaml
-metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+metrics.reporter.promgateway.factory.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory
 metrics.reporter.promgateway.hostUrl: http://localhost:9091
 metrics.reporter.promgateway.jobName: myJob
 metrics.reporter.promgateway.randomJobNameSuffix: true
