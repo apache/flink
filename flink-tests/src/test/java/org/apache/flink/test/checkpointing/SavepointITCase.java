@@ -1018,22 +1018,12 @@ public class SavepointITCase extends TestLogger {
                 // 2. job failover triggered by SchedulerBase.stopWithSavepoint
                 0,
                 (jobId, actualException) -> {
-                    if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
-                        return actualException
-                                .getMessage()
-                                .contains("Stop with savepoint operation could not be completed");
-                    } else {
-                        Optional<StopWithSavepointStoppingException> actualFlinkException =
-                                findThrowable(
-                                        actualException, StopWithSavepointStoppingException.class);
-                        return actualFlinkException
-                                .map(
-                                        e ->
-                                                e.getMessage()
-                                                        .startsWith(
-                                                                "A savepoint has been created at:"))
-                                .orElse(false);
-                    }
+                    Optional<StopWithSavepointStoppingException> actualFlinkException =
+                            findThrowable(
+                                    actualException, StopWithSavepointStoppingException.class);
+                    return actualFlinkException
+                            .map(e -> e.getMessage().startsWith("A savepoint has been created at:"))
+                            .orElse(false);
                 },
                 false);
     }
@@ -1086,30 +1076,6 @@ public class SavepointITCase extends TestLogger {
         } finally {
             cluster.after();
         }
-    }
-
-    private static BiFunction<JobID, ExecutionException, Boolean>
-            assertAfterSnapshotCreationFailure() {
-        return (jobId, actualException) -> {
-            if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
-                return actualException
-                        .getMessage()
-                        .contains("Stop with savepoint operation could not be completed");
-            } else {
-                Optional<FlinkException> actualFlinkException =
-                        findThrowable(actualException, FlinkException.class);
-                if (!actualFlinkException.isPresent()) {
-                    return false;
-                }
-                return actualFlinkException
-                        .get()
-                        .getMessage()
-                        .contains(
-                                String.format(
-                                        "A global fail-over is triggered to recover the job %s.",
-                                        jobId));
-            }
-        };
     }
 
     private static BiFunction<JobID, ExecutionException, Boolean>
