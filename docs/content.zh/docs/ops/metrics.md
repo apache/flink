@@ -1293,6 +1293,11 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
+      <td>totalAttemptsPerUpload</td>
+      <td>The total count distributions of attempts for per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
       <td>uploadBatchSizes</td>
       <td>The number of upload tasks (coming from one or more writers, i.e. backends/tasks) that were grouped together and form a single upload resulting in a single file</td>
       <td>Histogram</td>

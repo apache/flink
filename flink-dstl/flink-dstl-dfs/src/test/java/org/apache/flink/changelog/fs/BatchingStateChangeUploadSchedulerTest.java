@@ -139,6 +139,7 @@ class BatchingStateChangeUploadSchedulerTest {
     @Test
     void testRetry() throws Exception {
         final int maxAttempts = 5;
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
 
         try (BatchingStateChangeUploadScheduler store =
                 new BatchingStateChangeUploadScheduler(
@@ -165,9 +166,9 @@ class BatchingStateChangeUploadSchedulerTest {
                         new DirectScheduledExecutorService(),
                         new RetryingExecutor(
                                 new DirectScheduledExecutorService(),
-                                createUnregisteredChangelogStorageMetricGroup()
-                                        .getAttemptsPerUpload()),
-                        createUnregisteredChangelogStorageMetricGroup())) {
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
+                        metrics)) {
             CompletableFuture<List<UploadResult>> completionFuture = new CompletableFuture<>();
             store.upload(
                     new UploadTask(
@@ -248,6 +249,7 @@ class BatchingStateChangeUploadSchedulerTest {
     void testErrorHandling() throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (BatchingStateChangeUploadScheduler store =
                 new BatchingStateChangeUploadScheduler(
                         Integer.MAX_VALUE,
@@ -258,9 +260,9 @@ class BatchingStateChangeUploadSchedulerTest {
                         scheduler,
                         new RetryingExecutor(
                                 5,
-                                createUnregisteredChangelogStorageMetricGroup()
-                                        .getAttemptsPerUpload()),
-                        createUnregisteredChangelogStorageMetricGroup())) {
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
+                        metrics)) {
             scheduler.shutdown();
             assertThatThrownBy(() -> upload(store, getChanges(4)))
                     .isInstanceOf(RejectedExecutionException.class);
@@ -272,6 +274,7 @@ class BatchingStateChangeUploadSchedulerTest {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
         DirectScheduledExecutorService retryScheduler = new DirectScheduledExecutorService();
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         new BatchingStateChangeUploadScheduler(
                         0,
                         0,
@@ -281,9 +284,9 @@ class BatchingStateChangeUploadSchedulerTest {
                         scheduler,
                         new RetryingExecutor(
                                 retryScheduler,
-                                createUnregisteredChangelogStorageMetricGroup()
-                                        .getAttemptsPerUpload()),
-                        createUnregisteredChangelogStorageMetricGroup())
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
+                        metrics)
                 .close();
         assertThat(probe.isClosed()).isTrue();
         assertThat(scheduler.isShutdown()).isTrue();
@@ -383,6 +386,7 @@ class BatchingStateChangeUploadSchedulerTest {
             TestScenario test)
             throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (BatchingStateChangeUploadScheduler store =
                 new BatchingStateChangeUploadScheduler(
                         delayMs,
@@ -393,9 +397,9 @@ class BatchingStateChangeUploadSchedulerTest {
                         scheduler,
                         new RetryingExecutor(
                                 new DirectScheduledExecutorService(),
-                                createUnregisteredChangelogStorageMetricGroup()
-                                        .getAttemptsPerUpload()),
-                        createUnregisteredChangelogStorageMetricGroup())) {
+                                metrics.getAttemptsPerUpload(),
+                                metrics.getTotalAttemptsPerUpload()),
+                        metrics)) {
             test.accept(store, probe);
         }
     }
@@ -473,6 +477,7 @@ class BatchingStateChangeUploadSchedulerTest {
             ManuallyTriggeredScheduledExecutorService scheduler,
             StateChangeUploader uploader,
             int timeout) {
+        ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         return new BatchingStateChangeUploadScheduler(
                 0,
                 0,
@@ -482,7 +487,8 @@ class BatchingStateChangeUploadSchedulerTest {
                 scheduler,
                 new RetryingExecutor(
                         numAttempts,
-                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload()),
-                createUnregisteredChangelogStorageMetricGroup());
+                        metrics.getAttemptsPerUpload(),
+                        metrics.getTotalAttemptsPerUpload()),
+                metrics);
     }
 }

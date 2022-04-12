@@ -42,6 +42,7 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
     private final Histogram uploadSizes;
     private final Histogram uploadLatenciesNanos;
     private final Histogram attemptsPerUpload;
+    private final Histogram totalAttemptsPerUpload;
 
     public ChangelogStorageMetricGroup(MetricGroup parent) {
         super(parent);
@@ -54,6 +55,10 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
         this.attemptsPerUpload =
                 histogram(
                         CHANGELOG_STORAGE_ATTEMPTS_PER_UPLOAD,
+                        new DescriptiveStatisticsHistogram(WINDOW_SIZE));
+        this.totalAttemptsPerUpload =
+                histogram(
+                        CHANGELOG_STORAGE_TOTAL_ATTEMPTS_PER_UPLOAD,
                         new DescriptiveStatisticsHistogram(WINDOW_SIZE));
         this.uploadSizes =
                 histogram(
@@ -77,6 +82,10 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
 
     public Histogram getAttemptsPerUpload() {
         return attemptsPerUpload;
+    }
+
+    public Histogram getTotalAttemptsPerUpload() {
+        return totalAttemptsPerUpload;
     }
 
     /**
@@ -138,6 +147,8 @@ public class ChangelogStorageMetricGroup extends ProxyMetricGroup<MetricGroup> {
             PREFIX + ".uploadLatenciesNanos";
     public static final String CHANGELOG_STORAGE_ATTEMPTS_PER_UPLOAD =
             PREFIX + ".attemptsPerUpload";
+    public static final String CHANGELOG_STORAGE_TOTAL_ATTEMPTS_PER_UPLOAD =
+            PREFIX + ".totalAttemptsPerUpload";
     public static final String CHANGELOG_STORAGE_UPLOAD_BATCH_SIZES = PREFIX + ".uploadBatchSizes";
     public static final String CHANGELOG_STORAGE_UPLOAD_QUEUE_SIZE = PREFIX + ".uploadQueueSize";
 }
