@@ -306,7 +306,8 @@ class ReporterSetupTest {
      * are configured.
      */
     @Test
-    void testFactoryPrioritization() throws Exception {
+    @SuppressWarnings("deprecation")
+    public void testFactoryPrioritization() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -352,7 +353,8 @@ class ReporterSetupTest {
 
     /** Verifies that factory/reflection approaches can be mixed freely. */
     @Test
-    void testMixedSetupsFactoryParsing() throws Exception {
+    @SuppressWarnings("deprecation")
+    public void testMixedSetupsFactoryParsing() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -401,7 +403,8 @@ class ReporterSetupTest {
      * InstantiateViaFactory}.
      */
     @Test
-    void testFactoryAnnotation() {
+    @SuppressWarnings("deprecation")
+    public void testFactoryAnnotation() {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -425,7 +428,8 @@ class ReporterSetupTest {
      * org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection}.
      */
     @Test
-    void testReflectionInterception() {
+    @SuppressWarnings("deprecation")
+    public void testReflectionInterception() {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -534,6 +538,7 @@ class ReporterSetupTest {
     @InterceptInstantiationViaReflection(
             reporterClassName =
                     "org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporter")
+    @SuppressWarnings("deprecation")
     public static class InterceptingInstantiationTypeTrackingTestReporterFactory
             implements MetricReporterFactory {
 
@@ -565,6 +570,7 @@ class ReporterSetupTest {
     @InstantiateViaFactory(
             factoryClassName =
                     "org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporterFactory")
+    @SuppressWarnings("deprecation")
     protected static class InstantiationTypeTrackingTestReporter2
             extends InstantiationTypeTrackingTestReporter {}
 }

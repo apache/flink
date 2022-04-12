@@ -32,10 +32,12 @@ import java.lang.annotation.Target;
  * instead.
  *
  * @see InstantiateViaFactory
+ * @deprecated Will be removed in a future version. Users should use all reporters as plugins.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Public
+@Deprecated
 public @interface InterceptInstantiationViaReflection {
     String reporterClassName();
 }

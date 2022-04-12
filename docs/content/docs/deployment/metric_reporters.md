@@ -36,7 +36,7 @@ Below is a list of parameters that are generally applicable to all reporters. Al
 
 {{< include_reporter_config "layouts/shortcodes/generated/metric_reporters_section.html" >}}
 
-All reporters must at least have either the `class` or `factory.class` property. Which property may/should be used depends on the reporter implementation. See the individual reporter configuration sections for more information.
+All reporter configurations must contain the `factory.class` property.
 Some reporters (referred to as `Scheduled`) allow specifying a reporting `interval`.
 
 Example reporter configuration that specifies multiple reporters:
@@ -54,10 +54,9 @@ metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
 ```
 
-**Important:** The jar containing the reporter must be accessible when Flink is started. Reporters that support the
- `factory.class` property can be loaded as [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}). Otherwise the jar must be placed
- in the /lib folder. Reporters that are shipped with Flink (i.e., all reporters documented on this page) are available
- by default.
+**Important:** The jar containing the reporter must be accessible when Flink is started.
+ Reporters are loaded as [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}).
+ All reporters documented on this page are available by default.
 
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
