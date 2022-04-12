@@ -91,16 +91,16 @@ RocksDB 的性能可能因配置而异，本节讲述了一些使用 RocksDB Sta
 有关如何配置基于堆的计时器的详细信息，请参阅 [计时器（内存 vs. RocksDB）]({{< ref "docs/ops/state/state_backends" >}}#timers-heap-vs-rocksdb)。
 
 ### RocksDB 内存调优
-RocksDB State Backend 的性能很大程度上取决于它可用的内存量。 为了提高性能，增加内存会很有帮助，或者调整内存运行功能。
-默认情况下，RocksDB State Backend 使用 Flink 的托管内存作为 RocksDB 的缓冲区和缓存（`state.backend.rocksdb.memory.managed: true`）。 请参阅 [RocksDB 内存管理]({{< ref "docs/ops/state/state_backends" >}}#memory-management) 了解该机制如何工作的背景。
-要调整与内存相关的性能问题，以下步骤可能会有所帮助：
-  - 尝试提高性能的第一步应该是增加托管内存的数值。 这通常会大大改善这种情况，而不会增加调整低级 RocksDB 选项的复杂性。
-    尤其是对于大型容器、进程大小，大部分总内存通常可以流向 RocksDB，除非应用程序逻辑本身需要大量 JVM 堆。 默认托管内存比例 *(0.4)* 是保守的，并且在使用具有多 GB 进程大小的 TaskManager 时通常可以增加。
-  - RocksDB 中写入缓冲区的数量取决于你在应用程序中拥有的状态数量（管道中所有算子的状态）。 每个状态对应一个列族，它需要自己写缓冲区。 因此，具有许多状态的应用程序通常需要更多内存才能获得相同的性能。
-  - 你可以通过设置 `state.backend.rocksdb.memory.managed: false` 来尝试使用列族内存的 RocksDB 与使用托管内存的 RocksDB 的性能对比。特别是针对基线进行测试（假设没有或适当的容器内存限制）或测试与早期版本的 Flink 相比的回归，这可能会很有用。
-    与设置托管内存（固定内存池）相比，不使用托管内存意味着 RocksDB 分配的内存与应用程序中的状态数量成正比（内存占用量随着应用程序的变化而变化）。 根据经验，非托管模式（除非应用列族选项）的上限约为 “140MB * 所有 tasks 的状态 * slots 个数”。 计时器也算作状态！
-  - 如果你的应用程序有许多状态并且 MemTable 频繁的刷新（写入端瓶颈），但无法提供更多内存，你可以增加写入缓冲区的内存比例（`state.backend.rocksdb.memory.write- 缓冲比例`）。 有关详细信息，请参阅 [RocksDB 内存管理]({{< ref "docs/ops/state/state_backends" >}}#memory-management)。
-  - 一个高级选项（*专家模式*）可以设置减少具有许多状态的 MemTable 刷新次数，是通过 `RocksDBOptionsFactory` 调整 RocksDB 的列族选项（块大小、最大后台刷新线程等）：
+RocksDB State Backend 的性能在很大程度上取决于它可用的内存量。为了提高性能，增加内存会有很大的帮助，或者调整内存的功能。
+默认情况下，RocksDB State Backend 将 Flink 的托管内存用于 RocksDB 的缓冲区和缓存（`State.Backend.RocksDB.memory.managed:true`）。请参考 [RocksDB 内存管理]({{< ref "docs/ops/state/state_backends" >}}#memory-management) 了解该机制的工作原理。
+关于 RocksDB 内存调优相关的性能问题，如下步骤可能会有所帮助：
+  - 尝试提高性能的第一步应该是增加托管内存的大小。这通常会大大改善这种情况，而不会增加调整 RocksDB 低级选项的复杂性。
+    尤其是在容器、进程规模较大的情况下，除非应用程序本身逻辑需要大量的 JVM 堆，否则大部分总内存通常都可以用于 RocksDB 。默认的托管内存比例 *(0.4)* 是保守的，当 TaskManager 进程的内存为很多 GB 时，通常是可以增加该托管内存比例。
+  - 在 RocksDB 中，写缓冲区的数量取决于应用程序中所拥有的状态数量（数据流中所有算子的状态）。每个状态对应一个列族（ColumnFamily），它需要自己写缓冲区。因此，具有多状态的应用程序通常需要更多的内存才能获得相同的性能。
+  - 你可以尝试设置 `state.backend.rocksdb.memory.managed: false` 来使用列族（ColumnFamily）内存的 RocksDB 与使用托管内存的 RocksDB 的性能对比。特别是针对基准测试（假设没有或适当的容器内存限制）或回归测试 Flink 早期版本时，这可能会很有用。
+    与使用托管内存（固定内存池）相比，不使用托管内存意味着 RocksDB 分配的内存与应用程序中的状态数成比例（内存占用随应用程序的变化而变化）。根据经验，非托管模式（除非使用列族（ColumnFamily）RocksDB）的上限约为 “140MB * 跨所有 tasks 的状态 * slots 个数”。 计时器也算作状态！
+  - 如果你的应用程序有许多状态，并且你看到频繁的 MemTable 刷新（写端瓶颈），但你不能提供更多的内存，你可以增加写缓冲区的内存比例(`state.backend.rocksdb.memory.write-buffer-ratio`)。有关详细信息，请参阅 [RocksDB 内存管理]({{< ref "docs/ops/state/state_backends" >}}#memory-management)。
+  - 一个高级选项（*专家模式*）是通过 `RocksDBOptionFactory` 来调整 RocksDB 的列族（ColumnFamily）选项（块大小、最大后台刷新线程等），以减少具有多种状态的 MemTable 刷新次数：
 ```java
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
@@ -128,19 +128,18 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 ## 容量规划
 本节讨论如何确定 Flink 作业应该使用多少资源才能可靠地运行。
 容量规划的基本经验法则是：
-  - 正常运行应该有足够的能力在恒定的*反压*下运行。
-    如何检查应用程序是否在反压下运行的详细信息，请参阅 [反压监控]({{< ref "docs/ops/monitoring/back_pressure" >}})。
-  - 在无故障时间内无反压程序运行所需资源之上提供一些额外的资源。
-    需要这些资源来“赶上”在应用程序恢复期间积累的输入数据。
-    这通常取决于恢复操作需要多长时间（这取决于需要在故障转移时加载到新 TaskManager 中的状态大小）以及故障恢复的速度。
-    *重要*：基线应该在开启 checkpointing 的情况下建立，因为 checkpointing 会占用一些资源（例如网络带宽）。
-  - 临时反压通常是可以的，在负载峰值、追赶阶段或外部系统(写入接收器中)出现临时减速时，这是执行流控制的重要部分。
+  - 应有足够的能力在恒定*反压*下正常运行。
+    如何检查应用程序是否在反压下运行，详细信息请参阅 [反压监控]({{< ref "docs/ops/monitoring/back_pressure" >}})。
+  - 在无故障时间内无反压运行程序所需的资源之上能够提供一些额外的资源。
+    需要这些资源来“追赶”在应用程序恢复期间积累的输入数据。
+    这通常取决于恢复操作需要多长时间（这取决于在故障转移时需要加载到新 TaskManager 中的状态大小）以及故障恢复的速度。
+    *重要提示*：基准点应该在开启 checkpointing 来建立，因为 checkpointing 会占用一些资源（例如网络带宽）。
+  - 临时反压通常是允许的，在负载峰值、追赶阶段或外部系统(sink 到外部系统)出现临时减速时，这是执行流控制的重要部分。
+  - 在某些操作下（如大窗口）会导致其下游算子的负载激增：
+    在有窗口的情况下，下游算子可能在构建窗口时几乎无事可做，而在触发窗口时有负载要做。
+    下游并行度的规划需要考虑窗口的输出量以及处理这种峰值的速度。
 
-  - 某些操作（如大窗口）会导致其下游算子的负载激增：
-    在窗口的情况下，下游算子可能在构建窗口时几乎无事可做，而在窗口发出时有负载要做。
-    下游并行度的设置需要考虑到窗口输出多少以及需要以多快的速度处理这种峰值。
-
-**重要**：为了方便以后添加资源，请务必将数据流程序的*最大并行度*设置为合理的数字。 最大并行度定义了在重新缩放程序时（通过 savepoint ）可以设置程序并行度的高度。
+**重要提示**：为了方便以后增加资源，请确保将流应用程序的*最大并行度*设置为一个合理的数字。最大并行度定义了当扩缩容程序时（通过 savepoint ）可以设置程序并行度的高度。
 
 Flink 的内部以*键组(key groups)* 的最大并行度为粒度跟踪分布式状态。
 Flink 的设计力求使最大并行度的值达到很高的效率，即使执行程序时并行度很低。
