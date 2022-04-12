@@ -433,9 +433,9 @@ env.enable_changelog_statebackend(true)
 
 **开启 Changelog**
 
-仅支持从标准格式的 savepoint 恢复：
+支持从 savepoint 或 checkpoint 恢复：
 - 给定一个没有开启 Changelog 的作业
-- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) （默认为标准格式）
+- 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - 更改配置（开启 Changelog）
 - 从创建的 snapshot 恢复
 

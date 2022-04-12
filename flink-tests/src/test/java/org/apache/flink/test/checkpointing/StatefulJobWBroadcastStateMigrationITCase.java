@@ -141,7 +141,6 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
             default:
                 throw new UnsupportedOperationException();
         }
-        env.enableChangelogStateBackend(false);
 
         env.enableCheckpointing(500);
         env.setParallelism(parallelism);

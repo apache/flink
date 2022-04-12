@@ -82,12 +82,11 @@ public class ChangelogCompatibilityITCase {
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
-                // explicitly disallow recovery from  non-changelog checkpoints
-                // https://issues.apache.org/jira/browse/FLINK-26079
+                // enable recovery from  non-changelog checkpoints
                 TestCase.startWithChangelog(false)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)
-                        .allowRestore(false),
+                        .allowRestore(true),
                 // normal cases: changelog enabled before and after recovery
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
