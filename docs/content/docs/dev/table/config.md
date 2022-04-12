@@ -35,9 +35,9 @@ that the required state size is capped (see [streaming concepts]({{< ref "docs/d
 
 ### Overview
 
-When instantiating a `TableEnvironment`, `EnviromentSettings` can be used to pass the desired
+When instantiating a `TableEnvironment`, `EnvironmentSettings` can be used to pass the desired
 configuration for the current session, by passing a `Configuration` object to the 
-`EnviromentSettings`.
+`EnvironmentSettings`.
 
 Additionally, in every table environment, the `TableConfig` offers options for configuring the
 current session.
