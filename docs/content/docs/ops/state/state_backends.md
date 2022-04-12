@@ -429,9 +429,9 @@ If a task is backpressured by writing state changes, it will be shown as busy (r
 
 **Enabling Changelog**
 
-Resuming only from savepoints in canonical format is supported:
+Resuming from both savepoints and checkpoints is supported:
 - given an existing non-changelog job
-- take a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) (canonical format is the default)
+- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - alter configuration (enable Changelog)
 - resume from the taken snapshot
 
