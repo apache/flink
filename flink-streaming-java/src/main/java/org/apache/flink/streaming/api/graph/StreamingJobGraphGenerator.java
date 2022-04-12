@@ -170,7 +170,7 @@ public class StreamingJobGraphGenerator {
                 streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
 
         // Generate deterministic hashes for the nodes in order to identify them across
-        // submission iff they didn't change.
+        // submission if and only if they didn't change.
         Map<Integer, byte[]> hashes =
                 defaultStreamGraphHasher.traverseStreamGraphAndGenerateHashes(streamGraph);
 
