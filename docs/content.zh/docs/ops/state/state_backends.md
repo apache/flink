@@ -40,7 +40,7 @@ under the License.
 
 <a name="available-state-backends"></a>
 
-# 可用的 State Backends
+## 可用的 State Backends
 
 Flink 内置了以下这些开箱即用的 state backends ：
 
@@ -99,7 +99,7 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 <a name="choose-the-right-state-backend"></a>
 
-# 选择合适的 State Backend
+## 选择合适的 State Backend
 
 在选择 `HashMapStateBackend` 和 `RocksDB` 的时候，其实就是在性能与可扩展性之间权衡。`HashMapStateBackend` 是非常快的，因为每个状态的读取和算子对于 objects 的更新都是在 Java 的 heap 上；但是状态的大小受限于集群中可用的内存。
 另一方面，`RocksDB` 可以根据可用的 disk 空间扩展，并且只有它支持增量 snapshot。
@@ -181,7 +181,7 @@ state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 
 <a name="rocksdb-state-backend-details"></a>
 
-# RocksDB State Backend 进阶
+## RocksDB State Backend 进阶
 
 *该小节描述 RocksDB state backend 的更多细节*
 
@@ -255,7 +255,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
   **注意：** 启用 RocksDB 的原生指标可能会对应用程序的性能产生负面影响。
 {{< /hint >}}
 
-### 列族（ColumnFamily）级别的预定义选项
+#### 列族（ColumnFamily）级别的预定义选项
 
 <span class="label label-info">注意</span> 在引入 [RocksDB 使用托管内存](#memory-management) 功能后，此机制应限于在*专家调优*或*故障处理*中使用。
 
@@ -272,7 +272,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 RocksDB State Backend 会将 [这里定义]({{< ref "docs/deployment/config" >}}#advanced-rocksdb-state-backends-options) 的所有配置项全部加载。
 因此您可以简单的通过关闭 RocksDB 使用托管内存的功能并将需要的设置选项加入配置文件来配置底层的列族选项。
 
-### 通过 RocksDBOptionsFactory 配置 RocksDB 选项
+#### 通过 RocksDBOptionsFactory 配置 RocksDB 选项
 
 <span class="label label-info">注意</span> 在引入 [RocksDB 使用托管内存](#memory-management) 功能后，此机制应限于在*专家调优*或*故障处理*中使用。
 
