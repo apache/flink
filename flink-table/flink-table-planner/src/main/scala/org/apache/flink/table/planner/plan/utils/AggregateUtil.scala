@@ -563,8 +563,10 @@ object AggregateUtil extends Enumeration {
       definition,
       callContext,
       classOf[PlannerBase].getClassLoader,
+      // currently, aggregate functions have no access to FlinkContext
+      null,
       null
-    ) // currently, aggregate functions have no access to configuration
+    )
     val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class

@@ -47,7 +47,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_STRING;
-import static org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction.of;
 
 /**
  * Transforms JSON aggregation functions by wrapping operands into {@link
@@ -130,7 +129,8 @@ public class WrapJsonAggFunctionArgumentsRule
      */
     private void addProjections(
             RelOptCluster cluster, RelBuilder relBuilder, List<Integer> affectedArgs) {
-        final BridgingSqlFunction operandToStringOperator = of(cluster, JSON_STRING);
+        final BridgingSqlFunction operandToStringOperator =
+                BridgingSqlFunction.of(cluster, JSON_STRING);
 
         final List<RexNode> projects = new ArrayList<>();
         affectedArgs.stream()
