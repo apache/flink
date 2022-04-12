@@ -167,8 +167,8 @@ public interface FlinkKubeClient extends AutoCloseable {
             Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction);
 
     /**
-     * Delete the Kubernetes ConfigMaps by labels. This will be used by {@link
-     * org.apache.flink.kubernetes.highavailability.KubernetesHaServices} to clean up all data.
+     * Delete the Kubernetes ConfigMaps by labels. This will be used by the HA service to clean up
+     * all data.
      *
      * @param labels labels to filter the resources. e.g. type: high-availability
      * @return Return the delete future that only completes successfully, if the resources that are
