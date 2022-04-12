@@ -19,20 +19,19 @@ package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
+import org.apache.flink.table.api.DataTypes.STRING
+import org.apache.flink.table.api.internal.StatementSetImpl
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.sinks.CollectRowTableSink
-import org.apache.flink.table.planner.utils.TestingTableEnvironment
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.types.Row
 
@@ -100,8 +99,9 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
-      val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
+      tEnv.createTemporaryTable(
+        "outputTable",
+        TableTestUtil.createBlackHoleSinkDescriptor(("c", STRING())))
       val stmtSet = tEnv.createStatementSet()
       val table = tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e")
       stmtSet.addInsert("outputTable", table)

@@ -92,9 +92,17 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
   @Test
   def testExplainWithSingleSink(): Unit = {
-    val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
+    val stmtSet = util.tableEnv.createStatementSet()
+
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.verifyExplainInsert(table, appendSink, "appendSink", extraDetails: _*)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink", appendSink)
+
+    val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
+    stmtSet.addInsert("appendSink", table)
+
+    util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
   @Test

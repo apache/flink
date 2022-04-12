@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.connector.blackhole.table.BlackHoleTableSinkFactory
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -54,12 +55,12 @@ import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -647,8 +648,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * the given sink table name. Note: An exception will be thrown if the given sql can't be
    * translated to exec plan.
    */
-  def verifyExecPlanInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
-    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
+  def verifyExecPlanInsert(table: Table, sink: TableDescriptor, targetPath: String): Unit = {
+    getTableEnv.createTemporaryTable(targetPath, sink)
     val stmtSet = getTableEnv.createStatementSet()
     stmtSet.addInsert(targetPath, table)
     verifyExecPlan(stmtSet)
@@ -713,11 +714,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       () => assertEqualsOrExpand("sql", sql))
   }
 
-  /** Verify the explain result for the given [[Table]]. See more about [[Table#explain()]]. */
-  def verifyExplain(table: Table): Unit = {
-    doVerifyExplain(table.explain())
-  }
-
   /**
    * Verify the explain result for the given [[Table]]. The explain result will contain the extra
    * [[ExplainDetail]]s. See more about [[Table#explain()]].
@@ -730,8 +726,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Verify the explain result for the given [[Table]] with the given sink table name. See more
    * about [[StatementSet#explain()]].
    */
-  def verifyExplainInsert(table: Table, sink: TableSink[_], targetPath: String): Unit = {
-    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
+  def verifyExplainInsert(table: Table, sink: TableDescriptor, targetPath: String): Unit = {
+    getTableEnv.createTemporaryTable(targetPath, sink)
     val stmtSet = getTableEnv.createStatementSet()
     stmtSet.addInsert(targetPath, table)
     verifyExplain(stmtSet)
@@ -743,21 +739,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    */
   def verifyExplainInsert(
       table: Table,
-      sink: TableSink[_],
+      sink: TableDescriptor,
       targetPath: String,
       extraDetails: ExplainDetail*): Unit = {
-    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
+    getTableEnv.createTemporaryTable(targetPath, sink)
     val stmtSet = getTableEnv.createStatementSet()
     stmtSet.addInsert(targetPath, table)
     verifyExplain(stmtSet, extraDetails: _*)
-  }
-
-  /**
-   * Verify the explain result for the given [[StatementSet]]. See more about
-   * [[StatementSet#explain()]].
-   */
-  def verifyExplain(stmtSet: StatementSet): Unit = {
-    doVerifyExplain(stmtSet.explain())
   }
 
   /**
@@ -1362,14 +1350,6 @@ case class BatchTableTestUtil(
     val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
     calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(tableConfig))
   }
-
-  def createCollectTableSink(
-      fieldNames: Array[String],
-      fieldTypes: Array[LogicalType]): TableSink[Row] = {
-    require(fieldNames.length == fieldTypes.length)
-    val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
-    new CollectRowTableSink().configure(fieldNames, typeInfos)
-  }
 }
 
 /** Utility for batch scala table test. */
@@ -1635,6 +1615,22 @@ object TableTestUtil {
     val table = tEnv.asInstanceOf[TableEnvironmentImpl].createTable(dataStreamQueryOperation)
     tEnv.registerTable(name, table)
   }
+
+  // -- Connector utilities
+
+  /** Create a blackhole sink [[TableDescriptor]] */
+  def createBlackHoleSinkDescriptor(fields: (String, DataType)*): TableDescriptor = {
+    val schema = fields
+      .foldLeft(Schema.newBuilder())((builder, field) => builder.column(field._1, field._2))
+      .build()
+
+    TableDescriptor
+      .forConnector(BlackHoleTableSinkFactory.IDENTIFIER)
+      .schema(schema)
+      .build()
+  }
+
+  // --- Utilities for plan testing
 
   def readFromResource(path: String): String = {
     val basePath = getClass.getResource("/").getFile
