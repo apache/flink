@@ -142,20 +142,31 @@ def add_jars_to_context_class_loader(jar_urls):
     """
     gateway = get_gateway()
     # validate and normalize
-    jar_urls = [gateway.jvm.java.net.URL(url).toString() for url in jar_urls]
+    jar_urls = [gateway.jvm.java.net.URL(url) for url in jar_urls]
     context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
     existing_urls = []
-    if context_classloader.getClass().getName() == "java.net.URLClassLoader":
+    class_loader_name = context_classloader.getClass().getName()
+    if class_loader_name == "java.net.URLClassLoader":
         existing_urls = set([url.toString() for url in context_classloader.getURLs()])
-    if all([url in existing_urls for url in jar_urls]):
+    if all([url.toString() in existing_urls for url in jar_urls]):
         # if urls all existed, no need to create new class loader.
         return
-    jar_urls.extend(existing_urls)
-    # remove duplicates and create Java objects.
-    j_urls = [gateway.jvm.java.net.URL(url) for url in set(jar_urls)]
-    new_classloader = gateway.jvm.java.net.URLClassLoader(
-        to_jarray(gateway.jvm.java.net.URL, j_urls), context_classloader)
-    gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
+    URLClassLoaderClass = load_java_class("java.net.URLClassLoader")
+    addURL = URLClassLoaderClass.getDeclaredMethod(
+        "addURL",
+        to_jarray(
+            gateway.jvm.Class,
+            [load_java_class("java.net.URL")]))
+    addURL.setAccessible(True)
+    if class_loader_name == "org.apache.flink.runtime.execution.librarycache." \
+                            "FlinkUserCodeClassLoaders$SafetyNetWrapperClassLoader":
+        ensureInner = context_classloader.getClass().getDeclaredMethod("ensureInner", None)
+        ensureInner.setAccessible(True)
+        loader = ensureInner.invoke(context_classloader, None)
+    else:
+        loader = context_classloader
+    for url in jar_urls:
+        addURL.invoke(loader, to_jarray(get_gateway().jvm.Object, [url]))
 
 
 def to_j_explain_detail_arr(p_extra_details):
