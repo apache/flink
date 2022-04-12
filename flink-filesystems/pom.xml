@@ -35,7 +35,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<properties>
-		<fs.hadoopshaded.version>3.2.2</fs.hadoopshaded.version>
+		<fs.hadoopshaded.version>3.2.3</fs.hadoopshaded.version>
 	</properties>
 
 	<modules>
