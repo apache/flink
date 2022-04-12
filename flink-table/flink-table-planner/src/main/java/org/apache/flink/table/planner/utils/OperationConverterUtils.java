@@ -158,11 +158,11 @@ public class OperationConverterUtils {
                 originSchema.getColumns().stream()
                         .map(Schema.UnresolvedColumn::getName)
                         .collect(Collectors.toList());
-        // validate old column is exists or new column is duplicated or old column is
+        // validate old column is exists or new column isn't duplicated or old column isn't
         // referenced by computed column
         validateColumnName(originColumnName, newColumnName, tableColumns, originResolveSchema);
 
-        // validate old column is referenced by watermark
+        // validate old column isn't referenced by watermark
         List<org.apache.flink.table.catalog.WatermarkSpec> watermarkSpecs =
                 originResolveSchema.getWatermarkSpecs();
         watermarkSpecs.forEach(
@@ -252,7 +252,7 @@ public class OperationConverterUtils {
                             newColumnName));
         }
 
-        // validate old column name is referenced by computed column case
+        // validate old column name isn't referenced by computed column case
         originResolvedSchema.getColumns().stream()
                 .filter(column -> column instanceof Column.ComputedColumn)
                 .forEach(

@@ -1336,7 +1336,8 @@ public class SqlToOperationConverterTest {
                         "Old column d is referenced by computed column `i` INT NOT NULL AS cat1.`default`.my_udf1(d) + 1,"
                                 + " currently doesn't allow to rename column which is referenced by computed column.");
 
-        // rename column e test computed column case3
+        // rename column e test computed column expression is ApiExpression which doesn't implement
+        // the equals method
         CatalogTable catalogTable2 =
                 CatalogTable.of(
                         Schema.newBuilder()
