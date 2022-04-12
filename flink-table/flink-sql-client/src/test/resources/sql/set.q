@@ -16,23 +16,8 @@
 # limitations under the License.
 
 # test set a configuration
-SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
-!info
-
 SET 'table.sql-dialect' = 'hive';
 [INFO] Session property has been set.
-!info
-
-create catalog hivecatalog with (
- 'type' = 'hive-test',
- 'hive-version' = '2.3.4'
-);
-[INFO] Execute statement succeed.
-!info
-
-use catalog hivecatalog;
-[INFO] Execute statement succeed.
 !info
 
 # test create a hive table to verify the configuration works
@@ -43,23 +28,13 @@ CREATE TABLE hive_table (
   pv_count BIGINT,
   like_count BIGINT,
   comment_count BIGINT,
-  update_time TIMESTAMP,
+  update_time TIMESTAMP(3),
   update_user STRING
 ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROPERTIES (
   'streaming-source.enable' = 'true'
 );
 [INFO] Execute statement succeed.
 !info
-
-# test "ctas" only supported in Hive Dialect
-CREATE TABLE foo as select 1;
-+-------------------------+
-| hivecatalog.default.foo |
-+-------------------------+
-|                      -1 |
-+-------------------------+
-1 row in set
-!ok
 
 # list the configured configuration
 set;
@@ -72,7 +47,6 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'sql-client.execution.result-mode' = 'tableau'
 'table.exec.legacy-cast-behaviour' = 'DISABLED'
 'table.sql-dialect' = 'hive'
 !ok

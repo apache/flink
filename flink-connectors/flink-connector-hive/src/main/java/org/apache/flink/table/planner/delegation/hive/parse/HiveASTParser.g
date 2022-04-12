@@ -732,8 +732,8 @@ catch (RecognitionException e) {
 
 // starting rule
 statement
-	: explainStatement SEMICOLON? EOF
-	| execStatement SEMICOLON? EOF
+	: explainStatement EOF
+	| execStatement EOF
 	;
 
 explainStatement
