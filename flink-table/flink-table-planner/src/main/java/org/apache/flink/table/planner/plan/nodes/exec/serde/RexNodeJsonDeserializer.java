@@ -382,6 +382,12 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             return latestOperator.get();
         }
 
+        Optional<SqlOperator> sqlStdOperator =
+                lookupOptionalSqlStdOperator(publicName, syntax, null);
+        if (sqlStdOperator.isPresent()) {
+            return sqlStdOperator.get();
+        }
+
         throw new TableException(
                 String.format(
                         "Could not resolve internal system function '%s'. "
@@ -390,7 +396,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     }
 
     private static SqlOperator deserializeInternalFunction(SqlSyntax syntax, SqlKind sqlKind) {
-        final Optional<SqlOperator> stdOperator = lookupOptionalSqlOperator("", syntax, sqlKind);
+        final Optional<SqlOperator> stdOperator = lookupOptionalSqlStdOperator("", syntax, sqlKind);
         if (stdOperator.isPresent()) {
             return stdOperator.get();
         }
@@ -526,7 +532,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         }
     }
 
-    private static Optional<SqlOperator> lookupOptionalSqlOperator(
+    private static Optional<SqlOperator> lookupOptionalSqlStdOperator(
             String operatorName, SqlSyntax syntax, @Nullable SqlKind sqlKind) {
         List<SqlOperator> foundOperators = new ArrayList<>();
         // try to find operator from std operator table.
@@ -537,6 +543,9 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                         syntax,
                         foundOperators,
                         SqlNameMatchers.liberal());
+        if (foundOperators.size() == 1) {
+            return Optional.of(foundOperators.get(0));
+        }
         // in case different operator has the same kind, check with both name and kind.
         return foundOperators.stream()
                 .filter(o -> sqlKind != null && o.getKind() == sqlKind)
