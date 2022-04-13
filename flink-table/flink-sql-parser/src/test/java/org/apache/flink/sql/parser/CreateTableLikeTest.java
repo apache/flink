@@ -32,14 +32,13 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -47,8 +46,6 @@ import static org.hamcrest.Matchers.empty;
 
 /** Tests for parsing and validating {@link SqlTableLike} clause. */
 public class CreateTableLikeTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testNoOptions() throws Exception {
@@ -114,9 +111,9 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Each like option feature can be declared only once.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining("Each like option feature can be declared only once.");
     }
 
     @Test
@@ -132,9 +129,10 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining(
+                        "Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.");
     }
 
     @Test
@@ -150,9 +148,9 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining("Illegal merging strategy 'OVERWRITING' for 'ALL' option.");
     }
 
     @Test
@@ -168,43 +166,53 @@ public class CreateTableLikeTest {
                                                 + ")")
                                 .parseStmt();
 
-        thrown.expect(SqlValidateException.class);
-        thrown.expectMessage("Illegal merging strategy 'OVERWRITING' for 'CONSTRAINTS' option.");
-        extendedSqlNode.validate();
+        assertThatThrownBy(extendedSqlNode::validate)
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining(
+                        "Illegal merging strategy 'OVERWRITING' for 'CONSTRAINTS' option.");
     }
 
     @Test
-    public void testInvalidNoOptions() throws SqlParseException {
-        thrown.expect(SqlParseException.class);
-        thrown.expectMessage(
-                "Encountered \")\" at line 4, column 9.\n"
-                        + "Was expecting one of:\n"
-                        + "    \"EXCLUDING\" ...\n"
-                        + "    \"INCLUDING\" ...\n"
-                        + "    \"OVERWRITING\" ...");
-        createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b ()").parseStmt();
+    public void testInvalidNoOptions() {
+        assertThatThrownBy(
+                        () ->
+                                createFlinkParser(
+                                                "CREATE TABLE t (\n"
+                                                        + "   a STRING\n"
+                                                        + ")\n"
+                                                        + "LIKE b ()")
+                                        .parseStmt())
+                .isInstanceOf(SqlParseException.class)
+                .hasMessageContaining(
+                        "Encountered \")\" at line 4, column 9.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"EXCLUDING\" ...\n"
+                                + "    \"INCLUDING\" ...\n"
+                                + "    \"OVERWRITING\" ...");
     }
 
     @Test
-    public void testInvalidNoSourceTable() throws SqlParseException {
-        thrown.expect(SqlParseException.class);
-        thrown.expectMessage(
-                "Encountered \"(\" at line 4, column 6.\n"
-                        + "Was expecting one of:\n"
-                        + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
-                        + "    <QUOTED_IDENTIFIER> ...\n"
-                        + "    <BACK_QUOTED_IDENTIFIER> ...\n"
-                        + "    <HYPHENATED_IDENTIFIER> ...\n"
-                        + "    <IDENTIFIER> ...\n"
-                        + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");
-        createFlinkParser(
-                        "CREATE TABLE t (\n"
-                                + "   a STRING\n"
-                                + ")\n"
-                                + "LIKE ("
-                                + "   INCLUDING ALL"
-                                + ")")
-                .parseStmt();
+    public void testInvalidNoSourceTable() {
+        assertThatThrownBy(
+                        () ->
+                                createFlinkParser(
+                                                "CREATE TABLE t (\n"
+                                                        + "   a STRING\n"
+                                                        + ")\n"
+                                                        + "LIKE ("
+                                                        + "   INCLUDING ALL"
+                                                        + ")")
+                                        .parseStmt())
+                .isInstanceOf(SqlParseException.class)
+                .hasMessageContaining(
+                        "Encountered \"(\" at line 4, column 6.\n"
+                                + "Was expecting one of:\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
+                                + "    <QUOTED_IDENTIFIER> ...\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <HYPHENATED_IDENTIFIER> ...\n"
+                                + "    <IDENTIFIER> ...\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> ...\n");
     }
 
     public static SqlTableLikeOption option(
