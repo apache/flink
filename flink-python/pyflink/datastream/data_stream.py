@@ -1680,6 +1680,16 @@ class WindowedStream(object):
         You can get the stream of late data using :func:`~DataStream.get_side_output` on the
         :class:`DataStream` resulting from the windowed operation with the same :class:`OutputTag`.
 
+        Example:
+        ::
+
+            >>> tag = OutputTag("late-data", Types.TUPLE([Types.INT(), Types.STRING()]))
+            >>> main_stream = ds.key_by(lambda x: x[1]) \\
+            ...                 .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...                 .side_output_late_data(tag) \\
+            ...                 .reduce(lambda a, b: a[0] + b[0], b[1])
+            >>> late_stream = main_stream.get_side_output(tag)
+
         .. versionadded:: 1.16.0
         """
         self._late_data_output_tag = output_tag
