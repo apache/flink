@@ -44,7 +44,8 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
     }
 
     timeIntervalUnit match {
-      case SymbolPlannerExpression(PlannerTimeIntervalUnit.MILLENNIUM) | SymbolPlannerExpression(
+      case SymbolPlannerExpression(PlannerTimeIntervalUnit.EPOCH) | SymbolPlannerExpression(
+            PlannerTimeIntervalUnit.MILLENNIUM) | SymbolPlannerExpression(
             PlannerTimeIntervalUnit.CENTURY) | SymbolPlannerExpression(
             PlannerTimeIntervalUnit.DECADE) | SymbolPlannerExpression(
             PlannerTimeIntervalUnit.YEAR) | SymbolPlannerExpression(
