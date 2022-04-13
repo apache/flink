@@ -70,5 +70,4 @@ public class DateAddFunction extends BuiltInScalarFunction {
                 .format(new Date(calendar.getTimeInMillis())));
     }
 
-
 }
