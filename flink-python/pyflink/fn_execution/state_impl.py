@@ -149,7 +149,8 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
         return self._internal_state
 
     def _maybe_clear_write_cache(self):
-        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE or \
+                self._remote_state_backend._state_cache_size <= 0:
             self._internal_state.commit()
             self._internal_state._cleared = False
             self._internal_state._added_elements = []
