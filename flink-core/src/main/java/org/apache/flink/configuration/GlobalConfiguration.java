@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import javax.annotation.Nullable;
 
@@ -31,6 +32,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Map;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration objects it
@@ -169,54 +171,12 @@ public final class GlobalConfiguration {
         try (BufferedReader reader =
                 new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
 
-            String line;
-            int lineNo = 0;
-            while ((line = reader.readLine()) != null) {
-                lineNo++;
-                // 1. check for comments
-                String[] comments = line.split("#", 2);
-                String conf = comments[0].trim();
-
-                // 2. get key and value
-                if (conf.length() > 0) {
-                    String[] kv = conf.split(": ", 2);
-
-                    // skip line with no valid key-value pair
-                    if (kv.length == 1) {
-                        LOG.warn(
-                                "Error while trying to split key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
-                        continue;
-                    }
-
-                    String key = kv[0].trim();
-                    String value = kv[1].trim();
-
-                    // sanity check
-                    if (key.length() == 0 || value.length() == 0) {
-                        LOG.warn(
-                                "Error after splitting key and value in configuration file "
-                                        + file
-                                        + ":"
-                                        + lineNo
-                                        + ": \""
-                                        + line
-                                        + "\"");
-                        continue;
-                    }
-
-                    LOG.info(
-                            "Loading configuration property: {}, {}",
-                            key,
-                            isSensitive(key) ? HIDDEN_CONTENT : value);
-                    config.setString(key, value);
-                }
+            Yaml yaml = new Yaml();
+            Map<Object, Object> map = yaml.load(reader);
+            for (Map.Entry<Object, Object> entry : map.entrySet()) {
+                config.setString(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
             }
+
         } catch (IOException e) {
             throw new RuntimeException("Error parsing YAML configuration.", e);
         }
