@@ -769,12 +769,16 @@ class DataStreamTests(object):
                 yield tag, value[1]
 
         ds2 = ds.process(MyProcessFunction(), output_type=Types.STRING())
-        ds2.add_sink(self.test_sink)
-        ds2.get_side_output(tag).add_sink(self.test_sink)
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
 
         self.env.execute("test_process_side_output")
-        expected = ['0', '1', '2', 'a', 'a', 'b']
-        self.assert_equals_sorted(expected, self.test_sink.get_results())
+        main_expected = ['a', 'a', 'b']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['0', '1', '2']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
     def test_co_process_side_output(self):
         tag = OutputTag("side", Types.INT())
@@ -795,11 +799,14 @@ class DataStreamTests(object):
                                        type_info=Types.ROW([Types.INT(), Types.STRING()]))
         ds3 = ds1.connect(ds2).process(MyCoProcessFunction(), output_type=Types.STRING())
         ds3.add_sink(self.test_sink)
-        ds3.get_side_output(tag).add_sink(self.test_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds3.get_side_output(tag).add_sink(side_sink)
 
         self.env.execute("test_co_process_side_output")
-        expected = ['0', '0', '1', '1', '2', '3', 'a', 'a', 'b', 'c', 'c', 'd']
-        self.assert_equals_sorted(expected, self.test_sink.get_results())
+        main_expected = ['a', 'a', 'b', 'c', 'c', 'd']
+        self.assert_equals_sorted(main_expected, self.test_sink.get_results())
+        side_expected = ['0', '0', '1', '1', '2', '3']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
     def test_keyed_process_side_output(self):
         tag = OutputTag("side", Types.INT())
@@ -824,12 +831,16 @@ class DataStreamTests(object):
 
         ds2 = ds.key_by(lambda e: e[0]).process(MyKeyedProcessFunction(),
                                                 output_type=Types.INT())
-        ds2.add_sink(self.test_sink)
-        ds2.get_side_output(tag).add_sink(self.test_sink)
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
 
-        self.env.execute("test_process_side_output")
-        expected = ['1', '1', '2', '2', '3', '4', '4', '6']
-        self.assert_equals_sorted(expected, self.test_sink.get_results())
+        self.env.execute("test_keyed_process_side_output")
+        main_expected = ['1', '2', '3', '4']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '2', '4', '6']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
     def test_keyed_co_process_side_output(self):
         tag = OutputTag("side", Types.INT())
@@ -862,12 +873,16 @@ class DataStreamTests(object):
         ds3 = ds1.key_by(lambda e: e[0])\
             .connect(ds2.key_by(lambda e: e[1]))\
             .process(MyKeyedCoProcessFunction(), output_type=Types.INT())
-        ds3.add_sink(self.test_sink)
-        ds3.get_side_output(tag).add_sink(self.test_sink)
+        main_sink = DataStreamTestSinkFunction()
+        ds3.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds3.get_side_output(tag).add_sink(side_sink)
 
-        self.env.execute("test_process_side_output")
-        expected = ['1', '1', '1', '2', '2', '2', '3', '3', '3', '4', '4', '4', '5', '6', '7', '8']
-        self.assert_equals_sorted(expected, self.test_sink.get_results())
+        self.env.execute("test_keyed_co_process_side_output")
+        main_expected = ['1', '2', '3', '4', '5', '6', '7', '8']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
-/** PerElementWatermarkGenerator that generates max watermark for every arriving time. */
+/** PerElementWatermarkGenerator that generates max watermark for every arriving item. */
 @Internal
 public class PerElementWatermarkGenerator implements WatermarkGenerator<Object> {
 

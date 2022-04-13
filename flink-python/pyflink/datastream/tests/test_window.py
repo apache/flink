@@ -398,11 +398,16 @@ class WindowTests(PyFlinkStreamingTestCase):
             .allowed_lateness(0) \
             .side_output_late_data(tag) \
             .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()]))
-        ds2.get_side_output(tag).add_sink(self.test_sink)
-        ds2.add_sink(self.test_sink)
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
         self.env.execute('test_side_output_late_data')
-        expected = ['(a,1)', '(a,2)', '+I[a, 4]']
-        self.assert_equals_sorted(expected, self.test_sink.get_results())
+        main_expected = ['(a,1)', '(a,2)']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['+I[a, 4]']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
 
 
 class SecondColumnTimestampAssigner(TimestampAssigner):
