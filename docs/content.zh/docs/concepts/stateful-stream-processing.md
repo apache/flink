@@ -24,23 +24,17 @@ under the License.
 
 # 有状态流处理
 
-## What is State?
+# 有状态流处理
 
-While many operations in a dataflow simply look at one individual *event at a
-time* (for example an event parser), some operations remember information
-across multiple events (for example window operators). These operations are
-called **stateful**.
+## 什么是状态?
+虽然数据流中的许多操作只是一次查看一个单独的*事件*(例如事件解析器)，但有些操作会记住跨多个事件的信息(例如窗口操作符)。这些操作称为有**状态的**。
 
-Some examples of stateful operations:
+状态操作的示例:
 
-  - When an application searches for certain event patterns, the state will
-    store the sequence of events encountered so far.
-  - When aggregating events per minute/hour/day, the state holds the pending
-    aggregates.
-  - When training a machine learning model over a stream of data points, the
-    state holds the current version of the model parameters.
-  - When historic data needs to be managed, the state allows efficient access
-    to events that occurred in the past.
+- 当应用程序搜索特定的事件模式时，状态将存储到目前为止遇到的事件序列。
+- 在每分钟每小时聚合事件时，状态会保存待处理的聚合。
+- 在数据点流上训练机器学习模型时，状态会保存模型参数的当前版本。
+- 当需要管理历史数据时，状态允许有效访问过去发生的事件。
 
 Flink needs to be aware of the state in order to make it fault tolerant using
 [checkpoints]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
