@@ -218,6 +218,22 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         assertThat(rows).hasSize(2);
         Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
         assertThat(rowStrings).isEqualTo(new String[] {"+I[2014, 3, 0]", "+I[2014, 4, 0]"});
+
+        // test the case that prune partition with reading partition from catalog without filter and
+        // there exists default partition
+        // insert null value for the partition column which will fall into the default partition
+        batchTableEnv
+                .executeSql(
+                        "insert into source_db.test_table_pt_1 values ('2014', 1, null), ('2015', 2, null)")
+                .await();
+        // currently, the expression "is null" is supported HiveCatalog#listPartitionsByFilter,
+        // then the planer will list all partitions and then prue the partitions.
+        // the test is to cover such case
+        src =
+                batchTableEnv.sqlQuery(
+                        "select * from hive.source_db.test_table_pt_1 where pt is null");
+        rows = CollectionUtil.iteratorToList(src.execute().collect());
+        assertThat(rows.toString()).isEqualTo("[+I[2014, 1, null], +I[2015, 2, null]]");
     }
 
     @Test
