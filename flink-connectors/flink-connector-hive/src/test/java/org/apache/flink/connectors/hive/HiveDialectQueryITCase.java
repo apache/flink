@@ -330,6 +330,29 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testQueryWithDefaultPartition() throws Exception {
+        try {
+            tableEnv.executeSql("create table tb1 (a string) partitioned by (c int)");
+            tableEnv.executeSql("INSERT OVERWRITE TABLE tb1 PARTITION (c) select 'Col1', null")
+                    .await();
+            tableEnv.executeSql("INSERT OVERWRITE TABLE tb1 PARTITION (c) select 'Col1', 5")
+                    .await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("show partitions tb1").collect());
+            assertThat(results.toString()).isEqualTo("[+I[c=5], +I[c=__HIVE_DEFAULT_PARTITION__]]");
+
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tb1 where c between 2 and 6")
+                                    .collect());
+            assertThat(results.toString()).isEqualTo("[+I[Col1, 5]]");
+        } finally {
+            tableEnv.executeSql("drop table tb1");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {

@@ -21,16 +21,27 @@ package org.apache.flink.table.operations;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import javax.annotation.Nullable;
+
 /** Operation to describe a SHOW PARTITIONS statement. */
 public class ShowPartitionsOperation implements ShowOperation {
 
     protected final ObjectIdentifier tableIdentifier;
     private final CatalogPartitionSpec partitionSpec;
+    @Nullable private final String defaultPartitionValue;
 
     public ShowPartitionsOperation(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+        this(tableIdentifier, partitionSpec, null);
+    }
+
+    public ShowPartitionsOperation(
+            ObjectIdentifier tableIdentifier,
+            CatalogPartitionSpec partitionSpec,
+            @Nullable String defaultPartitionValue) {
         this.tableIdentifier = tableIdentifier;
         this.partitionSpec = partitionSpec;
+        this.defaultPartitionValue = defaultPartitionValue;
     }
 
     public ObjectIdentifier getTableIdentifier() {
@@ -39,6 +50,10 @@ public class ShowPartitionsOperation implements ShowOperation {
 
     public CatalogPartitionSpec getPartitionSpec() {
         return partitionSpec;
+    }
+
+    public String getDefaultPartitionValue() {
+        return defaultPartitionValue;
     }
 
     @Override

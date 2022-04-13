@@ -910,7 +910,13 @@ public class HiveCatalog extends AbstractCatalog {
                     .listPartitionNames(
                             tablePath.getDatabaseName(), tablePath.getObjectName(), (short) -1)
                     .stream()
-                    .map(HiveCatalog::createPartitionSpec)
+                    .map(
+                            p ->
+                                    createPartitionSpec(
+                                            p,
+                                            HiveConf.getVar(
+                                                    hiveConf,
+                                                    HiveConf.ConfVars.DEFAULTPARTITIONNAME)))
                     .collect(Collectors.toList());
         } catch (TException e) {
             throw new CatalogException(
@@ -946,7 +952,13 @@ public class HiveCatalog extends AbstractCatalog {
                             partialVals,
                             (short) -1)
                     .stream()
-                    .map(HiveCatalog::createPartitionSpec)
+                    .map(
+                            p ->
+                                    createPartitionSpec(
+                                            p,
+                                            HiveConf.getVar(
+                                                    hiveConf,
+                                                    HiveConf.ConfVars.DEFAULTPARTITIONNAME)))
                     .collect(Collectors.toList());
         } catch (TException e) {
             throw new CatalogException(
@@ -1142,12 +1154,16 @@ public class HiveCatalog extends AbstractCatalog {
      * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
      * partition name string - "name=bob/year=2019"
      */
-    public static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
+    public static CatalogPartitionSpec createPartitionSpec(
+            String hivePartitionName, String defaultPartitionName) {
         String[] partKeyVals = hivePartitionName.split("/");
         Map<String, String> spec = new HashMap<>(partKeyVals.length);
         for (String keyVal : partKeyVals) {
             String[] kv = keyVal.split("=");
-            spec.put(unescapePathName(kv[0]), unescapePathName(kv[1]));
+            String partitionValue = unescapePathName(kv[1]);
+            spec.put(
+                    unescapePathName(kv[0]),
+                    partitionValue.equals(defaultPartitionName) ? null : partitionValue);
         }
         return new CatalogPartitionSpec(spec);
     }

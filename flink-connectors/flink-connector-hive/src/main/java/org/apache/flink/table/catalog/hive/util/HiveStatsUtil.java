@@ -249,7 +249,9 @@ public class HiveStatsUtil {
                 rowCount =
                         hiveCatalog
                                 .getPartitionStatistics(
-                                        objectPath, HiveCatalog.createPartitionSpec(partition))
+                                        objectPath,
+                                        HiveCatalog.createPartitionSpec(
+                                                partition, "__HIVE_DEFAULT_PARTITION__"))
                                 .getRowCount();
             } catch (Exception e) {
                 LOG.info(
