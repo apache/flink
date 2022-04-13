@@ -49,7 +49,7 @@ __all__ = ['Window',
            'EventTimeTrigger',
            'ProcessingTimeTrigger',
            'ContinuousEventTimeTrigger',
-           'CountTumblingWindowAssigner',
+           'ContinuousProcessingTimeTrigger',
            'CountTrigger',
            'TimeWindowSerializer',
            'CountWindowSerializer',
@@ -651,7 +651,8 @@ class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
     def of(interval: Time) -> 'ContinuousEventTimeTrigger':
         return ContinuousEventTimeTrigger(interval.to_milliseconds())
 
-    def on_element(self, element: T,
+    def on_element(self,
+                   element: T,
                    timestamp: int,
                    window: TimeWindow,
                    ctx: 'Trigger.TriggerContext') -> TriggerResult:
@@ -767,7 +768,6 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
     """
     A Trigger that continuously fires based on a given time interval as measured by the clock of the
     machine on which the job is running.
-    Type parameters:<W> – The type of Windows on which this trigger can operate.
     """
 
     def __init__(self, interval: int):
@@ -776,8 +776,8 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
         self.fire_timestamp_state = None
 
     @staticmethod
-    def of(interval: Time) -> 'ContinuousEventTimeTrigger':
-        return ContinuousEventTimeTrigger(interval.to_milliseconds())
+    def of(interval: Time) -> 'ContinuousProcessingTimeTrigger':
+        return ContinuousProcessingTimeTrigger(interval.to_milliseconds())
 
     def on_element(self, element: T,
                    timestamp: int,
