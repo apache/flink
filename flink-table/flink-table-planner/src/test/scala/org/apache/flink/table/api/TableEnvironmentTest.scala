@@ -42,6 +42,7 @@ import _root_.java.util
 import _root_.scala.collection.JavaConverters._
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.flink.util.CollectionUtil
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.{Rule, Test}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
