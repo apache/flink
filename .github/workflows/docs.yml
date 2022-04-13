@@ -17,6 +17,7 @@ name: "Build documentation"
 on:
   schedule:
     - cron: '0 0 * * *' # Deploy every day
+  workflow_dispatch:
 
 jobs:
   build-documentation:
