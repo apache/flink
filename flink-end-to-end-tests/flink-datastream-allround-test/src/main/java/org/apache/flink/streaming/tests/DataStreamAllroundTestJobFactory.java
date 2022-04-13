@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -41,7 +42,6 @@ import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -409,19 +409,13 @@ public class DataStreamAllroundTestJobFactory {
                         SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue()));
     }
 
-    static BoundedOutOfOrdernessTimestampExtractor<Event> createTimestampExtractor(
-            ParameterTool pt) {
-        return new BoundedOutOfOrdernessTimestampExtractor<Event>(
-                Time.milliseconds(
-                        pt.getLong(
-                                SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS.key(),
-                                SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS
-                                        .defaultValue()))) {
+    static SerializableTimestampAssigner<Event> createTimestampExtractor() {
+        return new SerializableTimestampAssigner<Event>() {
 
             private static final long serialVersionUID = -3154419724891779938L;
 
             @Override
-            public long extractTimestamp(Event element) {
+            public long extractTimestamp(Event element, long recordTimestamp) {
                 return element.getEventTime();
             }
         };

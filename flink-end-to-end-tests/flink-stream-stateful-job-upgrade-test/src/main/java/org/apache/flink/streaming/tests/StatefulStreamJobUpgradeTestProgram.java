@@ -38,6 +38,7 @@ import java.util.List;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.extractTimestamp;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -98,7 +99,8 @@ public class StatefulStreamJobUpgradeTestProgram {
                         .name("EventSource")
                         .uid("EventSource")
                         .assignTimestampsAndWatermarks(
-                                WatermarkStrategy.forBoundedOutOfOrderness(maxOutOfOrderness))
+                                WatermarkStrategy.<Event>forBoundedOutOfOrderness(maxOutOfOrderness)
+                                        .withTimestampAssigner(createTimestampExtractor()))
                         .keyBy(Event::getKey);
 
         List<TypeSerializer<ComplexPayload>> stateSer =
