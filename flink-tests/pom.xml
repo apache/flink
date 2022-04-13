@@ -404,7 +404,7 @@ under the License.
 					</classpathDependencyExcludes>
 					<!-- We override the fork behaviour for those expensive tests to avoid process
 					kills due to container limits on travis -->
-					<forkCount>${flink.forkCountTestPackage}</forkCount>
+					<forkCount>${flink.forkCount}</forkCount>
 					<environmentVariables>
 						<!-- Make sure external hadoop environment will not affect maven building -->
 						<HADOOP_HOME />
