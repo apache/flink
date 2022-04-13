@@ -1298,7 +1298,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
                     for (Map.Entry<String, String> partitionKV :
                             spec.getPartitionSpec().entrySet()) {
-                        partitionKVs.add(partitionKV.getKey() + "=" + partitionKV.getValue());
+                        String partitionValue =
+                                partitionKV.getValue() == null
+                                        ? showPartitionsOperation.getDefaultPartitionName()
+                                        : partitionKV.getValue();
+                        partitionKVs.add(partitionKV.getKey() + "=" + partitionValue);
                     }
                     partitionNames.add(String.join("/", partitionKVs));
                 }

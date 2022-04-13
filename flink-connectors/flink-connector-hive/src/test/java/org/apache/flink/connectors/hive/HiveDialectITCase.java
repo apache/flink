@@ -971,6 +971,27 @@ public class HiveDialectITCase {
                                 .collect());
         assertThat(partitions).hasSize(1);
         assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
+        // show partitions for the table containing default partition
+        tableEnv.executeSql("create table tb1 (a string) partitioned by (c int)");
+        tableEnv.executeSql(
+                        "INSERT OVERWRITE TABLE tb1 PARTITION (c) values ('Col1', null), ('Col1', 5)")
+                .await();
+        String defaultPartitionName =
+                hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+
+        partitions =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tb1").collect());
+        assertThat(partitions.toString())
+                .isEqualTo(String.format("[+I[c=5], +I[c=%s]]", defaultPartitionName));
+        partitions =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        String.format(
+                                                "show partitions tb1 partition (c='%s')",
+                                                defaultPartitionName))
+                                .collect());
+        assertThat(partitions.toString())
+                .isEqualTo(String.format("[+I[c=%s]]", defaultPartitionName));
     }
 
     @Test

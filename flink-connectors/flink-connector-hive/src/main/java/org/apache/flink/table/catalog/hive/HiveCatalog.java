@@ -909,7 +909,14 @@ public class HiveCatalog extends AbstractCatalog {
                     .listPartitionNames(
                             tablePath.getDatabaseName(), tablePath.getObjectName(), (short) -1)
                     .stream()
-                    .map(HiveCatalog::createPartitionSpec)
+                    .map(
+                            p ->
+                                    createPartitionSpec(
+                                            p,
+                                            getHiveConf()
+                                                    .getVar(
+                                                            HiveConf.ConfVars
+                                                                    .DEFAULTPARTITIONNAME)))
                     .collect(Collectors.toList());
         } catch (TException e) {
             throw new CatalogException(
@@ -945,7 +952,14 @@ public class HiveCatalog extends AbstractCatalog {
                             partialVals,
                             (short) -1)
                     .stream()
-                    .map(HiveCatalog::createPartitionSpec)
+                    .map(
+                            p ->
+                                    createPartitionSpec(
+                                            p,
+                                            getHiveConf()
+                                                    .getVar(
+                                                            HiveConf.ConfVars
+                                                                    .DEFAULTPARTITIONNAME)))
                     .collect(Collectors.toList());
         } catch (TException e) {
             throw new CatalogException(
@@ -1139,21 +1153,28 @@ public class HiveCatalog extends AbstractCatalog {
 
     /**
      * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
-     * partition name string - "name=bob/year=2019"
+     * partition name string - "name=bob/year=2019". If the partition name for the given partition
+     * column is equal to {@param defaultPartitionName}, the partition value in returned {@link
+     * CatalogPartitionSpec} will be null.
      */
-    private static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
+    private static CatalogPartitionSpec createPartitionSpec(
+            String hivePartitionName, String defaultPartitionName) {
         String[] partKeyVals = hivePartitionName.split("/");
         Map<String, String> spec = new HashMap<>(partKeyVals.length);
         for (String keyVal : partKeyVals) {
             String[] kv = keyVal.split("=");
-            spec.put(unescapePathName(kv[0]), unescapePathName(kv[1]));
+            String partitionValue = unescapePathName(kv[1]);
+            spec.put(
+                    unescapePathName(kv[0]),
+                    partitionValue.equals(defaultPartitionName) ? null : partitionValue);
         }
         return new CatalogPartitionSpec(spec);
     }
 
     /**
      * Get a list of ordered partition values by re-arranging them based on the given list of
-     * partition keys.
+     * partition keys. If the partition value is null, it'll be converted into default partition
+     * name.
      *
      * @param partitionSpec a partition spec.
      * @param partitionKeys a list of partition keys.
@@ -1177,7 +1198,11 @@ public class HiveCatalog extends AbstractCatalog {
                 throw new PartitionSpecInvalidException(
                         getName(), partitionKeys, tablePath, partitionSpec);
             } else {
-                values.add(spec.get(key));
+                String value = spec.get(key);
+                if (value == null) {
+                    value = getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+                }
+                values.add(value);
             }
         }
 
@@ -1803,6 +1828,7 @@ public class HiveCatalog extends AbstractCatalog {
                                 listPartitions(
                                         new ObjectPath(
                                                 hiveTable.getDbName(), hiveTable.getTableName()))) {
+
                             Partition partition = getHivePartition(hiveTable, spec);
                             HiveTableUtil.alterColumns(partition.getSd(), catalogTable);
                             client.alter_partition(
