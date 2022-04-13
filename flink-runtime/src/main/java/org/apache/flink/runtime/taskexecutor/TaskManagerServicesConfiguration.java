@@ -120,9 +120,9 @@ public class TaskManagerServicesConfiguration {
         this.localCommunicationOnly = localCommunicationOnly;
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
-        this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
+        this.localRecoveryEnabled = localRecoveryEnabled;
         this.queryableStateConfig = queryableStateConfig;
-        this.numberOfSlots = checkNotNull(numberOfSlots);
+        this.numberOfSlots = numberOfSlots;
 
         this.pageSize = pageSize;
 
