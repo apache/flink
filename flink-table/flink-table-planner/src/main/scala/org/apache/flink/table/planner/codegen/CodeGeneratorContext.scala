@@ -718,23 +718,23 @@ class CodeGeneratorContext(val tableConfig: ReadableConfig) {
    *   [[UserDefinedFunction]] object to be instantiated during runtime
    * @param functionContextClass
    *   class of [[FunctionContext]]
-   * @param contextTerm
-   *   [[RuntimeContext]] term to access the [[RuntimeContext]]
+   * @param contextArgs
+   *   additional list of arguments for [[FunctionContext]]
    * @return
    *   member variable term
    */
   def addReusableFunction(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
-      contextTerm: String = null): String = {
+      contextArgs: Seq[String] = null): String = {
     val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)
 
-    val openFunction = if (contextTerm != null) {
+    val openFunction = if (contextArgs != null) {
       s"""
-         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}($contextTerm));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}(${contextArgs.mkString(", ")}));
        """.stripMargin
     } else {
       s"""
