@@ -26,7 +26,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import java.util.Optional;
 
 /**
- * Catalog of functions that can resolve the name of a function to a {@link FunctionLookup.Result}.
+ * Catalog of functions that can resolve the name of a function to a {@link
+ * ContextResolvedFunction}.
  */
 @Internal
 public interface FunctionLookup {
