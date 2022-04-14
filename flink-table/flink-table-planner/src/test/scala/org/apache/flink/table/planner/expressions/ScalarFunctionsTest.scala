@@ -1515,6 +1515,19 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       randInteger('f7, 'f4.cast(DataTypes.INT)),
       "RAND_INTEGER(f7, CAST(f4 AS INT))",
       random4.nextInt(44).toString)
+
+    val random5 = new java.util.Random(1)
+    testAllApis(rand(1).plus(1), "RAND(1) + 1", (random5.nextDouble() + 1).toString)
+
+    val random6 = new java.util.Random(1)
+    val random7 = new java.util.Random(2)
+    testAllApis(
+      rand(1).plus(rand(2)),
+      "RAND(1) + RAND(2)",
+      (random6.nextDouble() + random7.nextDouble()).toString)
+
+    // the f21 is null
+    testAllApis(rand('f21.cast(DataTypes.INT())).plus(1), "rand(cast(null as int)) + 1", "NULL")
   }
 
   @Test

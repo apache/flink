@@ -1719,19 +1719,23 @@ object ScalarOperatorGens {
       operandType: LogicalType,
       resultType: LogicalType): String => String = {
 
-    // All numeric rules are assumed to be instance of AbstractExpressionCodeGeneratorCastRule
-    val rule = CastRuleProvider.resolve(operandType, resultType)
-    rule match {
-      case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
-        operandTerm =>
-          codeGeneratorCastRule.generateExpression(
-            toCodegenCastContext(ctx),
-            operandTerm,
-            operandType,
-            resultType
-          )
-      case _ =>
-        throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+    // no casting necessary
+    if (isInteroperable(operandType, resultType)) { operandTerm => s"$operandTerm" }
+    else {
+      // All numeric rules are assumed to be instance of AbstractExpressionCodeGeneratorCastRule
+      val rule = CastRuleProvider.resolve(operandType, resultType)
+      rule match {
+        case codeGeneratorCastRule: ExpressionCodeGeneratorCastRule[_, _] =>
+          operandTerm =>
+            codeGeneratorCastRule.generateExpression(
+              toCodegenCastContext(ctx),
+              operandTerm,
+              operandType,
+              resultType
+            )
+        case _ =>
+          throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
+      }
     }
   }
 
