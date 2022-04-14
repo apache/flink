@@ -644,8 +644,7 @@ public class PendingCheckpointTest {
                         masterStateIdentifiers,
                         props,
                         new CompletableFuture<>(),
-                        null,
-                        new CompletableFuture<>());
+                        null);
         pendingCheckpoint.setCheckpointTargetLocation(location);
         return pendingCheckpoint;
     }
