@@ -285,8 +285,10 @@ public class ExecutionVertex
         }
     }
 
-    void setLatestPriorLocation(TaskManagerLocation lastAssignedLocation) {
+    void setLatestPriorSlotAllocation(
+            TaskManagerLocation taskManagerLocation, AllocationID lastAssignedAllocationID) {
         this.lastAssignedLocation = Preconditions.checkNotNull(lastAssignedLocation);
+        this.lastAssignedAllocationID = Preconditions.checkNotNull(lastAssignedAllocationID);
     }
 
     /**
@@ -297,10 +299,6 @@ public class ExecutionVertex
      */
     public Optional<TaskManagerLocation> findLatestPriorLocation() {
         return Optional.ofNullable(lastAssignedLocation);
-    }
-
-    void setLatestPriorAllocation(AllocationID lastAssignedAllocationID) {
-        this.lastAssignedAllocationID = Preconditions.checkNotNull(lastAssignedAllocationID);
     }
 
     public Optional<AllocationID> findLatestPriorAllocation() {
