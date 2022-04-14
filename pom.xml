@@ -1873,7 +1873,7 @@ under the License.
 						<goals>
 							<goal>directory-of</goal>
 						</goals>
-						<phase>initialize</phase>
+						<phase>validate</phase>
 						<configuration>
 							<property>rootDir</property>
 							<project>
@@ -1919,7 +1919,7 @@ under the License.
 					<executions>
 						<execution>
 							<id>validate</id>
-							<phase>validate</phase>
+							<phase>process-sources</phase>
 							<goals>
 								<goal>check</goal>
 							</goals>
@@ -1956,7 +1956,7 @@ under the License.
 							<scalafmt>
 								<version>3.4.3</version>
 								<!-- This file is in the root of the project to make sure IntelliJ picks it up automatically -->
-								<file>.scalafmt.conf</file>
+								<file>${rootDir}/.scalafmt.conf</file>
 							</scalafmt>
 							<licenseHeader>
 								<content>/*
@@ -1984,7 +1984,7 @@ under the License.
 					<executions>
 						<execution>
 							<id>spotless-check</id>
-							<phase>validate</phase>
+							<phase>process-sources</phase>
 							<goals>
 								<goal>check</goal>
 							</goals>
