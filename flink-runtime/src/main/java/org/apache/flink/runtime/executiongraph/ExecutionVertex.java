@@ -287,7 +287,7 @@ public class ExecutionVertex
 
     void setLatestPriorSlotAllocation(
             TaskManagerLocation taskManagerLocation, AllocationID lastAssignedAllocationID) {
-        this.lastAssignedLocation = Preconditions.checkNotNull(lastAssignedLocation);
+        this.lastAssignedLocation = Preconditions.checkNotNull(taskManagerLocation);
         this.lastAssignedAllocationID = Preconditions.checkNotNull(lastAssignedAllocationID);
     }
 
