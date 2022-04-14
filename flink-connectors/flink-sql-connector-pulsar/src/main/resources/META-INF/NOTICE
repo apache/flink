@@ -10,8 +10,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.pulsar:pulsar-client-admin-api:2.9.1
 - org.apache.pulsar:pulsar-client-all:2.9.1
 - org.apache.pulsar:pulsar-client-api:2.9.1
+- org.slf4j:jul-to-slf4j:1.7.25
+
+This project bundles the following dependencies under the Bouncy Castle license.
+See bundled license files for details.
+
 - org.bouncycastle:bcpkix-jdk15on:1.69
 - org.bouncycastle:bcprov-ext-jdk15on:1.69
 - org.bouncycastle:bcprov-jdk15on:1.69
 - org.bouncycastle:bcutil-jdk15on:1.69
-- org.slf4j:jul-to-slf4j:1.7.25
