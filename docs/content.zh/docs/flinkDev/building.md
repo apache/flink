@@ -37,7 +37,7 @@ under the License.
 
 还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 或更新的版本来进行构建。
 
-*注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。
+*注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。*
 
 输入以下命令从 Git 克隆代码
 
@@ -73,7 +73,7 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
 1. 构建 Flink
 
-    如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
+    如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#构建-flink) 中所述。
 
 2. Python 的版本为 3.6, 3.7 或者 3.8.
 
