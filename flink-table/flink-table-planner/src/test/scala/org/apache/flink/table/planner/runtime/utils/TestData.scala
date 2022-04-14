@@ -170,6 +170,18 @@ object TestData {
 
   val nullablesOfSmallData3 = Array(true, true, true)
 
+  lazy val smallTupleData3_1: Seq[(Int, Long, String, Boolean)] = {
+    val data = new mutable.MutableList[(Int, Long, String, Boolean)]
+    data.+=((1, 1L, "Hi", true))
+    data.+=((2, 2L, "Hello", false))
+    data.+=((3, 2L, "Hello world", true))
+    data
+  }
+
+  lazy val smallData3_1: Seq[Row] = smallTupleData3_1.map(d => row(d.productIterator.toList: _*))
+
+  val nullablesOfSmallData3_1 = Array(true, true, true, true)
+
   lazy val smallTupleData5: Seq[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
@@ -390,6 +402,18 @@ object TestData {
   lazy val data5: Seq[Row] = tupleData5.map(d => row(d.productIterator.toList: _*))
 
   val nullablesOfData5 = Array(true, true, true, true, true)
+
+  lazy val tupleData5_1: Seq[(Int, Long, Int, String, Long, Boolean)] = {
+    val data = new mutable.MutableList[(Int, Long, Int, String, Long, Boolean)]
+    data.+=((1, 1L, 0, "Hallo", 1L, true))
+    data.+=((2, 2L, 1, "Hallo Welt", 2L, false))
+    data.+=((2, 3L, 2, "Hallo Welt wie", 1L, true))
+    data
+  }
+
+  lazy val data5_1: Seq[Row] = tupleData5_1.map(d => row(d.productIterator.toList: _*))
+
+  val nullablesOfData5_1 = Array(true, true, true, true, true, true)
 
   lazy val data6: Seq[Row] = Seq(
     row(

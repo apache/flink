@@ -64,8 +64,14 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'b1, 'b2, 'b3, 'b4, 'b5)
+    val tableC = failingDataSource(TestData.smallTupleData3_1)
+      .toTable(tEnv, 'c1, 'c2, 'c3, 'c4)
+    val tableD = failingDataSource(TestData.tupleData5_1)
+      .toTable(tEnv, 'd1, 'd2, 'd3, 'd4, 'd5, 'd6)
     tEnv.registerTable("A", tableA)
     tEnv.registerTable("B", tableB)
+    tEnv.registerTable("C", tableC)
+    tEnv.registerTable("D", tableD)
   }
 
   // Tests for inner join.
@@ -320,6 +326,18 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     env.execute()
 
     val expected = Seq("2,2,2", "3,3,3")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testInnerJoinWithBooleanFilterCondition(): Unit = {
+    val sqlQuery = "SELECT c1, d1, d3 FROM C INNER JOIN D ON c4 = d6 where c4 is true"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("1,1,0", "1,2,2", "3,1,0", "3,2,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
