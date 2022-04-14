@@ -8,8 +8,6 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - com.carrotsearch:hppc:0.8.1
 - com.fasterxml.jackson.core:jackson-core:2.13.2
-- com.fasterxml.jackson.core:jackson-databind:2.13.2.2
-- com.fasterxml.jackson.core:jackson-annotations:2.13.2
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.13.2
 - com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.13.2
 - com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2
@@ -31,7 +29,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.lucene:lucene-queries:8.7.0
 - org.apache.lucene:lucene-queryparser:8.7.0
 - org.apache.lucene:lucene-sandbox:8.7.0
-- org.apache.lucene:lucene-spatial:8.7.0
 - org.apache.lucene:lucene-spatial-extras:8.7.0
 - org.apache.lucene:lucene-spatial3d:8.7.0
 - org.apache.lucene:lucene-suggest:8.7.0
@@ -41,7 +38,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.elasticsearch:elasticsearch-geo:7.10.2
 - org.elasticsearch:elasticsearch-secure-sm:7.10.2
 - org.elasticsearch:elasticsearch-x-content:7.10.2
-- org.elasticsearch:elasticsearch-plugin-classloader:7.10.2
 - org.elasticsearch.client:elasticsearch-rest-high-level-client:7.10.2
 - org.elasticsearch.client:elasticsearch-rest-client:7.10.2
 - org.elasticsearch.plugin:aggs-matrix-stats-client:7.10.2
@@ -49,4 +45,3 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.elasticsearch.plugin:mapper-extras-client:7.10.2
 - org.elasticsearch.plugin:parent-join-client:7.10.2
 - org.elasticsearch.plugin:rank-eval-client:7.10.2
-- org.lz4:lz4-java:1.8.0
