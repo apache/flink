@@ -292,16 +292,15 @@ public class ExecutionVertex
     }
 
     /**
-     * Gets the location where the latest completed/canceled/failed execution of the vertex's task
-     * happened.
+     * Gets the location that an execution of this vertex was assigned to.
      *
-     * @return The latest prior execution location, or null, if there is none, yet.
+     * @return The last execution location, or null, if there is none, yet.
      */
-    public Optional<TaskManagerLocation> findLatestPriorLocation() {
+    public Optional<TaskManagerLocation> findLastLocation() {
         return Optional.ofNullable(lastAssignedLocation);
     }
 
-    public Optional<AllocationID> findLatestPriorAllocation() {
+    public Optional<AllocationID> findLastAllocation() {
         return Optional.ofNullable(lastAssignedAllocationID);
     }
 
@@ -338,7 +337,7 @@ public class ExecutionVertex
         // only restore to same execution if it has state
         if (currentExecution.getTaskRestore() != null
                 && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
-            return findLatestPriorLocation();
+            return findLastLocation();
         }
 
         return Optional.empty();

@@ -732,7 +732,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         @Override
         public Optional<AllocationID> findPriorAllocationId(
                 final ExecutionVertexID executionVertexId) {
-            return getExecutionVertex(executionVertexId).findLatestPriorAllocation();
+            return getExecutionVertex(executionVertexId).findLastAllocation();
         }
 
         @Override

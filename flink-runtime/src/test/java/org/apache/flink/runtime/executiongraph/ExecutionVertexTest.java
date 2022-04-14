@@ -148,15 +148,15 @@ public class ExecutionVertexTest extends TestLogger {
         cancelExecution(firstExecution);
         sourceExecutionVertex.resetForNewExecution();
 
-        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
-        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
 
         final Execution secondExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
         cancelExecution(secondExecution);
         sourceExecutionVertex.resetForNewExecution();
 
-        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
-        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
     }
 
     private void cancelExecution(Execution execution) {
