@@ -80,7 +80,7 @@ source "${HERE}/watchdog.sh"
 export LOG4J_PROPERTIES=${HERE}/log4j.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
-MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
