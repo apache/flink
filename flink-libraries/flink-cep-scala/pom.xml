@@ -109,6 +109,23 @@ under the License.
         <!-- Not strictly necessary because of the build-helper-maven-plugin below. -->
         <sourceDirectory>src/main/scala</sourceDirectory>
         <plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
+
             <!-- Scala Compiler -->
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
