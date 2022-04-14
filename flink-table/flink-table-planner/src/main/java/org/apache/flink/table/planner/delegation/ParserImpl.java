@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
@@ -116,17 +117,22 @@ public class ParserImpl implements Parser {
     @Override
     public ResolvedExpression parseSqlExpression(
             String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
-        final SqlExprToRexConverter sqlExprToRexConverter =
-                sqlExprToRexConverterFactory.create(inputRowType, outputType);
-        final RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
-        final LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
-        // expand expression for serializable expression strings similar to views
-        final String sqlExpressionExpanded = sqlExprToRexConverter.expand(sqlExpression);
-        return new RexNodeExpression(
-                rexNode,
-                TypeConversions.fromLogicalToDataType(logicalType),
-                sqlExpression,
-                sqlExpressionExpanded);
+        try {
+            final SqlExprToRexConverter sqlExprToRexConverter =
+                    sqlExprToRexConverterFactory.create(inputRowType, outputType);
+            final RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
+            final LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
+            // expand expression for serializable expression strings similar to views
+            final String sqlExpressionExpanded = sqlExprToRexConverter.expand(sqlExpression);
+            return new RexNodeExpression(
+                    rexNode,
+                    TypeConversions.fromLogicalToDataType(logicalType),
+                    sqlExpression,
+                    sqlExpressionExpanded);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format("Invalid SQL expression: %s", sqlExpression), t);
+        }
     }
 
     public String[] getCompletionHints(String statement, int cursor) {

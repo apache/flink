@@ -247,17 +247,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 return Optional.empty();
                             }
                         },
-                        (sqlExpression, inputRowType, outputType) -> {
-                            try {
-                                return getParser()
-                                        .parseSqlExpression(
-                                                sqlExpression, inputRowType, outputType);
-                            } catch (Throwable t) {
-                                throw new ValidationException(
-                                        String.format("Invalid SQL expression: %s", sqlExpression),
-                                        t);
-                            }
-                        },
+                        getParser()::parseSqlExpression,
                         isStreamingMode);
 
         catalogManager.initSchemaResolver(
