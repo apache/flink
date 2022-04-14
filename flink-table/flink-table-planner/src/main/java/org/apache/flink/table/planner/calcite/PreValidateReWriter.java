@@ -86,6 +86,8 @@ public class PreValidateReWriter extends SqlBasicVisitor<Void> {
                 rewriteInsert((RichSqlInsert) statement);
             }
             // do nothing
+        } else if (call instanceof RichSqlInsert) {
+            rewriteInsert((RichSqlInsert) call);
         }
         // do nothing and return 'void'
         return null;
