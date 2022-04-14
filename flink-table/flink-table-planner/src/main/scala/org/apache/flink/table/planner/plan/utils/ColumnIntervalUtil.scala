@@ -232,34 +232,37 @@ object ColumnIntervalUtil {
   }
 
   private def columnIntervalOfSinglePredicate(condition: RexNode): ValueInterval = {
-    val convertedCondition = condition.asInstanceOf[RexCall]
-    if (convertedCondition == null || convertedCondition.operands.size() != 2) {
-      null
-    } else {
-      val (literalValue, op) =
-        (convertedCondition.operands.head, convertedCondition.operands.last) match {
-          case (_: RexInputRef, literal: RexLiteral) =>
-            (getLiteralValueByBroadType(literal), convertedCondition.getKind)
-          case (rex: RexCall, literal: RexLiteral) if rex.getKind == SqlKind.AS =>
-            (getLiteralValueByBroadType(literal), convertedCondition.getKind)
-          case (literal: RexLiteral, _: RexInputRef) =>
-            (getLiteralValueByBroadType(literal), convertedCondition.getKind.reverse())
-          case (literal: RexLiteral, rex: RexCall) if rex.getKind == SqlKind.AS =>
-            (getLiteralValueByBroadType(literal), convertedCondition.getKind.reverse())
-          case _ => (null, null)
+    condition match {
+      case call: RexCall =>
+        if (call.operands.size() != 2) {
+          null
+        } else {
+          val (literalValue, op) =
+            (call.operands.head, call.operands.last) match {
+              case (_: RexInputRef, literal: RexLiteral) =>
+                (getLiteralValueByBroadType(literal), call.getKind)
+              case (rex: RexCall, literal: RexLiteral) if rex.getKind == SqlKind.AS =>
+                (getLiteralValueByBroadType(literal), call.getKind)
+              case (literal: RexLiteral, _: RexInputRef) =>
+                (getLiteralValueByBroadType(literal), call.getKind.reverse())
+              case (literal: RexLiteral, rex: RexCall) if rex.getKind == SqlKind.AS =>
+                (getLiteralValueByBroadType(literal), call.getKind.reverse())
+              case _ => (null, null)
+            }
+          if (op == null || literalValue == null) {
+            null
+          } else {
+            op match {
+              case EQUALS => ValueInterval(literalValue, literalValue)
+              case LESS_THAN => ValueInterval(null, literalValue, includeUpper = false)
+              case LESS_THAN_OR_EQUAL => ValueInterval(null, literalValue)
+              case GREATER_THAN => ValueInterval(literalValue, null, includeLower = false)
+              case GREATER_THAN_OR_EQUAL => ValueInterval(literalValue, null)
+              case _ => null
+            }
+          }
         }
-      if (op == null || literalValue == null) {
-        null
-      } else {
-        op match {
-          case EQUALS => ValueInterval(literalValue, literalValue)
-          case LESS_THAN => ValueInterval(null, literalValue, includeUpper = false)
-          case LESS_THAN_OR_EQUAL => ValueInterval(null, literalValue)
-          case GREATER_THAN => ValueInterval(literalValue, null, includeLower = false)
-          case GREATER_THAN_OR_EQUAL => ValueInterval(literalValue, null)
-          case _ => null
-        }
-      }
+      case _ => null
     }
   }
 
