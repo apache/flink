@@ -50,6 +50,7 @@ __all__ = ['Window',
            'ProcessingTimeTrigger',
            'ContinuousEventTimeTrigger',
            'ContinuousProcessingTimeTrigger',
+           'PurgingTrigger',
            'CountTrigger',
            'TimeWindowSerializer',
            'CountWindowSerializer',
@@ -636,6 +637,10 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_event_time_timer(window.max_timestamp())
 
+    @staticmethod
+    def create() -> 'EventTimeTrigger':
+        return EventTimeTrigger()
+
 
 class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
     """
@@ -764,6 +769,10 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_processing_time_timer(window.max_timestamp())
 
+    @staticmethod
+    def create() -> 'ProcessingTimeTrigger':
+        return ProcessingTimeTrigger()
+
 
 class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
     """
@@ -840,6 +849,64 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
         ctx.register_processing_time_timer(next_fire_timestamp)
 
 
+class PurgingTrigger(Trigger[T, Window]):
+    """
+    A trigger that can turn any Trigger into a purging Trigger.
+    When the nested trigger fires, this will return a FIRE_AND_PURGE TriggerResult.
+    """
+
+    def __init__(self, nested_trigger: Trigger[T, Window]):
+        self.nested_trigger = nested_trigger
+
+    @staticmethod
+    def of(nested_trigger: Trigger[T, Window]) -> 'PurgingTrigger':
+        return PurgingTrigger(nested_trigger)
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: Window,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_element(element, timestamp, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def on_event_time(self,
+                      time: int,
+                      window: Window,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_event_time(time, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def on_processing_time(self,
+                           time: int,
+                           window: Window,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        trigger_result = self.nested_trigger.on_processing_time(time, window, ctx)
+        if trigger_result.is_fire() is True:
+            return TriggerResult.FIRE_AND_PURGE
+        else:
+            return trigger_result
+
+    def clear(self,
+              window: Window,
+              ctx: 'Trigger.TriggerContext') -> None:
+        self.nested_trigger.clear(window, ctx)
+
+    def can_merge(self) -> bool:
+        return self.nested_trigger.can_merge()
+
+    def on_merge(self,
+                 window: Window,
+                 ctx: 'Trigger.OnMergeContext') -> None:
+        self.nested_trigger.on_merge(window, ctx)
+
+
 class CountTrigger(Trigger[T, CountWindow]):
     """
     A Trigger that fires once the count of elements in a pane reaches the given count.
@@ -849,6 +916,10 @@ class CountTrigger(Trigger[T, CountWindow]):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
             "count", lambda a, b: a + b, Types.LONG())
+
+    @staticmethod
+    def of(window_size: int) -> 'CountTrigger':
+        return CountTrigger(window_size)
 
     def on_element(self,
                    element: T,

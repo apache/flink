@@ -26,7 +26,7 @@ from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction,
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
-                                       CountWindow)
+                                       CountWindow, PurgingTrigger, EventTimeTrigger)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 
@@ -346,6 +346,25 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(hi,3)']
         self.assert_equals_sorted(expected, results)
 
+    def test_event_time_session_window_with_purging_trigger(self):
+        data_stream = self.env.from_collection([
+            ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 8), ('hi', 9), ('hi', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(3))) \
+            .trigger(PurgingTrigger.of(EventTimeTrigger.create())) \
+            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_event_time_session_window_with_purging_trigger')
+        results = self.test_sink.get_results()
+        expected = ['(hi,1)', '(hi,2)', '(hi,4)']
+        self.assert_equals_sorted(expected, results)
+
 
 class SecondColumnTimestampAssigner(TimestampAssigner):
 
@@ -372,7 +391,7 @@ class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, CountW
 
     def process(self,
                 key: str,
-                context: ProcessWindowFunction.Context,
+                context: ProcessWindowFunction.Context[CountWindow],
                 elements: Iterable[tuple]) -> Iterable[tuple]:
         return [(key, len([e for e in elements]))]
 
