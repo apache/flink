@@ -367,7 +367,7 @@ specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink
 The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
 is finalized for further encoding purposes.
 
-Flink comes with four built-in BulkWriter factories:
+Flink comes with five built-in BulkWriter factories:
 
 * ParquetWriterFactory
 * AvroWriterFactory
