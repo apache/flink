@@ -69,7 +69,7 @@
       "abilities" : [ {
         "type" : "WritingMetadata",
         "metadataKeys" : [ "m" ],
-        "consumedType" : "ROW<`a` BIGINT, `b` INT, `$metadata$m` VARCHAR(2147483647)> NOT NULL"
+        "consumedType" : "ROW<`a` BIGINT, `b` INT, `m` VARCHAR(2147483647)> NOT NULL"
       } ]
     },
     "inputChangelogMode" : [ "INSERT" ],

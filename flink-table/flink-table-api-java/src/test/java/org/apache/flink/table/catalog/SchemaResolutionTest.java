@@ -221,6 +221,26 @@ public class SchemaResolutionTest {
                 Schema.newBuilder().columnByExpression("invalid", callSql("INVALID")).build(),
                 "Invalid expression for computed column 'invalid'.");
 
+        // metadata columns
+
+        testError(
+                Schema.newBuilder()
+                        .columnByMetadata("metadata", DataTypes.INT())
+                        .columnByMetadata("from_metadata", DataTypes.BIGINT(), "metadata", false)
+                        .build(),
+                "The column `metadata` and `from_metadata` in the table are both from the same metadata key 'metadata'. "
+                        + "Please specify one of the columns as the metadata column and use the "
+                        + "computed column syntax to specify the others.");
+
+        testError(
+                Schema.newBuilder()
+                        .columnByMetadata("from_metadata", DataTypes.BIGINT(), "metadata", false)
+                        .columnByMetadata("from_metadata2", DataTypes.STRING(), "metadata", true)
+                        .build(),
+                "The column `from_metadata` and `from_metadata2` in the table are both from the same metadata key 'metadata'. "
+                        + "Please specify one of the columns as the metadata column and use the "
+                        + "computed column syntax to specify the others.");
+
         // time attributes and watermarks
 
         testError(

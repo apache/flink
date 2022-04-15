@@ -19,11 +19,15 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.FlinkAssertions
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
+
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -175,6 +179,54 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testDDLWithMultipleColumnsFromSameMetadataKey(): Unit = {
+    assertThatThrownBy(() =>
+      util.tableEnv.executeSql(
+        """
+          |CREATE TABLE source (
+          |  a INT METADATA,
+          |  b INT METADATA FROM 'a'
+          |) WITH (
+          |  'connector' = 'COLLECTION'
+          |)
+          |""".stripMargin)).satisfies(
+      FlinkAssertions.anyCauseMatches(
+        classOf[ValidationException],
+        "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
+          "Please specify one of the columns as the metadata column and use the computed column" +
+          " syntax to specify the others."))
+  }
+
+  @Test
+  def testDDLWithMultipleColumnsFromSameMetadataKey2(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE source (
+        |  a INT METADATA
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+        |""".stripMargin)
+    assertThatThrownBy(() =>
+      util.tableEnv.executeSql(
+        """
+          |CREATE TABLE like_source (
+          |  b INT METADATA FROM 'a'
+          |)
+          |WITH (
+          |  'connector' = 'COLLECTION'
+          |) LIKE source (
+          |  INCLUDING METADATA
+          |)
+          |""".stripMargin
+      )).satisfies(anyCauseMatches(
+      "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
+        "Please specify one of the columns as the metadata column and use the computed column" +
+        " syntax to specify the others."
+    ))
   }
 
   @Test

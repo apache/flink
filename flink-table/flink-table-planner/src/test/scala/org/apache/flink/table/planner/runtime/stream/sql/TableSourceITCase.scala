@@ -76,6 +76,7 @@ class TableSourceITCase extends StreamingTestBase {
          |CREATE TABLE MetadataTable (
          |  `a` INT,
          |  `other_metadata` INT METADATA FROM 'metadata_3',
+         |  `other_metadata2` AS CAST(`other_metadata` AS BIGINT),
          |  `b` BIGINT,
          |  `metadata_1` INT METADATA,
          |  `computed` AS `metadata_1` * 2,
@@ -310,6 +311,22 @@ class TableSourceITCase extends StreamingTestBase {
       "1,1,1,Hallo,0",
       "2,2,2,Hallo Welt,2",
       "2,1,3,Hallo Welt wie,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDuplicateMetadataFromSameKey(): Unit = {
+    val result = tEnv.sqlQuery(
+      "SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,Hallo",
+      "1,1,Hallo Welt wie",
+      "2,2,Hallo Welt")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
