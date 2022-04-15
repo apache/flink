@@ -30,8 +30,26 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
+	<repositories>
+		<repository>
+			<id>fs-releases</id>
+			<name>fs-releases</name>
+			<url>http://10.8.30.22:8081/repository/fs-releases/</url>
+		</repository>
+	</repositories>
+
+
+	<distributionManagement>
+		<repository>
+			<id>fs-releases</id>
+			<name>fs-releases</name>
+			<url>http://10.8.30.22:8081/repository/fs-releases/</url>
+		</repository>
+	</distributionManagement>
+
 	<artifactId>flink-connector-jdbc_${scala.binary.version}</artifactId>
 	<name>Flink : Connectors : JDBC</name>
+	<!--<version>fs-1.13.6</version>-->
 
 	<packaging>jar</packaging>
 
@@ -187,6 +205,14 @@ under the License.
 				<configuration>
 					<!-- Disable jvm process reuse to test driver class loading issues -->
 					<reuseForks>false</reuseForks>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
 				</configuration>
 			</plugin>
 		</plugins>
