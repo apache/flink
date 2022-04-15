@@ -245,7 +245,7 @@ a timeout that specifies the maximum duration for which a file can be open.
 become finished on the next checkpoint) control the size and number of these parts.
 
 **NOTE:** For row formats (csv, json), you can set the parameter `sink.rolling-policy.file-size` or `sink.rolling-policy.rollover-interval` in the connector properties and parameter `execution.checkpointing.interval` in flink-conf.yaml together
-if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
+if you don't want to wait a long period before observe the data exists in file system. For other formats (avro, orc, parquet), you can just set parameter `execution.checkpointing.interval` in flink-conf.yaml.
 
 ### File Compaction
 
