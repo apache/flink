@@ -68,13 +68,17 @@ import java.util.Map;
  * casting from INT will be performed by the planner in a preceding operation:
  *
  * <pre>{@code
- * // for t1 and t2
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE, $metadata$timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
+ * // physical input
+ * ROW < i INT, s STRING, d DOUBLE >
  *
- * // for t3
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE >                                              // final input
+ * // final input (i.e. consumed type) for t1
+ * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final input (i.e. consumed type) for t2
+ * ROW < i INT, s STRING, d DOUBLE, myTimestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final input (i.e. consumed type) for t3
+ * ROW < i INT, s STRING, d DOUBLE >
  * }</pre>
  */
 @PublicEvolving
