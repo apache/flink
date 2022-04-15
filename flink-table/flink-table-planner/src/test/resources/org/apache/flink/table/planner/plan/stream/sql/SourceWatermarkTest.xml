@@ -137,7 +137,7 @@ Calc(select=[c.d.e AS e, c.d AS d])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP_LTZ($3, 3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[AS($3, _UTF-16LE'originTime')], rowtime=[TO_TIMESTAMP_LTZ(AS($3, _UTF-16LE'originTime'), 3)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable]])
 ]]>
     </Resource>
@@ -175,7 +175,7 @@ Calc(select=[a, b, EXTRACT(SECOND, CAST(Reinterpret((c + 5000:INTERVAL SECOND)) 
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/($3, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[AS($3, _UTF-16LE'originTime')], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/(AS($3, _UTF-16LE'originTime'), 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

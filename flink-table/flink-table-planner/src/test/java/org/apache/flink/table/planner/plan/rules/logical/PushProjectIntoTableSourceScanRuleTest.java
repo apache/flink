@@ -118,7 +118,9 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "  id int,\n"
                         + "  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n"
                         + "  metadata_1 int metadata,\n"
-                        + "  metadata_2 string metadata\n"
+                        + "  metadata_2 string metadata,\n"
+                        + "  metadata_3 bigint metadata from 'metadata_1',\n"
+                        + "  metadata_4 string metadata from 'metadata_1'\n"
                         + ") WITH ("
                         + " 'connector' = 'values',"
                         + " 'nested-projection-supported' = 'true',"
@@ -204,6 +206,13 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "    deepNested.nested1.name AS nestedName,\n"
                         + "    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n"
                         + "FROM NestedTable";
+        util().verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testProjectWithDuplicateMetadata() {
+        String sqlQuery = "SELECT id, metadata_3, metadata_2, metadata_4 FROM MetadataTable";
+
         util().verifyRelPlan(sqlQuery);
     }
 

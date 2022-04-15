@@ -186,7 +186,7 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
+LogicalProject(a=[$0], other_metadata=[AS(CAST($4):INTEGER, _UTF-16LE'other_metadata')], b=[$1], c=[$2], metadata_1=[AS($3, _UTF-16LE'metadata_1')], computed=[UPPER(AS($3, _UTF-16LE'metadata_1'))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
 ]]>
     </Resource>
@@ -203,7 +203,7 @@ Calc(select=[a, CAST($metadata$metadata_3 AS INTEGER) AS other_metadata, b, c, $
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], other_metadata=[CAST($4):INTEGER])
+LogicalProject(b=[$1], other_metadata=[AS(CAST($4):INTEGER, _UTF-16LE'other_metadata')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
 ]]>
     </Resource>
@@ -220,7 +220,7 @@ Calc(select=[b, CAST($metadata$metadata_3 AS INTEGER) AS other_metadata])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+LogicalProject(timestamp=[$0], metadata_timestamp=[AS($2, _UTF-16LE'metadata_timestamp')], other=[AS($1, _UTF-16LE'other')], computed_other=[UPPER(AS($1, _UTF-16LE'other'))], computed_timestamp=[CAST(AS($2, _UTF-16LE'metadata_timestamp')):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
 +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
 ]]>
     </Resource>

@@ -205,6 +205,13 @@ public final class DynamicSourceUtils {
         final Stream<RowField> physicalFields =
                 ((RowType) schema.toPhysicalRowDataType().getLogicalType()).getFields().stream();
 
+        // Use the prefix + metadata key as the column name. In the case
+        // ```
+        //    `et_1` TIMESTAMP(3) METADATA `timestamp`,
+        //    `et_2` TIMESTAMP(3) METADATA `timestamp`
+        // ```
+        // the source only output the field `$metadata$timestamp` and the Projection will rename the
+        // column to the alias.
         final Stream<RowField> metadataFields =
                 createRequiredMetadataKeys(schema, source).stream()
                         .map(
@@ -321,10 +328,14 @@ public final class DynamicSourceUtils {
                                                 metadataColumn
                                                         .getMetadataKey()
                                                         .orElse(metadataColumn.getName());
-                                        return rexBuilder.makeAbstractCast(
-                                                relDataType,
-                                                relBuilder.field(
-                                                        METADATA_COLUMN_PREFIX + metadataKey));
+                                        String columnName = METADATA_COLUMN_PREFIX + metadataKey;
+                                        RexNode castType =
+                                                rexBuilder.makeAbstractCast(
+                                                        relDataType, relBuilder.field(columnName));
+                                        if (!columnName.equals(c.getName())) {
+                                            return relBuilder.alias(castType, c.getName());
+                                        }
+                                        return castType;
                                     } else {
                                         return relBuilder.field(c.getName());
                                     }
