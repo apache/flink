@@ -60,9 +60,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.METADATA_COLUMN_PREFIX;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
-import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataColumns;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
@@ -250,12 +249,16 @@ public class PushProjectIntoTableSourceScanRule
         final List<NestedColumn> projectedMetadataColumns;
         if (supportsMetadata(source.tableSource())) {
             final List<String> declaredMetadataKeys =
-                    createRequiredMetadataKeys(
-                            source.contextResolvedTable().getResolvedSchema(),
-                            source.tableSource());
+                    createRequiredMetadataColumns(
+                                    source.contextResolvedTable().getResolvedSchema(),
+                                    source.tableSource())
+                            .stream()
+                            .map(col -> col.getMetadataKey().orElse(col.getName()))
+                            .collect(Collectors.toList());
 
             numPhysicalColumns = producedType.getFieldCount() - declaredMetadataKeys.size();
 
+            // the projected metadata column name
             projectedMetadataColumns =
                     IntStream.range(0, declaredMetadataKeys.size())
                             .mapToObj(i -> producedType.getFieldNames().get(numPhysicalColumns + i))
@@ -306,10 +309,23 @@ public class PushProjectIntoTableSourceScanRule
                 (RowType) Projection.of(projectedFields).project(producedType);
 
         if (supportsMetadata(source.tableSource())) {
+            // Use the projected column name to get the metadata key
             final List<String> projectedMetadataKeys =
                     projectedMetadataColumns.stream()
-                            .map(NestedColumn::name)
-                            .map(k -> k.substring(METADATA_COLUMN_PREFIX.length()))
+                            .map(
+                                    nestedColumn ->
+                                            source.contextResolvedTable()
+                                                    .getResolvedSchema()
+                                                    .getColumn(nestedColumn.name())
+                                                    .orElseThrow(
+                                                            () ->
+                                                                    new TableException(
+                                                                            String.format(
+                                                                                    "Can not find the column %s in the origin schema.",
+                                                                                    nestedColumn
+                                                                                            .name()))))
+                            .map(Column.MetadataColumn.class::cast)
+                            .map(col -> col.getMetadataKey().orElse(col.getName()))
                             .collect(Collectors.toList());
 
             abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));

@@ -113,7 +113,8 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "  id int,\n"
                         + "  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n"
                         + "  metadata_1 int metadata,\n"
-                        + "  metadata_2 string metadata\n"
+                        + "  metadata_2 string metadata,\n"
+                        + "  metadata_3 as cast(metadata_1 as bigint)\n"
                         + ") WITH ("
                         + " 'connector' = 'values',"
                         + " 'nested-projection-supported' = 'true',"
@@ -199,6 +200,13 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "    deepNested.nested1.name AS nestedName,\n"
                         + "    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n"
                         + "FROM NestedTable";
+        util().verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testProjectWithDuplicateMetadataKey() {
+        String sqlQuery = "SELECT id, metadata_3, metadata_1 FROM MetadataTable";
+
         util().verifyRelPlan(sqlQuery);
     }
 
@@ -339,9 +347,12 @@ public class PushProjectIntoTableSourceScanRuleTest
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();
 
-        assertThat(DataType.getFieldNames(appliedProjectionDataType.get())).isEmpty();
-        assertThat(DataType.getFieldNames(appliedMetadataDataType.get()))
-                .containsExactly("$metadata$m2");
+        assertThat(
+                DataType.getFieldNames(appliedProjectionDataType.get()),
+                equalTo(Collections.emptyList()));
+        assertThat(
+                DataType.getFieldNames(appliedMetadataDataType.get()),
+                equalTo(Collections.singletonList("metadata")));
     }
 
     @Test
@@ -362,9 +373,12 @@ public class PushProjectIntoTableSourceScanRuleTest
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();
 
-        assertThat(DataType.getFieldNames(appliedProjectionDataType.get())).containsExactly("f1");
-        assertThat(DataType.getFieldNames(appliedMetadataDataType.get()))
-                .isEqualTo(Arrays.asList("f1", "$metadata$m2"));
+        assertThat(
+                DataType.getFieldNames(appliedProjectionDataType.get()),
+                equalTo(Collections.singletonList("f1")));
+        assertThat(
+                DataType.getFieldNames(appliedMetadataDataType.get()),
+                equalTo(Arrays.asList("f1", "metadata")));
     }
 
     // ---------------------------------------------------------------------------------------------

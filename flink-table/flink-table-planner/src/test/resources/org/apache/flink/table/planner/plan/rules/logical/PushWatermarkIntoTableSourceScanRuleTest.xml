@@ -111,8 +111,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
-+- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST($metadata$metadata_2 AS BIGINT) AS metadata, +(CAST($metadata$metadata_2 AS BIGINT), b) AS computed])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST($metadata$metadata_2 AS BIGINT), +(CAST($metadata$metadata_2 AS BIGINT), b)) AS INTERVAL SECOND))]]], fields=[a, b, c, $metadata$metadata_2])
++- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata AS BIGINT) AS metadata, +(CAST(metadata AS BIGINT), b) AS computed])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata AS BIGINT), +(CAST(metadata AS BIGINT), b)) AS INTERVAL SECOND))]]], fields=[a, b, c, metadata])
 ]]>
     </Resource>
   </TestCase>

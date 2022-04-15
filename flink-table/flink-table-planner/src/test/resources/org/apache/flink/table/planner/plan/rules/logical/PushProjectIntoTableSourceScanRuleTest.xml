@@ -315,6 +315,23 @@ LogicalProject(id=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectWithDuplicateMetadataKey">
+    <Resource name="sql">
+      <![CDATA[SELECT id, metadata_3, metadata_1 FROM MetadataTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], metadata_3=[CAST($2):BIGINT], metadata_1=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], metadata_3=[CAST($1):BIGINT], metadata_1=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id], metadata=[metadata_1]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectWithoutInputRef">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM MyTable]]>
