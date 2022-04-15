@@ -182,59 +182,66 @@ In order to start an HA-cluster configure the *masters* file in `conf/masters`:
 
 - **masters file**: The *masters file* contains all hosts, on which JobManagers are started, and the ports to which the web user interface binds.
 
-  <pre>
-jobManagerAddress1:webUIPort1
+```bash
+master1:webUIPort1
 [...]
-jobManagerAddressX:webUIPortX
-  </pre>
+masterX:webUIPortX
+```
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config.zh" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the JobManager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config.zh" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
-### Example: Standalone Cluster with 2 JobManagers
+#### Example: Standalone HA Cluster with 2 JobManagers
 
-1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
+1. Configure high availability mode and ZooKeeper quorum in `conf/flink-conf.yaml`:
 
-   <pre>
+```bash
 high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
 high-availability.cluster-id: /cluster_one # important: customize per cluster
-high-availability.storageDir: hdfs:///flink/recovery</pre>
+high-availability.storageDir: hdfs:///flink/recovery
+```
 
-2. **Configure masters** in `conf/masters`:
+2. Configure masters in `conf/masters`:
 
-   <pre>
+```bash
 localhost:8081
-localhost:8082</pre>
+localhost:8082
+```
 
-3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
+3. Configure ZooKeeper server in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
 
-   <pre>server.0=localhost:2888:3888</pre>
+```bash
+server.0=localhost:2888:3888
+```
 
-4. **Start ZooKeeper quorum**:
+4. Start ZooKeeper quorum:
 
-   <pre>
-$ bin/start-zookeeper-quorum.sh
-Starting zookeeper daemon on host localhost.</pre>
+```bash
+$ ./bin/start-zookeeper-quorum.sh
+Starting zookeeper daemon on host localhost.
+```
 
-5. **Start an HA-cluster**:
+5. Start an HA-cluster:
 
-   <pre>
-$ bin/start-cluster.sh
+```bash
+$ ./bin/start-cluster.sh
 Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
 Starting standalonesession daemon on host localhost.
 Starting standalonesession daemon on host localhost.
-Starting taskexecutor daemon on host localhost.</pre>
+Starting taskexecutor daemon on host localhost.
+```
 
-6. **Stop ZooKeeper quorum and cluster**:
+6. Stop ZooKeeper quorum and cluster:
 
-   <pre>
-$ bin/stop-cluster.sh
+```bash
+$ ./bin/stop-cluster.sh
 Stopping taskexecutor daemon (pid: 7647) on localhost.
 Stopping standalonesession daemon (pid: 7495) on host localhost.
 Stopping standalonesession daemon (pid: 7349) on host localhost.
-$ bin/stop-zookeeper-quorum.sh
-Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
+$ ./bin/stop-zookeeper-quorum.sh
+Stopping zookeeper daemon (pid: 7101) on host localhost.
+```
 
 ### User jars & Classpath
 
