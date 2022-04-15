@@ -288,6 +288,10 @@ public class Execution
                             && !taskManagerLocationFuture.isDone()) {
                         taskManagerLocationFuture.complete(logicalSlot.getTaskManagerLocation());
                         assignedAllocationID = logicalSlot.getAllocationId();
+                        getVertex()
+                                .setLatestPriorSlotAllocation(
+                                        assignedResource.getTaskManagerLocation(),
+                                        logicalSlot.getAllocationId());
                         return true;
                     } else {
                         // free assigned resource and return false

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -106,9 +108,13 @@ public class ExecutionVertexTest extends TestLogger {
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source);
         final TestingPhysicalSlotProvider withLimitedAmountOfPhysicalSlots =
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
+        final Configuration configuration = new Configuration();
+        // make sure that retrieving the last (al)location is independent from the history size
+        configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
                                 jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setJobMasterConfiguration(configuration)
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         withLimitedAmountOfPhysicalSlots))
@@ -130,15 +136,15 @@ public class ExecutionVertexTest extends TestLogger {
         cancelExecution(firstExecution);
         sourceExecutionVertex.resetForNewExecution();
 
-        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
-        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
 
         final Execution secondExecution = sourceExecutionVertex.getCurrentExecutionAttempt();
         cancelExecution(secondExecution);
         sourceExecutionVertex.resetForNewExecution();
 
-        assertThat(sourceExecutionVertex.findLatestPriorAllocation()).hasValue(allocationId);
-        assertThat(sourceExecutionVertex.findLatestPriorLocation()).hasValue(taskManagerLocation);
+        assertThat(sourceExecutionVertex.findLastAllocation()).hasValue(allocationId);
+        assertThat(sourceExecutionVertex.findLastLocation()).hasValue(taskManagerLocation);
     }
 
     private void cancelExecution(Execution execution) {
