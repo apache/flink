@@ -2744,6 +2744,11 @@ components:
           format: int64
         checkpoints_after_tasks_finish:
           type: boolean
+        changelog_periodic_materialization_interval:
+          type: integer
+          format: int64
+        changelog_storage:
+          type: string
     JobExceptionsInfoWithHistory:
       type: object
       properties:

@@ -221,6 +221,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public Optional<String> getChangelogStorageName() {
+        return Optional.empty();
+    }
+
+    @Override
     public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
         return new StringifiedAccumulatorResult[0];
     }
@@ -258,7 +263,8 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner) {
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorage) {
         throw new UnsupportedOperationException();
     }
 

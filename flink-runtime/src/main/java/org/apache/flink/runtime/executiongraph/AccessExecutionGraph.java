@@ -175,4 +175,11 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return The checkpoint storage name, or an empty Optional in the case of batch jobs
      */
     Optional<String> getCheckpointStorageName();
+
+    /**
+     * Returns the changelog storage name for this ExecutionGraph.
+     *
+     * @return The changelog storage name, or an empty Optional in the case of batch jobs
+     */
+    Optional<String> getChangelogStorageName();
 }
