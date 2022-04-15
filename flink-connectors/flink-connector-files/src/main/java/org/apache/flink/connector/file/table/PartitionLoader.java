@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -49,12 +50,15 @@ public class PartitionLoader implements Closeable {
     private final boolean overwrite;
     private final FileSystem fs;
     private final TableMetaStoreFactory.TableMetaStore metaStore;
+    private final boolean isToLocal;
 
-    public PartitionLoader(boolean overwrite, FileSystem fs, TableMetaStoreFactory factory)
+    public PartitionLoader(
+            boolean overwrite, FileSystem fs, TableMetaStoreFactory factory, boolean isToLocal)
             throws Exception {
         this.overwrite = overwrite;
         this.fs = fs;
         this.metaStore = factory.createTableMetaStore();
+        this.isToLocal = isToLocal;
     }
 
     /** Load a single partition. */
@@ -68,27 +72,28 @@ public class PartitionLoader implements Closeable {
                                         metaStore.getLocationPath(),
                                         generatePartitionPath(partSpec)));
 
-        overwriteAndRenameFiles(srcDirs, path);
+        overwriteAndMoveFiles(srcDirs, path);
         metaStore.createOrAlterPartition(partSpec, path);
     }
 
     /** Load a non-partition files to output path. */
     public void loadNonPartition(List<Path> srcDirs) throws Exception {
         Path tableLocation = metaStore.getLocationPath();
-        overwriteAndRenameFiles(srcDirs, tableLocation);
+        overwriteAndMoveFiles(srcDirs, tableLocation);
     }
 
-    private void overwriteAndRenameFiles(List<Path> srcDirs, Path destDir) throws Exception {
-        boolean dirSuccessExist = fs.exists(destDir) || fs.mkdirs(destDir);
+    private void overwriteAndMoveFiles(List<Path> srcDirs, Path destDir) throws Exception {
+        FileSystem destFileSystem = destDir.getFileSystem();
+        boolean dirSuccessExist = destFileSystem.exists(destDir) || destFileSystem.mkdirs(destDir);
         Preconditions.checkState(dirSuccessExist, "Failed to create dest path " + destDir);
         overwrite(destDir);
-        renameFiles(srcDirs, destDir);
+        moveFiles(srcDirs, destDir);
     }
 
     private void overwrite(Path destDir) throws Exception {
         if (overwrite) {
             // delete existing files for overwrite
-            FileStatus[] existingFiles = listStatusWithoutHidden(fs, destDir);
+            FileStatus[] existingFiles = listStatusWithoutHidden(destDir.getFileSystem(), destDir);
             if (existingFiles != null) {
                 for (FileStatus existingFile : existingFiles) {
                     // TODO: We need move to trash when auto-purge is false.
@@ -99,7 +104,7 @@ public class PartitionLoader implements Closeable {
     }
 
     /** Moves files from srcDir to destDir. */
-    private void renameFiles(List<Path> srcDirs, Path destDir) throws Exception {
+    private void moveFiles(List<Path> srcDirs, Path destDir) throws Exception {
         for (Path srcDir : srcDirs) {
             if (!srcDir.equals(destDir)) {
                 FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
@@ -107,7 +112,24 @@ public class PartitionLoader implements Closeable {
                     for (FileStatus srcFile : srcFiles) {
                         Path srcPath = srcFile.getPath();
                         Path destPath = new Path(destDir, srcPath.getName());
-                        fs.rename(srcPath, destPath);
+                        // if it's not to move to local file system, just rename it
+                        if (!isToLocal) {
+                            fs.rename(srcPath, destPath);
+                        } else {
+                            // need move to local file system
+                            if (fs instanceof HadoopFileSystem) {
+                                HadoopFileSystem hdfs = ((HadoopFileSystem) fs);
+                                hdfs.getHadoopFileSystem()
+                                        .moveToLocalFile(
+                                                new org.apache.hadoop.fs.Path(srcPath.getPath()),
+                                                new org.apache.hadoop.fs.Path(destPath.getPath()));
+                            } else {
+                                throw new IllegalArgumentException(
+                                        String.format(
+                                                "Can't move file from %s to %s for the file system of source path is not instance of HadoopFileSystem",
+                                                srcPath, destPath));
+                            }
+                        }
                     }
                 }
             }

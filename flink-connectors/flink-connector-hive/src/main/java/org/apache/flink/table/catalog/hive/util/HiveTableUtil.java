@@ -60,6 +60,7 @@ import org.apache.hadoop.hive.ql.io.RCFileStorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.io.File;
@@ -298,7 +299,7 @@ public class HiveTableUtil {
         }
     }
 
-    private static void extractStoredAs(
+    public static void extractStoredAs(
             StorageDescriptor sd, Map<String, String> properties, HiveConf hiveConf) {
         String storageFormat = properties.remove(STORED_AS_FILE_FORMAT);
         String inputFormat = properties.remove(STORED_AS_INPUT_FORMAT);
@@ -331,6 +332,14 @@ public class HiveTableUtil {
     public static void setDefaultStorageFormat(StorageDescriptor sd, HiveConf hiveConf) {
         sd.getSerdeInfo().setSerializationLib(hiveConf.getVar(HiveConf.ConfVars.HIVEDEFAULTSERDE));
         setStorageFormat(sd, hiveConf.getVar(HiveConf.ConfVars.HIVEDEFAULTFILEFORMAT), hiveConf);
+    }
+
+    public static void setDefaultStorageFormatForDirectory(
+            StorageDescriptor sd, HiveConf hiveConf) {
+        // default is LazySimpleSerDe for insert into directory
+        sd.getSerdeInfo().setSerializationLib(LazySimpleSerDe.class.getName());
+        // default is TextFile
+        setStorageFormat(sd, "TextFile", hiveConf);
     }
 
     public static void alterColumns(StorageDescriptor sd, CatalogTable catalogTable) {
