@@ -36,11 +36,13 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
 import java.util.Set;
 
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.TABLE_EXEC_HIVE_READ_PARTITION_WITH_SUBDIRECTORY_ENABLED;
 
 /** A dynamic table factory implementation for Hive catalog. */
 public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
@@ -130,6 +132,11 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                         .defaultValue()
                         .equals(configuration.get(STREAMING_SOURCE_PARTITION_INCLUDE));
         final JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
+        boolean readSubDirectory =
+                context.getConfiguration()
+                        .get(TABLE_EXEC_HIVE_READ_PARTITION_WITH_SUBDIRECTORY_ENABLED);
+        // set whether to read directory recursively
+        jobConf.set(FileInputFormat.INPUT_DIR_RECURSIVE, String.valueOf(readSubDirectory));
 
         // hive table source that has not lookup ability
         if (isStreamingSource && includeAllPartition) {

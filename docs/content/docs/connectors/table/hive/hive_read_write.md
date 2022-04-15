@@ -170,6 +170,26 @@ following parameters in `TableConfig` (note that these parameters affect all sou
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
 
+### Read Partition With Subdirectory
+
+In some case, you may create an external table referring another table, but the partition columns is a subset of the referred table.
+For example, you have a partitioned table `fact_tz` with partition `day`/`hour`:
+
+```sql
+CREATE TABLE fact_tz(x int) PARTITIONED BY (day STRING, hour STRING);
+```
+
+And you have an external table `fact_daily` referring to table `fact_tz` with a coarse-grained partition `day`:
+
+```sql
+create external table fact_daily(x int) PARTITIONED BY (ds STRING) location 'fact_tz_localtion' ;
+```
+
+Then when reading the external table `fact_daily`, there will be sub-directories in the partition directory of the table.
+
+You can configure `table.exec.hive.read-partition-with-subdirectory.enabled` to allow Flink to read the sub-directories or skip them directly.
+The default value is true, it will read the sub-directories. Otherwise, it will throw the exception "not a file: xxx" when the partition directory contains any sub-directory.
+
 ## Temporal Table Join
 
 You can use a Hive table as a temporal table, and then a stream can correlate the Hive table by temporal join. 

@@ -39,6 +39,15 @@ public class HiveOptions {
                             "If it is false, using flink native vectorized reader to read orc files; "
                                     + "If it is true, using hadoop mapred record reader to read orc files.");
 
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_HIVE_READ_PARTITION_WITH_SUBDIRECTORY_ENABLED =
+                    key("table.exec.hive.read-partition-with-subdirectory.enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDescription(
+                                    "If it is true, flink will read the files of partitioned hive table from subdirectories under the partition directory to be read.\n"
+                                            + "If it is false, an exception that 'not a file: xxx' will be thrown when the partition directory contains any sub-directory.");
+
     public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM =
             key("table.exec.hive.infer-source-parallelism")
                     .booleanType()
