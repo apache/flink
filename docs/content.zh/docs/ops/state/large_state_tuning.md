@@ -171,7 +171,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 This section discusses how to decide how many resources should be used for a Flink job to run reliably.
 The basic rules of thumb for capacity planning are:
 
-  - Normal operation should have enough capacity to not operate under constant *back pressure*.
+  - Normal operation should have enough capacity to operate under constant *back pressure*.
     See [back pressure monitoring]({{< ref "docs/ops/monitoring/back_pressure" >}}) for details on how to check whether the application runs under back pressure.
 
   - Provision some extra resources on top of the resources needed to run the program back-pressure-free during failure-free time.
