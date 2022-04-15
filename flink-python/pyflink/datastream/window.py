@@ -841,24 +841,24 @@ class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
         ctx.register_processing_time_timer(next_fire_timestamp)
 
 
-class PurgingTrigger(Trigger[T, TimeWindow]):
+class PurgingTrigger(Trigger[T, Window]):
     """
     A trigger that can turn any Trigger into a purging Trigger.
     When the nested trigger fires, this will return a FIRE_AND_PURGE TriggerResult.
     """
 
     def __init__(self,
-                 nested_trigger: Trigger[T, TimeWindow]):
+                 nested_trigger: Trigger[T, Window]):
         self.nested_trigger = nested_trigger
 
     @staticmethod
-    def of(nested_trigger: Trigger[T, TimeWindow]) -> 'PurgingTrigger':
+    def of(nested_trigger: Trigger[T, Window]) -> 'PurgingTrigger':
         return PurgingTrigger(nested_trigger)
 
     def on_element(self,
                    element: T,
                    timestamp: int,
-                   window: TimeWindow,
+                   window: Window,
                    ctx: 'Trigger.TriggerContext') -> TriggerResult:
         trigger_result = self.nested_trigger.on_element(element, timestamp, window, ctx)
         if trigger_result.is_fire() is True:
@@ -868,7 +868,7 @@ class PurgingTrigger(Trigger[T, TimeWindow]):
 
     def on_event_time(self,
                       time: int,
-                      window: TimeWindow,
+                      window: Window,
                       ctx: 'Trigger.TriggerContext') -> TriggerResult:
         trigger_result = self.nested_trigger.on_event_time(time, window, ctx)
         if trigger_result.is_fire() is True:
@@ -878,7 +878,7 @@ class PurgingTrigger(Trigger[T, TimeWindow]):
 
     def on_processing_time(self,
                            time: int,
-                           window: TimeWindow,
+                           window: Window,
                            ctx: 'Trigger.TriggerContext') -> TriggerResult:
         trigger_result = self.nested_trigger.on_processing_time(time, window, ctx)
         if trigger_result.is_fire() is True:
@@ -887,7 +887,7 @@ class PurgingTrigger(Trigger[T, TimeWindow]):
             return trigger_result
 
     def clear(self,
-              window: TimeWindow,
+              window: Window,
               ctx: 'Trigger.TriggerContext') -> None:
         self.nested_trigger.clear(window, ctx)
 
@@ -895,7 +895,7 @@ class PurgingTrigger(Trigger[T, TimeWindow]):
         return self.nested_trigger.can_merge()
 
     def on_merge(self,
-                 window: TimeWindow,
+                 window: Window,
                  ctx: 'Trigger.OnMergeContext') -> None:
         self.nested_trigger.on_merge(window, ctx)
 
