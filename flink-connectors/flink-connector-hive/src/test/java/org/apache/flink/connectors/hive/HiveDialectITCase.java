@@ -558,6 +558,47 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testTableWithSubDirsInPartitionDir() throws Exception {
+        tableEnv.executeSql("CREATE TABLE fact_tz(x int) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("INSERT OVERWRITE TABLE fact_tz PARTITION (ds='1', hr='1') select 1")
+                .await();
+        tableEnv.executeSql("INSERT OVERWRITE TABLE fact_tz PARTITION (ds='1', hr='2') select 2")
+                .await();
+        String location = warehouse + "/fact_tz";
+        // create an external table
+        tableEnv.executeSql(
+                String.format(
+                        "create external table fact_daily(x int) PARTITIONED BY (ds STRING) location '%s'",
+                        location));
+        tableEnv.executeSql(
+                String.format(
+                        "ALTER TABLE fact_daily ADD PARTITION (ds='1') location '%s'",
+                        location + "/ds=1"));
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from fact_daily WHERE ds='1' order by x")
+                                .collect());
+        // the data read from the external table fact_daily should contain the data in
+        // directory 'ds=1/hr=1', 'ds=1/hr=2'
+        assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 1]])");
+
+        tableEnv.getConfig()
+                .set(
+                        HiveOptions.TABLE_EXEC_HIVE_READ_PARTITION_WITH_SUBDIRECTORY_ENABLED.key(),
+                        "false");
+        // should throw exception when disable reading sub-dirs in partition directory
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select * from fact_daily WHERE ds='1'")
+                                                .collect()))
+                .satisfies(
+                        anyCauseMatches(
+                                String.format(
+                                        "Not a file: file:%s", warehouse + "/fact_tz/ds=1/hr=2")));
+    }
+
+    @Test
     public void testView() throws Exception {
         tableEnv.executeSql("create table tbl (x int,y string)");
 
