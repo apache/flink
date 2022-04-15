@@ -1014,7 +1014,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             log.info(
                     "Closing TaskExecutor connection {} because: {}",
                     resourceID.getStringWithMetadata(),
-                    cause.getMessage());
+                    cause.getMessage(),
+                    ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+            ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
             // TODO :: suggest failed task executor to stop itself
             slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);

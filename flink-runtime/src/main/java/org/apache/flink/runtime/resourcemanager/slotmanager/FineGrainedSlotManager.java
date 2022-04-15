@@ -37,7 +37,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -332,7 +332,8 @@ public class FineGrainedSlotManager implements SlotManager {
                         maxTotalMem.toHumanReadableString());
                 resourceActions.releaseResource(
                         taskExecutorConnection.getInstanceID(),
-                        new FlinkException("The max total resource limitation is reached."));
+                        new FlinkExpectedException(
+                                "The max total resource limitation is reached."));
                 return false;
             }
 
@@ -707,7 +708,8 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkException cause = new FlinkException("TaskManager exceeded the idle timeout.");
+        final FlinkExpectedException cause =
+                new FlinkExpectedException("TaskManager exceeded the idle timeout.");
         resourceActions.releaseResource(timedOutTaskManagerId, cause);
     }
 

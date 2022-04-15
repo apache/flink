@@ -496,10 +496,12 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
-        log.debug(
+        log.info(
                 "Disconnect TaskExecutor {} because: {}",
                 resourceID.getStringWithMetadata(),
-                cause.getMessage());
+                cause.getMessage(),
+                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
         taskManagerHeartbeatManager.unmonitorTarget(resourceID);
         slotPoolService.releaseTaskManager(resourceID, cause);

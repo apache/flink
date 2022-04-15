@@ -132,6 +132,7 @@ import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -453,7 +454,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         Throwable jobManagerDisconnectThrowable = null;
 
-        FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+        FlinkExpectedException cause =
+                new FlinkExpectedException("The TaskExecutor is shutting down.");
 
         closeResourceManagerConnection(cause);
 
@@ -1414,11 +1416,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final ResourceID resourceManagerResourceId =
                     establishedResourceManagerConnection.getResourceManagerResourceId();
 
-            if (log.isDebugEnabled()) {
-                log.debug("Close ResourceManager connection {}.", resourceManagerResourceId, cause);
-            } else {
-                log.info("Close ResourceManager connection {}.", resourceManagerResourceId);
-            }
+            log.info(
+                    "Close ResourceManager connection {}.",
+                    resourceManagerResourceId,
+                    ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+            ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
             resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerResourceId);
 
             ResourceManagerGateway resourceManagerGateway =
@@ -1665,11 +1667,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private void disconnectJobManagerConnection(
             JobTable.Connection jobManagerConnection, Exception cause) {
         final JobID jobId = jobManagerConnection.getJobId();
-        if (log.isDebugEnabled()) {
-            log.debug("Close JobManager connection for job {}.", jobId, cause);
-        } else {
-            log.info("Close JobManager connection for job {}.", jobId);
-        }
+        log.info(
+                "Close JobManager connection for job {}.",
+                jobId,
+                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
         // 1. fail tasks running under this JobID
         Iterator<Task> tasks = taskSlotTable.getTasks(jobId);
@@ -1970,8 +1972,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 && !partitionTracker.isTrackingPartitionsFor(jobId)) {
             // we can remove the job from the job leader service
 
-            final FlinkException cause =
-                    new FlinkException(
+            final FlinkExpectedException cause =
+                    new FlinkExpectedException(
                             "TaskExecutor "
                                     + getAddress()
                                     + " has no more allocated slots for job "
