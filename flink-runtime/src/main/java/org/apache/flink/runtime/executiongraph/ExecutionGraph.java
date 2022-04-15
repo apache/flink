@@ -88,7 +88,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner);
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorage);
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
