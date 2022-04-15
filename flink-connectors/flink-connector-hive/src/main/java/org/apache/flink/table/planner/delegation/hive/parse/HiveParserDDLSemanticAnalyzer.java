@@ -1180,7 +1180,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private void encodeStorageFormat(
+    public static void encodeStorageFormat(
             HiveParserStorageFormat storageFormat, Map<String, String> props) {
         String serdeName = storageFormat.getSerde();
         if (serdeName != null) {

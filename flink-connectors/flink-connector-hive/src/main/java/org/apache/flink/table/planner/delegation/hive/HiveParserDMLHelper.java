@@ -19,17 +19,27 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserDirectoryDesc;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalScriptTransform;
@@ -61,17 +71,23 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.SettableUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
@@ -227,7 +243,7 @@ public class HiveParserDMLHelper {
         // decide the dest table
         Map<String, Table> nameToDestTable = qbMetaData.getNameToDestTable();
         Map<String, Partition> nameToDestPart = qbMetaData.getNameToDestPartition();
-        // for now we only support inserting to a single table
+        // for now we only support inserting to a single table in one queryRelNode
         Preconditions.checkState(
                 nameToDestTable.size() <= 1 && nameToDestPart.size() <= 1,
                 "Only support inserting to 1 table");
@@ -241,7 +257,7 @@ public class HiveParserDMLHelper {
             destTable = nameToDestPart.values().iterator().next().getTable();
         } else {
             // happens for INSERT DIRECTORY
-            throw new SemanticException("INSERT DIRECTORY is not supported");
+            return createInsertIntoDirectoryOperation(topQB, qbMetaData, queryRelNode);
         }
 
         // decide static partition specs
@@ -294,6 +310,79 @@ public class HiveParserDMLHelper {
                 insertOperationInfo.f2,
                 insertOperationInfo.f3,
                 Collections.emptyMap());
+    }
+
+    private SinkModifyOperation createInsertIntoDirectoryOperation(
+            HiveParserQB topQB, QBMetaData qbMetaData, RelNode queryRelNode) {
+        String dest = topQB.getParseInfo().getClauseNamesForDest().iterator().next();
+        // get the location for insert into directory
+        String location = qbMetaData.getDestFileForAlias(dest);
+        // get whether it's for insert local directory
+        boolean isToLocal = qbMetaData.getDestTypeForAlias(dest) == QBMetaData.DEST_LOCAL_FILE;
+        HiveParserDirectoryDesc directoryDesc = topQB.getDirectoryDesc();
+
+        // set row format / stored as / location
+        Map<String, String> props = new HashMap<>();
+        HiveParserDDLSemanticAnalyzer.encodeRowFormat(directoryDesc.getRowFormatParams(), props);
+        HiveParserDDLSemanticAnalyzer.encodeStorageFormat(directoryDesc.getStorageFormat(), props);
+        props.put(TABLE_LOCATION_URI, location);
+
+        props.put(FactoryUtil.CONNECTOR.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        // mark it's for insert into directory
+        props.put(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX + IS_INSERT_DIRECTORY, "true");
+        // mark it's for insert into local directory or not
+        props.put(
+                CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX + IS_TO_LOCAL_DIRECTORY,
+                String.valueOf(isToLocal));
+
+        List<RelDataTypeField> fieldList = queryRelNode.getRowType().getFieldList();
+        String[] colNameArr = new String[fieldList.size()];
+        String[] colTypeArr = new String[fieldList.size()];
+        for (int i = 0; i < fieldList.size(); i++) {
+            colNameArr[i] = fieldList.get(i).getName();
+            TypeInfo typeInfo = HiveParserTypeConverter.convert(fieldList.get(i).getType());
+            if (typeInfo.equals(TypeInfoFactory.voidTypeInfo)) {
+                colTypeArr[i] = TypeInfoFactory.stringTypeInfo.getTypeName();
+            } else {
+                colTypeArr[i] = typeInfo.getTypeName();
+            }
+        }
+
+        // extra information needed for insert into directory
+        String colNames = String.join(",", colNameArr);
+        String colTypes = String.join(":", colTypeArr);
+        props.put("columns", colNames);
+        props.put("columns.types", colTypes);
+
+        PlannerQueryOperation plannerQueryOperation = new PlannerQueryOperation(queryRelNode);
+        return new SinkModifyOperation(
+                createDummyTableForInsertDirectory(
+                        plannerQueryOperation.getResolvedSchema(), props),
+                plannerQueryOperation,
+                Collections.emptyMap(),
+                true, // insert into directory is always for overwrite
+                Collections.emptyMap());
+    }
+
+    private ContextResolvedTable createDummyTableForInsertDirectory(
+            ResolvedSchema resolvedSchema, Map<String, String> props) {
+        Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        schema,
+                        "a dummy table for the case of insert overwrite directory ",
+                        Collections.emptyList(),
+                        props);
+        ResolvedCatalogTable resolvedCatalogTable =
+                new ResolvedCatalogTable(catalogTable, resolvedSchema);
+        String currentCatalog = catalogManager.getCurrentCatalog();
+        // the object name means nothing, it's just for placeholder and won't be used actually
+        String objectName = "insert_directory_tbl";
+        return ContextResolvedTable.permanent(
+                ObjectIdentifier.of(
+                        currentCatalog, catalogManager.getCurrentDatabase(), objectName),
+                catalogManager.getCatalog(currentCatalog).get(),
+                resolvedCatalogTable);
     }
 
     private RelNode replaceDistForStaticParts(

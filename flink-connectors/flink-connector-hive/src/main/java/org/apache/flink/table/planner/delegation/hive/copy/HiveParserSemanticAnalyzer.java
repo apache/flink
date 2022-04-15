@@ -74,7 +74,6 @@ import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.PTFQueryInputType;
 import org.apache.hadoop.hive.ql.parse.PrunedPartitionList;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.SplitSample;
-import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
 import org.apache.hadoop.hive.ql.plan.CreateViewDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -1793,37 +1792,25 @@ public class HiveParserSemanticAnalyzer {
                             }
                         }
 
-                        boolean isDfsFile = true;
-                        if (ast.getChildCount() >= 2
-                                && ast.getChild(1).getText().toLowerCase().equals("local")) {
-                            isDfsFile = false;
-                        }
+                        boolean isDfsFile =
+                                ast.getChildCount() < 2
+                                        || !ast.getChild(1).getText().equalsIgnoreCase("local");
                         // Set the destination for the SELECT query inside the CTAS
                         qb.getMetaData().setDestForAlias(name, fname, isDfsFile);
 
-                        CreateTableDesc directoryDesc = new CreateTableDesc();
-                        boolean directoryDescIsSet = false;
+                        // we use a dedicated class to represent for 'insert overwrite directory'
+                        HiveParserDirectoryDesc directoryDesc =
+                                new HiveParserDirectoryDesc(rowFormatParams, storageFormat);
                         int numCh = ast.getChildCount();
                         for (int num = 1; num < numCh; num++) {
                             HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
                             if (child != null) {
                                 if (storageFormat.fillStorageFormat(child)) {
-                                    directoryDesc.setOutputFormat(storageFormat.getOutputFormat());
-                                    directoryDesc.setSerName(storageFormat.getSerde());
-                                    directoryDescIsSet = true;
                                     continue;
                                 }
                                 switch (child.getToken().getType()) {
                                     case HiveASTParser.TOK_TABLEROWFORMAT:
                                         rowFormatParams.analyzeRowFormat(child);
-                                        directoryDesc.setFieldDelim(rowFormatParams.fieldDelim);
-                                        directoryDesc.setLineDelim(rowFormatParams.lineDelim);
-                                        directoryDesc.setCollItemDelim(
-                                                rowFormatParams.collItemDelim);
-                                        directoryDesc.setMapKeyDelim(rowFormatParams.mapKeyDelim);
-                                        directoryDesc.setFieldEscape(rowFormatParams.fieldEscape);
-                                        directoryDesc.setNullFormat(rowFormatParams.nullFormat);
-                                        directoryDescIsSet = true;
                                         break;
                                     case HiveASTParser.TOK_TABLESERIALIZER:
                                         HiveParserASTNode serdeChild =
@@ -1831,23 +1818,17 @@ public class HiveParserSemanticAnalyzer {
                                         storageFormat.setSerde(
                                                 unescapeSQLString(
                                                         serdeChild.getChild(0).getText()));
-                                        directoryDesc.setSerName(storageFormat.getSerde());
                                         if (serdeChild.getChildCount() > 1) {
-                                            directoryDesc.setSerdeProps(
-                                                    new HashMap<String, String>());
                                             readProps(
                                                     (HiveParserASTNode)
                                                             serdeChild.getChild(1).getChild(0),
-                                                    directoryDesc.getSerdeProps());
+                                                    storageFormat.getSerdeProps());
                                         }
-                                        directoryDescIsSet = true;
                                         break;
                                 }
                             }
                         }
-                        if (directoryDescIsSet) {
-                            qb.setDirectoryDesc(directoryDesc);
-                        }
+                        qb.setDirectoryDesc(directoryDesc);
                         break;
                     }
                 default:

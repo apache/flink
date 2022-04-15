@@ -46,6 +46,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     private final FileSystemFactory fsFactory;
     private final TableMetaStoreFactory msFactory;
     private final boolean overwrite;
+    private final boolean isToLocal;
     private final Path tmpPath;
     private final String[] partitionColumns;
     private final boolean dynamicGrouped;
@@ -61,6 +62,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             FileSystemFactory fsFactory,
             TableMetaStoreFactory msFactory,
             boolean overwrite,
+            boolean isToLocal,
             Path tmpPath,
             String[] partitionColumns,
             boolean dynamicGrouped,
@@ -71,6 +73,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         this.fsFactory = fsFactory;
         this.msFactory = msFactory;
         this.overwrite = overwrite;
+        this.isToLocal = isToLocal;
         this.tmpPath = tmpPath;
         this.partitionColumns = partitionColumns;
         this.dynamicGrouped = dynamicGrouped;
@@ -85,7 +88,12 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         try {
             FileSystemCommitter committer =
                     new FileSystemCommitter(
-                            fsFactory, msFactory, overwrite, tmpPath, partitionColumns.length);
+                            fsFactory,
+                            msFactory,
+                            overwrite,
+                            tmpPath,
+                            partitionColumns.length,
+                            isToLocal);
             committer.commitPartitions();
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
@@ -149,6 +157,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
         private boolean dynamicGrouped = false;
         private boolean overwrite = false;
+        private boolean isToLocal = false;
         private FileSystemFactory fileSystemFactory = FileSystem::get;
 
         private PartitionComputer<T> computer;
@@ -190,6 +199,11 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             return this;
         }
 
+        public Builder<T> setIsToLocal(boolean isToLocal) {
+            this.isToLocal = isToLocal;
+            return this;
+        }
+
         public Builder<T> setTempPath(Path tmpPath) {
             this.tmpPath = tmpPath;
             return this;
@@ -216,6 +230,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                     fileSystemFactory,
                     metaStoreFactory,
                     overwrite,
+                    isToLocal,
                     tmpPath,
                     partitionColumns,
                     dynamicGrouped,

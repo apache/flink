@@ -55,6 +55,7 @@ class FileSystemCommitter implements Serializable {
     private final FileSystemFactory factory;
     private final TableMetaStoreFactory metaStoreFactory;
     private final boolean overwrite;
+    private final boolean isToLocal;
     private final Path tmpPath;
     private final int partitionColumnSize;
 
@@ -64,11 +65,22 @@ class FileSystemCommitter implements Serializable {
             boolean overwrite,
             Path tmpPath,
             int partitionColumnSize) {
+        this(factory, metaStoreFactory, overwrite, tmpPath, partitionColumnSize, false);
+    }
+
+    FileSystemCommitter(
+            FileSystemFactory factory,
+            TableMetaStoreFactory metaStoreFactory,
+            boolean overwrite,
+            Path tmpPath,
+            int partitionColumnSize,
+            boolean isToLocal) {
         this.factory = factory;
         this.metaStoreFactory = metaStoreFactory;
         this.overwrite = overwrite;
         this.tmpPath = tmpPath;
         this.partitionColumnSize = partitionColumnSize;
+        this.isToLocal = isToLocal;
     }
 
     /** For committing job's output after successful batch job completion. */
@@ -76,7 +88,8 @@ class FileSystemCommitter implements Serializable {
         FileSystem fs = factory.create(tmpPath.toUri());
         List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath);
 
-        try (PartitionLoader loader = new PartitionLoader(overwrite, fs, metaStoreFactory)) {
+        try (PartitionLoader loader =
+                new PartitionLoader(overwrite, fs, metaStoreFactory, isToLocal)) {
             if (partitionColumnSize > 0) {
                 for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
                         collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {

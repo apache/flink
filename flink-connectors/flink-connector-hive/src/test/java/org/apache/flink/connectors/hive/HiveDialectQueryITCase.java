@@ -28,6 +28,7 @@ import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -44,6 +45,8 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -434,6 +437,59 @@ public class HiveDialectQueryITCase {
                 .rootCause()
                 .isInstanceOf(expectedExceptionClz)
                 .hasMessage(expectedMessage);
+    }
+
+    @Test
+    public void testInsertDirectory() throws Exception {
+        String warehouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
+
+        // test insert overwrite directory with row format parameters
+        tableEnv.executeSql("create table map_table (foo STRING , bar MAP<STRING, INT>)");
+        tableEnv.executeSql(
+                "insert into map_table select 'A', map('math',100,'english',90,'history',85)");
+
+        String dataDir = warehouse + "/map_table_dir";
+        tableEnv.executeSql(
+                        String.format(
+                                "INSERT OVERWRITE LOCAL DIRECTORY '%s'"
+                                        + "ROW FORMAT DELIMITED \n"
+                                        + "FIELDS TERMINATED BY ':'\n"
+                                        + "COLLECTION ITEMS TERMINATED BY '#' \n"
+                                        + "MAP KEYS TERMINATED BY '=' select * from map_table",
+                                dataDir))
+                .await();
+        java.nio.file.Path[] files =
+                FileUtils.listFilesInDirectory(
+                                Paths.get(dataDir), (path) -> !path.toFile().isHidden())
+                        .toArray(new Path[0]);
+        assertThat(files.length).isEqualTo(1);
+        String actualString = FileUtils.readFileUtf8(files[0].toFile());
+        assertThat(actualString.trim()).isEqualTo("A:english=90#math=100#history=85");
+
+        // test insert overwrite directory store as other format
+        tableEnv.executeSql("create table d_table(x int) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("INSERT OVERWRITE TABLE d_table PARTITION (ds='1', hr='1') select 1")
+                .await();
+        tableEnv.executeSql("INSERT OVERWRITE TABLE d_table PARTITION (ds='1', hr='2') select 2")
+                .await();
+
+        String tableAggDir = warehouse + "/d_table_agg";
+        // create an external referring to the directory to be inserted
+        tableEnv.executeSql(
+                String.format(
+                        "create external table d_table_agg(x int, ds STRING) STORED AS RCFILE location '%s' ",
+                        tableAggDir));
+        // insert into directory stored as RCFILE
+        tableEnv.executeSql(
+                        String.format(
+                                "INSERT OVERWRITE DIRECTORY '%s' STORED AS RCFILE select count(x), ds from d_table group by ds ",
+                                tableAggDir))
+                .await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from d_table_agg").collect());
+        // verify the data read from the external table
+        assertThat(result.toString()).isEqualTo("[+I[2, 1]]");
     }
 
     @Test
