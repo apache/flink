@@ -144,6 +144,19 @@ public class FieldNamedPreparedStatementImplTest {
                 .matches(selectStmt);
     }
 
+    @Test
+    public void testSelectStatementWithNoneField() {
+        String selectStmt = dialect.getSelectFromStatement(tableName, new String[] {}, keyFields);
+        assertEquals(
+                "SELECT '' FROM `tbl` " + "WHERE `id` = :id AND `__field_3__` = :__field_3__",
+                selectStmt);
+        NamedStatementMatcher.parsedSql(
+                        "SELECT '' FROM `tbl` " + "WHERE `id` = ? AND `__field_3__` = ?")
+                .parameter("id", singletonList(1))
+                .parameter("__field_3__", singletonList(2))
+                .matches(selectStmt);
+    }
+
     private static class NamedStatementMatcher {
         private String parsedSql;
         private Map<String, List<Integer>> parameterMap = new HashMap<>();

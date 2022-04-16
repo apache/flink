@@ -188,9 +188,11 @@ public abstract class AbstractDialect implements JdbcDialect {
     public String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields) {
         String selectExpressions =
-                Arrays.stream(selectFields)
-                        .map(this::quoteIdentifier)
-                        .collect(Collectors.joining(", "));
+                selectFields.length != 0
+                        ? Arrays.stream(selectFields)
+                                .map(this::quoteIdentifier)
+                                .collect(Collectors.joining(", "))
+                        : "''";
         String fieldExpressions =
                 Arrays.stream(conditionFields)
                         .map(f -> format("%s = :%s", quoteIdentifier(f), f))
