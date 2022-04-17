@@ -144,4 +144,12 @@ public class FsStateChangelogOptions {
                     .defaultValue(Duration.ofMillis(500))
                     .withDescription(
                             "Delay before the next attempt (if the failure was not caused by a timeout).");
+
+    public static final ConfigOption<Duration> CACHE_IDLE_TIMEOUT =
+            ConfigOptions.key("dstl.dfs.download.local-cache.idle-timeout-ms")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(10))
+                    .withDescription(
+                            "Maximum idle time for cache files of distributed changelog file, "
+                                    + "after which the cache files will be deleted.");
 }

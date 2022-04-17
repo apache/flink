@@ -112,6 +112,7 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
             StateChangeUploadScheduler uploader,
             long preEmptivePersistThresholdInBytes,
             TaskChangelogRegistry changelogRegistry) {
+        super(ChangelogStreamHandleReader.DIRECT_READER);
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
         this.changelogRegistry = changelogRegistry;
         this.uploader = uploader;

@@ -90,7 +90,9 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
         CheckpointableKeyedStateBackend<K> keyedStateBackend =
                 ChangelogBackendRestoreOperation.restore(
+                        env.getTaskManagerInfo().getConfiguration(),
                         env.getUserCodeClassLoader().asClassLoader(),
+                        env.getTaskStateManager(),
                         stateBackendHandles,
                         baseBackendBuilder,
                         (baseBackend, baseState) ->

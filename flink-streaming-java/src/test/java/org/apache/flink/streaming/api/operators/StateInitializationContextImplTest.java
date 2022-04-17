@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
@@ -169,6 +170,7 @@ public class StateInitializationContextImplTest {
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
                         new InMemoryStateChangelogStorage(),
+                        new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,
                         mock(CheckpointResponder.class));
 

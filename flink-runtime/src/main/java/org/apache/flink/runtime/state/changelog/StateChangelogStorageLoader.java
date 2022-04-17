@@ -106,7 +106,8 @@ public class StateChangelogStorageLoader {
 
     @Nonnull
     public static StateChangelogStorageView<?> loadFromStateHandle(
-            ChangelogStateHandle changelogStateHandle) throws IOException {
+            Configuration configuration, ChangelogStateHandle changelogStateHandle)
+            throws IOException {
         StateChangelogStorageFactory factory =
                 STATE_CHANGELOG_STORAGE_FACTORIES.get(changelogStateHandle.getStorageIdentifier());
         if (factory == null) {
@@ -120,7 +121,7 @@ public class StateChangelogStorageLoader {
                     "Creating a changelog storage with name '{}' to restore from '{}'.",
                     changelogStateHandle.getStorageIdentifier(),
                     changelogStateHandle.getClass().getSimpleName());
-            return factory.createStorageView();
+            return factory.createStorageView(configuration);
         }
     }
 }

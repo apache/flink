@@ -18,13 +18,8 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamHandleReader;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
@@ -32,9 +27,8 @@ import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,8 +42,7 @@ import static java.util.Comparator.comparing;
 
 /** Serialization format for state changes. */
 @Internal
-public class StateChangeFormat
-        implements StateChangelogHandleStreamHandleReader.StateChangeIterator {
+public class StateChangeFormat {
     private static final Logger LOG = LoggerFactory.getLogger(StateChangeFormat.class);
 
     Map<StateChangeSet, Long> write(OutputStreamWithPos os, Collection<StateChangeSet> changeSets)
@@ -86,15 +79,8 @@ public class StateChangeFormat
         }
     }
 
-    @Override
-    public CloseableIterator<StateChange> read(StreamStateHandle handle, long offset)
-            throws IOException {
-        FSDataInputStream stream = handle.openInputStream();
-        DataInputViewStreamWrapper input = wrap(stream);
-        if (offset != 0) {
-            LOG.debug("seek from {} to {}", stream.getPos(), offset);
-            input.skipBytesToRead((int) offset);
-        }
+    CloseableIterator<StateChange> read(DataInputStream input) throws IOException {
+
         return new CloseableIterator<StateChange>() {
             int numUnreadGroups = input.readInt();
             int numLeftInGroup = numUnreadGroups-- == 0 ? 0 : input.readInt();
@@ -141,18 +127,9 @@ public class StateChangeFormat
 
             @Override
             public void close() throws Exception {
-                LOG.trace("close {}", stream);
-                stream.close();
+                LOG.trace("close {}", input);
+                input.close();
             }
         };
-    }
-
-    private DataInputViewStreamWrapper wrap(InputStream stream) throws IOException {
-        stream = new BufferedInputStream(stream);
-        boolean compressed = stream.read() == 1;
-        return new DataInputViewStreamWrapper(
-                compressed
-                        ? SnappyStreamCompressionDecorator.INSTANCE.decorateWithCompression(stream)
-                        : stream);
     }
 }

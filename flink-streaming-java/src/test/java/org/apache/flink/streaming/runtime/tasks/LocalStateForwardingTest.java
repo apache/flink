@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
@@ -251,6 +252,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         executionAttemptID,
                         taskLocalStateStore,
                         stateChangelogStorage,
+                        new TaskExecutorStateChangelogStoragesManager(),
                         null,
                         checkpointResponder);
 

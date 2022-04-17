@@ -41,7 +41,7 @@ public class InMemoryStateChangelogStorageFactory implements StateChangelogStora
     }
 
     @Override
-    public StateChangelogStorageView<?> createStorageView() {
+    public StateChangelogStorageView<?> createStorageView(Configuration configuration) {
         return new InMemoryStateChangelogStorage();
     }
 }

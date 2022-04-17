@@ -82,7 +82,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                         jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
         Assert.assertTrue(storage1 instanceof TestStateChangelogStorage);
         Assert.assertFalse(((TestStateChangelogStorage) storage1).closed);
-        manager.releaseStateChangelogStorageForJob(jobId1);
+        manager.releaseResourcesForJob(jobId1);
         Assert.assertTrue(((TestStateChangelogStorage) storage1).closed);
 
         StateChangelogStorage<?> storage2 =
@@ -212,7 +212,8 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         }
 
         @Override
-        public StateChangelogStorageView<?> createStorageView() throws IOException {
+        public StateChangelogStorageView<?> createStorageView(Configuration configuration)
+                throws IOException {
             return new TestStateChangelogStorage();
         }
     }

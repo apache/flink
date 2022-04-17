@@ -53,8 +53,9 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
     }
 
     @Override
-    public StateChangelogStorageView<?> createStorageView() {
-        return new FsStateChangelogStorageForRecovery();
+    public StateChangelogStorageView<?> createStorageView(Configuration configuration) {
+        return new FsStateChangelogStorageForRecovery(
+                new ChangelogStreamHandleReaderWithCache(configuration));
     }
 
     public static void configure(

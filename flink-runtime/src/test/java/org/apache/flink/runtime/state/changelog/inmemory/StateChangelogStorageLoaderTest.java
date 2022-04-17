@@ -125,7 +125,8 @@ public class StateChangelogStorageLoaderTest {
         }
 
         @Override
-        public StateChangelogStorageView<?> createStorageView() throws IOException {
+        public StateChangelogStorageView<?> createStorageView(Configuration configuration)
+                throws IOException {
             return new TestStateChangelogStorage();
         }
     }
