@@ -70,7 +70,7 @@ import java.util.Map;
  * <pre>{@code
  * // for t1 and t2
  * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE, $metadata$timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
+ * ROW < i INT, s STRING, d DOUBLE, myTimestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
  *
  * // for t3
  * ROW < i INT, s STRING, d DOUBLE >                                              // physical input

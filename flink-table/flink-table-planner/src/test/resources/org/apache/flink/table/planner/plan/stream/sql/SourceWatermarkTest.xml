@@ -137,14 +137,14 @@ Calc(select=[c.d.e AS e, c.d AS d])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[AS($3, _UTF-16LE'originTime')], rowtime=[TO_TIMESTAMP_LTZ(AS($3, _UTF-16LE'originTime'), 3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP_LTZ($3, 3)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ($metadata$originTime, 3)]]], fields=[a, b, $metadata$originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ(originTime, 3)]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>
@@ -175,14 +175,14 @@ Calc(select=[a, b, EXTRACT(SECOND, CAST(Reinterpret((c + 5000:INTERVAL SECOND)) 
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[AS($3, _UTF-16LE'originTime')], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/(AS($3, _UTF-16LE'originTime'), 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/($3, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/($metadata$originTime, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, $metadata$originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/(originTime, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>

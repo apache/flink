@@ -76,7 +76,7 @@ class TableSourceITCase extends StreamingTestBase {
          |CREATE TABLE MetadataTable (
          |  `a` INT,
          |  `other_metadata` INT METADATA FROM 'metadata_3',
-         |    `other_metadata2` BIGINT METADATA FROM 'metadata_3',
+         |  `other_metadata2` AS CAST(`other_metadata` AS BIGINT),
          |  `b` BIGINT,
          |  `metadata_1` INT METADATA,
          |  `computed` AS `metadata_1` * 2,
