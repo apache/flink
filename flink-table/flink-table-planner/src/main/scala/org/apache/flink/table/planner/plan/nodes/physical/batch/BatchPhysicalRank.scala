@@ -229,10 +229,14 @@ class BatchPhysicalRank(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val requiredDistribution = if (partitionKey.length() == 0) {
-      InputProperty.SINGLETON_DISTRIBUTION
+    val requiredDistribution = if (isGlobal) {
+      if (partitionKey.length() == 0) {
+        InputProperty.SINGLETON_DISTRIBUTION
+      } else {
+        InputProperty.hashDistribution(partitionKey.toArray)
+      }
     } else {
-      InputProperty.hashDistribution(partitionKey.toArray)
+      InputProperty.UNKNOWN_DISTRIBUTION
     }
     new BatchExecRank(
       unwrapTableConfig(this),
