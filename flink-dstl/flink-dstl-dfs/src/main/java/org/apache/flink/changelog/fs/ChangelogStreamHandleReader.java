@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.changelog;
+package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 
-/**
- * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
- * create {@link StateChangelogStorage}.
- */
+import static org.apache.flink.changelog.fs.ChangelogStreamWrapper.wrapAndSeek;
+
+/** Changelog handle reader to use by {@link StateChangeIteratorImpl}. */
 @Internal
-public interface StateChangelogStorageFactory {
-    /** Get the identifier for user to use this changelog storage factory. */
-    String getIdentifier();
+interface ChangelogStreamHandleReader extends AutoCloseable {
 
-    /** Create the storage based on a configuration. */
-    StateChangelogStorage<?> createStorage(
-            JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup)
-            throws IOException;
+    DataInputStream openAndSeek(StreamStateHandle handle, Long offset) throws IOException;
 
-    /** Create the storage for recovery. */
-    StateChangelogStorageView<?> createStorageView(Configuration configuration) throws IOException;
+    @Override
+    default void close() throws Exception {}
+
+    ChangelogStreamHandleReader DIRECT_READER =
+            (handle, offset) -> wrapAndSeek(handle.openInputStream(), offset);
 }
