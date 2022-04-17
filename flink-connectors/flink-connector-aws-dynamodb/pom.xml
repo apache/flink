@@ -32,7 +32,7 @@ under the License.
 	<artifactId>flink-connector-aws-dynamodb</artifactId>
 	<name>Flink : Connectors : Amazon DynamoDB</name>
 	<properties>
-		<aws.sdk.version>2.17.116</aws.sdk.version>
+		<aws.sdk.version>2.17.172</aws.sdk.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -116,6 +116,14 @@ under the License.
 		</dependency>
 
 		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-base</artifactId>
