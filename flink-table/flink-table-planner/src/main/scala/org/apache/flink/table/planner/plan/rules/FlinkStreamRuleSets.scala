@@ -410,6 +410,7 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE
     )
 
