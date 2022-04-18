@@ -26,7 +26,7 @@ from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction,
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
-                                       CountWindow, PurgingTrigger, EventTimeTrigger, CountTrigger)
+                                       CountWindow, PurgingTrigger, EventTimeTrigger)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 
