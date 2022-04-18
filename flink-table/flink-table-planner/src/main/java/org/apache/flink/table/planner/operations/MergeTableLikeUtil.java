@@ -484,10 +484,10 @@ class MergeTableLikeUtil {
 
                     String metadataKey = metadataColumn.getMetadataAlias().orElse(name);
                     if (metadataKeysToMetadataFields.containsKey(metadataKey)
-                            // overwrite the column with same metadata key
-                            && (!(metadataKeysToMetadataFields.get(metadataKey).equals(name)
-                                    && mergingStrategies.get(FeatureOption.METADATA)
-                                            == MergingStrategy.OVERWRITING))) {
+                            && !columnWithSameMetadataKeyAndSameColumnNameIsOverwritten(
+                                    name,
+                                    metadataKey,
+                                    mergingStrategies.get(FeatureOption.METADATA))) {
                         throw new ValidationException(
                                 String.format(
                                         "The column `%s` and `%s` in the table are both from the same metadata key '%s'. "
@@ -540,6 +540,14 @@ class MergeTableLikeUtil {
                     }
                 }
             }
+        }
+
+        private boolean columnWithSameMetadataKeyAndSameColumnNameIsOverwritten(
+                String derivedColumnName,
+                String metadataKey,
+                MergingStrategy metadataMergeStrategy) {
+            return derivedColumnName.equals(metadataKeysToMetadataFields.get(metadataKey))
+                    && metadataMergeStrategy == MergingStrategy.OVERWRITING;
         }
 
         public TableSchema build() {
