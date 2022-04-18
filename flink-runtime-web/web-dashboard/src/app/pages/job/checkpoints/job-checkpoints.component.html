@@ -550,6 +550,23 @@
               {{ checkPointConfig['checkpoints_after_tasks_finish'] ? 'Enabled' : 'Disabled' }}
             </td>
           </tr>
+          <tr>
+            <td>Changelog state-backend</td>
+            <td *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">Enabled</td>
+            <td *ngIf="checkPointConfig['state_backend'] !== 'ChangelogStateBackend'">Disabled</td>
+          </tr>
+          <tr *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">
+            <td>Changelog Storage</td>
+            <td>{{ checkPointConfig['changelog_storage'] }}</td>
+          </tr>
+          <tr *ngIf="checkPointConfig['state_backend'] === 'ChangelogStateBackend'">
+            <td>Changelog Periodic Materialization Interval</td>
+            <td>
+              {{
+                checkPointConfig['changelog_periodic_materialization_interval'] | humanizeDuration
+              }}
+            </td>
+          </tr>
         </ng-container>
       </tbody>
     </nz-table>
