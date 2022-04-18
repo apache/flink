@@ -637,6 +637,10 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_event_time_timer(window.max_timestamp())
 
+    @staticmethod
+    def create() -> 'EventTimeTrigger':
+        return EventTimeTrigger()
+
 
 class ContinuousEventTimeTrigger(Trigger[T, TimeWindow]):
     """
@@ -764,6 +768,10 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
               window: TimeWindow,
               ctx: 'Trigger.TriggerContext') -> None:
         ctx.delete_processing_time_timer(window.max_timestamp())
+
+    @staticmethod
+    def create() -> 'ProcessingTimeTrigger':
+        return ProcessingTimeTrigger()
 
 
 class ContinuousProcessingTimeTrigger(Trigger[T, TimeWindow]):
@@ -909,6 +917,10 @@ class CountTrigger(Trigger[T, CountWindow]):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
             "count", lambda a, b: a + b, Types.LONG())
+
+    @staticmethod
+    def of(window_size: int) -> 'CountTrigger':
+        return CountTrigger(window_size)
 
     def on_element(self,
                    element: T,
