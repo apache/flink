@@ -238,11 +238,12 @@ class RowCoderImpl(FieldCoderImpl):
 
     def encode_to_stream(self, value: Row, out_stream: OutputStream):
         # encode mask value
-        self._mask_utils.write_mask(value._values, value.get_row_kind().value, out_stream)
+        values = value.get_fields_by_names(self._field_names)
+        self._mask_utils.write_mask(values, value.get_row_kind().value, out_stream)
 
         # encode every field value
         for i in range(self._field_count):
-            item = value[i]
+            item = values[i]
             if item is not None:
                 self._field_coders[i].encode_to_stream(item, out_stream)
 
