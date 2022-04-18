@@ -32,7 +32,7 @@ class OutputTag(object):
 
     def __init__(self, tag_id: str, type_info: TypeInformation = None):
         if not tag_id:
-            raise ValueError("tag_id cannot be empty string")
+            raise ValueError("OutputTag tag_id cannot be None or empty string")
         self.tag_id = tag_id
         if type_info is None:
             self.type_info = Types.PICKLED_BYTE_ARRAY()
