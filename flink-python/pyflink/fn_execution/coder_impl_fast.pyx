@@ -385,7 +385,7 @@ cdef class RowCoderImpl(FieldCoderImpl):
             row_kind_value = <unsigned char> value.row_kind
         else:
             # the type is Row
-            list_values = <list> value._values
+            list_values = <list> value.get_fields_by_names(self._field_names)
             row_kind_value = <unsigned char> value.get_row_kind().value
         # encode mask value
         self._mask_utils.write_mask(list_values, row_kind_value, out_stream)
