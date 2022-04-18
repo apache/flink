@@ -567,12 +567,16 @@ public class CheckpointCoordinator {
 
             final CompletableFuture<?> coordinatorCheckpointsComplete =
                     pendingCheckpointCompletableFuture.thenComposeAsync(
-                            (pendingCheckpoint) ->
-                                    OperatorCoordinatorCheckpoints
-                                            .triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
-                                                    coordinatorsToCheckpoint,
-                                                    pendingCheckpoint,
-                                                    timer),
+                            (pendingCheckpoint) -> {
+                                if (pendingCheckpoint.isDisposed()) {
+                                    // The disposed checkpoint will be handled later,
+                                    // skip snapshotting the coordinator states.
+                                    return null;
+                                }
+                                return OperatorCoordinatorCheckpoints
+                                        .triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
+                                                coordinatorsToCheckpoint, pendingCheckpoint, timer);
+                            },
                             timer);
 
             // We have to take the snapshot of the master hooks after the coordinator checkpoints
@@ -590,6 +594,11 @@ public class CheckpointCoordinator {
                                 PendingCheckpoint checkpoint =
                                         FutureUtils.getWithoutException(
                                                 pendingCheckpointCompletableFuture);
+                                if (checkpoint == null || checkpoint.isDisposed()) {
+                                    // The disposed checkpoint will be handled later,
+                                    // skip snapshotting the master states.
+                                    return null;
+                                }
                                 return snapshotMasterState(checkpoint);
                             },
                             timer);
