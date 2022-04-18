@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -853,6 +854,16 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             state = backend.getListState(newAccessDescriptorAfterRestore);
 
             // make sure that reading and writing each state partition works with the new serializer
+            TypeSerializer internalListCopySerializer =
+                    ((PartitionableListState<?>) state)
+                            .getInternalListCopySerializer()
+                            .getElementSerializer();
+            TypeSerializer previousSerializer = initialAccessDescriptor.getElementSerializer();
+            TypeSerializer newSerializerForRestoredState =
+                    newAccessDescriptorAfterRestore.getElementSerializer();
+            internalCopySerializerTest(
+                    previousSerializer, newSerializerForRestoredState, internalListCopySerializer);
+
             Iterator<TestType> iterator = state.get().iterator();
             assertEquals(new TestType("foo", 13), iterator.next());
             assertEquals(new TestType("bar", 278), iterator.next());
@@ -941,6 +952,17 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // the state backend should have decided whether or not it needs to perform state
             // migration;
             // make sure that reading and writing each state partition works with the new serializer
+
+            TypeSerializer internalListCopySerializer =
+                    ((PartitionableListState<?>) state)
+                            .getInternalListCopySerializer()
+                            .getElementSerializer();
+            TypeSerializer previousSerializer = initialAccessDescriptor.getElementSerializer();
+            TypeSerializer newSerializerForRestoredState =
+                    newAccessDescriptorAfterRestore.getElementSerializer();
+            internalCopySerializerTest(
+                    previousSerializer, newSerializerForRestoredState, internalListCopySerializer);
+
             Iterator<TestType> iterator = state.get().iterator();
             assertEquals(new TestType("foo", 13), iterator.next());
             assertEquals(new TestType("bar", 278), iterator.next());
@@ -1084,6 +1106,19 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // the state backend should have decided whether or not it needs to perform state
             // migration;
             // make sure that reading and writing each broadcast entry works with the new serializer
+            MapSerializer internalMapCopySerializer =
+                    ((HeapBroadcastState) state).getInternalMapCopySerializer();
+            MapSerializer previousSerializer =
+                    new MapSerializer<>(
+                            initialAccessDescriptor.getKeySerializer(),
+                            internalMapCopySerializer.getValueSerializer());
+            MapSerializer newSerializerForRestoredState =
+                    new MapSerializer(
+                            newAccessDescriptorAfterRestore.getKeySerializer(),
+                            newAccessDescriptorAfterRestore.getValueSerializer());
+            internalCopySerializerTest(
+                    previousSerializer, newSerializerForRestoredState, internalMapCopySerializer);
+
             assertEquals(new TestType("foo", 13), state.get(3));
             assertEquals(new TestType("bar", 278), state.get(5));
             state.put(17, new TestType("new-entry", 777));
@@ -1130,6 +1165,20 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
         } finally {
             backend.dispose();
         }
+    }
+
+    public void internalCopySerializerTest(
+            TypeSerializer previousSerializer,
+            TypeSerializer newSerializerForRestoredState,
+            TypeSerializer internalCopySerializer) {
+        StateSerializerProvider testProvider =
+                StateSerializerProvider.fromPreviousSerializerSnapshot(
+                        previousSerializer.snapshotConfiguration());
+        testProvider.registerNewSerializerForRestoredState(newSerializerForRestoredState);
+
+        assertEquals(
+                testProvider.currentSchemaSerializer().getClass(),
+                internalCopySerializer.getClass());
     }
 
     // -------------------------------------------------------------------------------
