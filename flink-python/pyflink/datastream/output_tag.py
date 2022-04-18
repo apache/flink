@@ -31,7 +31,7 @@ class OutputTag(object):
     """
 
     def __init__(self, tag_id: str, type_info: TypeInformation = None):
-        if tag_id == "":
+        if not tag_id:
             raise ValueError("tag_id cannot be empty string")
         self.tag_id = tag_id
         if type_info is None:
