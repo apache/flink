@@ -34,6 +34,25 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testStaticWithDynamicOptions">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink/*+ OPTIONS('path'='/tmp/test') */ PARTITION (b=1, c=1) SELECT a FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2], hints=[[[OPTIONS options:{path=/tmp/test}]]])
++- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2], hints=[[[OPTIONS options:{path=/tmp/test}]]])
++- Calc(select=[a, 1 AS EXPR$1, 1 AS EXPR$2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDynamicShuffleBy">
     <Resource name="sql">
       <![CDATA[INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable]]>

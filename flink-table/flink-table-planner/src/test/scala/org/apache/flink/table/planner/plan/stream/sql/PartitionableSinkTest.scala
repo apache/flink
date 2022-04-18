@@ -51,6 +51,12 @@ class PartitionableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testStaticWithDynamicOptions(): Unit = {
+    util.verifyExecPlanInsert(
+      "INSERT INTO sink/*+ OPTIONS('path'='/tmp/test') */ PARTITION (b=1, c=1) SELECT a FROM MyTable");
+  }
+
+  @Test
   def testDynamic(): Unit = {
     util.verifyExecPlanInsert("INSERT INTO sink SELECT a, b, c FROM MyTable")
   }
