@@ -167,7 +167,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
      */
     private transient RemoteBundle remoteBundle;
 
-    /** The Python function execution result tuple: (raw bytes, length). */
+    /** The Python function execution result tuple: (output tag, raw bytes, length). */
     private transient Tuple3<String, byte[], Integer> reusableResultTuple;
 
     /** Buffers the Python function execution result which has still not been processed. */

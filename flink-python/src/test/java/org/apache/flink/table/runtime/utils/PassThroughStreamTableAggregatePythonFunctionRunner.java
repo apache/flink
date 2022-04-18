@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 
 /**
@@ -95,7 +96,7 @@ public class PassThroughStreamTableAggregatePythonFunctionRunner
         super.flush();
         resultBuffer.addAll(
                 buffer.stream()
-                        .map(b -> Tuple2.<String, byte[]>of(null, b))
+                        .map(b -> Tuple2.of(OUTPUT_COLLECTION_ID, b))
                         .collect(Collectors.toList()));
         buffer.clear();
     }
