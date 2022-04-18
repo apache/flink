@@ -4190,7 +4190,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     // the answer BINARY will cast to STRING in ExpressionTestBase.scala
     testSqlApi(
       "IF(f7 < 5, f53, f54)",
-      "68656c6c6f20776f726c64") // hello world
+      "hello world") // hello world
 
     // test DATE, DATE
     testSqlApi(
@@ -4398,6 +4398,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' DAY AS VARCHAR(20)), $str2)", "+2 00:00:00.000")
     testSqlApi(
       s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)",
-      "68656c6c6f20776f726c64")
+      "hello world")
   }
 }
