@@ -126,7 +126,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
         assertEquals(
-                "[+I[1, [65], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
+                "[+I[1, [52, 49], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
                 results.toString());
     }
 
