@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataOutputView;
@@ -42,7 +43,7 @@ public final class PartitionableListState<S> implements ListState<S> {
     private final ArrayList<S> internalList;
 
     /** A typeSerializer that allows to perform deep copies of internalList */
-    private final ArrayListSerializer<S> internalListCopySerializer;
+    private ArrayListSerializer<S> internalListCopySerializer;
 
     PartitionableListState(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
         this(stateMetaInfo, new ArrayList<S>());
@@ -65,6 +66,8 @@ public final class PartitionableListState<S> implements ListState<S> {
     }
 
     public void setStateMetaInfo(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
+        this.internalListCopySerializer =
+                new ArrayListSerializer<>(stateMetaInfo.getPartitionStateSerializer());
         this.stateMetaInfo = stateMetaInfo;
     }
 
@@ -129,5 +132,10 @@ public final class PartitionableListState<S> implements ListState<S> {
         if (values != null && !values.isEmpty()) {
             internalList.addAll(values);
         }
+    }
+
+    @VisibleForTesting
+    public ArrayListSerializer<S> getInternalListCopySerializer() {
+        return internalListCopySerializer;
     }
 }
