@@ -3644,6 +3644,70 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
+    public void testAbortingBeforeTriggeringCheckpointOperatorCoordinator() throws Exception {
+        // Warn: The case is fragile since a specific order of executing the tasks is required to
+        // reproduce the issue.
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build();
+
+        String trigger = "Trigger";
+        String abort = "Abort";
+        final List<String> notificationSequence = new ArrayList<>();
+        CheckpointCoordinatorTestingUtils.MockOperatorCoordinatorCheckpointContext context =
+                new CheckpointCoordinatorTestingUtils
+                                .MockOperatorCheckpointCoordinatorContextBuilder()
+                        .setOperatorID(new OperatorID())
+                        .setOnCallingCheckpointCoordinator(
+                                (id, future) -> {
+                                    notificationSequence.add(trigger + id);
+                                    future.complete(new byte[0]);
+                                })
+                        .setOnCallingAbortCurrentTriggering(() -> notificationSequence.add(abort))
+                        .build();
+
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setCheckpointTimeout(10)
+                                        .build())
+                        .setIoExecutor(manuallyTriggeredScheduledExecutor)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCoordinatorsToCheckpoint(Collections.singleton(context))
+                        .setExecutionGraph(graph)
+                        .build();
+        try {
+            checkpointCoordinator.triggerCheckpoint(false);
+            // trigger twice to get checkpoint id and create pending checkpoint
+            manuallyTriggeredScheduledExecutor.trigger();
+            manuallyTriggeredScheduledExecutor.trigger();
+
+            // declineCheckpoint should be called after pending checkpoint is created but before the
+            // following steps
+            declineCheckpoint(1L, checkpointCoordinator, jobVertexID, graph);
+            // then trigger all tasks. the order is 1.initialize checkpoint location, 2.handle
+            // checkpoint abortion, 3.trigger coordinator checkpointing for the aborted checkpoint.
+            // The disordering of abortion and triggering was causing an error
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            // trigger the next checkpoint
+            checkState(!checkpointCoordinator.isTriggering());
+            checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            Assert.assertTrue(
+                    !notificationSequence.contains(trigger + "1")
+                            || notificationSequence.indexOf(trigger + "1")
+                                    < notificationSequence.indexOf(abort));
+        } finally {
+            checkpointCoordinator.shutdown();
+        }
+    }
+
+    @Test
     public void testReportLatestCompletedCheckpointIdWithAbort() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
         ExecutionGraph graph =
@@ -3955,5 +4019,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
         public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
             throw new UnsupportedOperationException();
         }
+    }
+
+    private void declineCheckpoint(
+            long checkpointId,
+            CheckpointCoordinator coordinator,
+            JobVertexID nackVertexID,
+            ExecutionGraph graph) {
+        coordinator.receiveDeclineMessage(
+                new DeclineCheckpoint(
+                        graph.getJobID(),
+                        graph.getJobVertex(nackVertexID)
+                                .getTaskVertices()[0]
+                                .getCurrentExecutionAttempt()
+                                .getAttemptId(),
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
+                "test");
     }
 }
