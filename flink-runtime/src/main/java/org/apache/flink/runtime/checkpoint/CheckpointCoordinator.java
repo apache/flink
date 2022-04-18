@@ -588,6 +588,11 @@ public class CheckpointCoordinator {
                             .thenComposeAsync(
                                     (checkpointInfo) -> {
                                         PendingCheckpoint pendingCheckpoint = checkpointInfo.f0;
+                                        if (pendingCheckpoint.isDisposed()) {
+                                            // The disposed checkpoint will be handled later,
+                                            // skip snapshotting the coordinator states.
+                                            return null;
+                                        }
                                         synchronized (lock) {
                                             pendingCheckpoint.setCheckpointTargetLocation(
                                                     checkpointInfo.f1);
@@ -615,6 +620,11 @@ public class CheckpointCoordinator {
                                 PendingCheckpoint checkpoint =
                                         FutureUtils.getWithoutException(
                                                 pendingCheckpointCompletableFuture);
+                                if (checkpoint == null || checkpoint.isDisposed()) {
+                                    // The disposed checkpoint will be handled later,
+                                    // skip snapshotting the master states.
+                                    return null;
+                                }
                                 return snapshotMasterState(checkpoint);
                             },
                             timer);
