@@ -681,33 +681,33 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
     public void clear(Context context) throws Exception {}
 
     /**
-   	 * The context holding window metadata.
-   	 */
-   	public abstract class Context implements java.io.Serializable {
-   	    /**
-   	     * Returns the window that is being evaluated.
-   	     */
-   	    public abstract W window();
+     * The context holding window metadata.
+     */
+    public abstract class Context implements java.io.Serializable {
+        /**
+         * Returns the window that is being evaluated.
+         */
+        public abstract W window();
 
-   	    /** Returns the current processing time. */
-   	    public abstract long currentProcessingTime();
+        /** Returns the current processing time. */
+        public abstract long currentProcessingTime();
 
-   	    /** Returns the current event-time watermark. */
-   	    public abstract long currentWatermark();
+        /** Returns the current event-time watermark. */
+        public abstract long currentWatermark();
 
-   	    /**
-   	     * State accessor for per-key and per-window state.
-   	     *
-   	     * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
-   	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
-   	     */
-   	    public abstract KeyedStateStore windowState();
+        /**
+         * State accessor for per-key and per-window state.
+         *
+         * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+         * by implementing {@link ProcessWindowFunction#clear(Context)}.
+         */
+        public abstract KeyedStateStore windowState();
 
-   	    /**
-   	     * State accessor for per-key global state.
-   	     */
-   	    public abstract KeyedStateStore globalState();
-   	}
+        /**
+         * State accessor for per-key global state.
+         */
+        public abstract KeyedStateStore globalState();
+    }
 
 }
 ```
