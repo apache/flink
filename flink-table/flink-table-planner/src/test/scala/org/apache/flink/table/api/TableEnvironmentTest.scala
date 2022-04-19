@@ -22,6 +22,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
+import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -42,7 +43,6 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -213,6 +213,87 @@ class TableEnvironmentTest {
 
     assertEquals(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(expected)),
       TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
+  }
+
+  @Test
+  def testCreateTableWithMultipleColumnsFromSameMetadataKey(): Unit = {
+    assertThatThrownBy(() =>
+      tableEnv.executeSql(
+        """
+          |CREATE TABLE source (
+          |  a INT METADATA,
+          |  b INT METADATA FROM 'a'
+          |) WITH (
+          |  'connector' = 'COLLECTION'
+          |)
+          |""".stripMargin)).satisfies(
+      FlinkAssertions.anyCauseMatches(
+        classOf[ValidationException],
+        "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
+          "Please specify one of the columns as the metadata column and use the computed column" +
+          " syntax to specify the others."))
+  }
+
+  @Test
+  def testCreateTableLikeWithMultipleColumnsFromSameMetadataKey(): Unit = {
+    tableEnv.executeSql(
+      """
+        |CREATE TABLE source (
+        |  a INT METADATA
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+        |""".stripMargin)
+    assertThatThrownBy(() =>
+      tableEnv.executeSql(
+        """
+          |CREATE TABLE like_source (
+          |  b INT METADATA FROM 'a'
+          |)
+          |WITH (
+          |  'connector' = 'COLLECTION'
+          |) LIKE source (
+          |  INCLUDING METADATA
+          |)
+          |""".stripMargin
+      )).satisfies(FlinkAssertions.anyCauseMatches(
+      "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
+        "Please specify one of the columns as the metadata column and use the computed column" +
+        " syntax to specify the others."
+    ))
+  }
+
+  @Test
+  def testCreateTableLikeExcludeColumnsFromSameMetadataKey(): Unit = {
+    tableEnv.executeSql(
+      """
+        |CREATE TABLE source (
+        |  a INT METADATA
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+        |""".stripMargin)
+    tableEnv.executeSql(
+      """
+        |CREATE TABLE like_source (
+        |  b INT METADATA FROM 'a'
+        |)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |) LIKE source (
+        |  EXCLUDING METADATA
+        |)
+        |""".stripMargin
+    )
+    assertEquals(
+      Schema.newBuilder()
+        .columnByMetadata("b", DataTypes.INT(), "a")
+        .build(),
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog)
+        .orElseThrow(() => new TableException("Can't find catalog"))
+        .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "like_source"))
+        .getUnresolvedSchema
+    )
   }
 
   @Test

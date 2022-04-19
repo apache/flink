@@ -216,7 +216,6 @@ class MergeTableLikeUtil {
         Map<String, RelDataType> physicalFieldNamesToTypes = new LinkedHashMap<>();
         Map<String, RelDataType> metadataFieldNamesToTypes = new LinkedHashMap<>();
         Map<String, RelDataType> computedFieldNamesToTypes = new LinkedHashMap<>();
-        Map<String, String> metadataKeysToMetadataFields = new LinkedHashMap<>();
 
         Function<SqlNode, String> escapeExpressions;
         FlinkTypeFactory typeFactory;
@@ -254,11 +253,6 @@ class MergeTableLikeUtil {
                     if (mergingStrategies.get(FeatureOption.METADATA)
                             != MergingStrategy.EXCLUDING) {
                         columns.put(sourceColumn.getName(), sourceColumn);
-                        metadataKeysToMetadataFields.put(
-                                ((MetadataColumn) sourceColumn)
-                                        .getMetadataAlias()
-                                        .orElse(sourceColumn.getName()),
-                                sourceColumn.getName());
                     }
                 }
             }
@@ -482,22 +476,6 @@ class MergeTableLikeUtil {
                         }
                     }
 
-                    String metadataKey = metadataColumn.getMetadataAlias().orElse(name);
-                    if (metadataKeysToMetadataFields.containsKey(metadataKey)
-                            && !columnWithSameMetadataKeyAndSameColumnNameIsOverwritten(
-                                    name,
-                                    metadataKey,
-                                    mergingStrategies.get(FeatureOption.METADATA))) {
-                        throw new ValidationException(
-                                String.format(
-                                        "The column `%s` and `%s` in the table are both from the same metadata key '%s'. "
-                                                + "Please specify one of the columns as the metadata column and use the "
-                                                + "computed column syntax to specify the others.",
-                                        metadataKeysToMetadataFields.get(metadataKey),
-                                        name,
-                                        metadataKey));
-                    }
-
                     SqlDataTypeSpec type = metadataColumn.getType();
                     boolean nullable = type.getNullable() == null ? true : type.getNullable();
                     RelDataType relType = type.deriveType(sqlValidator, nullable);
@@ -508,7 +486,6 @@ class MergeTableLikeUtil {
                                     metadataColumn.getMetadataAlias().orElse(null),
                                     metadataColumn.isVirtual());
                     metadataFieldNamesToTypes.put(name, relType);
-                    metadataKeysToMetadataFields.put(metadataKey, name);
                 } else {
                     throw new ValidationException("Unsupported column type: " + derivedColumn);
                 }
@@ -540,14 +517,6 @@ class MergeTableLikeUtil {
                     }
                 }
             }
-        }
-
-        private boolean columnWithSameMetadataKeyAndSameColumnNameIsOverwritten(
-                String derivedColumnName,
-                String metadataKey,
-                MergingStrategy metadataMergeStrategy) {
-            return derivedColumnName.equals(metadataKeysToMetadataFields.get(metadataKey))
-                    && metadataMergeStrategy == MergingStrategy.OVERWRITING;
         }
 
         public TableSchema build() {

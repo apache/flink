@@ -53,8 +53,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import javax.annotation.Nullable;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -428,100 +426,6 @@ public class MergeTableLikeUtilTest {
                 TableSchema.builder()
                         .add(TableColumn.physical("one", DataTypes.INT()))
                         .add(TableColumn.metadata("two", DataTypes.BOOLEAN(), true))
-                        .build();
-
-        assertThat(mergedSchema, equalTo(expectedSchema));
-    }
-
-    @Test
-    public void mergeIncludingMetadataColumnWithSameMetadataKey() {
-        TableSchema sourceSchema = TableSchema.builder().build();
-
-        List<SqlNode> derivedColumns =
-                Arrays.asList(
-                        metadataColumn("one", DataTypes.BOOLEAN(), true),
-                        metadataColumn("two", DataTypes.STRING(), "one", false));
-
-        Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
-        mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
-
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "The column `one` and `two` in the table are both from the same metadata key 'one'. "
-                        + "Please specify one of the columns as the metadata column and use the computed column "
-                        + "syntax to specify the others.");
-        util.mergeTables(
-                mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
-    }
-
-    @Test
-    public void mergeIncludingMetadataColumnWithSameMetadataKey2() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.metadata("three", DataTypes.STRING(), "one"))
-                        .build();
-
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("two", DataTypes.STRING(), "one", false));
-
-        Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
-        mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.INCLUDING);
-
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "The column `three` and `two` in the table are both from the same metadata key 'one'. "
-                        + "Please specify one of the columns as the metadata column and use the computed column "
-                        + "syntax to specify the others.");
-        util.mergeTables(
-                mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
-    }
-
-    @Test
-    public void mergeOverwritingMetadataColumnWithSameMetadataKeyButDifferentName() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.metadata("two", DataTypes.STRING(), "one"))
-                        .build();
-
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("one", DataTypes.BOOLEAN(), true));
-
-        Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
-        mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
-
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage(
-                "The column `two` and `one` in the table are both from the same metadata key 'one'. "
-                        + "Please specify one of the columns as the metadata column and use the computed column "
-                        + "syntax to specify the others.");
-        util.mergeTables(
-                mergingStrategies, sourceSchema, derivedColumns, Collections.emptyList(), null);
-    }
-
-    @Test
-    public void mergeExcludingMetadataColumnWithSameKey() {
-        TableSchema sourceSchema =
-                TableSchema.builder()
-                        .add(TableColumn.metadata("two", DataTypes.STRING(), "one"))
-                        .build();
-
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("one", DataTypes.BOOLEAN(), true));
-
-        Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
-        mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.EXCLUDING);
-
-        TableSchema mergedSchema =
-                util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        derivedColumns,
-                        Collections.emptyList(),
-                        null);
-
-        TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.metadata("one", DataTypes.BOOLEAN(), true))
                         .build();
 
         assertThat(mergedSchema, equalTo(expectedSchema));
@@ -1051,11 +955,6 @@ public class MergeTableLikeUtilTest {
     }
 
     private SqlNode metadataColumn(String name, DataType type, boolean isVirtual) {
-        return metadataColumn(name, type, null, isVirtual);
-    }
-
-    private SqlNode metadataColumn(
-            String name, DataType type, @Nullable String alias, boolean isVirtual) {
         final LogicalType logicalType = type.getLogicalType();
         return new SqlMetadataColumn(
                 SqlParserPos.ZERO,
@@ -1064,7 +963,7 @@ public class MergeTableLikeUtilTest {
                 SqlTypeUtil.convertTypeToSpec(
                                 typeFactory.createFieldTypeFromLogicalType(logicalType))
                         .withNullable(logicalType.isNullable()),
-                alias == null ? null : SqlLiteral.createCharString(alias, SqlParserPos.ZERO),
+                null,
                 isVirtual);
     }
 
