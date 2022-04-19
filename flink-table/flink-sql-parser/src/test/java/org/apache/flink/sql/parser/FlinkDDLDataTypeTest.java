@@ -349,7 +349,7 @@ public class FlinkDDLDataTypeTest {
 
     @ParameterizedTest
     @MethodSource("testData")
-    public void testDataTypeParsing(TestItem testItem) {
+    void testDataTypeParsing(TestItem testItem) {
         if (testItem.expectedType != null) {
             checkType(testItem.testExpr, testItem.expectedType);
         }
@@ -357,7 +357,7 @@ public class FlinkDDLDataTypeTest {
 
     @ParameterizedTest
     @MethodSource("testData")
-    public void testThrowsError(TestItem testItem) {
+    void testThrowsError(TestItem testItem) {
         if (testItem.expectedError != null) {
             checkFails(testItem.testExpr, testItem.expectedError);
         }
@@ -365,7 +365,7 @@ public class FlinkDDLDataTypeTest {
 
     @ParameterizedTest
     @MethodSource("testData")
-    public void testDataTypeUnparsing(TestItem testItem) {
+    void testDataTypeUnparsing(TestItem testItem) {
         if (testItem.expectedUnparsed != null) {
             checkUnparseTo(testItem.testExpr, testItem.expectedUnparsed);
         }

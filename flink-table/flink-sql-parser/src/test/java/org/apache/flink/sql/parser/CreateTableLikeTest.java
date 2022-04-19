@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.empty;
 public class CreateTableLikeTest {
 
     @Test
-    public void testNoOptions() throws Exception {
+    void testNoOptions() throws Exception {
         SqlNode actualNode =
                 createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b")
                         .parseStmt();
@@ -58,7 +58,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testCreateTableLike() throws Exception {
+    void testCreateTableLike() throws Exception {
         SqlNode actualNode =
                 createFlinkParser(
                                 "CREATE TABLE t (\n"
@@ -98,7 +98,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testCreateTableLikeCannotDuplicateOptions() throws Exception {
+    void testCreateTableLikeCannotDuplicateOptions() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -117,7 +117,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testInvalidOverwritingForPartition() throws Exception {
+    void testInvalidOverwritingForPartition() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -136,7 +136,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testInvalidOverwritingForAll() throws Exception {
+    void testInvalidOverwritingForAll() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -154,7 +154,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testInvalidOverwritingForConstraints() throws Exception {
+    void testInvalidOverwritingForConstraints() throws Exception {
         ExtendedSqlNode extendedSqlNode =
                 (ExtendedSqlNode)
                         createFlinkParser(
@@ -173,7 +173,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testInvalidNoOptions() {
+    void testInvalidNoOptions() {
         assertThatThrownBy(
                         () ->
                                 createFlinkParser(
@@ -192,7 +192,7 @@ public class CreateTableLikeTest {
     }
 
     @Test
-    public void testInvalidNoSourceTable() {
+    void testInvalidNoSourceTable() {
         assertThatThrownBy(
                         () ->
                                 createFlinkParser(

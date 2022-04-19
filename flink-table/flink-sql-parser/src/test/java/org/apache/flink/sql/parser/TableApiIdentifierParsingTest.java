@@ -29,7 +29,6 @@ import org.apache.calcite.util.SourceStringReader;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -61,14 +60,9 @@ public class TableApiIdentifierParsingTest {
                 of("db.ανθρωπος", asList("db", ANTHROPOS_IN_GREEK)));
     }
 
-    @Parameterized.Parameter public String stringIdentifier;
-
-    @Parameterized.Parameter(1)
-    public List<String> expectedParsedIdentifier;
-
     @ParameterizedTest
     @MethodSource("parameters")
-    public void testTableApiIdentifierParsing(
+    void testTableApiIdentifierParsing(
             String stringIdentifier, List<String> expectedParsedIdentifier) throws ParseException {
         FlinkSqlParserImpl parser = createFlinkParser(stringIdentifier);
 
