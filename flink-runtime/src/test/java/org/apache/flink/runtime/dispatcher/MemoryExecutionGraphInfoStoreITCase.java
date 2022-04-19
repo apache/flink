@@ -50,6 +50,7 @@ public class MemoryExecutionGraphInfoStoreITCase extends TestLogger {
         try (final MiniCluster miniCluster =
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
                         new MiniClusterConfiguration.Builder()
+                                .withRandomPorts()
                                 .setConfiguration(configuration)
                                 .build(),
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {

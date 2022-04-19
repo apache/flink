@@ -340,7 +340,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         File rootDir = temporaryFolder.newFolder();
         try (final MiniCluster miniCluster =
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
-                        new MiniClusterConfiguration.Builder().build(),
+                        new MiniClusterConfiguration.Builder().withRandomPorts().build(),
                         rootDir,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))) {
             miniCluster.start();

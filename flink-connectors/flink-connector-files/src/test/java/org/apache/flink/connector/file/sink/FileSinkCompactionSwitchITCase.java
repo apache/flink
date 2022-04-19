@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.connector.file.sink.FileSink.DefaultRowFormatBuilder;
 import org.apache.flink.connector.file.sink.compactor.DecoderBasedReader;
@@ -178,13 +177,11 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
         JobGraph jobGraph = createJobGraph(cpPath, originFileSink, false, sendCountMap);
         JobGraph restoringJobGraph = createJobGraph(cpPath, restoredFileSink, true, sendCountMap);
 
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "18081-19000");
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(4)
-                        .setConfiguration(config)
                         .build();
 
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {

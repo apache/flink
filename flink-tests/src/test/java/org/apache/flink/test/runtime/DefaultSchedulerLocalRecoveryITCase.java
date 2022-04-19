@@ -26,7 +26,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -107,8 +106,6 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
     private ArchivedExecutionGraph executeSchedulingTest(
             Configuration configuration, int parallelism) throws Exception {
-        configuration.setString(RestOptions.BIND_PORT, "0");
-
         final long slotIdleTimeout = TIMEOUT;
         configuration.setLong(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
@@ -118,6 +115,7 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
 
         final MiniClusterConfiguration miniClusterConfiguration =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setConfiguration(configuration)
                         .setNumTaskManagers(parallelism)
                         .setNumSlotsPerTaskManager(1)
