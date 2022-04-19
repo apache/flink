@@ -240,6 +240,7 @@ public class MemoryExecutionGraphInfoStoreTest extends TestLogger {
         try (final MiniCluster miniCluster =
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
                         new MiniClusterConfiguration.Builder()
+                                .withRandomPorts()
                                 .setConfiguration(configuration)
                                 .build())) {
             miniCluster.start();

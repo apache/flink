@@ -324,7 +324,8 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         File rootDir = temporaryFolder.newFolder();
         try (final MiniCluster miniCluster =
                 new ExecutionGraphInfoStoreTestUtils.PersistingMiniCluster(
-                        new MiniClusterConfiguration.Builder().build(), rootDir)) {
+                        new MiniClusterConfiguration.Builder().withRandomPorts().build(),
+                        rootDir)) {
             miniCluster.start();
             final JobVertex vertex = new JobVertex("blockingVertex");
             // The adaptive scheduler expects that every vertex has a configured parallelism
