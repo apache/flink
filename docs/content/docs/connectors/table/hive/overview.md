@@ -76,6 +76,7 @@ Flink supports the following Hive versions.
     - 3.1.0
     - 3.1.1
     - 3.1.2
+    - 3.1.3
 
 Please note Hive itself have different features available for different versions, and these issues are not caused by Flink:
 
