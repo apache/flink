@@ -187,6 +187,11 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         }
 
         @Override
+        public boolean isPrinting() {
+            return castRuleCtx.isPrinting();
+        }
+
+        @Override
         public boolean legacyBehaviour() {
             return castRuleCtx.legacyBehaviour();
         }
