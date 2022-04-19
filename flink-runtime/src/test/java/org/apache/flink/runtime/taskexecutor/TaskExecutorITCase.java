@@ -35,13 +35,13 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -60,26 +60,13 @@ public class TaskExecutorITCase extends TestLogger {
     private static final int SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-    private MiniCluster miniCluster;
-
-    @Before
-    public void setup() throws Exception {
-        miniCluster =
-                new MiniCluster(
-                        new MiniClusterConfiguration.Builder()
-                                .setNumTaskManagers(NUM_TMS)
-                                .setNumSlotsPerTaskManager(SLOTS_PER_TM)
-                                .build());
-
-        miniCluster.start();
-    }
-
-    @After
-    public void teardown() throws Exception {
-        if (miniCluster != null) {
-            miniCluster.close();
-        }
-    }
+    @Rule
+    public final MiniClusterResource miniClusterResource =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(NUM_TMS)
+                            .setNumberSlotsPerTaskManager(SLOTS_PER_TM)
+                            .build());
 
     /**
      * Tests that a job can be re-executed after the job has failed due to a TaskExecutor
@@ -89,7 +76,10 @@ public class TaskExecutorITCase extends TestLogger {
     public void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
         final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
-        final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
+        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+
+        final CompletableFuture<JobResult> jobResultFuture =
+                submitJobAndWaitUntilRunning(jobGraph, miniCluster);
 
         // kill one TaskExecutor which should fail the job execution
         miniCluster.terminateTaskManager(0);
@@ -112,7 +102,10 @@ public class TaskExecutorITCase extends TestLogger {
     public void testJobRecoveryWithFailingTaskExecutor() throws Exception {
         final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
 
-        final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
+        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+
+        final CompletableFuture<JobResult> jobResultFuture =
+                submitJobAndWaitUntilRunning(jobGraph, miniCluster);
 
         // start an additional TaskExecutor
         miniCluster.startTaskManager();
@@ -124,8 +117,8 @@ public class TaskExecutorITCase extends TestLogger {
         assertThat(jobResultFuture.get().isSuccess(), is(true));
     }
 
-    private CompletableFuture<JobResult> submitJobAndWaitUntilRunning(JobGraph jobGraph)
-            throws Exception {
+    private static CompletableFuture<JobResult> submitJobAndWaitUntilRunning(
+            JobGraph jobGraph, MiniCluster miniCluster) throws Exception {
         miniCluster.submitJob(jobGraph).get();
 
         final CompletableFuture<JobResult> jobResultFuture =
@@ -139,7 +132,7 @@ public class TaskExecutorITCase extends TestLogger {
         return jobResultFuture;
     }
 
-    private SupplierWithException<Boolean, Exception> jobIsRunning(
+    private static SupplierWithException<Boolean, Exception> jobIsRunning(
             Supplier<CompletableFuture<? extends AccessExecutionGraph>>
                     executionGraphFutureSupplier) {
         final Predicate<AccessExecution> runningOrFinished =
