@@ -169,18 +169,4 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Enforce single fork execution because of spawning
-					 Elasticsearch cluster multiple times -->
-					<forkCount>1</forkCount>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
