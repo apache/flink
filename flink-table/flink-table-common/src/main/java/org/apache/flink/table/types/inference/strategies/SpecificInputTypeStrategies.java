@@ -69,6 +69,10 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeRoot.BOOLEAN),
                     logical(LogicalTypeFamily.NUMERIC));
 
+    /** Argument type derived from the array element type. */
+    public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
+            new ArrayElementArgumentTypeStrategy();
+
     /**
      * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
      *

@@ -1335,6 +1335,16 @@ class Expression(Generic[T]):
         """
         return _unary_op("element")(self)
 
+    def array_contains(self, needle) -> 'Expression':
+        """
+        Returns whether the given element exists in an array.
+
+        Checking for null elements in the array is supported. If the array itself is null, the
+        function will return null. The given element is cast implicitly to the array's element type
+        if necessary.
+        """
+        return _binary_op("arrayContains")(self, needle)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property
