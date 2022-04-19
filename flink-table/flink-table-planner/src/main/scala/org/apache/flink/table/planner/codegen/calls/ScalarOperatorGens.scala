@@ -1829,6 +1829,7 @@ object ScalarOperatorGens {
 
   def toCodegenCastContext(ctx: CodeGeneratorContext): CodeGeneratorCastRule.Context = {
     new CodeGeneratorCastRule.Context {
+      override def isPrinting(): Boolean = false
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
       override def declareVariable(ty: String, variablePrefix: String): String =
@@ -1844,6 +1845,8 @@ object ScalarOperatorGens {
 
   def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
     new CastRule.Context {
+      override def isPrinting(): Boolean = false
+
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
 
       override def getSessionZoneId: ZoneId = ctx.tableConfig.getLocalTimeZone
