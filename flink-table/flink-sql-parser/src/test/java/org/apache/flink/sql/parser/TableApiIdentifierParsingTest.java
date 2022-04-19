@@ -45,7 +45,7 @@ public class TableApiIdentifierParsingTest {
             "#03B1#03BD#03B8#03C1#03C9#03C0#03BF#03C2";
     private static final String ANTHROPOS_IN_GREEK = "ανθρωπος";
 
-    public static Stream<Arguments> parameters() {
+    static Stream<Arguments> parameters() {
         return Stream.of(
                 of("array", singletonList("array")),
                 of("table", singletonList("table")),
