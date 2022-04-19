@@ -151,11 +151,6 @@ It is recommended to automatically format your code by applying the following se
 
 You can also format the whole project (both Java and Scala) via Maven by using `mvn spotless:apply`.
 
-{{< hint info >}}
-Note that because of a Maven limitation, running `mvn spotless:apply` won't work from a subdirectory of the Flink repository. 
-Use `mvn spotless:apply -pl <module_name>` to format only a single module.
-{{< /hint >}}
-
 #### Checkstyle For Java
 
 [Checkstyle](https://checkstyle.sourceforge.io/) is used to enforce static coding guidelines.
