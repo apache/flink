@@ -205,13 +205,6 @@ under the License.
 			<artifactId>cassandra</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<!-- Bump cassandra netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-all</artifactId>
-			<version>4.1.46.Final</version>
-			<scope>test</scope>
-		</dependency>
 
 		<!-- ArchUit test dependencies -->
 
