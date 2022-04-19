@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.nio.charset.StandardCharsets;
 
@@ -28,6 +29,7 @@ import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
  * {@link LogicalTypeFamily#BINARY_STRING} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule.
@@ -85,15 +87,22 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
         final String resultStringTerm = newName("resultString");
         final CastRuleUtils.CodeWriter writer = new CastRuleUtils.CodeWriter();
 
-        writer.declStmt(String.class, resultStringTerm)
-                .assignStmt(
-                        resultStringTerm,
-                        constructorCall(
-                                String.class,
-                                inputTerm,
-                                accessStaticField(StandardCharsets.class, "UTF_8")));
+        writer.declStmt(String.class, resultStringTerm);
+        if (context.isPrinting()) {
+            writer.assignStmt(resultStringTerm, "\"x'\"")
+                    .assignPlusStmt(
+                            resultStringTerm, staticCall(EncodingUtils.class, "hex", inputTerm))
+                    .assignPlusStmt(resultStringTerm, "\"'\"");
+        } else {
+            writer.assignStmt(
+                    resultStringTerm,
+                    constructorCall(
+                            String.class,
+                            inputTerm,
+                            accessStaticField(StandardCharsets.class, "UTF_8")));
+        }
 
-        if (!context.legacyBehaviour()) {
+        if (!context.legacyBehaviour() && !context.isPrinting()) {
             final String resultPadOrTrim = newName("resultPadOrTrim");
             final int length = LogicalTypeChecks.getLength(targetLogicalType);
             CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
