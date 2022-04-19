@@ -42,8 +42,6 @@ public class KubernetesLeaderElectorITCase extends TestLogger {
 
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
-    private static final long TIMEOUT = 120L * 1000L;
-
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
     private static final String LEADER_CONFIGMAP_NAME_PREFIX = "leader-test-cluster";
@@ -81,17 +79,17 @@ public class KubernetesLeaderElectorITCase extends TestLogger {
 
             // Wait for the first leader
             final String firstLockIdentity =
-                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears(TIMEOUT);
+                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
 
             for (int i = 0; i < leaderNum; i++) {
                 if (leaderCallbackHandlers[i].getLockIdentity().equals(firstLockIdentity)) {
                     // Check the callback isLeader is called.
-                    leaderCallbackHandlers[i].waitForNewLeader(TIMEOUT);
+                    leaderCallbackHandlers[i].waitForNewLeader();
                     assertThat(leaderCallbackHandlers[i].hasLeadership(), is(true));
                     // Current leader died
                     leaderElectors[i].stop();
                     // Check the callback notLeader is called.
-                    leaderCallbackHandlers[i].waitForRevokeLeader(TIMEOUT);
+                    leaderCallbackHandlers[i].waitForRevokeLeader();
                     assertThat(leaderCallbackHandlers[i].hasLeadership(), is(false));
                 } else {
                     assertThat(leaderCallbackHandlers[i].hasLeadership(), is(false));
@@ -100,7 +98,7 @@ public class KubernetesLeaderElectorITCase extends TestLogger {
 
             // Another leader should be elected successfully and update the lock identity
             final String anotherLockIdentity =
-                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears(TIMEOUT);
+                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
             assertThat(anotherLockIdentity, is(not(firstLockIdentity)));
         } finally {
             // Cleanup the resources

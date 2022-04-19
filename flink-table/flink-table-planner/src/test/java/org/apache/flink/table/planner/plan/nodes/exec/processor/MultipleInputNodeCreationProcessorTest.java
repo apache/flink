@@ -38,18 +38,19 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link MultipleInputNodeCreationProcessor}. */
 public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
-    private final BatchTableTestUtil batchUtil = batchTestUtil(new TableConfig());
-    private final StreamTableTestUtil streamUtil = streamTestUtil(new TableConfig());
+    private final BatchTableTestUtil batchUtil = batchTestUtil(TableConfig.getDefault());
+    private final StreamTableTestUtil streamUtil = streamTestUtil(TableConfig.getDefault());
 
     @Test
     public void testIsChainableDataStreamSource() {
@@ -110,8 +111,8 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
             execNode = execNode.getInputEdges().get(0).getSource();
         }
         ProcessorContext context = new ProcessorContext(util.getPlanner());
-        Assert.assertEquals(
-                expected, MultipleInputNodeCreationProcessor.isChainableSource(execNode, context));
+        assertThat(MultipleInputNodeCreationProcessor.isChainableSource(execNode, context))
+                .isEqualTo(expected);
     }
 
     private void createChainableStream(TableTestUtil util) {

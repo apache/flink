@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Constraint.ConstraintType;
 import org.apache.flink.table.catalog.UniqueConstraint;
 
@@ -28,12 +29,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.List;
 
 /** Mixin for {@link UniqueConstraint}. */
+@Internal
 abstract class UniqueConstraintMixin {
 
-    public static final String NAME = "name";
-    public static final String ENFORCED = "enforced";
-    public static final String TYPE = "type";
-    public static final String COLUMNS = "columns";
+    static final String NAME = "name";
+    static final String ENFORCED = "enforced";
+    static final String TYPE = "type";
+    static final String COLUMNS = "columns";
 
     @JsonCreator
     private UniqueConstraintMixin(

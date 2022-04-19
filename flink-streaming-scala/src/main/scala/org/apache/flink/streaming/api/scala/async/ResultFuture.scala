@@ -15,36 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.annotation.PublicEvolving
 
 /**
-  * The result future collects data/errors from the user code while processing
-  * asynchronous I/O operations.
-  *
-  * @tparam OUT type of the output element
-  */
+ * The result future collects data/errors from the user code while processing asynchronous I/O
+ * operations.
+ *
+ * @tparam OUT
+ *   type of the output element
+ */
 @PublicEvolving
 trait ResultFuture[OUT] {
 
   /**
-    * Complete the ResultFuture with a set of result elements.
-    *
-    * Note that it should be called for exactly one time in the user code.
-    * Calling this function for multiple times will cause data lose.
-    *
-    * Put all results in a [[Iterable]] and then issue ResultFuture.complete(Iterable).
-    *
-    * @param result to complete the async collector with
-    */
+   * Complete the ResultFuture with a set of result elements.
+   *
+   * Note that it should be called for exactly one time in the user code. Calling this function for
+   * multiple times will cause data lose.
+   *
+   * Put all results in a [[Iterable]] and then issue ResultFuture.complete(Iterable).
+   *
+   * @param result
+   *   to complete the async collector with
+   */
   def complete(result: Iterable[OUT])
 
   /**
-    * Complete this ResultFuture with an error.
-    *
-    * @param throwable to complete the async collector with
-    */
+   * Complete this ResultFuture with an error.
+   *
+   * @param throwable
+   *   to complete the async collector with
+   */
   def completeExceptionally(throwable: Throwable)
 }

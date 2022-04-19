@@ -15,37 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
 import scala.collection.JavaConversions._
 
-/**
-  * Batch physical RelNode for Python ScalarFunctions.
-  */
+/** Batch physical RelNode for Python ScalarFunctions. */
 class BatchPhysicalPythonCalc(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     calcProgram: RexProgram,
     outputRowType: RelDataType)
-  extends BatchPhysicalCalcBase(
-    cluster,
-    traitSet,
-    inputRel,
-    calcProgram,
-    outputRowType) {
+  extends BatchPhysicalCalcBase(cluster, traitSet, inputRel, calcProgram, outputRowType) {
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new BatchPhysicalPythonCalc(cluster, traitSet, child, program, outputRowType)
@@ -58,6 +51,7 @@ class BatchPhysicalPythonCalc(
     }
 
     new BatchExecPythonCalc(
+      unwrapTableConfig(this),
       projection,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

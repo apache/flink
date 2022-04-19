@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin
 import org.apache.flink.table.planner.plan.utils.OperatorType
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.util.ImmutableIntList
@@ -40,14 +39,12 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalHashJoin]]
-  * if there exists at least one equal-join condition and
-  * ShuffleHashJoin or BroadcastHashJoin are enabled.
-  */
+ * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalHashJoin]] if there exists at least one
+ * equal-join condition and ShuffleHashJoin or BroadcastHashJoin are enabled.
+ */
 class BatchPhysicalHashJoinRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
-      operand(classOf[RelNode], any)),
+    operand(classOf[FlinkLogicalJoin], operand(classOf[RelNode], any)),
     "BatchPhysicalHashJoinRule")
   with BatchPhysicalJoinRuleBase {
 
@@ -59,10 +56,10 @@ class BatchPhysicalHashJoinRule
       return false
     }
 
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = unwrapTableConfig(call)
     val isShuffleHashJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)
-    val isBroadcastHashJoinEnabled = !isOperatorDisabled(
-      tableConfig, OperatorType.BroadcastHashJoin)
+    val isBroadcastHashJoinEnabled =
+      !isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)
 
     val leftSize = binaryRowRelNodeSize(join.getLeft)
     val rightSize = binaryRowRelNodeSize(join.getRight)
@@ -73,7 +70,7 @@ class BatchPhysicalHashJoinRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = unwrapTableConfig(call)
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
     val joinType = join.getJoinType
@@ -128,7 +125,8 @@ class BatchPhysicalHashJoinRule
 
     if (isBroadcast) {
       val probeTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-      val buildTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+      val buildTrait = join.getTraitSet
+        .replace(FlinkConventions.BATCH_PHYSICAL)
         .replace(FlinkRelDistribution.BROADCAST_DISTRIBUTED)
       if (leftIsBroadcast) {
         transformToEquiv(buildTrait, probeTrait)
@@ -137,21 +135,22 @@ class BatchPhysicalHashJoinRule
       }
     } else {
       val toHashTraitByColumns = (columns: util.Collection[_ <: Number]) =>
-        join.getCluster.getPlanner.emptyTraitSet.
-          replace(FlinkConventions.BATCH_PHYSICAL).
-          replace(FlinkRelDistribution.hash(columns))
+        join.getCluster.getPlanner.emptyTraitSet
+          .replace(FlinkConventions.BATCH_PHYSICAL)
+          .replace(FlinkRelDistribution.hash(columns))
       transformToEquiv(
         toHashTraitByColumns(joinInfo.leftKeys),
         toHashTraitByColumns(joinInfo.rightKeys))
 
       // add more possibility to only shuffle by partial joinKeys, now only single one
-      val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-        BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
+      val isShuffleByPartialKeyEnabled =
+        tableConfig.get(BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
       if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
-        joinInfo.pairs().foreach { pair =>
-          transformToEquiv(
-            toHashTraitByColumns(ImmutableIntList.of(pair.source)),
-            toHashTraitByColumns(ImmutableIntList.of(pair.target)))
+        joinInfo.pairs().foreach {
+          pair =>
+            transformToEquiv(
+              toHashTraitByColumns(ImmutableIntList.of(pair.source)),
+              toHashTraitByColumns(ImmutableIntList.of(pair.target)))
         }
       }
     }
@@ -159,26 +158,29 @@ class BatchPhysicalHashJoinRule
   }
 
   /**
-    * Decides whether the join can convert to BroadcastHashJoin.
-    *
-    * @param joinType  flink join type
-    * @param leftSize  size of join left child
-    * @param rightSize size of join right child
-    * @return an Tuple2 instance. The first element of tuple is true if join can convert to
-    *         broadcast hash join, false else. The second element of tuple is true if left side used
-    *         as broadcast side, false else.
-    */
+   * Decides whether the join can convert to BroadcastHashJoin.
+   *
+   * @param joinType
+   *   flink join type
+   * @param leftSize
+   *   size of join left child
+   * @param rightSize
+   *   size of join right child
+   * @return
+   *   an Tuple2 instance. The first element of tuple is true if join can convert to broadcast hash
+   *   join, false else. The second element of tuple is true if left side used as broadcast side,
+   *   false else.
+   */
   private def canBroadcast(
       joinType: JoinRelType,
       leftSize: JDouble,
       rightSize: JDouble,
-      tableConfig: TableConfig): (Boolean, Boolean) = {
+      tableConfig: ReadableConfig): (Boolean, Boolean) = {
     // if leftSize or rightSize is unknown, cannot use broadcast
     if (leftSize == null || rightSize == null) {
       return (false, false)
     }
-    val threshold = tableConfig.getConfiguration.getLong(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
+    val threshold = tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
     joinType match {
       case JoinRelType.LEFT => (rightSize <= threshold, false)
       case JoinRelType.RIGHT => (leftSize <= threshold, true)

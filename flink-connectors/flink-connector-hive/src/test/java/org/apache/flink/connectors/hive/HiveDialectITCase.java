@@ -42,6 +42,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -75,8 +76,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -670,17 +669,18 @@ public class HiveDialectITCase {
         List<Row> catalogs =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
         assertEquals(2, catalogs.size());
-        tableEnv.executeSql("use catalog " + DEFAULT_BUILTIN_CATALOG);
+        tableEnv.executeSql("use catalog " + CatalogManagerMocks.DEFAULT_CATALOG);
         List<Row> databases =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
         assertEquals(1, databases.size());
-        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databases.get(0).toString());
+        assertEquals(
+                "+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databases.get(0).toString());
         String catalogName =
                 tableEnv.executeSql("show current catalog").collect().next().toString();
-        assertEquals("+I[" + DEFAULT_BUILTIN_CATALOG + "]", catalogName);
+        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_CATALOG + "]", catalogName);
         String databaseName =
                 tableEnv.executeSql("show current database").collect().next().toString();
-        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databaseName);
+        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databaseName);
     }
 
     @Test

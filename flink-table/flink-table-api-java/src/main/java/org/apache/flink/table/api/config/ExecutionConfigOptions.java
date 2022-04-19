@@ -418,9 +418,9 @@ public class ExecutionConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
-            key("table.exec.sink.legacy-cast-behaviour")
+            key("table.exec.legacy-cast-behaviour")
                     .enumType(LegacyCastBehaviour.class)
-                    .defaultValue(LegacyCastBehaviour.ENABLED)
+                    .defaultValue(LegacyCastBehaviour.DISABLED)
                     .withDescription(
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");
@@ -477,6 +477,19 @@ public class ExecutionConfigOptions {
                                             + "optimization cannot be applied. If false, Flink will send "
                                             + "all changes to downstream just like when the mini-batch is "
                                             + "not enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Deprecated
+    public static final ConfigOption<Boolean> TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS =
+            key("table.exec.legacy-transformation-uids")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "In Flink 1.15 Transformation UIDs are generated deterministically starting from the metadata available after the planning phase. "
+                                    + "This new behaviour allows a safe restore of persisted plan, remapping the plan execution graph to the correct operators state. "
+                                    + "Setting this flag to true enables the previous \"legacy\" behavior, which is generating uids from the Transformation graph topology. "
+                                    + "We strongly suggest to keep this flag disabled, as this flag is going to be removed in the next releases. "
+                                    + "If you have a pipeline relying on the old behavior, please create a new pipeline and regenerate the operators state.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types

@@ -22,13 +22,11 @@ import org.apache.flink.connector.jdbc.converter.AbstractJdbcRowConverter;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.postgresql.jdbc.PgArray;
-import org.postgresql.util.PGobject;
 
 import java.lang.reflect.Array;
 
@@ -78,38 +76,21 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
     }
 
     private JdbcDeserializationConverter createPostgresArrayConverter(ArrayType arrayType) {
-        // PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
-        if (arrayType.getElementType().is(LogicalTypeFamily.BINARY_STRING)) {
-            final Class<?> elementClass =
-                    LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-            final JdbcDeserializationConverter elementConverter =
-                    createNullableInternalConverter(arrayType.getElementType());
-
-            return val -> {
-                PgArray pgArray = (PgArray) val;
-                Object[] in = (Object[]) pgArray.getArray();
-                final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
-                for (int i = 0; i < in.length; i++) {
-                    array[i] =
-                            elementConverter.deserialize(((PGobject) in[i]).getValue().getBytes());
-                }
-                return new GenericArrayData(array);
-            };
-        } else {
-            final Class<?> elementClass =
-                    LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-            final JdbcDeserializationConverter elementConverter =
-                    createNullableInternalConverter(arrayType.getElementType());
-            return val -> {
-                PgArray pgArray = (PgArray) val;
-                Object[] in = (Object[]) pgArray.getArray();
-                final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
-                for (int i = 0; i < in.length; i++) {
-                    array[i] = elementConverter.deserialize(in[i]);
-                }
-                return new GenericArrayData(array);
-            };
-        }
+        // Since PGJDBC 42.2.15 (https://github.com/pgjdbc/pgjdbc/pull/1194) bytea[] is wrapped in
+        // primitive byte arrays
+        final Class<?> elementClass =
+                LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
+        final JdbcDeserializationConverter elementConverter =
+                createNullableInternalConverter(arrayType.getElementType());
+        return val -> {
+            PgArray pgArray = (PgArray) val;
+            Object[] in = (Object[]) pgArray.getArray();
+            final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
+            for (int i = 0; i < in.length; i++) {
+                array[i] = elementConverter.deserialize(in[i]);
+            }
+            return new GenericArrayData(array);
+        };
     }
 
     // Have its own method so that Postgres can support primitives that super class doesn't support

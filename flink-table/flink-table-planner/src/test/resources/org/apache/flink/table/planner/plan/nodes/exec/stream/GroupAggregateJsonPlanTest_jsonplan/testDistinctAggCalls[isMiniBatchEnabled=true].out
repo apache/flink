@@ -62,12 +62,9 @@
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : ">",
-        "kind" : "GREATER_THAN",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -100,14 +97,15 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-local-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a1",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : 2,
       "distinct" : true,
@@ -116,11 +114,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "cnt_a2",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -129,11 +124,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "sum_a",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -142,11 +133,7 @@
       "type" : "BIGINT"
     }, {
       "name" : "sum_b",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -155,11 +142,7 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "avg_b",
-      "aggFunction" : {
-        "name" : "AVG",
-        "kind" : "AVG",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$AVG$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -168,11 +151,8 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "cnt_d",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -361,14 +341,15 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-global-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a1",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : 2,
       "distinct" : true,
@@ -377,11 +358,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "cnt_a2",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -390,11 +368,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "sum_a",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -403,11 +377,7 @@
       "type" : "BIGINT"
     }, {
       "name" : "sum_b",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -416,11 +386,7 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "avg_b",
-      "aggFunction" : {
-        "name" : "AVG",
-        "kind" : "AVG",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$AVG$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -429,11 +395,8 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "cnt_d",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -462,12 +425,9 @@
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -475,12 +435,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
@@ -492,12 +449,9 @@
       "inputIndex" : 3,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
@@ -505,12 +459,9 @@
       } ],
       "type" : "INT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 5,
@@ -518,12 +469,9 @@
       } ],
       "type" : "DOUBLE"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 6,
@@ -544,6 +492,12 @@
   }, {
     "id" : 8,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

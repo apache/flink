@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions}
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
-import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.{After, Before, Rule}
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
+import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 class StreamingTestBase extends AbstractTestBase {
 
@@ -44,6 +44,7 @@ class StreamingTestBase extends AbstractTestBase {
   def tempFolder: TemporaryFolder = _tempFolder
 
   @Before
+  @BeforeEach
   def before(): Unit = {
     this.env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
@@ -55,20 +56,19 @@ class StreamingTestBase extends AbstractTestBase {
   }
 
   @After
+  @AfterEach
   def after(): Unit = {
     StreamTestSink.clear()
     TestValuesTableFactory.clearAllData()
   }
 
   /**
-   * Creates a new Row and assigns the given values to the Row's fields.
-   * We use [[rowOf()]] here to avoid conflicts with [[ImplicitExpressionConversions.row]].
+   * Creates a new Row and assigns the given values to the Row's fields. We use [[rowOf()]] here to
+   * avoid conflicts with [[ImplicitExpressionConversions.row]].
    */
   protected def rowOf(args: Any*): Row = {
     val row = new Row(args.length)
-    0 until args.length foreach {
-      i => row.setField(i, args(i))
-    }
+    (0 until args.length).foreach(i => row.setField(i, args(i)))
     row
   }
 }

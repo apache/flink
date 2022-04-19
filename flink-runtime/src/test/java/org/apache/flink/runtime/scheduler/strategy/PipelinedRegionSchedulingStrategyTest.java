@@ -29,9 +29,12 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -39,6 +42,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,6 +54,9 @@ import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link PipelinedRegionSchedulingStrategy}. */
 public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private TestingSchedulerOperations testingSchedulerOperation;
 
@@ -200,7 +207,9 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
-                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
 
@@ -262,7 +271,9 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
-                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
 
@@ -328,7 +339,9 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
         final ExecutionGraph executionGraph =
-                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(jobGraph)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
 
         final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
 

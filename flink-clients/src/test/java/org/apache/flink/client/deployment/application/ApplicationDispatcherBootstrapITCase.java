@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -56,16 +55,19 @@ import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,7 +76,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(TestLoggerExtension.class)
 public class ApplicationDispatcherBootstrapITCase {
 
-    private static final Duration TIMEOUT = Duration.ofMinutes(10);
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static Supplier<DispatcherResourceManagerComponentFactory>
             createApplicationModeDispatcherResourceManagerComponentFactorySupplier(
@@ -97,7 +101,6 @@ public class ApplicationDispatcherBootstrapITCase {
     @Test
     public void testDispatcherRecoversAfterLosingAndRegainingLeadership() throws Exception {
         final String blockId = UUID.randomUUID().toString();
-        final Deadline deadline = Deadline.fromNow(TIMEOUT);
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
@@ -107,7 +110,7 @@ public class ApplicationDispatcherBootstrapITCase {
                         .setConfiguration(configuration)
                         .build();
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor());
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)
                         .setHighAvailabilityServicesSupplier(() -> haServices)
@@ -121,11 +124,7 @@ public class ApplicationDispatcherBootstrapITCase {
             cluster.start();
 
             // wait until job is running
-            awaitJobStatus(
-                    cluster,
-                    ApplicationDispatcherBootstrap.ZERO_JOB_ID,
-                    JobStatus.RUNNING,
-                    deadline);
+            awaitJobStatus(cluster, ApplicationDispatcherBootstrap.ZERO_JOB_ID, JobStatus.RUNNING);
 
             // make sure the operator is actually running
             BlockingJob.awaitRunning(blockId);
@@ -140,11 +139,7 @@ public class ApplicationDispatcherBootstrapITCase {
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
-            awaitJobStatus(
-                    cluster,
-                    ApplicationDispatcherBootstrap.ZERO_JOB_ID,
-                    JobStatus.RUNNING,
-                    deadline);
+            awaitJobStatus(cluster, ApplicationDispatcherBootstrap.ZERO_JOB_ID, JobStatus.RUNNING);
 
             // unblock processing so the job can finish
             BlockingJob.unblock(blockId);
@@ -157,7 +152,7 @@ public class ApplicationDispatcherBootstrapITCase {
                     .isEqualTo(ApplicationStatus.SUCCEEDED);
 
             // the cluster should shut down automatically once the application completes
-            awaitClusterStopped(cluster, deadline);
+            awaitClusterStopped(cluster);
         } finally {
             BlockingJob.cleanUp(blockId);
         }
@@ -165,7 +160,6 @@ public class ApplicationDispatcherBootstrapITCase {
 
     @Test
     public void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
-        final Deadline deadline = Deadline.fromNow(TIMEOUT);
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
@@ -183,7 +177,7 @@ public class ApplicationDispatcherBootstrapITCase {
                         TestingJobResultStore.createSuccessfulJobResult(
                                 ApplicationDispatcherBootstrap.ZERO_JOB_ID)));
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor()) {
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor()) {
 
                     @Override
                     public JobResultStore getJobResultStore() {
@@ -203,7 +197,7 @@ public class ApplicationDispatcherBootstrapITCase {
             cluster.start();
 
             // the cluster should shut down automatically once the application completes
-            awaitClusterStopped(cluster, deadline);
+            awaitClusterStopped(cluster);
         }
 
         FlinkAssertions.assertThatChainOfCauses(ErrorHandlingSubmissionJob.getSubmissionException())
@@ -223,7 +217,6 @@ public class ApplicationDispatcherBootstrapITCase {
 
     @Test
     public void testSubmitFailedJobOnApplicationError() throws Exception {
-        final Deadline deadline = Deadline.fromNow(TIMEOUT);
         final JobID jobId = new JobID();
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
@@ -237,7 +230,7 @@ public class ApplicationDispatcherBootstrapITCase {
                         .setConfiguration(configuration)
                         .build();
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
+                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor());
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)
                         .setHighAvailabilityServicesSupplier(() -> haServices)
@@ -251,7 +244,7 @@ public class ApplicationDispatcherBootstrapITCase {
             cluster.start();
 
             // wait until the failed job has been submitted
-            awaitJobStatus(cluster, jobId, JobStatus.FAILED, deadline);
+            awaitJobStatus(cluster, jobId, JobStatus.FAILED);
 
             final ArchivedExecutionGraph graph = cluster.getArchivedExecutionGraph(jobId).get();
 
@@ -272,13 +265,11 @@ public class ApplicationDispatcherBootstrapITCase {
         }
     }
 
-    private static void awaitClusterStopped(MiniCluster cluster, Deadline deadline)
-            throws Exception {
-        CommonTestUtils.waitUntilCondition(() -> !cluster.isRunning(), deadline);
+    private static void awaitClusterStopped(MiniCluster cluster) throws Exception {
+        CommonTestUtils.waitUntilCondition(() -> !cluster.isRunning());
     }
 
-    private static void awaitJobStatus(
-            MiniCluster cluster, JobID jobId, JobStatus status, Deadline deadline)
+    private static void awaitJobStatus(MiniCluster cluster, JobID jobId, JobStatus status)
             throws Exception {
         CommonTestUtils.waitUntilCondition(
                 () -> {
@@ -292,7 +283,6 @@ public class ApplicationDispatcherBootstrapITCase {
                         }
                         throw e;
                     }
-                },
-                deadline);
+                });
     }
 }

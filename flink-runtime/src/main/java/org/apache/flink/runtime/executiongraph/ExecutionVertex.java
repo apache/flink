@@ -36,6 +36,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -83,6 +83,11 @@ public class ExecutionVertex
     private Execution currentExecution; // this field must never be null
 
     private final ArrayList<InputSplit> inputSplits;
+
+    /** This field holds the allocation id of the last successful assignment. */
+    @Nullable private TaskManagerLocation lastAssignedLocation;
+
+    @Nullable private AllocationID lastAssignedAllocationID;
 
     // --------------------------------------------------------------------------------------------
 
@@ -280,44 +285,23 @@ public class ExecutionVertex
         }
     }
 
-    /**
-     * Gets the latest property from a prior execution that is not null.
-     *
-     * @param extractor defining the property to extract
-     * @param <T> type of the property
-     * @return Optional containing the latest property if it exists; otherwise {@code
-     *     Optional.empty()}.
-     */
-    private <T> Optional<T> getLatestPriorProperty(Function<ArchivedExecution, T> extractor) {
-        int index = priorExecutions.size() - 1;
-
-        while (index >= 0 && !priorExecutions.isDroppedIndex(index)) {
-            final ArchivedExecution archivedExecution = priorExecutions.get(index);
-
-            final T extractedValue = extractor.apply(archivedExecution);
-
-            if (extractedValue != null) {
-                return Optional.of(extractedValue);
-            }
-
-            index -= 1;
-        }
-
-        return Optional.empty();
+    void setLatestPriorSlotAllocation(
+            TaskManagerLocation taskManagerLocation, AllocationID lastAssignedAllocationID) {
+        this.lastAssignedLocation = Preconditions.checkNotNull(taskManagerLocation);
+        this.lastAssignedAllocationID = Preconditions.checkNotNull(lastAssignedAllocationID);
     }
 
     /**
-     * Gets the location where the latest completed/canceled/failed execution of the vertex's task
-     * happened.
+     * Gets the location that an execution of this vertex was assigned to.
      *
-     * @return The latest prior execution location, or null, if there is none, yet.
+     * @return The last execution location, or null, if there is none, yet.
      */
-    public Optional<TaskManagerLocation> findLatestPriorLocation() {
-        return getLatestPriorProperty(ArchivedExecution::getAssignedResourceLocation);
+    public Optional<TaskManagerLocation> findLastLocation() {
+        return Optional.ofNullable(lastAssignedLocation);
     }
 
-    public Optional<AllocationID> findLatestPriorAllocation() {
-        return getLatestPriorProperty(ArchivedExecution::getAssignedAllocationID);
+    public Optional<AllocationID> findLastAllocation() {
+        return Optional.ofNullable(lastAssignedAllocationID);
     }
 
     EvictingBoundedList<ArchivedExecution> getCopyOfPriorExecutionsList() {
@@ -353,7 +337,7 @@ public class ExecutionVertex
         // only restore to same execution if it has state
         if (currentExecution.getTaskRestore() != null
                 && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
-            return findLatestPriorLocation();
+            return findLastLocation();
         }
 
         return Optional.empty();

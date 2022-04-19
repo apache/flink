@@ -32,16 +32,19 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -53,17 +56,18 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
     private static final String USER_PARQUET_FILE_2 = "user2.parquet";
     private static final String USER_PARQUET_FILE_3 = "user3.parquet";
 
-    private Schema schema;
-    private final List<GenericRecord> userRecords = new ArrayList<>(3);
+    private static Schema schema;
+    private static final List<GenericRecord> userRecords = new ArrayList<>(3);
 
-    @Before
-    public void setup() throws IOException {
+    @BeforeClass
+    public static void setup() throws IOException {
         // Generic records
         schema =
                 new Schema.Parser()
                         .parse(
                                 "{\"type\": \"record\", "
                                         + "\"name\": \"User\", "
+                                        + "\"namespace\": \"org.apache.flink.formats.parquet.avro.AvroParquetRecordFormatTest\", "
                                         + "\"fields\": [\n"
                                         + "        {\"name\": \"name\", \"type\": \"string\" },\n"
                                         + "        {\"name\": \"favoriteNumber\",  \"type\": [\"int\", \"null\"] },\n"
@@ -125,6 +129,36 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
         }
     }
 
+    @Test
+    public void testReadAvroReflectRecord() throws Exception {
+        final FileSource<AvroParquetRecordFormatTest.User> source =
+                FileSource.forRecordStreamFormat(
+                                AvroParquetReaders.forReflectRecord(
+                                        AvroParquetRecordFormatTest.User.class),
+                                Path.fromLocalFile(TEMPORARY_FOLDER.getRoot()))
+                        .monitorContinuously(Duration.ofMillis(5))
+                        .build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(10L);
+
+        DataStream<AvroParquetRecordFormatTest.User> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
+
+        try (CloseableIterator<AvroParquetRecordFormatTest.User> iterator =
+                stream.executeAndCollect("Reading Avro Reflect Records")) {
+            List<AvroParquetRecordFormatTest.User> list = collectRecords(iterator, 6);
+            Collections.sort(
+                    list,
+                    Comparator.comparing(AvroParquetRecordFormatTest.User::getFavoriteNumber));
+            assertEquals(list.size(), 6);
+
+            for (int i = 0; i < 6; i++) {
+                assertUserEquals(list.get(i), userRecords.get(i));
+            }
+        }
+    }
+
     private static <E> List<E> collectRecords(
             final CloseableIterator<E> iterator, final int numElements) {
 
@@ -161,7 +195,15 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
         writer.finish();
     }
 
-    private GenericRecord createUser(String name, int favoriteNumber, String favoriteColor) {
+    private void assertUserEquals(AvroParquetRecordFormatTest.User user, GenericRecord expected) {
+        assertThat(user).isNotNull();
+        assertThat(String.valueOf(user.getName())).isNotNull().isEqualTo(expected.get("name"));
+        assertThat(user.getFavoriteNumber()).isEqualTo(expected.get("favoriteNumber"));
+        assertThat(String.valueOf(user.getFavoriteColor()))
+                .isEqualTo(String.valueOf(expected.get("favoriteColor")));
+    }
+
+    private static GenericRecord createUser(String name, int favoriteNumber, String favoriteColor) {
         GenericRecord record = new GenericData.Record(schema);
         record.put("name", name);
         record.put("favoriteNumber", favoriteNumber);

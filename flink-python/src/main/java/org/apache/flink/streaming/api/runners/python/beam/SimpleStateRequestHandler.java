@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -104,8 +105,8 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
             BeamFnApi.StateGetResponse.newBuilder()
                     .setData(ByteString.copyFrom(new byte[] {NOT_EMPTY_FLAG}));
 
-    private final TypeSerializer keySerializer;
-    private final TypeSerializer namespaceSerializer;
+    private final TypeSerializer<?> keySerializer;
+    private final TypeSerializer<?> namespaceSerializer;
     private final TypeSerializer<byte[]> valueSerializer;
     private final KeyedStateBackend keyedStateBackend;
 
@@ -135,12 +136,12 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
     private final BeamFnApi.ProcessBundleRequest.CacheToken cacheToken;
 
     SimpleStateRequestHandler(
-            KeyedStateBackend keyedStateBackend,
-            TypeSerializer keySerializer,
-            TypeSerializer namespaceSerializer,
-            Map<String, String> config) {
+            KeyedStateBackend<?> keyedStateBackend,
+            TypeSerializer<?> keySerializer,
+            TypeSerializer<?> namespaceSerializer,
+            ReadableConfig config) {
         this.keyedStateBackend = keyedStateBackend;
-        TypeSerializer frameworkKeySerializer = keyedStateBackend.getKeySerializer();
+        TypeSerializer<?> frameworkKeySerializer = keyedStateBackend.getKeySerializer();
         if (!(frameworkKeySerializer instanceof AbstractRowDataSerializer
                 || frameworkKeySerializer instanceof RowSerializer)) {
             throw new RuntimeException("Currently SimpleStateRequestHandler only support row key!");
@@ -157,12 +158,7 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
         stateDescriptorCache = new HashMap<>();
         mapStateIteratorCache = new HashMap<>();
         mapStateIterateResponseBatchSize =
-                Integer.valueOf(
-                        config.getOrDefault(
-                                PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
-                                PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE
-                                        .defaultValue()
-                                        .toString()));
+                config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE);
         if (mapStateIterateResponseBatchSize <= 0) {
             throw new RuntimeException(
                     String.format(

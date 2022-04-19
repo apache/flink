@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 

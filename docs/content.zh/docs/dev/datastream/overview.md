@@ -69,11 +69,11 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 `StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment`：
 
 ```java
-getExecutionEnvironment()
+getExecutionEnvironment();
 
-createLocalEnvironment()
+createLocalEnvironment();
 
-createRemoteEnvironment(String host, int port, String... jarFiles)
+createRemoteEnvironment(String host, int port, String... jarFiles);
 ```
 
 通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果你在 IDE 中执行你的程序或将其作为一般的 Java 程序执行，那么它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})运行它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
@@ -106,9 +106,9 @@ DataStream<Integer> parsed = input.map(new MapFunction<String, Integer>() {
 一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
 ```java
-writeAsText(String path)
+writeAsText(String path);
 
-print()
+print();
 ```
 
 {{< /tab >}}

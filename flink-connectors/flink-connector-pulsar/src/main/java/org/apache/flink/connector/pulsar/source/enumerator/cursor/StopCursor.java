@@ -19,10 +19,11 @@
 package org.apache.flink.connector.pulsar.source.enumerator.cursor;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.EventTimestampStopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.LatestMessageStopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.MessageIdStopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.NeverStopCursor;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.TimestampStopCursor;
+import org.apache.flink.connector.pulsar.source.enumerator.cursor.stop.PublishTimestampStopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -63,15 +64,29 @@ public interface StopCursor extends Serializable {
         return new LatestMessageStopCursor();
     }
 
+    /**
+     * Stop when the messageId is equal or greater than the specified messageId. Message that is
+     * equal to the specified messageId will not be consumed.
+     */
     static StopCursor atMessageId(MessageId messageId) {
         return new MessageIdStopCursor(messageId);
     }
 
+    /**
+     * Stop when the messageId is greater than the specified messageId. Message that is equal to the
+     * specified messageId will be consumed.
+     */
     static StopCursor afterMessageId(MessageId messageId) {
         return new MessageIdStopCursor(messageId, false);
     }
 
+    @Deprecated
     static StopCursor atEventTime(long timestamp) {
-        return new TimestampStopCursor(timestamp);
+        return new EventTimestampStopCursor(timestamp);
+    }
+
+    /** Stop when message publishTime is greater than the specified timestamp. */
+    static StopCursor atPublishTime(long timestamp) {
+        return new PublishTimestampStopCursor(timestamp);
     }
 }

@@ -72,7 +72,7 @@ class CommitterOperatorTest {
                 testHarness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CommitterOperatorFactory<>(
-                                        (TwoPhaseCommittingSink<?, String>) sink));
+                                        (TwoPhaseCommittingSink<?, String>) sink, false, true));
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -105,7 +105,7 @@ class CommitterOperatorTest {
         final ForwardingCommitter committer = new ForwardingCommitter();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(committer);
+                testHarness = createTestHarness(committer, false, true);
         testHarness.open();
         testHarness.setProcessingTime(0);
 
@@ -146,7 +146,7 @@ class CommitterOperatorTest {
         final ForwardingCommitter committer = new ForwardingCommitter();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(committer);
+                testHarness = createTestHarness(committer, false, true);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -176,12 +176,13 @@ class CommitterOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    void testEmitAllCommittablesOnEndOfInput() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testEmitAllCommittablesOnEndOfInput(boolean isBatchMode) throws Exception {
         final ForwardingCommitter committer = new ForwardingCommitter();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(committer);
+                testHarness = createTestHarness(committer, isBatchMode, !isBatchMode);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -197,6 +198,11 @@ class CommitterOperatorTest {
         testHarness.processElement(new StreamRecord<>(second));
 
         testHarness.endInput();
+        if (!isBatchMode) {
+            assertThat(testHarness.getOutput()).hasSize(0);
+            // notify final checkpoint complete
+            testHarness.notifyOfCompletedCheckpoint(1);
+        }
 
         final List<StreamElement> output = fromOutput(testHarness.getOutput());
         assertThat(output).hasSize(3);
@@ -215,7 +221,7 @@ class CommitterOperatorTest {
     void testStateRestore() throws Exception {
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(new TestSink.RetryOnceCommitter());
+                testHarness = createTestHarness(new TestSink.RetryOnceCommitter(), false, true);
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
@@ -235,7 +241,7 @@ class CommitterOperatorTest {
         final ForwardingCommitter committer = new ForwardingCommitter();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                restored = createTestHarness(committer);
+                restored = createTestHarness(committer, false, true);
 
         restored.initializeState(snapshot);
         restored.open();
@@ -254,6 +260,59 @@ class CommitterOperatorTest {
         restored.close();
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
+        final Sink<Integer> sink =
+                TestSink.newBuilder()
+                        .setDefaultCommitter()
+                        .setDefaultGlobalCommitter()
+                        .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
+                        .build()
+                        .asV2();
+
+        final OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                        new OneInputStreamOperatorTestHarness<>(
+                                new CommitterOperatorFactory<>(
+                                        (TwoPhaseCommittingSink<?, String>) sink,
+                                        false,
+                                        isCheckpointingEnabled));
+        testHarness.open();
+
+        final CommittableSummary<String> committableSummary =
+                new CommittableSummary<>(1, 1, 1L, 1, 1, 0);
+        testHarness.processElement(new StreamRecord<>(committableSummary));
+        final CommittableWithLineage<String> committableWithLineage =
+                new CommittableWithLineage<>("1", 1L, 1);
+        testHarness.processElement(new StreamRecord<>(committableWithLineage));
+
+        testHarness.endInput();
+
+        // If checkpointing enabled endInput does not emit anything because a final checkpoint
+        // follows
+        if (isCheckpointingEnabled) {
+            testHarness.notifyOfCompletedCheckpoint(1);
+        }
+
+        final List<StreamElement> output = fromOutput(testHarness.getOutput());
+        assertThat(output).hasSize(2);
+        SinkV2Assertions.assertThat(toCommittableSummary(output.get(0)))
+                .hasCheckpointId(1L)
+                .hasPendingCommittables(0)
+                .hasOverallCommittables(1)
+                .hasFailedCommittables(0);
+        SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
+                .isEqualTo(copyCommittableWithDifferentOrigin(committableWithLineage, 0));
+
+        // Future emission calls should change the output
+        testHarness.notifyOfCompletedCheckpoint(2);
+        testHarness.endInput();
+
+        assertThat(testHarness.getOutput()).hasSize(2);
+    }
+
     CommittableWithLineage<?> copyCommittableWithDifferentOrigin(
             CommittableWithLineage<?> committable, int subtaskId) {
         return new CommittableWithLineage<>(
@@ -266,7 +325,11 @@ class CommitterOperatorTest {
 
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
-            createTestHarness(Committer<String> committer) throws Exception {
+            createTestHarness(
+                    Committer<String> committer,
+                    boolean isBatchMode,
+                    boolean isCheckpointingEnabled)
+                    throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
                 new CommitterOperatorFactory<>(
                         (TwoPhaseCommittingSink<?, String>)
@@ -276,7 +339,9 @@ class CommitterOperatorTest {
                                         .setCommittableSerializer(
                                                 TestSink.StringCommittableSerializer.INSTANCE)
                                         .build()
-                                        .asV2()));
+                                        .asV2(),
+                        isBatchMode,
+                        isCheckpointingEnabled));
     }
 
     private static class ForwardingCommitter extends TestSink.DefaultCommitter {

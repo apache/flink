@@ -116,7 +116,7 @@ run sdist.
         LIB_PATH = os.path.join(FLINK_HOME, "lib")
         OPT_PATH = os.path.join(FLINK_HOME, "opt")
         OPT_PYTHON_JAR_NAME = os.path.basename(
-            find_file_path(os.path.join(OPT_PATH, "flink-python_*.jar")))
+            find_file_path(os.path.join(OPT_PATH, "flink-python*.jar")))
         OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
             find_file_path(os.path.join(OPT_PATH, "flink-sql-client*.jar")))
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")

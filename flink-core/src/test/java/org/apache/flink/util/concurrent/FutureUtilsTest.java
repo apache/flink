@@ -41,7 +41,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -71,8 +70,8 @@ import static org.junit.Assert.fail;
 public class FutureUtilsTest extends TestLogger {
 
     @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
-            new TestExecutorResource<>(Executors::newSingleThreadScheduledExecutor);
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /** Tests that we can retry an operation. */
     @Test
@@ -91,9 +90,9 @@ public class FutureUtilsTest extends TestLogger {
                                                         new FlinkException("Test exception"));
                                             }
                                         },
-                                        TestingUtils.defaultExecutor()),
+                                        EXECUTOR_RESOURCE.getExecutor()),
                         retries,
-                        TestingUtils.defaultExecutor());
+                        EXECUTOR_RESOURCE.getExecutor());
 
         assertTrue(retryFuture.get());
         assertEquals(retries, atomicInteger.get());
@@ -110,7 +109,7 @@ public class FutureUtilsTest extends TestLogger {
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
                         retries,
-                        TestingUtils.defaultExecutor());
+                        EXECUTOR_RESOURCE.getExecutor());
 
         try {
             retryFuture.get();
@@ -145,9 +144,9 @@ public class FutureUtilsTest extends TestLogger {
                                             throw new CompletionException(
                                                     new FlinkException("Test exception"));
                                         },
-                                        TestingUtils.defaultExecutor()),
+                                        EXECUTOR_RESOURCE.getExecutor()),
                         retries,
-                        TestingUtils.defaultExecutor());
+                        EXECUTOR_RESOURCE.getExecutor());
 
         // await that we have failed once
         notificationLatch.await();
@@ -191,12 +190,12 @@ public class FutureUtilsTest extends TestLogger {
                                                         new FlinkException("Test exception"));
                                             }
                                         },
-                                        TestingUtils.defaultExecutor()),
+                                        EXECUTOR_RESOURCE.getExecutor()),
                         retries,
                         throwable ->
                                 ExceptionUtils.findThrowable(throwable, FlinkException.class)
                                         .isPresent(),
-                        TestingUtils.defaultExecutor());
+                        EXECUTOR_RESOURCE.getExecutor());
 
         try {
             retryFuture.get();
@@ -209,25 +208,6 @@ public class FutureUtilsTest extends TestLogger {
 
     /** Tests that retry with delay fails after having exceeded all retries. */
     @Test(expected = FutureUtils.RetryException.class)
-    public void testRetryWithDelayFixedArgsFailure() throws Throwable {
-        CompletableFuture<?> retryFuture =
-                FutureUtils.retryWithDelay(
-                        () ->
-                                FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception")),
-                        3,
-                        Time.milliseconds(1L),
-                        TestingUtils.defaultScheduledExecutor());
-
-        try {
-            retryFuture.get(TestingUtils.TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-        } catch (ExecutionException ee) {
-            throw ExceptionUtils.stripExecutionException(ee);
-        }
-    }
-
-    /** Tests that retry with delay fails after having exceeded all retries. */
-    @Test(expected = FutureUtils.RetryException.class)
     public void testRetryWithDelayRetryStrategyFailure() throws Throwable {
         CompletableFuture<?> retryFuture =
                 FutureUtils.retryWithDelay(
@@ -235,7 +215,7 @@ public class FutureUtilsTest extends TestLogger {
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
                         new FixedRetryStrategy(3, Duration.ofMillis(1L)),
-                        TestingUtils.defaultScheduledExecutor());
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
         try {
             retryFuture.get(TestingUtils.TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -248,43 +228,6 @@ public class FutureUtilsTest extends TestLogger {
      * Tests that the delay is respected between subsequent retries of a retry future with retry
      * delay.
      */
-    @Test
-    public void testRetryWithDelayFixedArgs() throws Exception {
-        final int retries = 4;
-        final Time delay = Time.milliseconds(5L);
-        final AtomicInteger countDown = new AtomicInteger(retries);
-
-        long start = System.currentTimeMillis();
-
-        CompletableFuture<Boolean> retryFuture =
-                FutureUtils.retryWithDelay(
-                        () -> {
-                            if (countDown.getAndDecrement() == 0) {
-                                return CompletableFuture.completedFuture(true);
-                            } else {
-                                return FutureUtils.completedExceptionally(
-                                        new FlinkException("Test exception."));
-                            }
-                        },
-                        retries,
-                        delay,
-                        TestingUtils.defaultScheduledExecutor());
-
-        Boolean result = retryFuture.get();
-
-        long completionTime = System.currentTimeMillis() - start;
-
-        assertTrue(result);
-        assertTrue(
-                "The completion time should be at least retries times delay between retries.",
-                completionTime >= retries * delay.toMilliseconds());
-    }
-
-    /**
-     * Tests that the delay is respected between subsequent retries of a retry future with retry
-     * delay.
-     */
-    @Test
     public void testRetryWithDelayRetryStrategy() throws Exception {
         final int retries = 4;
         final Time delay = Time.milliseconds(5L);
@@ -304,7 +247,7 @@ public class FutureUtilsTest extends TestLogger {
                         },
                         new ExponentialBackoffRetryStrategy(
                                 retries, Duration.ofMillis(2L), Duration.ofMillis(5L)),
-                        TestingUtils.defaultScheduledExecutor());
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
         Boolean result = retryFuture.get();
 
@@ -318,7 +261,7 @@ public class FutureUtilsTest extends TestLogger {
 
     /** Tests that all scheduled tasks are canceled if the retry future is being cancelled. */
     @Test
-    public void testRetryWithDelayCancellation() {
+    public void testRetryWithDelayRetryStrategyCancellation() {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
 
@@ -327,8 +270,7 @@ public class FutureUtilsTest extends TestLogger {
                         () ->
                                 FutureUtils.completedExceptionally(
                                         new FlinkException("Test exception")),
-                        1,
-                        TestingUtils.infiniteTime(),
+                        new FixedRetryStrategy(1, TestingUtils.infiniteDuration()),
                         scheduledExecutor);
 
         assertFalse(retryFuture.isDone());
@@ -393,7 +335,7 @@ public class FutureUtilsTest extends TestLogger {
                 FutureUtils.scheduleWithDelay(
                         noOpRunnable,
                         TestingUtils.infiniteTime(),
-                        TestingUtils.defaultScheduledExecutor());
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
 
         assertFalse(completableFuture.isDone());
 
@@ -416,8 +358,8 @@ public class FutureUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testRetryWithDelayAndPredicate() throws Exception {
-        final ScheduledExecutorService retryExecutor = TEST_EXECUTOR_RESOURCE.getExecutor();
+    public void testRetryWithDelayRetryStrategyAndPredicate() throws Exception {
+        final ScheduledExecutorService retryExecutor = EXECUTOR_RESOURCE.getExecutor();
         final String retryableExceptionMessage = "first exception";
         class TestStringSupplier implements Supplier<CompletableFuture<String>> {
             private final AtomicInteger counter = new AtomicInteger();
@@ -437,8 +379,7 @@ public class FutureUtilsTest extends TestLogger {
         try {
             FutureUtils.retryWithDelay(
                             new TestStringSupplier(),
-                            1,
-                            Time.seconds(0),
+                            new FixedRetryStrategy(1, Duration.ZERO),
                             throwable ->
                                     throwable instanceof RuntimeException
                                             && throwable
@@ -733,7 +674,7 @@ public class FutureUtilsTest extends TestLogger {
                         () -> {
                             throw testException;
                         },
-                        TestingUtils.defaultExecutor());
+                        EXECUTOR_RESOURCE.getExecutor());
 
         try {
             future.get();
@@ -749,7 +690,7 @@ public class FutureUtilsTest extends TestLogger {
     public void testSupplyAsync() throws Exception {
         final Object expectedResult = new Object();
         final CompletableFuture<Object> future =
-                FutureUtils.supplyAsync(() -> expectedResult, TestingUtils.defaultExecutor());
+                FutureUtils.supplyAsync(() -> expectedResult, EXECUTOR_RESOURCE.getExecutor());
 
         assertEquals(future.get(), expectedResult);
     }
@@ -1022,7 +963,7 @@ public class FutureUtilsTest extends TestLogger {
     public void testSwitchExecutorForNormallyCompletedFuture() {
         final CompletableFuture<String> source = new CompletableFuture<>();
 
-        final ExecutorService singleThreadExecutor = TEST_EXECUTOR_RESOURCE.getExecutor();
+        final ExecutorService singleThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
         final CompletableFuture<String> resultFuture =
                 FutureUtils.switchExecutor(source, singleThreadExecutor);
@@ -1050,7 +991,7 @@ public class FutureUtilsTest extends TestLogger {
     public void testSwitchExecutorForExceptionallyCompletedFuture() {
         final CompletableFuture<String> source = new CompletableFuture<>();
 
-        final ExecutorService singleThreadExecutor = TEST_EXECUTOR_RESOURCE.getExecutor();
+        final ExecutorService singleThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
 
         final CompletableFuture<String> resultFuture =
                 FutureUtils.switchExecutor(source, singleThreadExecutor);

@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.PythonEnvironment;
@@ -94,6 +94,7 @@ import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
+import static org.apache.flink.python.PythonOptions.USE_MANAGED_MEMORY;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
@@ -112,13 +113,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The Python process execution environment manager. */
     private final ProcessPythonEnvironmentManager environmentManager;
 
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
-
     /** The flinkMetricContainer will be set to null if metric is configured to be turned off. */
-    @Nullable private FlinkMetricContainer flinkMetricContainer;
+    @Nullable private final FlinkMetricContainer flinkMetricContainer;
 
-    @Nullable private TimerRegistration timerRegistration;
+    @Nullable private final KeyedStateBackend<?> keyedStateBackend;
+
+    @Nullable private final TypeSerializer<?> keySerializer;
+
+    @Nullable private final TypeSerializer<?> namespaceSerializer;
+
+    @Nullable private final TimerRegistration timerRegistration;
 
     private final MemoryManager memoryManager;
 
@@ -145,7 +149,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private transient StageBundleFactory stageBundleFactory;
 
     /** Handler for state requests. */
-    private final StateRequestHandler stateRequestHandler;
+    private transient StateRequestHandler stateRequestHandler;
 
     /** Handler for bundle progress messages, both during bundle execution and on its completion. */
     private transient BundleProgressHandler progressHandler;
@@ -178,11 +182,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     public BeamPythonFunctionRunner(
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
-            Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
-            @Nullable KeyedStateBackend keyedStateBackend,
-            @Nullable TypeSerializer keySerializer,
-            @Nullable TypeSerializer namespaceSerializer,
+            @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable TypeSerializer<?> keySerializer,
+            @Nullable TypeSerializer<?> namespaceSerializer,
             @Nullable TimerRegistration timerRegistration,
             MemoryManager memoryManager,
             double managedMemoryFraction,
@@ -190,11 +193,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
-        this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
-        this.stateRequestHandler =
-                getStateRequestHandler(
-                        keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
+        this.keyedStateBackend = keyedStateBackend;
+        this.keySerializer = keySerializer;
+        this.namespaceSerializer = namespaceSerializer;
         this.timerRegistration = timerRegistration;
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
@@ -205,10 +207,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     // ------------------------------------------------------------------------
 
     @Override
-    public void open(PythonConfig config) throws Exception {
+    public void open(ReadableConfig config) throws Exception {
         this.bundleStarted = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
         this.reusableResultTuple = new Tuple2<>();
+
+        stateRequestHandler =
+                getStateRequestHandler(
+                        keyedStateBackend, keySerializer, namespaceSerializer, config);
 
         // The creation of stageBundleFactory depends on the initialized environment manager.
         environmentManager.open();
@@ -216,31 +222,30 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         PortablePipelineOptions portableOptions =
                 PipelineOptionsFactory.as(PortablePipelineOptions.class);
 
-        if (jobOptions.containsKey(PythonOptions.STATE_CACHE_SIZE.key())) {
+        int stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
+        if (stateCacheSize > 0) {
             portableOptions
                     .as(ExperimentalOptions.class)
                     .setExperiments(
                             Collections.singletonList(
-                                    ExperimentalOptions.STATE_CACHE_SIZE
-                                            + "="
-                                            + jobOptions.get(
-                                                    PythonOptions.STATE_CACHE_SIZE.key())));
+                                    ExperimentalOptions.STATE_CACHE_SIZE + "=" + stateCacheSize));
         }
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-        if (memoryManager != null && config.isUsingManagedMemory()) {
+        if (memoryManager != null && config.get(USE_MANAGED_MEMORY)) {
             Preconditions.checkArgument(
                     managedMemoryFraction > 0 && managedMemoryFraction <= 1.0,
-                    "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s. "
-                            + "It may be because the consumer type \"Python\" was missing or set to 0 for the config option \"taskmanager.memory.managed.consumer-weights\"."
-                            + managedMemoryFraction);
+                    String.format(
+                            "The configured managed memory fraction for Python worker process must be within (0, 1], was: %s. "
+                                    + "It may be because the consumer type \"Python\" was missing or set to 0 for the config option \"taskmanager.memory.managed.consumer-weights\".",
+                            managedMemoryFraction));
 
             final LongFunctionWithException<PythonSharedResources, Exception> initializer =
                     (size) ->
                             new PythonSharedResources(
                                     createJobBundleFactory(pipelineOptions),
-                                    createPythonExecutionEnvironment(size));
+                                    createPythonExecutionEnvironment(config, size));
 
             sharedResources =
                     memoryManager.getSharedMemoryResourceForManagedMemory(
@@ -259,7 +264,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             jobBundleFactory = createJobBundleFactory(pipelineOptions);
             stageBundleFactory =
                     createStageBundleFactory(
-                            jobBundleFactory, createPythonExecutionEnvironment(-1));
+                            jobBundleFactory, createPythonExecutionEnvironment(config, -1));
         }
         progressHandler = getProgressHandler(flinkMetricContainer);
     }
@@ -390,13 +395,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
      * Creates a specification which specifies the portability Python execution environment. It's
      * used by Beam's portability framework to creates the actual Python execution environment.
      */
-    private RunnerApi.Environment createPythonExecutionEnvironment(long memoryLimitBytes)
-            throws Exception {
+    private RunnerApi.Environment createPythonExecutionEnvironment(
+            ReadableConfig config, long memoryLimitBytes) throws Exception {
         PythonEnvironment environment = environmentManager.createEnvironment();
         if (environment instanceof ProcessPythonEnvironment) {
             ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
             Map<String, String> env = processEnvironment.getEnv();
-            env.putAll(jobOptions);
+            config.getOptional(PythonOptions.PYTHON_JOB_OPTIONS).ifPresent(env::putAll);
             env.put(PYTHON_WORKER_MEMORY_LIMIT, String.valueOf(memoryLimitBytes));
             return Environments.createProcessEnvironment(
                     "", "", processEnvironment.getCommand(), env);
@@ -596,16 +601,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     private static StateRequestHandler getStateRequestHandler(
-            KeyedStateBackend keyedStateBackend,
-            TypeSerializer keySerializer,
-            TypeSerializer namespaceSerializer,
-            Map<String, String> jobOptions) {
+            KeyedStateBackend<?> keyedStateBackend,
+            TypeSerializer<?> keySerializer,
+            TypeSerializer<?> namespaceSerializer,
+            ReadableConfig config) {
         if (keyedStateBackend == null) {
             return StateRequestHandler.unsupported();
         } else {
             assert keySerializer != null;
             return new SimpleStateRequestHandler(
-                    keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
+                    keyedStateBackend, keySerializer, namespaceSerializer, config);
         }
     }
 }

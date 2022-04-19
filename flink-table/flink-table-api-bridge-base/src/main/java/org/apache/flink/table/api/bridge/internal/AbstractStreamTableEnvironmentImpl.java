@@ -98,14 +98,12 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     }
 
     public static Executor lookupExecutor(
-            ClassLoader classLoader,
-            String executorIdentifier,
-            StreamExecutionEnvironment executionEnvironment) {
+            ClassLoader classLoader, StreamExecutionEnvironment executionEnvironment) {
         final ExecutorFactory executorFactory;
         try {
             executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, executorIdentifier);
+                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
@@ -227,7 +225,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         final Transformation<T> transformation = getTransformation(table, transformations);
         executionEnvironment.addOperator(transformation);
 
-        // reconfigure whenever planner transformations are added
+        // Reconfigure whenever planner transformations are added
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         executionEnvironment.configure(tableConfig.getConfiguration());
 
         return new DataStream<>(executionEnvironment, transformation);

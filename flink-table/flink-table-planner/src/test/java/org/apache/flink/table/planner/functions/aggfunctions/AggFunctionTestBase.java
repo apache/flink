@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for aggregate function test.
@@ -209,7 +209,7 @@ public abstract class AggFunctionTestBase<T, ACC> {
     }
 
     protected <E> void validateResult(E expected, E result) {
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     protected ACC accumulateValues(List<T> values)

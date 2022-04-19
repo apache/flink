@@ -123,10 +123,10 @@ The following table lists specifiers for time interval and time point units.
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 
 | Time Interval Unit       | Time Point Unit                |
-| :----------------------- | :----------------------------- |
-| `MILLENIUM` _(SQL-only)_ |                                |
-| `CENTURY` _(SQL-only)_   |                                |
-| `DECADE` _(SQL-only)_    |                                |
+|:-------------------------|:-------------------------------|
+| `MILLENNIUM`             |                                |
+| `CENTURY`                |                                |
+| `DECADE`                 |                                |
 | `YEAR`                   | `YEAR`                         |
 | `YEAR TO MONTH`          |                                |
 | `QUARTER`                | `QUARTER`                      |
@@ -142,10 +142,13 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 | `MINUTE`                 | `MINUTE`                       |
 | `MINUTE TO SECOND`       |                                |
 | `SECOND`                 | `SECOND`                       |
-|                          | `MILLISECOND`                  |
-|                          | `MICROSECOND`                  |
+| `MILLISECOND`            | `MILLISECOND`                  |
+| `MICROSECOND`            | `MICROSECOND`                  |
+| `NANOSECOND`             |                                |
+| `EPOCH`                  |                                |
 | `DOY` _(SQL-only)_       |                                |
 | `DOW` _(SQL-only)_       |                                |
+| `EPOCH` _(SQL-only)_     |                                |
 | `ISODOW` _(SQL-only)_    |                                |
 | `ISOYEAR` _(SQL-only)_   |                                |
 |                          | `SQL_TSI_YEAR` _(SQL-only)_    |
@@ -209,7 +212,7 @@ The column functions can be used in all places where column fields are expected,
 ```java
 table
    .groupBy("withColumns(1 to 3)")
-   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

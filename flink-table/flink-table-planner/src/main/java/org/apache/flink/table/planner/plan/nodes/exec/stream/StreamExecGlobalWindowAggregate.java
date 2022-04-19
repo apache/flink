@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
@@ -31,16 +31,16 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.groupwindow.WindowProperty;
@@ -57,8 +57,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
@@ -99,11 +97,10 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
     /** The input row type of this node's local agg. */
     @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE)
-    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
-    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     private final RowType localAggInputRowType;
 
     public StreamExecGlobalWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
@@ -115,6 +112,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGlobalWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGlobalWindowAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 windowing,
@@ -129,6 +128,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     public StreamExecGlobalWindowAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
@@ -138,7 +138,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE) RowType localAggInputRowType,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
@@ -148,19 +148,22 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
-        final TableConfig config = planner.getTableConfig();
         final ZoneId shiftTimeZone =
-                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), config);
+                TimeWindowUtil.getShiftTimeZone(
+                        windowing.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList localAggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
@@ -168,6 +171,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
         final AggregateInfoList globalAggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
@@ -237,8 +241,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(
-                                GLOBAL_WINDOW_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(GLOBAL_WINDOW_AGGREGATE_TRANSFORMATION, config),
                         SimpleOperatorFactory.of(windowOperator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),
@@ -257,7 +260,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             int mergedAccOffset,
             boolean mergedAccIsOnHeap,
             DataType[] mergedAccExternalTypes,
-            TableConfig config,
+            ExecNodeConfig config,
             RelBuilder relBuilder,
             ZoneId shifTimeZone) {
         final AggsHandlerCodeGenerator generator =

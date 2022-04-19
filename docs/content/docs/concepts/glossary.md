@@ -104,6 +104,13 @@ per running [Flink Job](#flink-job).
 JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
 responsible for supervising the execution of the [Tasks](#task) of a single job.
 
+#### JobResultStore
+
+The JobResultStore is a Flink component that persists the results of globally terminated
+(i.e. finished, cancelled or failed) jobs to a filesystem, allowing the results to outlive
+a finished job. These results are then used by Flink to determine whether jobs should
+be subject to recovery in highly-available clusters.
+
 #### Logical Graph
 
 A logical graph is a directed graph where the nodes are  [Operators](#operator)

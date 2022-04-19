@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.function.TriConsumer;
 
@@ -51,17 +52,20 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             internalDeregisterApplicationConsumer;
     private final BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
             getTerminationFutureFunction;
+    private final boolean supportMultiLeaderSession;
 
     public TestingResourceManagerFactory(
             Consumer<UUID> initializeConsumer,
             Consumer<UUID> terminateConsumer,
             TriConsumer<UUID, ApplicationStatus, String> internalDeregisterApplicationConsumer,
             BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
-                    getTerminationFutureFunction) {
+                    getTerminationFutureFunction,
+            boolean supportMultiLeaderSession) {
         this.initializeConsumer = initializeConsumer;
         this.terminateConsumer = terminateConsumer;
         this.internalDeregisterApplicationConsumer = internalDeregisterApplicationConsumer;
         this.getTerminationFutureFunction = getTerminationFutureFunction;
+        this.supportMultiLeaderSession = supportMultiLeaderSession;
     }
 
     @Override
@@ -71,6 +75,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             RpcService rpcService,
             UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -83,6 +88,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
                 resourceManagerRuntimeServices.getJobLeaderIdService(),
@@ -101,6 +107,11 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 .createResourceManagerRuntimeServicesConfiguration(configuration);
     }
 
+    @Override
+    public boolean supportMultiLeaderSession() {
+        return supportMultiLeaderSession;
+    }
+
     public static class Builder {
         private Consumer<UUID> initializeConsumer = (ignore) -> {};
         private Consumer<UUID> terminateConsumer = (ignore) -> {};
@@ -109,6 +120,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
         private BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
                 getTerminationFutureFunction =
                         (rm, superTerminationFuture) -> superTerminationFuture;
+        private boolean supportMultiLeaderSession = true;
 
         public Builder setInitializeConsumer(Consumer<UUID> initializeConsumer) {
             this.initializeConsumer = initializeConsumer;
@@ -134,12 +146,18 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             return this;
         }
 
+        public Builder setSupportMultiLeaderSession(boolean supportMultiLeaderSession) {
+            this.supportMultiLeaderSession = supportMultiLeaderSession;
+            return this;
+        }
+
         public TestingResourceManagerFactory build() {
             return new TestingResourceManagerFactory(
                     initializeConsumer,
                     terminateConsumer,
                     internalDeregisterApplicationConsumer,
-                    getTerminationFutureFunction);
+                    getTerminationFutureFunction,
+                    supportMultiLeaderSession);
         }
     }
 
@@ -152,6 +170,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 UUID leaderSessionId,
                 ResourceID resourceId,
                 HeartbeatServices heartbeatServices,
+                DelegationTokenManager delegationTokenManager,
                 SlotManager slotManager,
                 ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
                 JobLeaderIdService jobLeaderIdService,
@@ -165,6 +184,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                     leaderSessionId,
                     resourceId,
                     heartbeatServices,
+                    delegationTokenManager,
                     slotManager,
                     clusterPartitionTrackerFactory,
                     jobLeaderIdService,

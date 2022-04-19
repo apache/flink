@@ -40,7 +40,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
@@ -262,7 +261,6 @@ public class PythonStreamGroupAggregateOperatorTest
                     outputType,
                     STREAM_GROUP_AGGREGATE_URN,
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     getKeyedStateBackend(),
                     getKeySerializer(),

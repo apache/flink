@@ -20,7 +20,6 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -40,7 +39,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
 /** Tests for Reactive Mode (FLIP-159). */
@@ -146,9 +144,7 @@ public class ReactiveModeITCase extends TestLogger {
 
     private void startAdditionalTaskManager() throws Exception {
         miniClusterResource.getMiniCluster().startTaskManager();
-        CommonTestUtils.waitUntilCondition(
-                () -> getNumberOfConnectedTaskManagers() == 2,
-                Deadline.fromNow(Duration.ofMillis(10_000L)));
+        CommonTestUtils.waitUntilCondition(() -> getNumberOfConnectedTaskManagers() == 2);
     }
 
     private static class DummySource implements SourceFunction<String> {
@@ -213,7 +209,6 @@ public class ReactiveModeITCase extends TestLogger {
                         }
                     }
                     return false;
-                },
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                });
     }
 }

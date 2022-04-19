@@ -21,7 +21,6 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -47,7 +46,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -160,9 +158,7 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
     private void waitUntilAllVerticesRunning(JobID jobId, MiniCluster miniCluster)
             throws Exception {
         CommonTestUtils.waitForAllTaskRunning(
-                () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS),
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-                false);
+                () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS), false);
     }
 
     private JobGraph createJobGraph(int parallelism) throws IOException {

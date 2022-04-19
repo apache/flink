@@ -24,6 +24,8 @@ import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicConsumingC
 import org.apache.flink.connector.pulsar.testutils.cases.SingleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
+import org.apache.flink.connector.testframe.environment.TestEnvironment;
+import org.apache.flink.connector.testframe.external.source.DataStreamSourceExternalContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
@@ -34,7 +36,6 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 /** Unite test class for {@link PulsarSource}. */
 @SuppressWarnings("unused")
 class PulsarSourceITCase extends SourceTestSuiteBase<String> {
-
     // Defines test environment on Flink MiniCluster
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
@@ -54,4 +55,22 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestContext
     PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
             new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+
+    @Override
+    public void testScaleUp(
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<String> externalContext,
+            CheckpointingMode semantic)
+            throws Exception {
+        super.testScaleUp(testEnv, externalContext, semantic);
+    }
+
+    @Override
+    public void testScaleDown(
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<String> externalContext,
+            CheckpointingMode semantic)
+            throws Exception {
+        super.testScaleDown(testEnv, externalContext, semantic);
+    }
 }

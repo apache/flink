@@ -334,7 +334,7 @@ dataStream.union(otherStream1, otherStream2, ...);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-dataStream.union(otherStream1, otherStream2, ...);
+dataStream.union(otherStream1, otherStream2, ...)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -773,7 +773,7 @@ The description can contain detail information about operators to facilitate deb
 {{< tabs namedescription >}}
 {{< tab "Java" >}}
 ```java
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

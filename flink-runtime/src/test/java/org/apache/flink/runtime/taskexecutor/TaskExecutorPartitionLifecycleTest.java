@@ -66,6 +66,7 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
@@ -91,6 +92,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
@@ -119,8 +121,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @ClassRule
-    public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
-            new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
+    public static final TestExecutorResource<ScheduledExecutorService>
+            TEST_EXECUTOR_SERVICE_RESOURCE = TestingUtils.defaultExecutorResource();
 
     @Before
     public void setup() {
@@ -612,7 +614,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {
-        return TaskSlotUtils.createTaskSlotTable(1, timeout);
+        return TaskSlotUtils.createTaskSlotTable(
+                1, timeout, TEST_EXECUTOR_SERVICE_RESOURCE.getExecutor());
     }
 
     @FunctionalInterface

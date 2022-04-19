@@ -20,13 +20,14 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.util.FileUtils;
@@ -41,18 +42,19 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** This class contains auxiliary methods for unit tests. */
@@ -131,40 +133,16 @@ public class CommonTestUtils {
         }
     }
 
-    public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition, Deadline timeout)
+    public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition)
             throws Exception {
-        waitUntilCondition(condition, timeout, RETRY_INTERVAL);
+        waitUntilCondition(condition, RETRY_INTERVAL);
     }
 
     public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition,
-            Deadline timeout,
-            long retryIntervalMillis)
+            SupplierWithException<Boolean, Exception> condition, long retryIntervalMillis)
             throws Exception {
-        waitUntilCondition(
-                condition, timeout, retryIntervalMillis, "Condition was not met in given timeout.");
-    }
-
-    public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition, Deadline timeout, String errorMsg)
-            throws Exception {
-        waitUntilCondition(condition, timeout, RETRY_INTERVAL, errorMsg);
-    }
-
-    public static void waitUntilCondition(
-            SupplierWithException<Boolean, Exception> condition,
-            Deadline timeout,
-            long retryIntervalMillis,
-            String errorMsg)
-            throws Exception {
-        while (timeout.hasTimeLeft() && !condition.get()) {
-            final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
-            Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
-        }
-
-        if (!timeout.hasTimeLeft()) {
-            throw new TimeoutException(errorMsg);
+        while (!condition.get()) {
+            Thread.sleep(retryIntervalMillis);
         }
     }
 
@@ -180,17 +158,6 @@ public class CommonTestUtils {
 
     public static void waitForAllTaskRunning(
             SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
-            boolean allowFinished)
-            throws Exception {
-        waitForAllTaskRunning(
-                executionGraphSupplier,
-                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)),
-                allowFinished);
-    }
-
-    public static void waitForAllTaskRunning(
-            SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
-            Deadline timeout,
             boolean allowFinished)
             throws Exception {
         Predicate<AccessExecutionVertex> subtaskPredicate =
@@ -225,13 +192,11 @@ public class CommonTestUtils {
                                             jobVertex ->
                                                     Arrays.stream(jobVertex.getTaskVertices())
                                                             .allMatch(subtaskPredicate));
-                },
-                timeout);
+                });
     }
 
     public static void waitForAllTaskRunning(
-            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier, Deadline timeout)
-            throws Exception {
+            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier) throws Exception {
         waitUntilCondition(
                 () -> {
                     final JobDetailsInfo jobDetailsInfo = jobDetailsSupplier.get();
@@ -249,39 +214,27 @@ public class CommonTestUtils {
                         }
                     }
                     return true;
-                },
-                timeout,
-                "Some tasks are not running until timeout");
+                });
     }
 
     public static void waitForNoTaskRunning(
-            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier, Deadline timeout)
-            throws Exception {
+            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier) throws Exception {
         waitUntilCondition(
                 () -> {
                     final Map<ExecutionState, Integer> state =
                             jobDetailsSupplier.get().getJobVerticesPerState();
                     final Integer numRunningTasks = state.get(ExecutionState.RUNNING);
                     return numRunningTasks == null || numRunningTasks.equals(0);
-                },
-                timeout,
-                "Some tasks are still running until timeout");
+                });
     }
 
     public static void waitUntilJobManagerIsInitialized(
             SupplierWithException<JobStatus, Exception> jobStatusSupplier) throws Exception {
-        waitUntilJobManagerIsInitialized(
-                jobStatusSupplier, Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+        waitUntilCondition(() -> jobStatusSupplier.get() != JobStatus.INITIALIZING, 20L);
     }
 
-    public static void waitUntilJobManagerIsInitialized(
-            SupplierWithException<JobStatus, Exception> jobStatusSupplier, Deadline timeout)
+    public static void waitForJobStatus(JobClient client, List<JobStatus> expectedStatus)
             throws Exception {
-        waitUntilCondition(() -> jobStatusSupplier.get() != JobStatus.INITIALIZING, timeout, 20L);
-    }
-
-    public static void waitForJobStatus(
-            JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
         waitUntilCondition(
                 () -> {
                     final JobStatus currentStatus = client.getJobStatus().get();
@@ -311,8 +264,7 @@ public class CommonTestUtils {
 
                     // Continue waiting for expected status
                     return false;
-                },
-                deadline);
+                });
     }
 
     public static void terminateJob(JobClient client) throws Exception {
@@ -355,8 +307,49 @@ public class CommonTestUtils {
                     return allSubtasks
                             ? vertexStream.allMatch(subtaskPredicate)
                             : vertexStream.anyMatch(subtaskPredicate);
-                },
-                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+                });
+    }
+
+    /** Wait for (at least) the given number of successful checkpoints. */
+    public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, int numCheckpoints)
+            throws Exception, FlinkJobNotFoundException {
+        waitUntilCondition(
+                () -> {
+                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
+                    if (Optional.ofNullable(graph.getCheckpointStatsSnapshot())
+                            .filter(
+                                    st ->
+                                            st.getCounts().getNumberOfCompletedCheckpoints()
+                                                    >= numCheckpoints)
+                            .isPresent()) {
+                        return true;
+                    } else if (graph.getState().isGloballyTerminalState()) {
+                        checkState(
+                                graph.getFailureInfo() != null,
+                                "Job terminated before taking required %s checkpoints: %s",
+                                numCheckpoints,
+                                graph.getState());
+                        throw graph.getFailureInfo().getException();
+                    } else {
+                        return false;
+                    }
+                });
+    }
+
+    /**
+     * @return the path as {@link java.net.URI} to the latest checkpoint.
+     * @throws FlinkJobNotFoundException if job not found
+     */
+    public static Optional<String> getLatestCompletedCheckpointPath(
+            JobID jobID, MiniCluster cluster)
+            throws InterruptedException, ExecutionException, FlinkJobNotFoundException {
+        return Optional.ofNullable(
+                        cluster.getExecutionGraph(jobID).get().getCheckpointStatsSnapshot())
+                .flatMap(
+                        stats ->
+                                Optional.ofNullable(
+                                        stats.getHistory().getLatestCompletedCheckpoint()))
+                .map(CompletedCheckpointStats::getExternalPath);
     }
 
     /** Utility class to read the output of a process stream and forward it into a StringWriter. */

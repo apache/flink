@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -50,7 +51,7 @@ import java.util.Collections;
  * serialized by the previous versions.
  */
 @RunWith(Parameterized.class)
-public class FileSinkCommittableSerializerMigrationTest {
+public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
 
     private static final int CURRENT_VERSION = 1;
 
@@ -89,7 +90,7 @@ public class FileSinkCommittableSerializerMigrationTest {
 
         OutputStreamBasedInProgressFileRecoverable recoverable =
                 new OutputStreamBasedInProgressFileRecoverable(resumeRecoverable);
-        FileSinkCommittable committable = new FileSinkCommittable(recoverable);
+        FileSinkCommittable committable = new FileSinkCommittable("0", recoverable);
 
         byte[] bytes = serializer.serialize(committable);
         Files.write(path.resolve("committable"), bytes);
@@ -134,7 +135,7 @@ public class FileSinkCommittableSerializerMigrationTest {
 
         OutputStreamBasedPendingFileRecoverable recoverable =
                 new OutputStreamBasedPendingFileRecoverable(commitRecoverable);
-        FileSinkCommittable committable = new FileSinkCommittable(recoverable);
+        FileSinkCommittable committable = new FileSinkCommittable("0", recoverable);
 
         byte[] bytes = serializer.serialize(committable);
         Files.write(path.resolve("committable"), bytes);

@@ -255,6 +255,16 @@ public class RocksDBConfigurableOptions implements Serializable {
                             "If true, RocksDB will use block-based filter instead of full filter, this only take effect when bloom filter is used. "
                                     + "The default value is 'false'.");
 
+    public static final ConfigOption<Double> RESTORE_OVERLAP_FRACTION_THRESHOLD =
+            key("state.backend.rocksdb.restore-overlap-fraction-threshold")
+                    .doubleType()
+                    .defaultValue(0.0)
+                    .withDescription(
+                            "The threshold of overlap fraction between the handle's key-group range and target key-group range. "
+                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to threshold "
+                                    + "has a chance to be an initial handle. "
+                                    + "The default value is 0.0, there is always a handle will be selected for initialization. ");
+
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable DBOptions
@@ -278,7 +288,8 @@ public class RocksDBConfigurableOptions implements Serializable {
                 BLOCK_CACHE_SIZE,
                 USE_BLOOM_FILTER,
                 BLOOM_FILTER_BITS_PER_KEY,
-                BLOOM_FILTER_BLOCK_BASED_MODE
+                BLOOM_FILTER_BLOCK_BASED_MODE,
+                RESTORE_OVERLAP_FRACTION_THRESHOLD
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =

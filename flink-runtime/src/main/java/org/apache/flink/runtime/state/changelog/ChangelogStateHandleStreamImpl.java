@@ -100,7 +100,7 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     @Nullable
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-        KeyGroupRange offsets = keyGroupRange.getIntersection(keyGroupRange);
+        KeyGroupRange offsets = this.keyGroupRange.getIntersection(keyGroupRange);
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }

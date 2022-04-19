@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -181,12 +181,6 @@ under the License.
 					<artifactId>apiguardian-api</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<!-- For legacy string expressions in Table API -->
-			<groupId>org.scala-lang.modules</groupId>
-			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -351,9 +345,6 @@ under the License.
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
 							<include>org.apache.flink:flink-sql-parser-hive</include>
-
-							<!-- For legacy string expressions in Table API -->
-							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
 						</includes>
 					</artifactSet>
 					<relocations>
@@ -398,15 +389,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -434,8 +416,7 @@ under the License.
 								<include>**/*ITCase.*</include>
 							</includes>
 							<!-- override reuseForks to true to reduce testing time -->
-							<!-- temporarily set to false because the test consume too many resources -->
-							<reuseForks>false</reuseForks>
+							<reuseForks>true</reuseForks>
 						</configuration>
 					</execution>
 				</executions>

@@ -45,9 +45,11 @@ final class FlinkVersionJsonSerdeTest {
 
     @Test
     void testManualString() throws IOException {
+        final SerdeContext ctx = configuredSerdeContext();
+
         final String flinkVersion = "1.15";
 
-        assertThat(toJson(configuredSerdeContext(), FlinkVersion.v1_15))
-                .isEqualTo(JsonSerdeUtil.getObjectMapper().writeValueAsString(flinkVersion));
+        assertThat(toJson(ctx, FlinkVersion.v1_15))
+                .isEqualTo(JsonSerdeUtil.createObjectWriter(ctx).writeValueAsString(flinkVersion));
     }
 }

@@ -197,7 +197,7 @@ class FlinkPulsarTest(ConnectorTestBase):
         plan = eval(self.env.get_execution_plan())
         self.assertEqual('Source: pulsar source', plan['nodes'][0]['type'])
 
-        configuration = get_field_value(pulsar_source.get_java_function(), "configuration")
+        configuration = get_field_value(pulsar_source.get_java_function(), "sourceConfiguration")
         self.assertEqual(
             configuration.getString(
                 ConfigOptions.key('pulsar.client.serviceUrl')

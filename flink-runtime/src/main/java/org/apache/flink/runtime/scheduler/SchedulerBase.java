@@ -103,7 +103,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -246,7 +245,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         }
 
         try {
-            checkpointIdCounter.shutdown(jobStatus);
+            checkpointIdCounter.shutdown(jobStatus).get();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
@@ -807,10 +806,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     @VisibleForTesting
     Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
-        final Collection<RootExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
-        exceptionHistory.forEach(copy::add);
-
-        return copy;
+        return exceptionHistory.toArrayList();
     }
 
     @Override

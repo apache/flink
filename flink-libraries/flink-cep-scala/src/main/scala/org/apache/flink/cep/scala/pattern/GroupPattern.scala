@@ -17,24 +17,27 @@
  */
 package org.apache.flink.cep.scala.pattern
 
-import org.apache.flink.cep.pattern.conditions.IterativeCondition
 import org.apache.flink.cep.pattern.{GroupPattern => JGroupPattern}
+import org.apache.flink.cep.pattern.conditions.IterativeCondition
 
 /**
-  * Base class for a group pattern definition.
-  *
-  * @param jGroupPattern Underlying Java API GroupPattern
-  * @tparam T Base type of the elements appearing in the pattern
-  * @tparam F Subtype of T to which the current pattern operator is constrained
-  */
-class GroupPattern[T , F <: T](jGroupPattern: JGroupPattern[T, F])
-  extends Pattern[T , F](jGroupPattern) {
+ * Base class for a group pattern definition.
+ *
+ * @param jGroupPattern
+ *   Underlying Java API GroupPattern
+ * @tparam T
+ *   Base type of the elements appearing in the pattern
+ * @tparam F
+ *   Subtype of T to which the current pattern operator is constrained
+ */
+class GroupPattern[T, F <: T](jGroupPattern: JGroupPattern[T, F])
+  extends Pattern[T, F](jGroupPattern) {
 
-  override def where(condition: IterativeCondition[F] ) =
-    throw new UnsupportedOperationException ("GroupPattern does not support where clause.")
+  override def where(condition: IterativeCondition[F]) =
+    throw new UnsupportedOperationException("GroupPattern does not support where clause.")
 
-  override def or(condition: IterativeCondition[F] ) =
-    throw new UnsupportedOperationException ("GroupPattern does not support or clause.")
+  override def or(condition: IterativeCondition[F]) =
+    throw new UnsupportedOperationException("GroupPattern does not support or clause.")
 
   override def subtype[S <: F](clazz: Class[S]) =
     throw new UnsupportedOperationException("GroupPattern does not support subtype clause.")
@@ -44,13 +47,17 @@ class GroupPattern[T , F <: T](jGroupPattern: JGroupPattern[T, F])
 object GroupPattern {
 
   /**
-    * Constructs a new GroupPattern by wrapping a given Java API GroupPattern
-    *
-    * @param jGroupPattern Underlying Java API GroupPattern.
-    * @tparam T Base type of the elements appearing in the pattern
-    * @tparam F Subtype of T to which the current pattern operator is constrained
-    * @return New wrapping GroupPattern object
-    */
+   * Constructs a new GroupPattern by wrapping a given Java API GroupPattern
+   *
+   * @param jGroupPattern
+   *   Underlying Java API GroupPattern.
+   * @tparam T
+   *   Base type of the elements appearing in the pattern
+   * @tparam F
+   *   Subtype of T to which the current pattern operator is constrained
+   * @return
+   *   New wrapping GroupPattern object
+   */
   def apply[T, F <: T](jGroupPattern: JGroupPattern[T, F]) = new GroupPattern[T, F](jGroupPattern)
 
 }

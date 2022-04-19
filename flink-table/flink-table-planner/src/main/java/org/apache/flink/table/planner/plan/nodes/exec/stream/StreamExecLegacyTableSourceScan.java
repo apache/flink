@@ -21,16 +21,15 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
-import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -48,7 +47,6 @@ import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
@@ -64,6 +62,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         implements StreamExecNode<RowData> {
 
     public StreamExecLegacyTableSourceScan(
+            ReadableConfig tableConfig,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
@@ -71,6 +70,8 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLegacyTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecLegacyTableSourceScan.class, tableConfig),
                 tableSource,
                 qualifiedName,
                 outputType,
@@ -80,7 +81,8 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> createConversionTransformationIfNeeded(
-            PlannerBase planner,
+            StreamExecutionEnvironment streamExecEnv,
+            ExecNodeConfig config,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression) {
 
@@ -99,14 +101,13 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
             }
 
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(planner.getTableConfig())
+                    new CodeGeneratorContext(config)
                             .setOperatorBaseClass(TableStreamOperator.class);
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.
             // Code generation requires the correct precision of input fields.
             final DataType fixedProducedDataType =
                     TableSourceUtil.fixPrecisionForProducedDataType(tableSource, outputType);
-            final Configuration config = planner.getTableConfig().getConfiguration();
             transformation =
                     ScanUtil.convertToInternalRow(
                             ctx,
@@ -127,19 +128,17 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
             transformation = (Transformation<RowData>) sourceTransform;
         }
 
-        final RelDataType relDataType = FlinkTypeFactory.INSTANCE().buildRelNodeRowType(outputType);
-        final DataStream<RowData> ingestedTable =
-                new DataStream<>(planner.getExecEnv(), transformation);
+        final DataStream<RowData> ingestedTable = new DataStream<>(streamExecEnv, transformation);
         final Optional<RowtimeAttributeDescriptor> rowtimeDesc =
                 JavaScalaConversionUtil.toJava(
-                        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, relDataType));
+                        TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, outputType));
 
         final DataStream<RowData> withWatermarks =
                 rowtimeDesc
                         .map(
                                 desc -> {
                                     int rowtimeFieldIdx =
-                                            relDataType
+                                            outputType
                                                     .getFieldNames()
                                                     .indexOf(desc.getAttributeName());
                                     WatermarkStrategy strategy = desc.getWatermarkStrategy();

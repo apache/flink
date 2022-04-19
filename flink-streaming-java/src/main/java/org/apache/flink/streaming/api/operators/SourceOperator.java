@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -39,8 +40,6 @@ import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -68,6 +67,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -155,6 +155,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final SourceOperatorAvailabilityHelper availabilityHelper =
             new SourceOperatorAvailabilityHelper();
 
+    private final List<SplitT> outputPendingSplits = new ArrayList<>();
+
     private enum OperatingMode {
         READING,
         WAITING_FOR_ALIGNMENT,
@@ -171,7 +173,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
 
-    private @Nullable LatencyMarkerEmitter<OUT> latencyMarerEmitter;
+    private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -183,40 +185,17 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Configuration configuration,
             String localHostname,
             boolean emitProgressiveWatermarks) {
-        this(
-                readerFactory,
-                operatorEventGateway,
-                splitSerializer,
-                watermarkStrategy,
-                timeService,
-                configuration,
-                localHostname,
-                emitProgressiveWatermarks,
-                SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
-    }
-
-    public SourceOperator(
-            FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
-                    readerFactory,
-            OperatorEventGateway operatorEventGateway,
-            SimpleVersionedSerializer<SplitT> splitSerializer,
-            WatermarkStrategy<OUT> watermarkStrategy,
-            ProcessingTimeService timeService,
-            Configuration configuration,
-            String localHostname,
-            boolean emitProgressiveWatermarks,
-            WatermarkAlignmentParams watermarkAlignmentParams) {
 
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
         this.splitSerializer = checkNotNull(splitSerializer);
         this.watermarkStrategy = checkNotNull(watermarkStrategy);
-        this.watermarkAlignmentParams = watermarkAlignmentParams;
         this.processingTimeService = timeService;
         this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
         this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
+        this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
     }
 
     @Override
@@ -358,8 +337,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
-        if (latencyMarerEmitter != null) {
-            latencyMarerEmitter.close();
+        if (latencyMarkerEmitter != null) {
+            latencyMarkerEmitter.close();
         }
     }
 
@@ -420,11 +399,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             watermarkAlignmentParams.getUpdateInterval(),
                             watermarkAlignmentParams.getUpdateInterval());
                 }
-                currentMainOutput =
-                        eventTimeLogic.createMainOutput(output, this::onWatermarkEmitted);
-                initializeLatencyMarkerEmitter(output);
-                lastInvokedOutput = output;
-                this.operatingMode = OperatingMode.READING;
+                initializeMainOutput(output);
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
             case SOURCE_STOPPED:
                 this.operatingMode = OperatingMode.DATA_FINISHED;
@@ -447,6 +422,15 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
     }
 
+    private void initializeMainOutput(DataOutput<OUT> output) {
+        currentMainOutput = eventTimeLogic.createMainOutput(output, this::onWatermarkEmitted);
+        initializeLatencyMarkerEmitter(output);
+        lastInvokedOutput = output;
+        // Create per-split output for pending splits added before main output is initialized
+        createOutputForSplits(outputPendingSplits);
+        this.operatingMode = OperatingMode.READING;
+    }
+
     private void initializeLatencyMarkerEmitter(DataOutput<OUT> output) {
         long latencyTrackingInterval =
                 getExecutionConfig().isLatencyTrackingConfigured()
@@ -457,7 +441,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                 .getConfiguration()
                                 .getLong(MetricOptions.LATENCY_INTERVAL);
         if (latencyTrackingInterval > 0) {
-            latencyMarerEmitter =
+            latencyMarkerEmitter =
                     new LatencyMarkerEmitter<>(
                             getProcessingTimeService(),
                             output::emitLatencyMarker,
@@ -536,14 +520,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @SuppressWarnings("unchecked")
     public void handleOperatorEvent(OperatorEvent event) {
         if (event instanceof WatermarkAlignmentEvent) {
-            currentMaxDesiredWatermark = ((WatermarkAlignmentEvent) event).getMaxWatermark();
+            updateMaxDesiredWatermark((WatermarkAlignmentEvent) event);
             checkWatermarkAlignment();
         } else if (event instanceof AddSplitEvent) {
-            try {
-                sourceReader.addSplits(((AddSplitEvent<SplitT>) event).splits(splitSerializer));
-            } catch (IOException e) {
-                throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
-            }
+            handleAddSplitsEvent(((AddSplitEvent<SplitT>) event));
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
@@ -551,6 +531,35 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
         }
+    }
+
+    private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
+        try {
+            List<SplitT> newSplits = event.splits(splitSerializer);
+            if (operatingMode == OperatingMode.OUTPUT_NOT_INITIALIZED) {
+                // For splits arrived before the main output is initialized, store them into the
+                // pending list. Outputs of these splits will be created once the main output is
+                // ready.
+                outputPendingSplits.addAll(newSplits);
+            } else {
+                // Create output directly for new splits if the main output is already initialized.
+                createOutputForSplits(newSplits);
+            }
+            sourceReader.addSplits(newSplits);
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
+        }
+    }
+
+    private void createOutputForSplits(List<SplitT> newSplits) {
+        for (SplitT split : newSplits) {
+            currentMainOutput.createOutputForSplit(split.splitId());
+        }
+    }
+
+    private void updateMaxDesiredWatermark(WatermarkAlignmentEvent event) {
+        currentMaxDesiredWatermark = event.getMaxWatermark();
+        sourceMetricGroup.updateMaxDesiredWatermark(currentMaxDesiredWatermark);
     }
 
     private void onWatermarkEmitted(long emittedWatermark) {

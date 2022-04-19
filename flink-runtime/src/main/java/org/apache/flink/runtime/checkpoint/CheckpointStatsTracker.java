@@ -160,12 +160,7 @@ public class CheckpointStatsTracker {
             Map<JobVertexID, Integer> vertexToDop) {
 
         PendingCheckpointStats pending =
-                new PendingCheckpointStats(
-                        checkpointId,
-                        triggerTimestamp,
-                        props,
-                        vertexToDop,
-                        PendingCheckpointStatsCallback.proxyFor(this));
+                new PendingCheckpointStats(checkpointId, triggerTimestamp, props, vertexToDop);
 
         statsReadWriteLock.lock();
         try {
@@ -204,7 +199,7 @@ public class CheckpointStatsTracker {
      *
      * @param completed The completed checkpoint stats.
      */
-    private void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
+    void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
         statsReadWriteLock.lock();
         try {
             latestCompletedCheckpoint = completed;
@@ -225,11 +220,26 @@ public class CheckpointStatsTracker {
      *
      * @param failed The failed checkpoint stats.
      */
-    private void reportFailedCheckpoint(FailedCheckpointStats failed) {
+    void reportFailedCheckpoint(FailedCheckpointStats failed) {
         statsReadWriteLock.lock();
         try {
             counts.incrementFailedCheckpoints();
             history.replacePendingCheckpointById(failed);
+
+            dirty = true;
+        } finally {
+            statsReadWriteLock.unlock();
+        }
+    }
+
+    /**
+     * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
+     * callback when triggering checkpoint failure before creating PendingCheckpoint.
+     */
+    public void reportFailedCheckpointsWithoutInProgress() {
+        statsReadWriteLock.lock();
+        try {
+            counts.incrementFailedCheckpointsWithoutInProgress();
 
             dirty = true;
         } finally {
@@ -276,38 +286,6 @@ public class CheckpointStatsTracker {
         }
     }
 
-    /** Callback for finalization of a pending checkpoint. */
-    interface PendingCheckpointStatsCallback {
-        /**
-         * Report a completed checkpoint.
-         *
-         * @param completed The completed checkpoint.
-         */
-        void reportCompletedCheckpoint(CompletedCheckpointStats completed);
-
-        /**
-         * Report a failed checkpoint.
-         *
-         * @param failed The failed checkpoint.
-         */
-        void reportFailedCheckpoint(FailedCheckpointStats failed);
-
-        static PendingCheckpointStatsCallback proxyFor(
-                CheckpointStatsTracker checkpointStatsTracker) {
-            return new PendingCheckpointStatsCallback() {
-                @Override
-                public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
-                    checkpointStatsTracker.reportCompletedCheckpoint(completed);
-                }
-
-                @Override
-                public void reportFailedCheckpoint(FailedCheckpointStats failed) {
-                    checkpointStatsTracker.reportFailedCheckpoint(failed);
-                }
-            };
-        }
-    }
-
     // ------------------------------------------------------------------------
     // Metrics
     // ------------------------------------------------------------------------
@@ -330,6 +308,9 @@ public class CheckpointStatsTracker {
 
     @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC = "lastCheckpointSize";
+
+    @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
 
     @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
@@ -363,6 +344,9 @@ public class CheckpointStatsTracker {
                 new LatestRestoredCheckpointTimestampGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC, new LatestCompletedCheckpointSizeGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
+                new LatestCompletedCheckpointFullSizeGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                 new LatestCompletedCheckpointDurationGauge());
@@ -418,6 +402,18 @@ public class CheckpointStatsTracker {
     }
 
     private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            if (completed != null) {
+                return completed.getCheckpointedSize();
+            } else {
+                return -1L;
+            }
+        }
+    }
+
+    private class LatestCompletedCheckpointFullSizeGauge implements Gauge<Long> {
         @Override
         public Long getValue() {
             CompletedCheckpointStats completed = latestCompletedCheckpoint;

@@ -19,14 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverterTest.PojoClass;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
-import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RawType;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -54,7 +51,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class RelDataTypeJsonSerdeTest {
 
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
 
     @ParameterizedTest
     @MethodSource("testRelDataTypeSerde")
@@ -220,25 +217,7 @@ public class RelDataTypeJsonSerdeTest {
                         FACTORY.createRowtimeIndicatorType(true, false),
                         FACTORY.createRowtimeIndicatorType(true, true),
                         FACTORY.createProctimeIndicatorType(true),
-                        FACTORY.createFieldTypeFromLogicalType(
-                                StructuredType.newBuilder(
-                                                ObjectIdentifier.of("cat", "db", "structuredType"),
-                                                DataTypeJsonSerdeTest.PojoClass.class)
-                                        .attributes(
-                                                Arrays.asList(
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f0", new IntType(true)),
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f1", new BigIntType(true)),
-                                                        new StructuredType.StructuredAttribute(
-                                                                "f2",
-                                                                new VarCharType(200),
-                                                                "desc")))
-                                        .comparison(StructuredType.StructuredComparison.FULL)
-                                        .setFinal(false)
-                                        .setInstantiable(false)
-                                        .description("description for StructuredType")
-                                        .build()));
+                        FACTORY.createFieldTypeFromLogicalType(PojoClass.TYPE_WITH_IDENTIFIER));
 
         final List<RelDataType> mutableTypes = new ArrayList<>(types.size() * 2);
         for (RelDataType type : types) {

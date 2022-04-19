@@ -25,7 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test SortSpec json ser/de. */
 public class SortSpecSerdeTest {
@@ -40,15 +40,14 @@ public class SortSpecSerdeTest {
                         .addField(4, false, false)
                         .build();
         ObjectMapper mapper = new ObjectMapper();
-        assertEquals(
-                sortSpec, mapper.readValue(mapper.writeValueAsString(sortSpec), SortSpec.class));
+        assertThat(mapper.readValue(mapper.writeValueAsString(sortSpec), SortSpec.class))
+                .isEqualTo(sortSpec);
     }
 
     @Test
     public void testAny() throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
-        assertEquals(
-                SortSpec.ANY,
-                mapper.readValue(mapper.writeValueAsString(SortSpec.ANY), SortSpec.class));
+        assertThat(mapper.readValue(mapper.writeValueAsString(SortSpec.ANY), SortSpec.class))
+                .isEqualTo(SortSpec.ANY);
     }
 }

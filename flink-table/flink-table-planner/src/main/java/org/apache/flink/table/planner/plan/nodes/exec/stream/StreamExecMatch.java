@@ -31,9 +31,9 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
@@ -44,6 +44,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -51,7 +52,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -110,6 +110,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     private final MatchSpec matchSpec;
 
     public StreamExecMatch(
+            ReadableConfig tableConfig,
             MatchSpec matchSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -117,6 +118,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecMatch.class),
+                ExecNodeContext.newPersistedConfig(StreamExecMatch.class, tableConfig),
                 matchSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -127,29 +129,30 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     public StreamExecMatch(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_MATCH_SPEC) MatchSpec matchSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.matchSpec = checkNotNull(matchSpec);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         checkOrderKeys(inputRowType);
-        final TableConfig config = planner.getTableConfig();
         final EventComparator<RowData> eventComparator =
                 createEventComparator(config, inputRowType);
         final Transformation<RowData> timestampedInputTransform =
-                translateOrder(inputTransform, inputRowType);
+                translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
                 translatePattern(matchSpec, config, planner.getRelBuilder(), inputRowType);
@@ -251,7 +254,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private EventComparator<RowData> createEventComparator(
-            TableConfig config, RowType inputRowType) {
+            ExecNodeConfig config, RowType inputRowType) {
         SortSpec orderKeys = matchSpec.getOrderKeys();
         if (orderKeys.getFieldIndices().length > 1) {
             GeneratedRecordComparator rowComparator =
@@ -264,7 +267,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType) {
+            Transformation<RowData> inputTransform, RowType inputRowType, ReadableConfig config) {
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
         LogicalType timeOrderFieldType = inputRowType.getTypeAt(timeOrderFieldIdx);
@@ -275,12 +278,13 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            new TransformationMetadata(
-                                    createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
-                                    "StreamRecordTimestampInserter",
+                            createTransformationMeta(
+                                    TIMESTAMP_INSERTER_TRANSFORMATION,
                                     String.format(
                                             "StreamRecordTimestampInserter(rowtime field: %s)",
-                                            timeOrderFieldIdx)),
+                                            timeOrderFieldIdx),
+                                    "StreamRecordTimestampInserter",
+                                    config),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());
@@ -296,7 +300,10 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     @VisibleForTesting
     public static Tuple2<Pattern<RowData, RowData>, List<String>> translatePattern(
-            MatchSpec matchSpec, TableConfig config, RelBuilder relBuilder, RowType inputRowType) {
+            MatchSpec matchSpec,
+            ReadableConfig config,
+            RelBuilder relBuilder,
+            RowType inputRowType) {
         final PatternVisitor patternVisitor =
                 new PatternVisitor(config, relBuilder, inputRowType, matchSpec);
 
@@ -323,7 +330,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {
-        private final TableConfig config;
+        private final ReadableConfig config;
         private final RelBuilder relBuilder;
         private final RowType inputRowType;
         private final MatchSpec matchSpec;
@@ -331,7 +338,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         private Pattern<RowData, RowData> pattern;
 
         public PatternVisitor(
-                TableConfig config,
+                ReadableConfig config,
                 RelBuilder relBuilder,
                 RowType inputRowType,
                 MatchSpec matchSpec) {

@@ -72,7 +72,7 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
         this.resultTypeInfo = resultTypeInfo;
         this.runtimeConverter =
                 new CsvToRowDataConverters(ignoreParseErrors).createRowConverter(rowType, true);
-        this.csvSchema = CsvRowSchemaConverter.convert(rowType);
+        this.csvSchema = csvSchema;
         this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
         this.ignoreParseErrors = ignoreParseErrors;
     }

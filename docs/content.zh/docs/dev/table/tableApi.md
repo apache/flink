@@ -89,9 +89,9 @@ import org.apache.flink.table.api.bridge.scala._
 val settings = EnvironmentSettings
     .newInstance()
     .inStreamingMode()
-    .build();
+    .build()
 
-val tEnv = TableEnvironment.create(settings);
+val tEnv = TableEnvironment.create(settings)
 
 // 在表环境中注册 Orders 表
 // ...
@@ -363,7 +363,7 @@ Table result = orders.select($("a"), $("c").as("d"));
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-Table result = orders.select($"a", $"c" as "d");
+Table result = orders.select($"a", $"c" as "d")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -417,7 +417,7 @@ val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 {{< tab "Python" >}}
 ```python
 orders = t_env.from_path("Orders")
-result = orders.alias("x, y, z, t")
+result = orders.alias("x", "y", "z", "t")
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -495,7 +495,7 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addColumns(concat($"c", "Sunny"))
 ```
 {{< /tab >}}
@@ -526,7 +526,7 @@ Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 ```
 {{< /tab >}}
@@ -553,7 +553,7 @@ Table result = orders.dropColumns($("b"), $("c"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.dropColumns($"b", $"c")
 ```
 {{< /tab >}}
@@ -581,7 +581,7 @@ Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 ```
 {{< /tab >}}
@@ -773,7 +773,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tableEnv.from("Orders");
+val orders: Table = tableEnv.from("Orders")
 // 按属性分组后的的互异（互不相同、去重）聚合
 val groupByDistinctResult = orders
     .groupBy($"a")
@@ -833,11 +833,11 @@ orders.groupBy("users")
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tEnv.from("Orders");
+val orders: Table = tEnv.from("Orders")
 
 // 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
-val myUdagg = new MyUdagg();
-orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
+val myUdagg = new MyUdagg()
+orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1054,7 +1054,7 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.join_lateral(split(orders.c).alias("s, t, v"))
+joined_table = orders.join_lateral(split(orders.c).alias("s", "t", "v"))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 ```
 {{< /tab >}}
@@ -1103,7 +1103,7 @@ def split(x):
 
 # join
 orders = t_env.from_path("Orders")
-joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s, t, v"))
+joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s", "t", "v"))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 ```
 {{< /tab >}}
@@ -1360,7 +1360,7 @@ Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));
 {{< tab "Scala" >}}
 ```scala
 val left = tableEnv.from("Orders1")
-val right = tableEnv.from("Orders2");
+val right = tableEnv.from("Orders2")
 
 val result = left.select($"a", $"b", $"c").where($"a".in(right))
 ```
@@ -1455,7 +1455,9 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。`executeInsert()` 方法将立即提交执行插入操作的 Flink job。
+和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。
+`insertInto()` 方法会将 `INSERT INTO` 转换为一个 `TablePipeline`。
+该数据流可以用 `TablePipeline.explain()` 来解释，用 `TablePipeline.execute()` 来执行。
 
 输出表必须已注册在 TableEnvironment（详见表连接器）中。此外，已注册表的 schema 必须与查询中的 schema 相匹配。
 
@@ -1463,13 +1465,13 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 {{< tab "Java" >}}
 ```java
 Table orders = tableEnv.from("Orders");
-orders.executeInsert("OutOrders");
+orders.insertInto("OutOrders").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-orders.executeInsert("OutOrders")
+orders.insertInto("OutOrders").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -2451,7 +2453,7 @@ agg = udaf(function,
 # 使用 python 通用聚合函数进行聚合
 result = t.group_by(t.a) \
     .aggregate(agg.alias("c", "d")) \
-    .select("a, c, d")
+    .select(col('a'), col('c'), col('d'))
     
 # 使用 python 向量化聚合函数进行聚合
 pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
@@ -2460,8 +2462,7 @@ pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
 t.aggregate(pandas_udaf.alias("a", "b")) \
-    .select("a, b")
-
+    .select(col('a'), col('b'))
 ```
 
 {{< /tab >}}
@@ -2513,9 +2514,9 @@ tumble_window = Tumble.over(expr.lit(1).hours) \
     .alias("w")
 t.select(t.b, t.rowtime) \
     .window(tumble_window) \
-    .group_by("w") \
+    .group_by(col("w")) \
     .aggregate(pandas_udaf.alias("d", "e")) \
-    .select("w.rowtime, d, e")
+    .select(col('w').rowtime, col('d'), col('e'))
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -114,7 +114,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
+			<artifactId>flink-connector-aws-kinesis-streams</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 		</dependency>

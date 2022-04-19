@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -112,6 +112,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- We need this for the patched FlinkScalaKryoInstantiator -->
@@ -262,6 +270,11 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<excludes>
+						<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+					</excludes>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

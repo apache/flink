@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CalcCodeGenerator;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -67,6 +69,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     protected CommonExecCalc(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             List<RexNode> projection,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
@@ -74,7 +77,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projection = checkNotNull(projection);
         this.condition = condition;
@@ -84,13 +87,13 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(planner.getTableConfig())
-                        .setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
@@ -103,7 +106,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(CALC_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(CALC_TRANSFORMATION, config),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

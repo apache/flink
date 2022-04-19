@@ -37,7 +37,7 @@ Gelly's library methods can be used by simply calling the `run()` method on the 
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-Graph<Long, Long, NullValue> graph = ...
+Graph<Long, Long, NullValue> graph = ...;
 
 // run Label Propagation for 30 iterations to detect communities on the input graph
 DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(new LabelPropagation<Long>(30));

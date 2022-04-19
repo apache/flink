@@ -47,7 +47,6 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,6 +59,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test for sort merge inner join. */
 @RunWith(Parameterized.class)
@@ -124,15 +126,11 @@ public class RandomSortMergeInnerJoinTest {
         match(expectedMatchesMap, transformToBinary(join(operator, input1, input2)));
 
         // assert that each expected match was seen
-        for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-            Assert.assertTrue(
-                    "Collection for key " + entry.getKey() + " is not empty",
-                    entry.getValue().isEmpty());
-        }
+        assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
     @Test
-    public void testMergeWithHighNumberOfCommonKeys() {
+    public void testMergeWithHighNumberOfCommonKeys() throws Exception {
         // the size of the left and right inputs
         final int input1Size = 200;
         final int input2Size = 100;
@@ -141,76 +139,67 @@ public class RandomSortMergeInnerJoinTest {
         final int input2Duplicates = 4000;
         final int duplicateKey = 13;
 
-        try {
-            final TupleGenerator generator1 =
-                    new TupleGenerator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
-            final TupleGenerator generator2 =
-                    new TupleGenerator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+        final TupleGenerator generator1 =
+                new TupleGenerator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+        final TupleGenerator generator2 =
+                new TupleGenerator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 
-            final TestData.TupleGeneratorIterator gen1Iter =
-                    new TestData.TupleGeneratorIterator(generator1, input1Size);
-            final TestData.TupleGeneratorIterator gen2Iter =
-                    new TestData.TupleGeneratorIterator(generator2, input2Size);
+        final TestData.TupleGeneratorIterator gen1Iter =
+                new TestData.TupleGeneratorIterator(generator1, input1Size);
+        final TestData.TupleGeneratorIterator gen2Iter =
+                new TestData.TupleGeneratorIterator(generator2, input2Size);
 
-            final TestData.TupleConstantValueIterator const1Iter =
-                    new TestData.TupleConstantValueIterator(
-                            duplicateKey, "LEFT String for Duplicate Keys", input1Duplicates);
-            final TestData.TupleConstantValueIterator const2Iter =
-                    new TestData.TupleConstantValueIterator(
-                            duplicateKey, "RIGHT String for Duplicate Keys", input2Duplicates);
+        final TestData.TupleConstantValueIterator const1Iter =
+                new TestData.TupleConstantValueIterator(
+                        duplicateKey, "LEFT String for Duplicate Keys", input1Duplicates);
+        final TestData.TupleConstantValueIterator const2Iter =
+                new TestData.TupleConstantValueIterator(
+                        duplicateKey, "RIGHT String for Duplicate Keys", input2Duplicates);
 
-            final List<MutableObjectIterator<Tuple2<Integer, String>>> inList1 = new ArrayList<>();
-            inList1.add(gen1Iter);
-            inList1.add(const1Iter);
+        final List<MutableObjectIterator<Tuple2<Integer, String>>> inList1 = new ArrayList<>();
+        inList1.add(gen1Iter);
+        inList1.add(const1Iter);
 
-            final List<MutableObjectIterator<Tuple2<Integer, String>>> inList2 = new ArrayList<>();
-            inList2.add(gen2Iter);
-            inList2.add(const2Iter);
+        final List<MutableObjectIterator<Tuple2<Integer, String>>> inList2 = new ArrayList<>();
+        inList2.add(gen2Iter);
+        inList2.add(const2Iter);
 
-            MutableObjectIterator<Tuple2<Integer, String>> input1 =
-                    new MergeIterator<>(inList1, comparator1.duplicate());
-            MutableObjectIterator<Tuple2<Integer, String>> input2 =
-                    new MergeIterator<>(inList2, comparator2.duplicate());
+        MutableObjectIterator<Tuple2<Integer, String>> input1 =
+                new MergeIterator<>(inList1, comparator1.duplicate());
+        MutableObjectIterator<Tuple2<Integer, String>> input2 =
+                new MergeIterator<>(inList2, comparator2.duplicate());
 
-            // collect expected data
-            final Map<Integer, Collection<Match>> expectedMatchesMap =
-                    matchValues(collectData(input1), collectData(input2));
+        // collect expected data
+        final Map<Integer, Collection<Match>> expectedMatchesMap =
+                matchValues(collectData(input1), collectData(input2));
 
-            // re-create the whole thing for actual processing
+        // re-create the whole thing for actual processing
 
-            // reset the generators and iterators
-            generator1.reset();
-            generator2.reset();
-            const1Iter.reset();
-            const2Iter.reset();
-            gen1Iter.reset();
-            gen2Iter.reset();
+        // reset the generators and iterators
+        generator1.reset();
+        generator2.reset();
+        const1Iter.reset();
+        const2Iter.reset();
+        gen1Iter.reset();
+        gen2Iter.reset();
 
-            inList1.clear();
-            inList1.add(gen1Iter);
-            inList1.add(const1Iter);
+        inList1.clear();
+        inList1.add(gen1Iter);
+        inList1.add(const1Iter);
 
-            inList2.clear();
-            inList2.add(gen2Iter);
-            inList2.add(const2Iter);
+        inList2.clear();
+        inList2.add(gen2Iter);
+        inList2.add(const2Iter);
 
-            input1 = new MergeIterator<>(inList1, comparator1.duplicate());
-            input2 = new MergeIterator<>(inList2, comparator2.duplicate());
+        input1 = new MergeIterator<>(inList1, comparator1.duplicate());
+        input2 = new MergeIterator<>(inList2, comparator2.duplicate());
 
-            StreamOperator operator = getOperator();
+        StreamOperator operator = getOperator();
 
-            match(expectedMatchesMap, transformToBinary(join(operator, input1, input2)));
+        match(expectedMatchesMap, transformToBinary(join(operator, input1, input2)));
 
-            // assert that each expected match was seen
-            for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
-        }
+        // assert that each expected match was seen
+        assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
     public static void match(
@@ -225,12 +214,12 @@ public class RandomSortMergeInnerJoinTest {
 
             Collection<Match> matches = expectedMatchesMap.get(key);
             if (matches == null) {
-                Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
+                fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
             }
 
             boolean contained = matches.remove(new Match(value1, value2));
             if (!contained) {
-                Assert.fail(
+                fail(
                         "Produced match was not contained: "
                                 + key
                                 + " - "

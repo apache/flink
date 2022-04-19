@@ -118,6 +118,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
             return kubernetesTestFixture.createFlinkKubeClientBuilder();
         }
 
+        String getClusterId() {
+            return CLUSTER_ID;
+        }
+
         KubernetesConfigMap getLeaderConfigMap() {
             return kubernetesTestFixture.getLeaderConfigMap();
         }
@@ -125,7 +129,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         // Use the leader callback to manually grant leadership
         void leaderCallbackGrantLeadership() throws Exception {
             kubernetesTestFixture.leaderCallbackGrantLeadership();
-            electionEventHandler.waitForLeader(TIMEOUT);
+            electionEventHandler.waitForLeader();
         }
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>

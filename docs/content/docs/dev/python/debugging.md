@@ -119,7 +119,7 @@ You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycha
 You can enable the profile to analyze performance bottlenecks.
 
 ```python
-t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+t_env.get_config().set("python.profile.enabled", "true")
 ``` 
 
 Then you can see the profile result in [logs](#accessing-logs)

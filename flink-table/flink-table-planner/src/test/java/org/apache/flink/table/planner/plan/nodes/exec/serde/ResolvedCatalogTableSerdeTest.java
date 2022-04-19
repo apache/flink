@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
@@ -30,9 +30,11 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.rex.RexBuilder;
@@ -54,6 +56,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -70,7 +73,7 @@ class ResolvedCatalogTableSerdeTest {
         OPTIONS.put("c", "3");
     }
 
-    private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
+    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
     private static final RexBuilder REX_BUILDER = new RexBuilder(FACTORY);
 
     private static final RexNode REX_NODE =
@@ -136,15 +139,16 @@ class ResolvedCatalogTableSerdeTest {
                 JsonSerdeUtil.createObjectWriter(serdeCtx)
                         .withAttribute(ResolvedCatalogTableJsonSerializer.SERIALIZE_OPTIONS, false)
                         .writeValueAsBytes(FULL_RESOLVED_CATALOG_TABLE);
-        JsonNode actualJson = JsonSerdeUtil.getObjectMapper().readTree(actualSerialized);
+
+        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        JsonNode actualJson = objectReader.readTree(actualSerialized);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.RESOLVED_SCHEMA);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.PARTITION_KEYS);
         assertThatJsonDoesNotContain(actualJson, ResolvedCatalogTableJsonSerializer.OPTIONS);
         assertThatJsonDoesNotContain(actualJson, ResolvedCatalogTableJsonSerializer.COMMENT);
 
         ResolvedCatalogTable actual =
-                JsonSerdeUtil.createObjectReader(serdeCtx)
-                        .readValue(actualSerialized, ResolvedCatalogTable.class);
+                objectReader.readValue(actualSerialized, ResolvedCatalogTable.class);
 
         assertThat(actual)
                 .isEqualTo(
@@ -176,7 +180,7 @@ class ResolvedCatalogTableSerdeTest {
                                                 FULL_RESOLVED_SCHEMA)))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
-                                ValidationException.class,
+                                TableException.class,
                                 "Cannot serialize the table as it's an external inline table"));
     }
 }

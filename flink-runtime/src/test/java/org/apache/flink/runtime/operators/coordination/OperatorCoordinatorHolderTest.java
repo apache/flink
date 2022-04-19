@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorSer
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
+import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -43,7 +44,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -62,7 +62,7 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class OperatorCoordinatorHolderTest extends TestLogger {
 
-    private final Consumer<Throwable> globalFailureHandler = (t) -> globalFailure = t;
+    private final GlobalFailureHandler globalFailureHandler = (t) -> globalFailure = t;
     private Throwable globalFailure;
 
     @After

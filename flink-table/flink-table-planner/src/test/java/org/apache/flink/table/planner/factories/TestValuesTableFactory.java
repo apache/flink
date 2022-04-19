@@ -125,6 +125,7 @@ import java.util.stream.Collectors;
 import scala.collection.Seq;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a
@@ -402,8 +403,7 @@ public final class TestValuesTableFactory
             Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
             List<Map<String, String>> partitions =
                     parsePartitionList(helper.getOptions().get(PARTITION_LIST));
-            DataType producedDataType =
-                    context.getCatalogTable().getSchema().toPhysicalRowDataType();
+            DataType producedDataType = context.getPhysicalRowDataType();
             // pushing project into scan will prune schema and we have to get the mapping between
             // partition and row
             Map<Map<String, String>, Collection<Row>> partition2Rows;
@@ -1674,7 +1674,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 // we don't support OutputFormat for updating query in the TestValues connector
-                assert runtimeSink.equals("SinkFunction");
+                assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     sinkFunction =

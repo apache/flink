@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
@@ -53,16 +54,22 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
 
     @VisibleForTesting
     public EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
-        this(maxRetainedCheckpoints, Collections.emptyList());
+        this(
+                maxRetainedCheckpoints,
+                Collections.emptyList(),
+                /* Using the default restore mode in tests to detect any breaking changes early. */
+                RestoreMode.DEFAULT);
     }
 
     public EmbeddedCompletedCheckpointStore(
-            int maxRetainedCheckpoints, Collection<CompletedCheckpoint> initialCheckpoints) {
+            int maxRetainedCheckpoints,
+            Collection<CompletedCheckpoint> initialCheckpoints,
+            RestoreMode restoreMode) {
         this(
                 maxRetainedCheckpoints,
                 initialCheckpoints,
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), initialCheckpoints));
+                        Executors.directExecutor(), initialCheckpoints, restoreMode));
     }
 
     public EmbeddedCompletedCheckpointStore(
@@ -90,7 +97,7 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
                 CheckpointSubsumeHelper.subsume(
                                 checkpoints,
                                 maxRetainedCheckpoints,
-                                CompletedCheckpoint::discardOnSubsume)
+                                cc -> cc.markAsDiscardedOnSubsume().discard())
                         .orElse(null);
 
         unregisterUnusedState(checkpoints);
@@ -101,7 +108,7 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
     @VisibleForTesting
     void removeOldestCheckpoint() throws Exception {
         CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-        checkpointToSubsume.discardOnSubsume();
+        checkpointToSubsume.markAsDiscardedOnSubsume().discard();
         unregisterUnusedState(checkpoints);
     }
 

@@ -31,6 +31,7 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
+- CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
@@ -92,14 +93,14 @@ val tableEnv = TableEnvironment.create(...)
 
 // SQL query with a registered table
 // register a table named "Orders"
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 // run a SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // Execute insert SQL with a registered table
 // register a TableSink
-tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)")
 // run an insert SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")

@@ -21,15 +21,16 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.ExceptionUtils
+
+import org.junit.{After, Before, Test}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.util.{Collection => JCollection}
@@ -47,10 +48,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     rowOf(8L, 11, "Hello world"),
     rowOf(9L, 12, "Hello world!"))
 
-  val userData = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, 2L, "Jark"),
-    rowOf(33, 3L, "Fabian"))
+  val userData = List(rowOf(11, 1L, "Julian"), rowOf(22, 2L, "Jark"), rowOf(33, 3L, "Fabian"))
 
   @Before
   override def before(): Unit = {
@@ -58,7 +56,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     // TODO: remove this until [FLINK-12351] is fixed.
     //  currently AsyncWaitOperator doesn't copy input element which is a bug
     env.getConfig.disableObjectReuse()
-    
+
     createScanTable("src", data)
     createLookupTable("user_table", userData)
   }
@@ -75,44 +73,47 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
   private def createLookupTable(tableName: String, data: List[Row]): Unit = {
     if (legacyTableSource) {
-      val userSchema = TableSchema.builder()
+      val userSchema = TableSchema
+        .builder()
         .field("age", Types.INT)
         .field("id", Types.LONG)
         .field("name", Types.STRING)
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv, isAsync = true, data, userSchema, tableName)
+        tEnv,
+        isAsync = true,
+        data,
+        userSchema,
+        tableName)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(
-        s"""
-           |CREATE TABLE $tableName (
-           |  `age` INT,
-           |  `id` BIGINT,
-           |  `name` STRING
-           |) WITH (
-           |  'connector' = 'values',
-           |  'data-id' = '$dataId',
-           |  'async' = 'true'
-           |)
-           |""".stripMargin)
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING
+                         |) WITH (
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'async' = 'true'
+                         |)
+                         |""".stripMargin)
     }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE $tableName (
-         |  `id` BIGINT,
-         |  `len` INT,
-         |  `content` STRING,
-         |  `proctime` AS PROCTIME()
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `id` BIGINT,
+                       |  `len` INT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -130,9 +131,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -145,10 +144,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,Julian",
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -161,9 +157,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -176,9 +170,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark,22",
-      "3,15,Fabian,Fabian,33")
+    val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -210,9 +202,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -229,9 +219,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -247,9 +235,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
     assertEquals(0, TestAddWithOpen.aliveCounter.get())
   }
@@ -268,13 +254,9 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq(
-      "3,Fabian,33",
-      "8,null,null",
-      "9,null,null")
+    val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
-
 
   @Test
   def testAsyncLeftJoinTemporalTable(): Unit = {
@@ -285,12 +267,8 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,11",
-      "2,15,Jark,22",
-      "3,15,Fabian,33",
-      "8,11,null,null",
-      "9,12,null,null")
+    val expected =
+      Seq("1,12,Julian,11", "2,15,Jark,22", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -300,7 +278,7 @@ class AsyncLookupJoinITCase(legacyTableSource: Boolean, backend: StateBackendMod
 
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
-      "where errorFunc(D.name) > cast(1000 as decimal(10,4))"  // should exception here
+      "where errorFunc(D.name) > cast(1000 as decimal(10,4))" // should exception here
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)

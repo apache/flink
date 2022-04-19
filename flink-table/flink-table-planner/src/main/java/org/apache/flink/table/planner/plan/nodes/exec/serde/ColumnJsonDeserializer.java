@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -47,12 +48,18 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ColumnJsonSer
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.deserializeOptionalField;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
 
-class ColumnJsonDeserializer extends StdDeserializer<Column> {
+/**
+ * JSON deserializer for {@link Column}.
+ *
+ * @see ColumnJsonSerializer for the reverse operation
+ */
+@Internal
+final class ColumnJsonDeserializer extends StdDeserializer<Column> {
 
     private static final String SUPPORTED_KINDS =
             Arrays.toString(new String[] {KIND_PHYSICAL, KIND_COMPUTED, KIND_METADATA});
 
-    public ColumnJsonDeserializer() {
+    ColumnJsonDeserializer() {
         super(Column.class);
     }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream
 
 import org.apache.flink.api.common.state.CheckpointListener
@@ -31,20 +30,20 @@ import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
+
+import org.junit.{Assert, Before, Rule, Test}
 import org.junit.Assert.assertEquals
 import org.junit.rules.Timeout
-import org.junit.{Assert, Before, Rule, Test}
 
 import java.io.File
 import java.net.URI
-import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.format.DateTimeFormatter
+
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
-/**
-  * Streaming sink ITCase base, test checkpoint.
-  */
+/** Streaming sink ITCase base, test checkpoint. */
 abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
   @Rule
@@ -58,7 +57,8 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     Row.of(Integer.valueOf(2), "p", "q", "05-03-2020", "08"),
     Row.of(Integer.valueOf(3), "x", "y", "05-03-2020", "09"),
     Row.of(Integer.valueOf(4), "x", "y", "05-03-2020", "10"),
-    Row.of(Integer.valueOf(5), "x", "y", "05-03-2020", "11"))
+    Row.of(Integer.valueOf(5), "x", "y", "05-03-2020", "11")
+  )
 
   // basic iso date
   private val data2 = Seq(
@@ -66,7 +66,8 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     Row.of(Integer.valueOf(2), "p", "q", "20200503", "08"),
     Row.of(Integer.valueOf(3), "x", "y", "20200503", "09"),
     Row.of(Integer.valueOf(4), "x", "y", "20200504", "10"),
-    Row.of(Integer.valueOf(5), "x", "y", "20200504", "11"))
+    Row.of(Integer.valueOf(5), "x", "y", "20200504", "11")
+  )
 
   @Before
   override def before(): Unit = {
@@ -115,9 +116,10 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
       TimestampData.fromLocalDateTime(localDateTime).getMillisecond
     }
 
-    val stream: DataStream[Row] = new DataStream(env.getJavaEnv.addSource(
-      new FiniteTestSource(data2, fun),
-      new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
+    val stream: DataStream[Row] = new DataStream(
+      env.getJavaEnv.addSource(
+        new FiniteTestSource(data2, fun),
+        new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
 
     // write out the data
     test(stream, "default", "yyyyMMdd", "$d", "d", "partition-time", "1d", data2)
@@ -132,30 +134,40 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   def testPartitionCustomFormatDate(partition: Boolean, policy: String = "success-file"): Unit = {
 
     val fun = (t: Row) => {
-      val localDateTime = LocalDateTime.parse(s"${t.getField(3)} ${t.getField(4)}:00:00",
+      val localDateTime = LocalDateTime.parse(
+        s"${t.getField(3)} ${t.getField(4)}:00:00",
         DateTimeFormatter.ofPattern("MM-dd-yyyy HH:mm:ss"))
       TimestampData.fromLocalDateTime(localDateTime).getMillisecond
     }
 
-    val stream = new DataStream(env.getJavaEnv.addSource(
-      new FiniteTestSource(data, fun),
-      new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
+    val stream = new DataStream(
+      env.getJavaEnv.addSource(
+        new FiniteTestSource(data, fun),
+        new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING)))
 
-    test(stream, "default", "MM-dd-yyyy HH:mm:ss", "$d $e:00:00", if (partition) "d,e" else "",
-      "process-time", "1h", data, policy)
+    test(
+      stream,
+      "default",
+      "MM-dd-yyyy HH:mm:ss",
+      "$d $e:00:00",
+      if (partition) "d,e" else "",
+      "process-time",
+      "1h",
+      data,
+      policy)
   }
 
-  private def test(dataStream: DataStream[Row],
-                   timeExtractorKind: String,
-                   timeExtractorFormatterPattern: String,
-                   timeExtractorPattern: String,
-                   partition: String,
-                   commitTrigger: String,
-                   commitDelay: String,
-                   dataTest: Seq[Row],
-                   policy: String = "success-file",
-                   successFileName: String = "_MY_SUCCESS"
-                  ): Unit = {
+  private def test(
+      dataStream: DataStream[Row],
+      timeExtractorKind: String,
+      timeExtractorFormatterPattern: String,
+      timeExtractorPattern: String,
+      partition: String,
+      commitTrigger: String,
+      commitDelay: String,
+      dataTest: Seq[Row],
+      policy: String = "success-file",
+      successFileName: String = "_MY_SUCCESS"): Unit = {
 
     resultPath = tempFolder.newFolder().toURI.toString
 
@@ -175,12 +187,11 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
          |  '${PARTITION_TIME_EXTRACTOR_KIND.key()}' = '$timeExtractorKind',
-         |${
-        if (timeExtractorFormatterPattern.nonEmpty) s" '" +
-          s"${PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER.key()}' = " +
-          s"'$timeExtractorFormatterPattern',"
-        else ""
-      }
+         |${if (timeExtractorFormatterPattern.nonEmpty)
+          s" '" +
+            s"${PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER.key()}' = " +
+            s"'$timeExtractorFormatterPattern',"
+        else ""}
          |
          |  '${PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key()}' =
          |      '$timeExtractorPattern',
@@ -209,8 +220,9 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   }
 }
 
-class FiniteTestSource(elements: Iterable[Row], watermarkGenerator: Row => Long) extends
-  SourceFunction[Row] with CheckpointListener {
+class FiniteTestSource(elements: Iterable[Row], watermarkGenerator: Row => Long)
+  extends SourceFunction[Row]
+  with CheckpointListener {
 
   private var running: Boolean = true
 

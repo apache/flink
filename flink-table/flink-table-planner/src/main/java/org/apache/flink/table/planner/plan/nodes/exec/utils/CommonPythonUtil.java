@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -98,7 +98,7 @@ public class CommonPythonUtil {
 
     private CommonPythonUtil() {}
 
-    public static Class loadClass(String className) {
+    public static Class<?> loadClass(String className) {
         try {
             return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
         } catch (ClassNotFoundException e) {
@@ -107,21 +107,20 @@ public class CommonPythonUtil {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static Configuration getMergedConfig(
-            StreamExecutionEnvironment env, TableConfig tableConfig) {
-        Class clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
+    public static Configuration extractPythonConfiguration(
+            StreamExecutionEnvironment env, ReadableConfig tableConfig) {
+        Class<?> clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
         try {
             StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
                     clazz.getDeclaredMethod(
-                            "getMergedConfig", StreamExecutionEnvironment.class, TableConfig.class);
-            return (Configuration) method.invoke(null, realEnv, tableConfig);
+                            "extractPythonConfiguration", List.class, ReadableConfig.class);
+            return (Configuration) method.invoke(null, realEnv.getCachedFiles(), tableConfig);
         } catch (NoSuchFieldException
                 | IllegalAccessException
                 | NoSuchMethodException
                 | InvocationTargetException e) {
-            throw new TableException("Method getMergedConfig accessed failed.", e);
+            throw new TableException("Method extractPythonConfiguration accessed failed.", e);
         }
     }
 
@@ -149,7 +148,7 @@ public class CommonPythonUtil {
 
     @SuppressWarnings("unchecked")
     public static boolean isPythonWorkerUsingManagedMemory(Configuration config) {
-        Class clazz = loadClass(PYTHON_OPTIONS_CLASS);
+        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS);
         try {
             return config.getBoolean(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));
@@ -160,7 +159,7 @@ public class CommonPythonUtil {
 
     @SuppressWarnings("unchecked")
     public static boolean isPythonWorkerInProcessMode(Configuration config) {
-        Class clazz = loadClass(PYTHON_OPTIONS_CLASS);
+        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS);
         try {
             return config.getString(
                             (ConfigOption<String>)
@@ -401,12 +400,12 @@ public class CommonPythonUtil {
         return (byte[]) pickleValue.invoke(null, value, type);
     }
 
-    @SuppressWarnings("unchecked")
     private static void loadPickleValue() {
         if (pickleValue == null) {
             synchronized (CommonPythonUtil.class) {
                 if (pickleValue == null) {
-                    Class clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils");
+                    Class<?> clazz =
+                            loadClass("org.apache.flink.api.common.python.PythonBridgeUtils");
                     try {
                         pickleValue = clazz.getMethod("pickleValue", Object.class, byte.class);
                     } catch (NoSuchMethodException e) {

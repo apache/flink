@@ -36,6 +36,8 @@ Dependencies
 
 {{< sql_download_table "kinesis" >}}
 
+Kinesis 连接器目前并不包含在 Flink 的二进制发行版中，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Kinesis 连接器。
+
 How to create a Kinesis data stream table
 -----------------------------------------
 
@@ -637,7 +639,7 @@ Connector Options
       <td></td>
       <td>
         Deprecated options previously used by the legacy connector.
-        Options with equivalant alternatives in <code>KinesisDataStreamsSink</code> are matched 
+        Options with equivalant alternatives in <code>KinesisStreamsSink</code> are matched 
         to their respective properties. Unsupported options are logged out to user as warnings.
       </td>
     </tr>
@@ -809,11 +811,11 @@ Please refer to the [Formats]({{< ref "docs/connectors/table/formats/overview" >
 
 # Updates in 1.15
 
-Kinesis table API connector sink data stream depends on <code>FlinkKinesisProducer</code> till 1.14, with the introduction of <code>KinesisDataStreamsSink</code> in 1.15 kinesis table API sink connector has been migrated to the new <code>KinesisDataStreamsSink</code>. Authentication options have been migrated identically while sink configuration options are now compatible with <code>KinesisDataStreamsSink</code>.
+Kinesis table API connector sink data stream depends on <code>FlinkKinesisProducer</code> till 1.14, with the introduction of <code>KinesisStreamsSink</code> in 1.15 kinesis table API sink connector has been migrated to the new <code>KinesisStreamsSink</code>. Authentication options have been migrated identically while sink configuration options are now compatible with <code>KinesisStreamsSink</code>.
 
-Options configuring <code>FlinkKinesisProducer</code> are now deprecated with fallback support for common configuration options with <code>KinesisDataStreamsSink</code>.
+Options configuring <code>FlinkKinesisProducer</code> are now deprecated with fallback support for common configuration options with <code>KinesisStreamsSink</code>.
 
-<code>KinesisDataStreamsSink</code> uses <code>KinesisAsyncClient</code> to send records to kinesis,
+<code>KinesisStreamsSink</code> uses <code>KinesisAsyncClient</code> to send records to kinesis,
 which doesn't support aggregation. In consequence, table options configuring aggregation in the deprecated <code>FlinkKinesisProducer</code>
 are now deprecated and will be ignored, this includes <code>sink.producer.aggregation-enabled</code> and
 <code>sink.producer.aggregation-count</code>.

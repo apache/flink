@@ -24,18 +24,26 @@ import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 /** Tests for the parameter handling of the {@link JarPlanHandler}. */
 public class JarPlanHandlerParameterTest
         extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
     private static JarPlanHandler handler;
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -48,7 +56,7 @@ public class JarPlanHandlerParameterTest
                         JarPlanGetHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_RESOURCE.getExecutor(),
                         jobGraph -> {
                             LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));

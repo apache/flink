@@ -3,8 +3,8 @@ title:  "Azure Table storage"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/azure_table_storage.html
-- /apis/streaming/connectors/formats/azure_table_storage.html
+- /zh/dev/connectors/formats/azure_table_storage.html
+- /zh/apis/streaming/connectors/formats/azure_table_storage.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

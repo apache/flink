@@ -95,6 +95,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxMetricsController;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
@@ -376,8 +377,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         try {
             this.environment = environment;
             this.configuration = new StreamConfig(environment.getTaskConfiguration());
+
+            // Initialize mailbox metrics
+            MailboxMetricsController mailboxMetricsControl =
+                    new MailboxMetricsController(
+                            environment.getMetricGroup().getIOMetricGroup().getMailboxLatency(),
+                            environment
+                                    .getMetricGroup()
+                                    .getIOMetricGroup()
+                                    .getNumMailsProcessedCounter());
+            environment
+                    .getMetricGroup()
+                    .getIOMetricGroup()
+                    .registerMailboxSizeSupplier(() -> mailbox.size());
+
             this.mailboxProcessor =
-                    new MailboxProcessor(this::processInput, mailbox, actionExecutor);
+                    new MailboxProcessor(
+                            this::processInput, mailbox, actionExecutor, mailboxMetricsControl);
+
             // Should be closed last.
             resourceCloser.registerCloseable(mailboxProcessor);
 
@@ -457,6 +474,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
 
             this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+            mailboxMetricsControl.setupLatencyMeasurement(systemTimerService, mainMailboxExecutor);
         } catch (Exception ex) {
             try {
                 resourceCloser.close();
@@ -1295,6 +1313,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             RestoreMode.NO_CLAIM,
                             RestoreMode.CLAIM,
                             RestoreMode.LEGACY));
+        } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
+            SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
+            if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Configured state backend (%s) does not support %s savepoints",
+                                stateBackend, savepointType.getFormatType()));
+            }
         }
     }
 

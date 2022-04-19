@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
@@ -68,6 +69,7 @@ import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -96,6 +98,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -115,6 +118,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -744,8 +748,12 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     // -------------------------------------------------------------------------
 
     private CompletableFuture<JobStatus> requestJobStatus(JobID jobId) {
-        return getJobDetails(jobId)
-                .thenApply(JobDetailsInfo::getJobStatus)
+        final JobStatusInfoHeaders jobStatusInfoHeaders = JobStatusInfoHeaders.getInstance();
+        final JobMessageParameters params = new JobMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        return sendRequest(jobStatusInfoHeaders, params)
+                .thenApply(JobStatusInfo::getJobStatus)
                 .thenApply(
                         jobStatus -> {
                             if (jobStatus == JobStatus.SUSPENDED) {
@@ -885,8 +893,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             CheckedSupplier<CompletableFuture<C>> operation, Predicate<Throwable> retryPredicate) {
         return FutureUtils.retryWithDelay(
                 CheckedSupplier.unchecked(operation),
-                restClusterClientConfiguration.getRetryMaxAttempts(),
-                Time.milliseconds(restClusterClientConfiguration.getRetryDelay()),
+                new FixedRetryStrategy(
+                        restClusterClientConfiguration.getRetryMaxAttempts(),
+                        Duration.ofMillis(restClusterClientConfiguration.getRetryDelay())),
                 retryPredicate,
                 new ScheduledExecutorServiceAdapter(retryExecutorService));
     }

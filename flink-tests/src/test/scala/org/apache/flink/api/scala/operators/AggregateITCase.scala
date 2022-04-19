@@ -18,17 +18,17 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.java.aggregation.Aggregations
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -58,11 +58,11 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
     val aggregateDs = ds
-      .aggregate(Aggregations.SUM,0)
+      .aggregate(Aggregations.SUM, 0)
       .and(Aggregations.MAX, 1)
       // Ensure aggregate operator correctly copies other fields
       .filter(_._3 != null)
-      .map{ t => (t._1, t._2) }
+      .map(t => (t._1, t._2))
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
 
@@ -82,7 +82,7 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .aggregate(Aggregations.SUM, 0)
       // Ensure aggregate operator correctly copies other fields
       .filter(_._3 != null)
-      .map { t => (t._2, t._1) }
+      .map(t => (t._2, t._1))
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
 
@@ -103,7 +103,7 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .aggregate(Aggregations.MIN, 0)
       // Ensure aggregate operator correctly copies other fields
       .filter(_._3 != null)
-      .map { t => new Tuple1(t._1) }
+      .map(t => new Tuple1(t._1))
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
 
@@ -113,4 +113,3 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     expectedResult = "1\n"
   }
 }
-

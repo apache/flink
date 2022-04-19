@@ -22,10 +22,10 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.types.Row
 
+import org.junit.{After, Assume, Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Assume, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -48,10 +48,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     rowOf(null, 11L, "Hello world"),
     rowOf(9L, 12L, "Hello world!"))
 
-  val userData = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, 2L, "Jark"),
-    rowOf(33, 3L, "Fabian"))
+  val userData = List(rowOf(11, 1L, "Julian"), rowOf(22, 2L, "Jark"), rowOf(33, 3L, "Fabian"))
 
   val userDataWithNull = List(
     rowOf(11, 1L, "Julian"),
@@ -84,66 +81,69 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   private def createLookupTable(tableName: String, data: List[Row]): Unit = {
     if (legacyTableSource) {
-      val userSchema = TableSchema.builder()
+      val userSchema = TableSchema
+        .builder()
         .field("age", Types.INT)
         .field("id", Types.LONG)
         .field("name", Types.STRING)
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv, isAsyncMode, data, userSchema, tableName, isBounded = true)
+        tEnv,
+        isAsyncMode,
+        data,
+        userSchema,
+        tableName,
+        isBounded = true)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(
-        s"""
-           |CREATE TABLE $tableName (
-           |  `age` INT,
-           |  `id` BIGINT,
-           |  `name` STRING
-           |) WITH (
-           |  'connector' = 'values',
-           |  'data-id' = '$dataId',
-           |  'async' = '$isAsyncMode',
-           |  'bounded' = 'true'
-           |)
-           |""".stripMargin)
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING
+                         |) WITH (
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'async' = '$isAsyncMode',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
     }
   }
 
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(
-        s"""
-           |CREATE TABLE $tableName (
-           |  `age` INT,
-           |  `id` BIGINT,
-           |  `name` STRING,
-           |  `nominal_age` as age + 1
-           |) WITH (
-           |  'connector' = 'values',
-           |  'data-id' = '$dataId',
-           |  'async' = '$isAsyncMode',
-           |  'bounded' = 'true'
-           |)
-           |""".stripMargin)
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING,
+                         |  `nominal_age` as age + 1
+                         |) WITH (
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'async' = '$isAsyncMode',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
     }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE $tableName (
-         |  `id` BIGINT,
-         |  `len` BIGINT,
-         |  `content` STRING,
-         |  `proctime` AS PROCTIME()
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `id` BIGINT,
+                       |  `len` BIGINT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -157,7 +157,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
       BatchTestBase.row(2, 15, "Hello", null, null),
       BatchTestBase.row(3, 15, "Fabian", "Fabian", 33),
       BatchTestBase.row(8, 11, "Hello world", null, null),
-      BatchTestBase.row(9, 12, "Hello world!", null, null))
+      BatchTestBase.row(9, 12, "Hello world!", null, null)
+    )
     checkResult(sql, expected)
   }
 
@@ -178,9 +179,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
-    val expected = Seq(
-      BatchTestBase.row(2, 15, "Hello", "Jark"),
-      BatchTestBase.row(3, 15, "Fabian", "Fabian"))
+    val expected =
+      Seq(BatchTestBase.row(2, 15, "Hello", "Jark"), BatchTestBase.row(3, 15, "Fabian", "Fabian"))
     checkResult(sql, expected)
   }
 
@@ -200,9 +200,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
-    val expected = Seq(
-      BatchTestBase.row(1, 12, "Julian"),
-      BatchTestBase.row(3, 15, "Fabian"))
+    val expected = Seq(BatchTestBase.row(1, 12, "Julian"), BatchTestBase.row(3, 15, "Fabian"))
     checkResult(sql, expected)
   }
 
@@ -211,9 +209,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON mod(T.id, 4) = D.id AND T.content = D.name"
 
-    val expected = Seq(
-      BatchTestBase.row(1, 12, "Julian"),
-      BatchTestBase.row(3, 15, "Fabian"))
+    val expected = Seq(BatchTestBase.row(1, 12, "Julian"), BatchTestBase.row(3, 15, "Fabian"))
     checkResult(sql, expected)
   }
 
@@ -222,9 +218,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
-    val expected = Seq(
-      BatchTestBase.row(1, 12, "Julian"),
-      BatchTestBase.row(3, 15, "Fabian"))
+    val expected = Seq(BatchTestBase.row(1, 12, "Julian"), BatchTestBase.row(3, 15, "Fabian"))
     checkResult(sql, expected)
   }
 
@@ -238,7 +232,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
       BatchTestBase.row(2, 15, "Jark", 22),
       BatchTestBase.row(3, 15, "Fabian", 33),
       BatchTestBase.row(8, 11, null, null),
-      BatchTestBase.row(9, 12, null, null))
+      BatchTestBase.row(9, 12, null, null)
+    )
     checkResult(sql, expected)
   }
 
@@ -247,8 +242,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM nullableT T JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
-    val expected = Seq(
-      BatchTestBase.row(3,15,"Fabian"))
+    val expected = Seq(BatchTestBase.row(3, 15, "Fabian"))
     checkResult(sql, expected)
   }
 
@@ -257,10 +251,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT D.id, T.len, D.name FROM nullableT T LEFT JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
     val expected = Seq(
-      BatchTestBase.row(null,15,null),
-      BatchTestBase.row(3,15,"Fabian"),
-      BatchTestBase.row(null,11,null),
-      BatchTestBase.row(null,12,null))
+      BatchTestBase.row(null, 15, null),
+      BatchTestBase.row(3, 15, "Fabian"),
+      BatchTestBase.row(null, 11, null),
+      BatchTestBase.row(null, 12, null))
     checkResult(sql, expected)
   }
 
@@ -282,7 +276,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableWithComputedColumn(): Unit = {
-    //Computed column do not support in legacyTableSource.
+    // Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
 
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
@@ -298,7 +292,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
-    //Computed column do not support in legacyTableSource.
+    // Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
 
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +

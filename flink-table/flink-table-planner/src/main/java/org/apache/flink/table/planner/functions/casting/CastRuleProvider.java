@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -116,6 +117,16 @@ public class CastRuleProvider {
     }
 
     /**
+     * Resolves the rule and returns the result of {@link CastRule#canFail(LogicalType,
+     * LogicalType)}. Fails with {@link NullPointerException} if the rule cannot be resolved.
+     */
+    public static boolean canFail(LogicalType inputType, LogicalType targetType) {
+        return Preconditions.checkNotNull(
+                        resolve(inputType, targetType), "Cast rule cannot be resolved")
+                .canFail(inputType, targetType);
+    }
+
+    /**
      * Create a {@link CastExecutor} for the provided input type and target type. Returns {@code
      * null} if no rule can be resolved.
      *
@@ -152,6 +163,29 @@ public class CastRuleProvider {
         return ((CodeGeneratorCastRule) rule)
                 .generateCodeBlock(
                         context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+    }
+
+    /**
+     * Create a {@link CastExecutor} and execute the cast on the provided {@code value}. Fails with
+     * {@link IllegalArgumentException} if the rule cannot be resolved, or with an exception from
+     * the {@link CastExecutor} itself if the rule can fail.
+     */
+    @SuppressWarnings("unchecked")
+    public static @Nullable Object cast(
+            CastRule.Context context,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType,
+            Object value) {
+        CastExecutor<Object, Object> castExecutor =
+                (CastExecutor<Object, Object>)
+                        CastRuleProvider.create(context, inputLogicalType, targetLogicalType);
+
+        if (castExecutor == null) {
+            throw new NullPointerException(
+                    "Unsupported casting from " + inputLogicalType + " to " + targetLogicalType);
+        }
+
+        return castExecutor.cast(value);
     }
 
     /**

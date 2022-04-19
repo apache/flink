@@ -32,7 +32,7 @@ import java.sql.Timestamp;
 import java.util.Random;
 import java.util.TimeZone;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test scalar functions. */
 public class JavaUserDefinedScalarFunctions {
@@ -101,7 +101,8 @@ public class JavaUserDefinedScalarFunctions {
     /** Testing open method is called. */
     public static class UdfWithOpen extends ScalarFunction {
 
-        private boolean isOpened = false;
+        // transient make this class serializable by class name
+        private transient boolean isOpened = false;
 
         @Override
         public void open(FunctionContext context) throws Exception {

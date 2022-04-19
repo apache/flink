@@ -87,6 +87,9 @@ class LRUCache(object):
     def __iter__(self):
         return iter(self._cache.values())
 
+    def __contains__(self, key):
+        return key in self._cache
+
 
 class SynchronousKvRuntimeState(InternalKvState, ABC):
     """
@@ -146,7 +149,8 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
         return self._internal_state
 
     def _maybe_clear_write_cache(self):
-        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE or \
+                self._remote_state_backend._state_cache_size <= 0:
             self._internal_state.commit()
             self._internal_state._cleared = False
             self._internal_state._added_elements = []
@@ -1155,13 +1159,14 @@ class RemoteKeyedStateBackend(object):
             self._map_state_handler.clear(self._clear_iterator_mark)
 
     def merge_namespaces(self, state: SynchronousMergingRuntimeState, target, sources, ttl_config):
+        for source in sources:
+            state.set_current_namespace(source)
+            self.commit_internal_state(state.get_internal_state())
         state.set_current_namespace(target)
         self.commit_internal_state(state.get_internal_state())
         encoded_target_namespace = self._encode_namespace(target)
-        encoded_namespaces = [encoded_target_namespace]
-        for source in sources:
-            encoded_namespaces.append(self._encode_namespace(source))
-        self.clear_state_cache(state, encoded_namespaces)
+        encoded_namespaces = [self._encode_namespace(source) for source in sources]
+        self.clear_state_cache(state, [encoded_target_namespace] + encoded_namespaces)
 
         state_key = self.get_bag_state_key(
             state.name, self._encoded_current_key, encoded_target_namespace, ttl_config)

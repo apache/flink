@@ -146,7 +146,6 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
     public void testIncrementalAggregate() {
         util.enableMiniBatch();
         tEnv.getConfig()
-                .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         createTestSource();
         verifyQuery("SELECT a, " + "count(distinct b) as b " + "FROM MyTable GROUP BY a");
@@ -249,7 +248,7 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
                         + " 'connector' = 'values'\n"
                         + ")");
         TemporalTableFunction ratesHistory =
-                tEnv.from("RatesHistory").createTemporalTableFunction("rowtime", "currency");
+                tEnv.from("RatesHistory").createTemporalTableFunction($("rowtime"), $("currency"));
         tEnv.createTemporarySystemFunction("Rates", ratesHistory);
         verifyQuery(
                 "SELECT amount * r.rate "
@@ -274,7 +273,6 @@ public class StreamOperatorNameTest extends OperatorNameTestBase {
     @Test
     public void testWindowAggregate() {
         tEnv.getConfig()
-                .getConfiguration()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
         createSourceWithTimeAttribute();
         verifyQuery(

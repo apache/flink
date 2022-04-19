@@ -71,6 +71,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -264,28 +265,29 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
-        return create(EnvironmentSettings.fromConfiguration(configuration), configuration);
+        return create(EnvironmentSettings.newInstance().withConfiguration(configuration).build());
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
-        return create(settings, settings.toConfiguration());
-    }
-
-    private static TableEnvironmentImpl create(
-            EnvironmentSettings settings, Configuration configuration) {
         // temporary solution until FLINK-15635 is fixed
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
+        final ExecutorFactory executorFactory =
+                FactoryUtil.discoverFactory(
+                        classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
+        final Executor executor = executorFactory.create(settings.getConfiguration());
+
         // use configuration to init table config
-        final TableConfig tableConfig = new TableConfig();
-        tableConfig.addConfiguration(configuration);
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
 
         final ModuleManager moduleManager = new ModuleManager();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(classLoader)
-                        .config(tableConfig.getConfiguration())
+                        .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
                                 new GenericInMemoryCatalog(
@@ -296,19 +298,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final ExecutorFactory executorFactory =
-                FactoryUtil.discoverFactory(
-                        classLoader, ExecutorFactory.class, settings.getExecutor());
-        final Executor executor = executorFactory.create(configuration);
-
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
-                        executor,
-                        tableConfig,
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
+                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
 
         return new TableEnvironmentImpl(
                 catalogManager,
@@ -583,6 +575,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public String[] listTables(String catalog, String databaseName) {
+        return catalogManager.listTables(catalog, databaseName).stream()
+                .sorted()
+                .toArray(String[]::new);
+    }
+
+    @Override
     public String[] listViews() {
         return catalogManager.listViews().stream().sorted().toArray(String[]::new);
     }
@@ -710,7 +709,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public CompiledPlan loadPlan(PlanReference planReference) {
         try {
-            return planner.loadPlan(planReference);
+            return new CompiledPlanImpl(this, planner.loadPlan(planReference));
         } catch (IOException e) {
             throw new TableException(String.format("Cannot load %s.", planReference), e);
         }
@@ -724,15 +723,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
-        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
+        return new CompiledPlanImpl(
+                this,
+                planner.compilePlan(
+                        Collections.singletonList((ModifyOperation) operations.get(0))));
     }
 
     @Override
-    public TableResult executePlan(CompiledPlan plan) {
-        CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
-        List<Transformation<?>> transformations = planner.translatePlan(planInternal);
+    public TableResultInternal executePlan(InternalPlan plan) {
+        List<Transformation<?>> transformations = planner.translatePlan(plan);
         List<String> sinkIdentifierNames =
-                deduplicateSinkIdentifierNames(planInternal.getSinkIdentifiers());
+                deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
@@ -744,7 +745,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 return loadPlan(PlanReference.fromFile(filePath));
             }
 
-            if (!tableConfig.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+            if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
                 throw new TableException(
                         String.format(
                                 "Cannot overwrite the plan file '%s'. "
@@ -773,7 +774,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
-        return planner.compilePlan(operations);
+        return new CompiledPlanImpl(this, planner.compilePlan(operations));
     }
 
     @Override
@@ -781,7 +782,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
         TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
-        if (tableConfig.getConfiguration().get(TABLE_DML_SYNC)) {
+        if (tableConfig.get(TABLE_DML_SYNC)) {
             try {
                 result.await();
             } catch (InterruptedException | ExecutionException e) {
@@ -795,6 +796,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
@@ -825,6 +827,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
         final String defaultJobName = "collect";
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
@@ -1201,7 +1204,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 return buildShowResult("module name", listModules());
             }
         } else if (operation instanceof ShowTablesOperation) {
-            return buildShowResult("table name", listTables());
+            ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
+            if (showTablesOperation.getPreposition() == null) {
+                return buildShowTablesResult(listTables(), showTablesOperation);
+            }
+            final String catalogName = showTablesOperation.getCatalogName();
+            final String databaseName = showTablesOperation.getDatabaseName();
+            Catalog catalog = getCatalogOrThrowException(catalogName);
+            if (catalog.databaseExists(databaseName)) {
+                return buildShowTablesResult(
+                        listTables(catalogName, databaseName), showTablesOperation);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+            }
         } else if (operation instanceof ShowFunctionsOperation) {
             ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
             String[] functionNames = null;
@@ -1321,7 +1338,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             compileAndExecutePlanOperation.getFilePath(),
                             true,
                             compileAndExecutePlanOperation.getOperation());
-            return (TableResultInternal) executePlan(compiledPlan);
+            return (TableResultInternal) compiledPlan.execute();
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
@@ -1337,10 +1354,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
             Catalog catalog =
                     FactoryUtil.createCatalog(
-                            catalogName,
-                            properties,
-                            tableConfig.getConfiguration(),
-                            userClassLoader);
+                            catalogName, properties, tableConfig, userClassLoader);
             catalogManager.registerCatalog(catalogName, catalog);
 
             return TableResultImpl.TABLE_RESULT_OK;
@@ -1356,7 +1370,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     FactoryUtil.createModule(
                             operation.getModuleName(),
                             operation.getOptions(),
-                            tableConfig.getConfiguration(),
+                            tableConfig,
                             userClassLoader);
             moduleManager.loadModule(operation.getModuleName(), module);
             return TableResultImpl.TABLE_RESULT_OK;
@@ -1412,6 +1426,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private String[] generateTableColumnsNames() {
         return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+    }
+
+    private TableResultInternal buildShowTablesResult(
+            String[] tableList, ShowTablesOperation showTablesOp) {
+        String[] rows = tableList.clone();
+        if (showTablesOp.isUseLike()) {
+            rows =
+                    Arrays.stream(tableList)
+                            .filter(
+                                    row ->
+                                            showTablesOp.isNotLike()
+                                                    != SqlLikeUtils.like(
+                                                            row,
+                                                            showTablesOp.getLikePattern(),
+                                                            "\\"))
+                            .toArray(String[]::new);
+        }
+        return buildShowResult("table name", rows);
     }
 
     private TableResultInternal buildShowColumnsResult(
@@ -1832,7 +1864,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
-        return planner.explainPlan((CompiledPlanInternal) compiledPlan, extraDetails);
+    public String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails) {
+        return planner.explainPlan(compiledPlan, extraDetails);
     }
 }

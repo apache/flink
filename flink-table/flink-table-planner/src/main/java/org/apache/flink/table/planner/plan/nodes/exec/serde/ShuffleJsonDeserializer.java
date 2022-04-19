@@ -18,29 +18,34 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge.Shuffle;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 
-/** JSON deserializer for {@link Shuffle}. */
-public class ShuffleJsonDeserializer extends StdDeserializer<Shuffle> {
+/**
+ * JSON deserializer for {@link Shuffle}.
+ *
+ * @see ShuffleJsonSerializer for the reverse operation
+ */
+@Internal
+final class ShuffleJsonDeserializer extends StdDeserializer<Shuffle> {
     private static final long serialVersionUID = 1L;
 
-    public ShuffleJsonDeserializer() {
+    ShuffleJsonDeserializer() {
         super(Shuffle.class);
     }
 
     @Override
     public Shuffle deserialize(JsonParser jsonParser, DeserializationContext ctx)
-            throws IOException, JsonProcessingException {
+            throws IOException {
         JsonNode jsonNode = jsonParser.getCodec().readTree(jsonParser);
         Shuffle.Type type = Shuffle.Type.valueOf(jsonNode.get("type").asText().toUpperCase());
         switch (type) {

@@ -103,6 +103,8 @@ public final class Documentation {
 
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
 
+        public static final String METRIC_REPORTERS = "metric_reporters";
+
         private Sections() {}
     }
 
@@ -145,7 +147,9 @@ public final class Documentation {
     @Target({ElementType.FIELD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
     @Internal
-    public @interface SuffixOption {}
+    public @interface SuffixOption {
+        String value();
+    }
 
     /**
      * Annotation used on config option fields or REST API message headers to exclude it from

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.planner.calcite.FlinkConvertletTable;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
@@ -91,7 +92,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class PlannerContext {
 
-    private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
+    private final RelDataTypeSystem typeSystem = FlinkTypeSystem.INSTANCE;
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
     private final SqlExprToRexConverterFactory rexConverterFactory =
             new DefaultSqlExprToRexConverterFactory();
@@ -147,6 +148,7 @@ public class PlannerContext {
                 .parserConfig(getSqlParserConfig())
                 .costFactory(new FlinkCostFactory())
                 .typeSystem(typeSystem)
+                .convertletTable(FlinkConvertletTable.INSTANCE)
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
                 .operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig)))
                 // set the executor to evaluate constant expressions
@@ -182,7 +184,7 @@ public class PlannerContext {
                         context,
                         // Sets up the ViewExpander explicitly for FlinkRelBuilder.
                         createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext());
-        return new FlinkRelBuilder(chain, cluster, relOptSchema);
+        return FlinkRelBuilder.of(chain, cluster, relOptSchema);
     }
 
     /**

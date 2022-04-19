@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -29,22 +28,19 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * A FlinkOptimizeProgram that contains a sequence of sub-[[FlinkOptimizeProgram]]s as a group.
-  * Programs in the group will be executed in sequence,
-  * and the group will be executed `iterations` times.
-  *
-  * @tparam OC OptimizeContext
-  */
+ * A FlinkOptimizeProgram that contains a sequence of sub-[[FlinkOptimizeProgram]]s as a group.
+ * Programs in the group will be executed in sequence, and the group will be executed `iterations`
+ * times.
+ *
+ * @tparam OC
+ *   OptimizeContext
+ */
 class FlinkGroupProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] with Logging {
 
-  /**
-    * Sub-programs in this program.
-    */
+  /** Sub-programs in this program. */
   private val programs = new util.ArrayList[(FlinkOptimizeProgram[OC], String)]()
 
-  /**
-    * Repeat execution times for sub-programs as a group.
-    */
+  /** Repeat execution times for sub-programs as a group. */
   private var iterations = 1
 
   override def optimize(root: RelNode, context: OC): RelNode = {
@@ -64,8 +60,9 @@ class FlinkGroupProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram
             val end = System.currentTimeMillis()
 
             if (LOG.isDebugEnabled) {
-              LOG.debug(s"optimize $description cost ${end - start} ms.\n" +
-                s"optimize result:\n ${FlinkRelOptUtil.toString(result)}")
+              LOG.debug(
+                s"optimize $description cost ${end - start} ms.\n" +
+                  s"optimize result:\n ${FlinkRelOptUtil.toString(result)}")
             }
             result
         }
@@ -88,7 +85,8 @@ class FlinkGroupProgramBuilder[OC <: FlinkOptimizeContext] {
   private val groupProgram = new FlinkGroupProgram[OC]
 
   def addProgram(
-      program: FlinkOptimizeProgram[OC], description: String = ""): FlinkGroupProgramBuilder[OC] = {
+      program: FlinkOptimizeProgram[OC],
+      description: String = ""): FlinkGroupProgramBuilder[OC] = {
     groupProgram.addProgram(program, description)
     this
   }

@@ -64,8 +64,12 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final Committer<CommT> committer;
     private final boolean emitDownstream;
+    private final boolean isBatchMode;
+    private final boolean isCheckpointingEnabled;
     private CommittableCollector<CommT> committableCollector;
     private long lastCompletedCheckpointId = -1;
+
+    private boolean endInput = false;
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
@@ -79,8 +83,12 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             ProcessingTimeService processingTimeService,
             SimpleVersionedSerializer<CommT> committableSerializer,
             Committer<CommT> committer,
-            boolean emitDownstream) {
+            boolean emitDownstream,
+            boolean isBatchMode,
+            boolean isCheckpointingEnabled) {
         this.emitDownstream = emitDownstream;
+        this.isBatchMode = isBatchMode;
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committableSerializer = checkNotNull(committableSerializer);
         this.committer = checkNotNull(committer);
@@ -123,33 +131,41 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     @Override
     public void endInput() throws Exception {
-        Collection<? extends CommittableManager<CommT>> endOfInputCommittables =
-                committableCollector.getEndOfInputCommittables();
-        // indicates batch
-        if (endOfInputCommittables != null) {
-            do {
-                for (CommittableManager<CommT> endOfInputCommittable : endOfInputCommittables) {
-                    commitAndEmit(endOfInputCommittable, false);
-                }
-            } while (!committableCollector.isFinished());
+        endInput = true;
+        if (!isCheckpointingEnabled || isBatchMode) {
+            // There will be no final checkpoint, all committables should be committed here
+            notifyCheckpointComplete(Long.MAX_VALUE);
         }
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
+        if (endInput) {
+            // This is the final checkpoint, all committables should be committed
+            lastCompletedCheckpointId = Long.MAX_VALUE;
+        } else {
+            lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
+        }
         commitAndEmitCheckpoints();
     }
 
     private void commitAndEmitCheckpoints() throws IOException, InterruptedException {
-        for (CheckpointCommittableManager<CommT> manager :
-                committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
-            // wait for all committables of the current manager before submission
-            boolean fullyReceived = manager.getCheckpointId() == lastCompletedCheckpointId;
-            commitAndEmit(manager, fullyReceived);
-        }
+        do {
+            for (CheckpointCommittableManager<CommT> manager :
+                    committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
+                // wait for all committables of the current manager before submission
+                boolean fullyReceived =
+                        !endInput && manager.getCheckpointId() == lastCompletedCheckpointId;
+                commitAndEmit(manager, fullyReceived);
+            }
+            // !committableCollector.isFinished() indicates that we should retry
+            // Retry should be done here if this is a final checkpoint (indicated by endInput)
+            // WARN: this is an endless retry, may make the job stuck while finishing
+        } while (!committableCollector.isFinished() && endInput);
+
         if (!committableCollector.isFinished()) {
+            // if not endInput, we can schedule retrying later
             retryWithDelay();
         }
     }

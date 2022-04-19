@@ -28,16 +28,17 @@ import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PulsarContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.DockerImageVersions.PULSAR;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.testcontainers.containers.PulsarContainer.BROKER_HTTP_PORT;
 import static org.testcontainers.containers.PulsarContainer.BROKER_PORT;
+import static org.testcontainers.containers.wait.strategy.Wait.forHttp;
 
 /**
  * {@link PulsarRuntime} implementation, use the TestContainers as the backend. We would start a
@@ -45,13 +46,14 @@ import static org.testcontainers.containers.PulsarContainer.BROKER_PORT;
  */
 public class PulsarContainerRuntime implements PulsarRuntime {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarContainerRuntime.class);
-    private static final String PULSAR_INTERNAL_HOSTNAME = "pulsar";
 
+    // The default host for connecting in docker environment.
+    private static final String PULSAR_INTERNAL_HOSTNAME = "pulsar";
     // This url is used on the container side.
-    public static final String PULSAR_SERVICE_URL =
+    private static final String PULSAR_SERVICE_URL =
             String.format("pulsar://%s:%d", PULSAR_INTERNAL_HOSTNAME, BROKER_PORT);
     // This url is used on the container side.
-    public static final String PULSAR_ADMIN_URL =
+    private static final String PULSAR_ADMIN_URL =
             String.format("http://%s:%d", PULSAR_INTERNAL_HOSTNAME, BROKER_HTTP_PORT);
 
     /**
@@ -60,50 +62,75 @@ public class PulsarContainerRuntime implements PulsarRuntime {
      */
     private final PulsarContainer container = new PulsarContainer(DockerImageName.parse(PULSAR));
 
+    private final AtomicBoolean started = new AtomicBoolean(false);
+
+    private boolean boundFlink = false;
     private PulsarRuntimeOperator operator;
 
     public PulsarContainerRuntime bindWithFlinkContainer(GenericContainer<?> flinkContainer) {
+        checkArgument(
+                !started.get(),
+                "This Pulsar container has been started, we can't bind it to a Flink container.");
+
         this.container
                 .withNetworkAliases(PULSAR_INTERNAL_HOSTNAME)
                 .dependsOn(flinkContainer)
                 .withNetwork(flinkContainer.getNetwork());
+        this.boundFlink = true;
         return this;
     }
 
     @Override
     public void startUp() {
-        // Prepare Pulsar Container.
+        boolean havenStartedBefore = started.compareAndSet(false, true);
+        if (!havenStartedBefore) {
+            LOG.warn("You have started the Pulsar Container. We will skip this execution.");
+            return;
+        }
+
+        // Override the default configuration in container for enabling the Pulsar transaction.
         container.withClasspathResourceMapping(
                 "containers/txnStandalone.conf",
                 "/pulsar/conf/standalone.conf",
                 BindMode.READ_ONLY);
-        container.addExposedPort(2181);
+        // Waiting for the Pulsar border is ready.
         container.waitingFor(
-                new HttpWaitStrategy()
+                forHttp("/admin/v2/namespaces/public/default")
                         .forPort(BROKER_HTTP_PORT)
                         .forStatusCode(200)
-                        .forPath("/admin/v2/namespaces/public/default")
                         .withStartupTimeout(Duration.ofMinutes(5)));
-
         // Start the Pulsar Container.
         container.start();
+        // Append the output to this runtime logger. Used for local debug purpose.
         container.followOutput(new Slf4jLogConsumer(LOG).withSeparateOutputStreams());
 
         // Create the operator.
-        this.operator =
-                new PulsarRuntimeOperator(
-                        container.getPulsarBrokerUrl(), container.getHttpServiceUrl());
+        if (boundFlink) {
+            this.operator =
+                    new PulsarRuntimeOperator(
+                            container.getPulsarBrokerUrl(),
+                            PULSAR_SERVICE_URL,
+                            container.getHttpServiceUrl(),
+                            PULSAR_ADMIN_URL);
+        } else {
+            this.operator =
+                    new PulsarRuntimeOperator(
+                            container.getPulsarBrokerUrl(), container.getHttpServiceUrl());
+        }
     }
 
     @Override
     public void tearDown() {
         try {
-            operator.close();
-            this.operator = null;
-        } catch (IOException e) {
+            if (operator != null) {
+                operator.close();
+                this.operator = null;
+            }
+            container.stop();
+            started.compareAndSet(true, false);
+        } catch (Exception e) {
             throw new IllegalStateException(e);
         }
-        container.stop();
     }
 
     @Override

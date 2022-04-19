@@ -27,15 +27,15 @@ import org.junit.rules.ExpectedException;
 import java.time.Duration;
 import java.time.ZoneId;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableConfig}. */
 public class TableConfigTest {
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
-    private static TableConfig configByMethod = new TableConfig();
-    private static TableConfig configByConfiguration = new TableConfig();
+    private static TableConfig configByMethod = TableConfig.getDefault();
+    private static TableConfig configByConfiguration = TableConfig.getDefault();
     private static Configuration configuration = new Configuration();
 
     @Test
@@ -44,8 +44,8 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         configByMethod.setSqlDialect(SqlDialect.HIVE);
 
-        assertEquals(SqlDialect.HIVE, configByMethod.getSqlDialect());
-        assertEquals(SqlDialect.HIVE, configByConfiguration.getSqlDialect());
+        assertThat(configByMethod.getSqlDialect()).isEqualTo(SqlDialect.HIVE);
+        assertThat(configByConfiguration.getSqlDialect()).isEqualTo(SqlDialect.HIVE);
     }
 
     @Test
@@ -54,8 +54,9 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         configByMethod.setMaxGeneratedCodeLength(5000);
 
-        assertEquals(Integer.valueOf(5000), configByMethod.getMaxGeneratedCodeLength());
-        assertEquals(Integer.valueOf(5000), configByConfiguration.getMaxGeneratedCodeLength());
+        assertThat(configByMethod.getMaxGeneratedCodeLength()).isEqualTo(Integer.valueOf(5000));
+        assertThat(configByConfiguration.getMaxGeneratedCodeLength())
+                .isEqualTo(Integer.valueOf(5000));
     }
 
     @Test
@@ -64,15 +65,15 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         configByMethod.setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
 
-        assertEquals(ZoneId.of("Asia/Shanghai"), configByMethod.getLocalTimeZone());
-        assertEquals(ZoneId.of("Asia/Shanghai"), configByConfiguration.getLocalTimeZone());
+        assertThat(configByMethod.getLocalTimeZone()).isEqualTo(ZoneId.of("Asia/Shanghai"));
+        assertThat(configByConfiguration.getLocalTimeZone()).isEqualTo(ZoneId.of("Asia/Shanghai"));
 
         configuration.setString("table.local-time-zone", "GMT-08:00");
         configByConfiguration.addConfiguration(configuration);
         configByMethod.setLocalTimeZone(ZoneId.of("GMT-08:00"));
 
-        assertEquals(ZoneId.of("GMT-08:00"), configByMethod.getLocalTimeZone());
-        assertEquals(ZoneId.of("GMT-08:00"), configByConfiguration.getLocalTimeZone());
+        assertThat(configByMethod.getLocalTimeZone()).isEqualTo(ZoneId.of("GMT-08:00"));
+        assertThat(configByConfiguration.getLocalTimeZone()).isEqualTo(ZoneId.of("GMT-08:00"));
     }
 
     @Test
@@ -115,7 +116,7 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         configByMethod.setIdleStateRetention(Duration.ofHours(1));
 
-        assertEquals(Duration.ofHours(1), configByMethod.getIdleStateRetention());
-        assertEquals(Duration.ofHours(1), configByConfiguration.getIdleStateRetention());
+        assertThat(configByMethod.getIdleStateRetention()).isEqualTo(Duration.ofHours(1));
+        assertThat(configByConfiguration.getIdleStateRetention()).isEqualTo(Duration.ofHours(1));
     }
 }

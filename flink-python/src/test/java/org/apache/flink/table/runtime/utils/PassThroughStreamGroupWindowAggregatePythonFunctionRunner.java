@@ -30,8 +30,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
-import java.util.Map;
-
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
 /**
@@ -50,7 +48,6 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
@@ -60,7 +57,6 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,

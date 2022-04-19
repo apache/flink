@@ -104,7 +104,8 @@ public class SchedulerBenchmarkUtils {
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
         final DefaultScheduler scheduler =
-                SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                SchedulerTestingUtils.createSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, scheduledExecutorService)
                         .setIoExecutor(scheduledExecutorService)
                         .setFutureExecutor(scheduledExecutorService)
                         .setDelayExecutor(

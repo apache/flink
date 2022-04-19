@@ -22,6 +22,7 @@ import subprocess
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
+from pyflink.table import expressions as expr
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkTestCase
@@ -32,7 +33,9 @@ class StreamSqlTests(PyFlinkStreamTableTestCase):
     def test_sql_ddl(self):
         self.t_env.execute_sql("create temporary function func1 as "
                                "'pyflink.table.tests.test_udf.add' language python")
-        table = self.t_env.from_elements([(1, 2)]).alias("a, b").select("func1(a, b)")
+        table = self.t_env.from_elements([(1, 2)]) \
+            .alias("a", "b") \
+            .select(expr.call("func1", expr.col("a"), expr.col("b")))
         plan = table.explain()
         self.assertTrue(plan.find("PythonCalc(select=[func1(f0, f1) AS _c0])") >= 0)
 

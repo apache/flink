@@ -3,7 +3,7 @@ title: "EXPLAIN 语句"
 weight: 9
 type: docs
 aliases:
-  - /dev/table/sql/explain.html
+  - /zh/dev/table/sql/explain.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -292,9 +292,16 @@ JSON_EXECUTION_PLAN：生成 json 格式的程序执行计划。
 ## 语法
 
 ```sql
-EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_insert_statement>
-```
+EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_insert_statement_or_statement_set>
 
+statement_set:
+EXECUTE STATEMENT SET
+BEGIN
+insert_statement;
+...
+insert_statement;
+END;
+```
 
 关于 query 的语法，请查阅 [Queries]({{< ref "docs/dev/table/sql/queries" >}}#supported-syntax) 页面。
 关于 INSERT 的语法，请查阅 [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) 页面。

@@ -33,8 +33,11 @@ import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -52,6 +55,9 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link IntermediateResultPartition}. */
 public class IntermediateResultPartitionTest extends TestLogger {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     @Test
     public void testPipelinedPartitionConsumable() throws Exception {
@@ -202,7 +208,8 @@ public class IntermediateResultPartitionTest extends TestLogger {
                         consumerParallelism,
                         consumerMaxParallelism,
                         distributionPattern,
-                        isDynamicGraph);
+                        isDynamicGraph,
+                        EXECUTOR_RESOURCE.getExecutor());
 
         final Iterator<ExecutionJobVertex> vertexIterator =
                 eg.getVerticesTopologically().iterator();
@@ -227,7 +234,8 @@ public class IntermediateResultPartitionTest extends TestLogger {
             int consumerParallelism,
             int consumerMaxParallelism,
             DistributionPattern distributionPattern,
-            boolean isDynamicGraph)
+            boolean isDynamicGraph,
+            ScheduledExecutorService scheduledExecutorService)
             throws Exception {
 
         final JobVertex v1 = new JobVertex("v1");
@@ -262,9 +270,9 @@ public class IntermediateResultPartitionTest extends TestLogger {
                                         isDynamicGraph,
                                         consumerMaxParallelism));
         if (isDynamicGraph) {
-            return builder.buildDynamicGraph();
+            return builder.buildDynamicGraph(scheduledExecutorService);
         } else {
-            return builder.build();
+            return builder.build(scheduledExecutorService);
         }
     }
 
@@ -296,10 +304,10 @@ public class IntermediateResultPartitionTest extends TestLogger {
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
 
         SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                        .setIoExecutor(executorService)
-                        .setFutureExecutor(executorService)
+                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                executorService)
                         .build();
 
         ExecutionJobVertex ejv = scheduler.getExecutionJobVertex(source.getID());

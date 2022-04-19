@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -65,6 +66,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private final boolean leftIsSmaller;
 
     public BatchExecSortMergeJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             int[] leftKeys,
             int[] rightKeys,
@@ -78,6 +80,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSortMergeJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSortMergeJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -94,7 +97,8 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge leftInputEdge = getInputEdges().get(0);
         ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -106,18 +110,14 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
         RowType keyType = RowType.of(keyFieldTypes);
 
-        TableConfig config = planner.getTableConfig();
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
 
         long externalBufferMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
                         .getBytes();
         long sortMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-                        .getBytes();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         int externalBufferNum = 1;
         if (joinType == FlinkJoinType.FULL) {
             externalBufferNum = 2;
@@ -162,8 +162,8 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
-                createTransformationName(planner.getTableConfig()),
-                createTransformationDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(getOutputType()),
                 rightInputTransform.getParallelism(),
@@ -171,7 +171,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     }
 
     private SortCodeGenerator newSortGen(
-            TableConfig config, int[] originalKeys, RowType inputType) {
+            ExecNodeConfig config, int[] originalKeys, RowType inputType) {
         SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
         return new SortCodeGenerator(config, inputType, sortSpec);
     }

@@ -62,6 +62,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
             ActorRef rpcEndpoint,
             Time timeout,
             long maximumFramesize,
+            boolean forceRpcInvocationSerialization,
             @Nullable CompletableFuture<Void> terminationFuture,
             Supplier<F> fencingTokenSupplier,
             boolean captureAskCallStacks,
@@ -72,6 +73,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
                 rpcEndpoint,
                 timeout,
                 maximumFramesize,
+                forceRpcInvocationSerialization,
                 terminationFuture,
                 captureAskCallStacks,
                 flinkClassLoader);

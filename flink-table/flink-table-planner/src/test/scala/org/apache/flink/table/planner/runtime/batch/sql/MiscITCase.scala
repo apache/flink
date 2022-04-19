@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -33,9 +32,7 @@ import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
-/**
-  * Misc tests.
-  */
+/** Misc tests. */
 class MiscITCase extends BatchTestBase {
 
   // helper methods
@@ -51,7 +48,7 @@ class MiscITCase extends BatchTestBase {
   private val toRow = (p: Product) =>
     Row.of(p.productIterator.map(_.asInstanceOf[AnyRef]).toArray: _*)
 
-  private def addTable[T <: Product : TypeInformation](tableData: Seq[T]): String = {
+  private def addTable[T <: Product: TypeInformation](tableData: Seq[T]): String = {
     val tableRows = tableData.map(toRow)
 
     val tupleTypeInfo = implicitly[TypeInformation[T]]
@@ -68,30 +65,28 @@ class MiscITCase extends BatchTestBase {
     tableName
   }
 
-  private def checkQuery[T <: Product : TypeInformation](
+  private def checkQuery[T <: Product: TypeInformation](
       table1Data: Seq[T],
       sqlQuery: String,
       expected: Seq[_ <: Product],
-      isSorted: Boolean = false)
-    : Unit = {
+      isSorted: Boolean = false): Unit = {
     val table2Data: Seq[Tuple1[String]] = null
     checkQuery2(table1Data, table2Data, sqlQuery, expected, isSorted)
   }
 
-  private def checkQuery2[T1 <: Product : TypeInformation, T2 <: Product : TypeInformation](
+  private def checkQuery2[T1 <: Product: TypeInformation, T2 <: Product: TypeInformation](
       table1Data: Seq[T1],
       table2Data: Seq[T2],
       sqlQuery: String,
       expected: Seq[_ <: Product],
-      isSorted: Boolean = false)
-    : Unit = {
+      isSorted: Boolean = false): Unit = {
 
     var sqlQueryX: String = sqlQuery
-    if (table1Data!=null) {
+    if (table1Data != null) {
       val table1Name = addTable(table1Data)
       sqlQueryX = sqlQueryX.replace("Table1", table1Name)
     }
-    if (table2Data!=null) {
+    if (table2Data != null) {
       val table2Name = addTable(table2Data)
       sqlQueryX = sqlQueryX.replace("Table2", table2Name)
     }
@@ -103,7 +98,7 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testBasicSelect(): Unit = {
-    val testData = (1 to 100).map(i=>(i, i.toString))
+    val testData = (1 to 100).map(i => (i, i.toString))
     checkQuery(
       testData,
       "select * from Table1",
@@ -332,8 +327,8 @@ class MiscITCase extends BatchTestBase {
       Seq[(Integer, String)]()
     )
     // check null equality
-    val nullInts = Seq[Tuple1[Integer]](Tuple1(1), Tuple1(2), Tuple1(null:Integer))
-    val allNulls = Seq[Tuple1[Integer]](Tuple1(null:Integer), Tuple1(null:Integer))
+    val nullInts = Seq[Tuple1[Integer]](Tuple1(1), Tuple1(2), Tuple1(null: Integer))
+    val allNulls = Seq[Tuple1[Integer]](Tuple1(null: Integer), Tuple1(null: Integer))
     checkQuery(
       nullInts,
       "select * from Table1 except (select * from Table1 where 1=0)",
@@ -348,7 +343,7 @@ class MiscITCase extends BatchTestBase {
     checkQuery(
       allNulls,
       "select * from Table1 except (select * from Table1 where f0=0)",
-      Seq[Tuple1[Integer]](Tuple1(null:Integer))
+      Seq[Tuple1[Integer]](Tuple1(null: Integer))
     )
     checkQuery(
       allNulls,
@@ -390,12 +385,12 @@ class MiscITCase extends BatchTestBase {
     )
     // check null equality
     checkQuery(
-      Seq[Tuple1[Integer]](Tuple1(1), Tuple1(2), Tuple1(null:Integer)),
+      Seq[Tuple1[Integer]](Tuple1(1), Tuple1(2), Tuple1(null: Integer)),
       "select * from Table1 intersect select * from Table1",
       Seq[Tuple1[Integer]](Tuple1(1), Tuple1(2), Tuple1(null))
     )
     checkQuery(
-      Seq[Tuple1[Integer]](Tuple1(null:Integer), Tuple1(null:Integer)),
+      Seq[Tuple1[Integer]](Tuple1(null: Integer), Tuple1(null: Integer)),
       "select * from Table1 intersect select * from Table1",
       Seq[Tuple1[Integer]](Tuple1(null))
     )
@@ -415,7 +410,7 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testOrderByAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     env.setParallelism(1)
     checkQuery(
       Seq((1, 10), (1, 20), (10, 1), (10, 2)),
@@ -428,9 +423,9 @@ class MiscITCase extends BatchTestBase {
   @Test
   def testCastInFilter(): Unit = {
     checkQuery(
-      Seq((1,"a")),
+      Seq((1, "a")),
       "select * from Table1 where cast(f0 as varchar(9))='1'",
-      Seq((1,"a"))
+      Seq((1, "a"))
     )
   }
 
@@ -491,8 +486,8 @@ class MiscITCase extends BatchTestBase {
   @Test // lots of when..then clauses
   def testLargeCaseWhen(): Unit = {
     // when f0=0 then 0 when f0=1 then 1 ...
-    val w1 = (0 to 10).map(i=>s"when f0=$i then $i").mkString(" ")
-    val w2 = (0 to 10).map(i=>s"when f0=$i then ${i + 10}").mkString(" ") + " else 0"
+    val w1 = (0 to 10).map(i => s"when f0=$i then $i").mkString(" ")
+    val w2 = (0 to 10).map(i => s"when f0=$i then ${i + 10}").mkString(" ") + " else 0"
     checkQuery(
       Seq(Tuple1(5)),
       s"select case $w1 end, case $w2 end from Table1",
@@ -502,49 +497,54 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testCompareFunctionWithSubquery(): Unit = {
-    checkResult("SELECT " +
+    checkResult(
+      "SELECT " +
         "b IN (3, 4, 5)," +
         "b NOT IN (3, 4, 5)," +
         "EXISTS (SELECT c FROM testTable WHERE c > 2)," +
         "NOT EXISTS (SELECT c FROM testTable WHERE c = 2)" +
         " FROM testTable WHERE a = TRUE",
-      Seq(row(true, false, false, false)))
+      Seq(row(true, false, false, false))
+    )
 
-    checkResult("SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) IN " +
+    checkResult(
+      "SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) IN " +
         "(SELECT ABS(c) FROM testTable)",
       Seq(row(null, 2), row(true, 3)))
 
-    checkResult("SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) NOT IN " +
+    checkResult(
+      "SELECT a, b FROM testTable WHERE CAST(b AS INTEGER) NOT IN " +
         "(SELECT ABS(c) FROM testTable)",
       Seq(row(false, 1)))
 
-    checkResult("SELECT a, b FROM testTable WHERE EXISTS (SELECT c FROM testTable WHERE c > b) " +
+    checkResult(
+      "SELECT a, b FROM testTable WHERE EXISTS (SELECT c FROM testTable WHERE c > b) " +
         "AND b = 2",
       Seq(row(null, 2)))
 
-    checkResult("SELECT a, b FROM testTable WHERE  NOT EXISTS " +
+    checkResult(
+      "SELECT a, b FROM testTable WHERE  NOT EXISTS " +
         "(SELECT c FROM testTable WHERE c > b) OR b <> 2",
       Seq(row(false, 1), row(true, 3)))
   }
 
   @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
   def testTableGenerateFunction(): Unit = {
-    checkResult("SELECT f, g, v FROM testTable," +
+    checkResult(
+      "SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(STRING_SPLIT(f, ' ')) AS T(v)",
-      Seq(
-        row("abcd", "f%g", "abcd"),
-        row("e fg", null, "e"),
-        row("e fg", null, "fg")))
+      Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
+    )
 
     // BuildInFunctions in SQL is case insensitive
-    checkResult("SELECT f, g, v FROM testTable," +
+    checkResult(
+      "SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(sTRING_sPLIT(f, ' ')) AS T(v)",
-      Seq(
-        row("abcd", "f%g", "abcd"),
-        row("e fg", null, "e"),
-        row("e fg", null, "fg")))
+      Seq(row("abcd", "f%g", "abcd"), row("e fg", null, "e"), row("e fg", null, "fg"))
+    )
 
-    checkResult("SELECT f, g, v FROM testTable," +
+    checkResult(
+      "SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v)",
       Seq(
         row("abcd", "f%g", 0),
@@ -552,9 +552,11 @@ class MiscITCase extends BatchTestBase {
         row(null, "hij_k", 1),
         row("e fg", null, 0),
         row("e fg", null, 1),
-        row("e fg", null, 2)))
+        row("e fg", null, 2))
+    )
 
-    checkResult("SELECT f, g, v FROM testTable," +
+    checkResult(
+      "SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(JSON_TUPLE('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}'," +
         "'a1', f)) AS T(v)",
       Seq(
@@ -563,9 +565,11 @@ class MiscITCase extends BatchTestBase {
         row(null, "hij_k", "b1"),
         row(null, "hij_k", null),
         row("e fg", null, "b1"),
-        row("e fg", null, "b3")))
+        row("e fg", null, "b3"))
+    )
 
-    checkResult("SELECT f, g, v FROM " +
+    checkResult(
+      "SELECT f, g, v FROM " +
         "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
         "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
         "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
@@ -573,9 +577,11 @@ class MiscITCase extends BatchTestBase {
         row("abcd", "f%g", "b1"),
         row(null, "hij_k", "b1"),
         row("e fg", null, "b1"),
-        row("e fg", null, "b3")))
+        row("e fg", null, "b3"))
+    )
 
-    checkResult("SELECT f, g, v FROM " +
+    checkResult(
+      "SELECT f, g, v FROM " +
         "testTable JOIN LATERAL TABLE(JSON_TUPLE" +
         "('{\"a1\": \"b1\", \"a2\": \"b2\", \"e fg\": \"b3\"}', 'a1', f)) AS T(v) " +
         "ON CHAR_LENGTH(f) = CHAR_LENGTH(v) + 2 OR CHAR_LENGTH(g) = CHAR_LENGTH(v) + 3",
@@ -583,21 +589,21 @@ class MiscITCase extends BatchTestBase {
         row("abcd", "f%g", "b1"),
         row(null, "hij_k", "b1"),
         row("e fg", null, "b1"),
-        row("e fg", null, "b3")))
+        row("e fg", null, "b3"))
+    )
   }
 
   /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicate can only be empty or literal true (the restriction should be removed in
-    * FLINK-7865).
-    */
+   * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the join
+   * predicate can only be empty or literal true (the restriction should be removed in FLINK-7865).
+   */
   @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
   def testTableGenerateFunctionLeftJoin(): Unit = {
-    checkResult("SELECT f, g, v FROM " +
+    checkResult(
+      "SELECT f, g, v FROM " +
         "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
         "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
-      Seq(
-        row(null, "hij_k", 1),
-        row("e fg", null, 2)))
+      Seq(row(null, "hij_k", 1), row("e fg", null, 2))
+    )
   }
 }

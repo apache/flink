@@ -37,7 +37,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -125,7 +125,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
                         final ApplicationId clusterId = clusterClient.getClusterId();
 
                         final RestClient restClient =
-                                new RestClient(configuration, TestingUtils.defaultExecutor());
+                                new RestClient(configuration, Executors.directExecutor());
 
                         try {
                             final ApplicationReport applicationReport =

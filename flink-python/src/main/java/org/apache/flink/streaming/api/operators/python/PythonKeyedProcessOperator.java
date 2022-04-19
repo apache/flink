@@ -41,6 +41,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
 import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
+import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
+import static org.apache.flink.python.PythonOptions.MAP_STATE_WRITE_CACHE_SIZE;
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
+import static org.apache.flink.python.PythonOptions.STATE_CACHE_SIZE;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataTypeInfo;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
@@ -142,8 +147,12 @@ public class PythonKeyedProcessOperator<OUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         keyTypeInfo,
-                        inBatchExecutionMode(getKeyedStateBackend())),
-                jobOptions,
+                        inBatchExecutionMode(getKeyedStateBackend()),
+                        config.get(PYTHON_METRIC_ENABLED),
+                        config.get(PYTHON_PROFILE_ENABLED),
+                        config.get(STATE_CACHE_SIZE),
+                        config.get(MAP_STATE_READ_CACHE_SIZE),
+                        config.get(MAP_STATE_WRITE_CACHE_SIZE)),
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,

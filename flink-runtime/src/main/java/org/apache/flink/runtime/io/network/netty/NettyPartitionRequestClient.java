@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
@@ -61,8 +63,9 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     private final PartitionRequestClientFactory clientFactory;
 
     /** If zero, the underlying TCP channel can be safely closed. */
-    private final AtomicDisposableReferenceCounter closeReferenceCounter =
-            new AtomicDisposableReferenceCounter();
+    private final AtomicInteger closeReferenceCounter = new AtomicInteger(0);
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     NettyPartitionRequestClient(
             Channel tcpChannel,
@@ -76,18 +79,23 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         this.clientFactory = checkNotNull(clientFactory);
     }
 
-    boolean disposeIfNotUsed() {
-        return closeReferenceCounter.disposeIfNotUsed();
+    boolean canBeDisposed() {
+        return closeReferenceCounter.get() == 0 && !canBeReused();
     }
 
     /**
-     * Increments the reference counter.
+     * Validate the client and increment the reference counter.
      *
      * <p>Note: the reference counter has to be incremented before returning the instance of this
      * client to ensure correct closing logic.
+     *
+     * @return whether this client can be used.
      */
-    boolean incrementReferenceCounter() {
-        return closeReferenceCounter.increment();
+    boolean validateClientAndIncrementReferenceCounter() {
+        if (!clientHandler.hasChannelError()) {
+            return closeReferenceCounter.incrementAndGet() > 0;
+        }
+        return false;
     }
 
     /**
@@ -135,6 +143,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                                                     connectionId.getConnectionIndex()),
                                             future.channel().localAddress(),
                                             future.cause()));
+                            sendToChannel(
+                                    new ConnectionErrorMessage(
+                                            future.cause() == null
+                                                    ? new RuntimeException(
+                                                            "Cannot send partition request.")
+                                                    : future.cause()));
                         }
                     }
                 };
@@ -188,6 +202,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                                                             connectionId.getConnectionIndex()),
                                                     future.channel().localAddress(),
                                                     future.cause()));
+                                    sendToChannel(
+                                            new ConnectionErrorMessage(
+                                                    future.cause() == null
+                                                            ? new RuntimeException(
+                                                                    "Cannot send task event.")
+                                                            : future.cause()));
                                 }
                             }
                         });
@@ -213,7 +233,7 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
         sendToChannel(new AcknowledgeAllRecordsProcessedMessage(inputChannel));
     }
 
-    private void sendToChannel(ClientOutboundMessage message) {
+    private void sendToChannel(Object message) {
         tcpChannel.eventLoop().execute(() -> tcpChannel.pipeline().fireUserEventTriggered(message));
     }
 
@@ -222,22 +242,36 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
 
         clientHandler.removeInputChannel(inputChannel);
 
-        if (closeReferenceCounter.decrement()) {
-            // Close the TCP connection. Send a close request msg to ensure
-            // that outstanding backwards task events are not discarded.
-            tcpChannel
-                    .writeAndFlush(new NettyMessage.CloseRequest())
-                    .addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
-
-            // Make sure to remove the client from the factory
-            clientFactory.destroyPartitionRequestClient(connectionId, this);
+        if (closeReferenceCounter.updateAndGet(count -> Math.max(count - 1, 0)) == 0
+                && !canBeReused()) {
+            closeConnection();
         } else {
             clientHandler.cancelRequestFor(inputChannel.getInputChannelId());
         }
     }
 
+    public void closeConnection() {
+        Preconditions.checkState(
+                canBeDisposed(), "The connection should not be closed before disposed.");
+        if (closed.getAndSet(true)) {
+            // Do not close connection repeatedly
+            return;
+        }
+        // Close the TCP connection. Send a close request msg to ensure
+        // that outstanding backwards task events are not discarded.
+        tcpChannel
+                .writeAndFlush(new NettyMessage.CloseRequest())
+                .addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+        // Make sure to remove the client from the factory
+        clientFactory.destroyPartitionRequestClient(connectionId, this);
+    }
+
+    private boolean canBeReused() {
+        return clientFactory.isConnectionReuseEnabled() && !clientHandler.hasChannelError();
+    }
+
     private void checkNotClosed() throws IOException {
-        if (closeReferenceCounter.isDisposed()) {
+        if (closed.get()) {
             final SocketAddress localAddr = tcpChannel.localAddress();
             final SocketAddress remoteAddr = tcpChannel.remoteAddress();
             throw new LocalTransportException(

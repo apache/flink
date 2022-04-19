@@ -3,7 +3,7 @@ title: "配置"
 weight: 121
 type: docs
 aliases:
-  - /dev/python/python_config.html
+  - /zh/dev/python/python_config.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -49,9 +49,23 @@ from pyflink.table import TableEnvironment, EnvironmentSettings
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(env_settings)
+t_env.get_config().set("python.fn-execution.bundle.size", "1000")
+```
 
-config = t_env.get_config().get_configuration()
-config.set_integer("python.fn-execution.bundle.size", 1000)
+The config options could also be set when creating EnvironmentSettings:
+```python
+from pyflink.common import Configuration
+from pyflink.table import TableEnvironment, EnvironmentSettings
+
+# create a streaming TableEnvironment
+config = Configuration()
+config.set_string("python.fn-execution.bundle.size", "1000")
+env_settings = EnvironmentSettings \
+    .new_instance() \
+    .in_streaming_mode() \
+    .with_configuration(config) \
+    .build()
+table_env = TableEnvironment.create(env_settings)
 ```
 
 ## Python Options

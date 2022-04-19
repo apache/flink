@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.ByteArrayInputStream;
@@ -36,7 +36,7 @@ import java.util.List;
  *
  * @param <RequestEntryT> Writer Request Entry type
  */
-@Internal
+@PublicEvolving
 public abstract class AsyncSinkWriterStateSerializer<RequestEntryT extends Serializable>
         implements SimpleVersionedSerializer<BufferedRequestState<RequestEntryT>> {
     private static final long DATA_IDENTIFIER = -1;

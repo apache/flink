@@ -417,12 +417,16 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         public void close() throws Exception {}
     }
 
-    private class GlobalCommitterAdapter implements Committer<CommT> {
-        GlobalCommitter<CommT, GlobalCommT> globalCommitter;
+    /** Simulate the global committer behaviour with a committer. */
+    @Internal
+    public class GlobalCommitterAdapter implements Committer<CommT> {
+        final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
+        final SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
 
         GlobalCommitterAdapter() {
             try {
                 globalCommitter = sink.createGlobalCommitter().get();
+                globalCommittableSerializer = sink.getGlobalCommittableSerializer().get();
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot create global committer", e);
             }
@@ -436,6 +440,10 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         @Override
         public void commit(Collection<CommitRequest<CommT>> committables)
                 throws IOException, InterruptedException {
+            if (committables.isEmpty()) {
+                return;
+            }
+
             List<CommT> rawCommittables =
                     committables.stream()
                             .map(CommitRequest::getCommittable)
@@ -443,9 +451,21 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
             List<GlobalCommT> globalCommittables =
                     Collections.singletonList(globalCommitter.combine(rawCommittables));
             List<GlobalCommT> failures = globalCommitter.commit(globalCommittables);
+            // Only committables are retriable so the complete batch of committables is retried
+            // because we cannot trace back the committable to which global committable it belongs.
+            // This might lead to committing the same global committable twice, but we assume that
+            // the GlobalCommitter commit call is idempotent.
             if (!failures.isEmpty()) {
                 committables.forEach(CommitRequest::retryLater);
             }
+        }
+
+        public GlobalCommitter<CommT, GlobalCommT> getGlobalCommitter() {
+            return globalCommitter;
+        }
+
+        public SimpleVersionedSerializer<GlobalCommT> getGlobalCommittableSerializer() {
+            return globalCommittableSerializer;
         }
     }
 }

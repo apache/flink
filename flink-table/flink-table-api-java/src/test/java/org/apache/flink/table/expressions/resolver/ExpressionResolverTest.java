@@ -60,11 +60,11 @@ import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving expressions with {@link ExpressionResolver} created with Expression DSL. See
@@ -248,7 +248,11 @@ public class ExpressionResolverTest {
                                                         "f0", DataTypes.INT(), 0, 0),
                                                 new FieldReferenceExpression(
                                                         "f1", DataTypes.STRING(), 0, 1)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))));
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.test("Test field reference with col()")
+                        .inputSchemas(TableSchema.builder().field("i", DataTypes.INT()).build())
+                        .select(col("i"))
+                        .equalTo(new FieldReferenceExpression("i", DataTypes.INT(), 0, 0)));
     }
 
     @Parameterized.Parameter public TestSpec testSpec;
@@ -257,7 +261,7 @@ public class ExpressionResolverTest {
     public void testResolvingExpressions() {
         List<ResolvedExpression> resolvedExpressions =
                 testSpec.getResolver().resolve(Arrays.asList(testSpec.expressions));
-        assertThat(resolvedExpressions, equalTo(testSpec.expectedExpressions));
+        assertThat(resolvedExpressions).isEqualTo(testSpec.expectedExpressions);
     }
 
     /** Test scalar function. */
@@ -346,7 +350,7 @@ public class ExpressionResolverTest {
 
         public ExpressionResolver getResolver() {
             return ExpressionResolver.resolverFor(
-                            new TableConfig(),
+                            TableConfig.getDefault(),
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),

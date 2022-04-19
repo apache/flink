@@ -16,13 +16,13 @@
 # limitations under the License.
 ################################################################################
 import datetime
-import sys
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
 import pytz
 
 from pyflink.common import Row, RowKind
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
@@ -37,7 +37,6 @@ from pyflink.fn_execution.table.window_process_function import GeneralWindowProc
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction, FunctionContext
 
-MAX_LONG_VALUE = sys.maxsize
 
 N = TypeVar('N')
 

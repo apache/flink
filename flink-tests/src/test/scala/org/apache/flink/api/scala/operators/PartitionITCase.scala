@@ -18,17 +18,17 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -89,7 +89,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
-    val unique = ds.partitionByHash(1).mapPartition( _.map(_._2).toSet )
+    val unique = ds.partitionByHash(1).mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -105,7 +105,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
-    val unique = ds.partitionByRange(1).mapPartition( _.map(_._2).toSet )
+    val unique = ds.partitionByRange(1).mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -120,7 +120,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val unique = ds.partitionByHash( _._2 ).mapPartition( _.map(_._2).toSet )
+    val unique = ds.partitionByHash(_._2).mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -134,7 +134,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val unique = ds.partitionByRange( _._2 ).mapPartition( _.map(_._2).toSet )
+    val unique = ds.partitionByRange(_._2).mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -152,20 +152,21 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val skewed = ds.filter(_ > 780)
     val rebalanced = skewed.rebalance()
 
-    val countsInPartition = rebalanced.map( new RichMapFunction[Long, (Int, Long)] {
-      def map(in: Long) = {
-        (getRuntimeContext.getIndexOfThisSubtask, 1)
-      }
-    })
+    val countsInPartition = rebalanced
+      .map(new RichMapFunction[Long, (Int, Long)] {
+        def map(in: Long) = {
+          (getRuntimeContext.getIndexOfThisSubtask, 1)
+        }
+      })
       .groupBy(0)
-      .reduce { (v1, v2) => (v1._1, v1._2 + v2._2) }
+      .reduce((v1, v2) => (v1._1, v1._2 + v2._2))
       // round counts to mitigate runtime scheduling effects (lazy split assignment)
-      .map { in => (in._1, in._2 / 10) }
+      .map(in => (in._1, in._2 / 10))
 
     countsInPartition.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
 
-    val numPerPartition : Int = 2220 / env.getParallelism / 10
+    val numPerPartition: Int = 2220 / env.getParallelism / 10
     expected = ""
     for (i <- 0 until env.getParallelism) {
       expected += "(" + i + "," + numPerPartition + ")\n"
@@ -180,9 +181,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val unique = ds.partitionByHash(1)
+    val unique = ds
+      .partitionByHash(1)
       .setParallelism(4)
-      .mapPartition( _.map(_._2).toSet )
+      .mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -198,9 +200,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val unique = ds.partitionByRange(1)
+    val unique = ds
+      .partitionByRange(1)
       .setParallelism(4)
-      .mapPartition( _.map(_._2).toSet )
+      .mapPartition(_.map(_._2).toSet)
 
     unique.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -216,8 +219,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val count = ds.partitionByHash(0).setParallelism(4).map(
-      new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
+    val count = ds
+      .partitionByHash(0)
+      .setParallelism(4)
+      .map(new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
         var first = true
         override def map(in: (Int, Long, String)): Tuple1[Int] = {
           // only output one value with count 1
@@ -228,7 +233,8 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
             Tuple1(0)
           }
         }
-      }).sum(0)
+      })
+      .sum(0)
 
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -244,8 +250,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val count = ds.partitionByRange(0).setParallelism(4).map(
-      new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
+    val count = ds
+      .partitionByRange(0)
+      .setParallelism(4)
+      .map(new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
         var first = true
         override def map(in: (Int, Long, String)): Tuple1[Int] = {
           // only output one value with count 1
@@ -256,14 +264,14 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
             Tuple1(0)
           }
         }
-      }).sum(0)
+      })
+      .sum(0)
 
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
 
     expected = if (mode == TestExecutionMode.COLLECTION) "(1)\n" else "(4)\n"
   }
-
 
   @Test
   def testFilterAfterRepartitionHasCorrectParallelism(): Unit = {
@@ -273,8 +281,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val count = ds.partitionByHash(0).setParallelism(4).filter(
-      new RichFilterFunction[(Int, Long, String)] {
+    val count = ds
+      .partitionByHash(0)
+      .setParallelism(4)
+      .filter(new RichFilterFunction[(Int, Long, String)] {
         var first = true
         override def filter(in: (Int, Long, String)): Boolean = {
           // only output one value with count 1
@@ -286,7 +296,8 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
           }
         }
       })
-      .map( _ => Tuple1(1)).sum(0)
+      .map(_ => Tuple1(1))
+      .sum(0)
 
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -302,8 +313,10 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
     env.setParallelism(1)
 
-    val count = ds.partitionByRange(0).setParallelism(4).filter(
-      new RichFilterFunction[(Int, Long, String)] {
+    val count = ds
+      .partitionByRange(0)
+      .setParallelism(4)
+      .filter(new RichFilterFunction[(Int, Long, String)] {
         var first = true
         override def filter(in: (Int, Long, String)): Boolean = {
           // only output one value with count 1
@@ -315,7 +328,8 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
           }
         }
       })
-      .map( _ => Tuple1(1)).sum(0)
+      .map(_ => Tuple1(1))
+      .sum(0)
 
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -331,7 +345,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val uniqLongs = ds
       .partitionByHash("nestedPojo.longNumber")
       .setParallelism(4)
-      .mapPartition( _.map(_.nestedPojo.longNumber).toSet )
+      .mapPartition(_.map(_.nestedPojo.longNumber).toSet)
 
     uniqLongs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -346,7 +360,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     val uniqLongs = ds
       .partitionByRange("nestedPojo.longNumber")
       .setParallelism(4)
-      .mapPartition( _.map(_.nestedPojo.longNumber).toSet )
+      .mapPartition(_.map(_.nestedPojo.longNumber).toSet)
 
     uniqLongs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()

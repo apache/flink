@@ -3,8 +3,8 @@ title: "Blocking Shuffle"
 weight: 4
 type: docs
 aliases:
-- /ops/batch/blocking_shuffle.html
-- /ops/batch/blocking_shuffle
+- /zh/ops/batch/blocking_shuffle.html
+- /zh/ops/batch/blocking_shuffle
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

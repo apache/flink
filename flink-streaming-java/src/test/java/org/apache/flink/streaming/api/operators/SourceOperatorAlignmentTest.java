@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
@@ -40,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,8 +66,9 @@ public class SourceOperatorAlignmentTest {
                 new SourceOperatorTestContext(
                         false,
                         WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
-                                .withTimestampAssigner((r, t) -> r),
-                        new WatermarkAlignmentParams(100, "group1", 1));
+                                .withTimestampAssigner((r, t) -> r)
+                                .withWatermarkAlignment(
+                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1)));
         operator = context.getOperator();
     }
 
@@ -138,8 +139,9 @@ public class SourceOperatorAlignmentTest {
                                         ctx ->
                                                 new PunctuatedGenerator(
                                                         PunctuatedGenerator.GenerationMode.ODD))
-                                .withTimestampAssigner((r, t) -> r),
-                        new WatermarkAlignmentParams(100, "group1", 1))) {
+                                .withWatermarkAlignment(
+                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1))
+                                .withTimestampAssigner((r, t) -> r))) {
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.initializeState(context.createStateContext());
             operator.open();

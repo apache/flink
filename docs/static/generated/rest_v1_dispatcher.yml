@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.15-SNAPSHOT
+  version: v1/1.16-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -795,6 +795,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/status:
+    get:
+      description: Returns the current status of a job execution.
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusInfo'
   /jobs/{jobid}/stop:
     post:
       description: "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK\
@@ -1751,6 +1768,11 @@ components:
           type: string
         cancel-job:
           type: boolean
+        formatType:
+          type: string
+          enum:
+          - CANONICAL
+          - NATIVE
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     ThreadDumpInfo:
@@ -1812,6 +1834,9 @@ components:
         latest_ack_timestamp:
           type: integer
           format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
         state_size:
           type: integer
           format: int64
@@ -1833,6 +1858,23 @@ components:
         num_acknowledged_subtasks:
           type: integer
           format: int32
+    JobStatusInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - INITIALIZING
+          - CREATED
+          - RUNNING
+          - FAILING
+          - FAILED
+          - CANCELLING
+          - CANCELED
+          - FINISHED
+          - RESTARTING
+          - SUSPENDED
+          - RECONCILING
     JobAccumulator:
       type: object
     JobID:
@@ -1858,6 +1900,9 @@ components:
           type: integer
           format: int64
         latest_ack_timestamp:
+          type: integer
+          format: int64
+        checkpointed_size:
           type: integer
           format: int64
         state_size:
@@ -2157,6 +2202,9 @@ components:
           end_to_end_duration:
             type: integer
             format: int64
+          checkpointed_size:
+            type: integer
+            format: int64
           state_size:
             type: integer
             format: int64
@@ -2368,6 +2416,11 @@ components:
           type: string
         drain:
           type: boolean
+        formatType:
+          type: string
+          enum:
+          - CANONICAL
+          - NATIVE
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     DashboardConfiguration:
@@ -2604,6 +2657,9 @@ components:
         latest_ack_timestamp:
           type: integer
           format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
         state_size:
           type: integer
           format: int64
@@ -2818,6 +2874,8 @@ components:
     Summary:
       type: object
       properties:
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
         state_size:
           $ref: '#/components/schemas/StatsSummaryDto'
         end_to_end_duration:

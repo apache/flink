@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
@@ -36,19 +35,28 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   private val streamUtil = scalaStreamTestUtil()
   streamUtil.addDataStream[(Int, String, Timestamp)](
-    "MyTable", 'a, 'b, 'rowtime.rowtime, 'proctime.proctime)
+    "MyTable",
+    'a,
+    'b,
+    'rowtime.rowtime,
+    'proctime.proctime)
   streamUtil.addDataStream[(String, Long, Int, Int)](
-    "Ticker", 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+    "Ticker",
+    'symbol,
+    'tstamp,
+    'price,
+    'tax,
+    'proctime.proctime)
   streamUtil.addFunction("ToMillis", new ToMillis)
 
-  /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE **/
+  /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE * */
   @Test(expected = classOf[ValidationException])
   def testMatchRowtimeInSelect(): Unit = {
     val sql = "SELECT MATCH_ROWTIME() FROM MyTable"
     streamUtil.verifyExplain(sql)
   }
 
-  /** Function 'MATCH_PROCTIME()' can only be used in MATCH_RECOGNIZE **/
+  /** Function 'MATCH_PROCTIME()' can only be used in MATCH_RECOGNIZE * */
   @Test(expected = classOf[ValidationException])
   def testMatchProctimeInSelect(): Unit = {
     val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
@@ -79,8 +87,9 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testSortProcessingTimeSecondaryField(): Unit = {
-    thrown.expectMessage("You must specify either rowtime or proctime for order by as " +
-      "the first one.")
+    thrown.expectMessage(
+      "You must specify either rowtime or proctime for order by as " +
+        "the first one.")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =
@@ -123,8 +132,9 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testUpdatesInUpstreamOperatorNotSupported(): Unit = {
-    thrown.expectMessage("Match Recognize doesn't support consuming update changes " +
-      "which is produced by node GroupAggregate(")
+    thrown.expectMessage(
+      "Match Recognize doesn't support consuming update changes " +
+        "which is produced by node GroupAggregate(")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =
@@ -220,7 +230,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   // * features.                                                                           *
   // ***************************************************************************************
 
-  /** Python Function can not be used in MATCH_RECOGNIZE for now **/
+  /** Python Function can not be used in MATCH_RECOGNIZE for now * */
   @Test
   def testMatchPythonFunction() = {
     thrown.expectMessage("Python Function can not be used in MATCH_RECOGNIZE for now.")
@@ -268,8 +278,9 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testGreedyQuantifierAtTheEndIsNotSupported(): Unit = {
-    thrown.expectMessage("Greedy quantifiers are not allowed as the last element of a " +
-      "Pattern yet. Finish your pattern with either a simple variable or reluctant quantifier.")
+    thrown.expectMessage(
+      "Greedy quantifiers are not allowed as the last element of a " +
+        "Pattern yet. Finish your pattern with either a simple variable or reluctant quantifier.")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =
@@ -291,8 +302,9 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testPatternsProducingEmptyMatchesAreNotSupported(): Unit = {
-    thrown.expectMessage("Patterns that can produce empty matches are not supported. " +
-      "There must be at least one non-optional state.")
+    thrown.expectMessage(
+      "Patterns that can produce empty matches are not supported. " +
+        "There must be at least one non-optional state.")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =

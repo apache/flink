@@ -27,9 +27,7 @@ import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
- * Test for [[PushLimitIntoLegacyTableSourceScanRule]].
- */
+/** Test for [[PushLimitIntoLegacyTableSourceScanRule]]. */
 class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
   protected val util = batchTestUtil()
 
@@ -42,11 +40,13 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushLimitIntoLegacyTableSourceScanRule.INSTANCE,
+        .add(RuleSets.ofList(
+          PushLimitIntoLegacyTableSourceScanRule.INSTANCE,
           CoreRules.SORT_PROJECT_TRANSPOSE,
           // converts calcite rel(RelNode) to flink rel(FlinkRelNode)
           FlinkLogicalSort.BATCH_CONVERTER,
-          FlinkLogicalLegacyTableSourceScan.CONVERTER))
+          FlinkLogicalLegacyTableSourceScan.CONVERTER
+        ))
         .build()
     )
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -34,6 +35,7 @@ import java.util.List;
 public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<RowData> {
 
     public BatchExecExpand(
+            ReadableConfig tableConfig,
             List<List<RexNode>> projects,
             InputProperty inputProperty,
             RowType outputType,
@@ -41,6 +43,7 @@ public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<R
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecExpand.class),
+                ExecNodeContext.newPersistedConfig(BatchExecExpand.class, tableConfig),
                 projects,
                 false, // retainHeader
                 Collections.singletonList(inputProperty),

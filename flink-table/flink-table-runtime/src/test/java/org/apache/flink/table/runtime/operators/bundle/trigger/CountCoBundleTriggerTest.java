@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.bundle.trigger;
 
 import org.junit.Test;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CountCoBundleTrigger}. */
 public class CountCoBundleTriggerTest {
@@ -32,21 +32,21 @@ public class CountCoBundleTriggerTest {
         trigger.registerCallback(callback);
 
         trigger.onElement1(null);
-        assertEquals(0, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(0);
 
         trigger.onElement2(null);
-        assertEquals(1, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(1);
 
         trigger.onElement1(null);
-        assertEquals(1, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(1);
 
         trigger.onElement1(null);
-        assertEquals(2, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(2);
 
         trigger.onElement2(null);
-        assertEquals(2, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(2);
 
         trigger.onElement2(null);
-        assertEquals(3, callback.getTriggerCount());
+        assertThat(callback.getTriggerCount()).isEqualTo(3);
     }
 }

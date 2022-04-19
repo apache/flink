@@ -22,12 +22,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "TO_TIMESTAMP",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
@@ -42,12 +38,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -63,19 +55,16 @@
               "rowtimeAttribute" : "rowtime",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 3,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 1000,
+                    "value" : "1000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -110,12 +99,8 @@
       "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "TO_TIMESTAMP",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
@@ -123,12 +108,8 @@
       } ],
       "type" : "TIMESTAMP(3)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -174,19 +155,16 @@
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "-",
-        "kind" : "MINUS",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : 1000,
+        "value" : "1000",
         "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -309,14 +287,15 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-group-window-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1",
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -362,6 +341,12 @@
   }, {
     "id" : 7,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

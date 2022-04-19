@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 
 import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InternalConfigOptions}. */
 @RunWith(Parameterized.class)
@@ -77,6 +77,6 @@ public class InternalConfigOptionsTest extends TableTestBase {
         // cleanup them after translate finished
         List<Transformation<?>> transformation = planner.translateToPlan(execNodeGraph);
         // check the translation success
-        Assert.assertEquals(1, transformation.size());
+        assertThat(transformation).hasSize(1);
     }
 }

@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -43,7 +42,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -253,7 +251,7 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
                 3,
                 1,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,
@@ -294,7 +292,6 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
                     udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }

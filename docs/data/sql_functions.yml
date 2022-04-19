@@ -221,10 +221,10 @@ arithmetic:
     description: Returns a pseudorandom double value in the range [0.0, 1.0) with an initial seed integer. Two RAND functions will return identical sequences of numbers if they have the same initial seed.
   - sql: RAND_INTEGER(INT)
     table: randInteger(INT)
-    description: Returns a pseudorandom double value in the range [0.0, INT)
+    description: Returns a pseudorandom integer value in the range [0, INT)
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
-    description: Returns a pseudorandom double value in the range [0.0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
+    description: Returns a pseudorandom integer value in the range [0, INT2) with an initial seed INT1. Two RAND_INTGER functions will return idential sequences of numbers if they have the same initial seed and bound.
   - sql: UUID()
     table: uuid()
     description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
@@ -380,8 +380,7 @@ temporal:
       An interval range might be DAY, MINUTE, DAY TO HOUR, or DAY TO SECOND for intervals of milliseconds; YEAR or YEAR TO MONTH for intervals of months.
 
       E.g., INTERVAL '10 00:00:00.004' DAY TO SECOND, INTERVAL '10' DAY, or INTERVAL '2-10' YEAR TO MONTH return intervals.
-  - sql: YEAR(date)
-    table: |
+  - table: |
       NUMERIC.year
       NUMERIC.years
     description: Creates an interval of months for NUMERIC years.
@@ -561,7 +560,10 @@ conditional:
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
-    description: Returns a new value being cast to type type. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS VARCHAR) returns NULL of type VARCHAR.
+    description: Returns a new value being cast to type type. A CAST error throws an exception and fails the job. When performing a cast operation that may fail, like STRING to INT, one should rather use TRY_CAST, in order to handle errors. If "table.exec.legacy-cast-behaviour" is enabled, CAST behaves like TRY_CAST. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS STRING) returns NULL of type STRING; CAST('non-number' AS INT) throws an exception and fails the job.
+  - sql: TRY_CAST(value AS type)
+    table: ANY.tryCast(TYPE)
+    description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
   - sql: |
      TYPEOF(input)
      TYPEOF(input, force_serializable)
@@ -897,7 +899,7 @@ hashfunctions:
     description: Returns the MD5 hash of string as a string of 32 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
+    description: Returns the SHA-1 hash of string as a string of 40 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA224(string)
     table: STRING.sha224()
     description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.

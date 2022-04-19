@@ -18,13 +18,22 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUtils;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.util.Properties;
+
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_REGION;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.TRUST_ALL_CERTIFICATES;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createConfig;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSink}. */
 public class KinesisFirehoseSinkTest {
@@ -72,5 +81,52 @@ public class KinesisFirehoseSinkTest {
                                         new Properties()))
                 .withMessageContaining(
                         "The delivery stream name must be set when initializing the KDF Sink.");
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenAccessKeyIdIsNotProvided() {
+        Properties properties = createConfig("https://non-exisitent-location");
+        properties.setProperty(
+                AWS_CREDENTIALS_PROVIDER, AWSConfigConstants.CredentialProvider.BASIC.toString());
+        properties.remove(AWSConfigConstants.accessKeyId(AWS_CREDENTIALS_PROVIDER));
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties, "Please set values for AWS Access Key ID");
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenRegionIsNotProvided() {
+        Properties properties = createConfig("https://non-exisitent-location");
+        properties.remove(AWS_REGION);
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties, "region must not be null.");
+    }
+
+    @Test
+    public void firehoseSinkFailsWhenUnableToConnectToRemoteService() {
+        Properties properties = createConfig("https://non-exisitent-location");
+        properties.remove(TRUST_ALL_CERTIFICATES);
+        firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+                properties,
+                "Received an UnknownHostException when attempting to interact with a service.");
+    }
+
+    private void firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
+            Properties properties, String errorMessage) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        KinesisFirehoseSink<String> kdsSink =
+                KinesisFirehoseSink.<String>builder()
+                        .setSerializationSchema(new SimpleStringSchema())
+                        .setDeliveryStreamName("non-existent-stream")
+                        .setMaxBatchSize(1)
+                        .setFirehoseClientProperties(properties)
+                        .build();
+
+        KinesisFirehoseTestUtils.getSampleDataGenerator(env, 10).sinkTo(kdsSink);
+
+        Assertions.assertThatExceptionOfType(JobExecutionException.class)
+                .isThrownBy(() -> env.execute("Integration Test"))
+                .havingCause()
+                .havingCause()
+                .withMessageContaining(errorMessage);
     }
 }

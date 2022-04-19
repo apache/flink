@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -27,13 +28,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import java.io.IOException;
 
 /**
- * JSON deserializer for {@link ExecNodeGraph}. It uses the intermediate representation {@link
- * JsonPlanGraph}.
+ * JSON deserializer for {@link ExecNodeGraph}.
+ *
+ * <p>It uses the intermediate representation {@link JsonPlanGraph}.
+ *
+ * @see ExecNodeGraphJsonSerializer for the reverse operation
  */
-public class ExecNodeGraphJsonDeserializer extends StdDeserializer<ExecNodeGraph> {
+@Internal
+final class ExecNodeGraphJsonDeserializer extends StdDeserializer<ExecNodeGraph> {
     private static final long serialVersionUID = 1L;
 
-    public ExecNodeGraphJsonDeserializer() {
+    ExecNodeGraphJsonDeserializer() {
         super(ExecNodeGraph.class);
     }
 

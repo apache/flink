@@ -23,13 +23,13 @@
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-sql-connector-aws-kinesis-firehose</artifactId>
-	<name>Flink : Connectors : SQL : AWS Kinesis Data Firehose</name>
+	<name>Flink : Connectors : SQL : Amazon Kinesis Data Firehose</name>
 
 	<dependencies>
 		<dependency>

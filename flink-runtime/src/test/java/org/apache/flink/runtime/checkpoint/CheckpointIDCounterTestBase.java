@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,12 +34,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base class with common tests for the {@link CheckpointIDCounter} implementations. */
-public abstract class CheckpointIDCounterTestBase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+abstract class CheckpointIDCounterTestBase {
 
     protected abstract CheckpointIDCounter createCheckpointIdCounter() throws Exception;
 
@@ -56,9 +56,9 @@ public abstract class CheckpointIDCounterTestBase extends TestLogger {
 
         try {
             counter.start();
-            assertThat(counter.get(), greaterThanOrEqualTo(0L));
+            assertThat(counter.get()).isGreaterThanOrEqualTo(0L);
         } finally {
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
         }
     }
 
@@ -70,15 +70,15 @@ public abstract class CheckpointIDCounterTestBase extends TestLogger {
         try {
             counter.start();
 
-            assertEquals(1, counter.getAndIncrement());
-            assertEquals(2, counter.get());
-            assertEquals(2, counter.getAndIncrement());
-            assertEquals(3, counter.get());
-            assertEquals(3, counter.getAndIncrement());
-            assertEquals(4, counter.get());
-            assertEquals(4, counter.getAndIncrement());
+            assertThat(counter.getAndIncrement()).isEqualTo(1);
+            assertThat(counter.get()).isEqualTo(2);
+            assertThat(counter.getAndIncrement()).isEqualTo(2);
+            assertThat(counter.get()).isEqualTo(3);
+            assertThat(counter.getAndIncrement()).isEqualTo(3);
+            assertThat(counter.get()).isEqualTo(4);
+            assertThat(counter.getAndIncrement()).isEqualTo(4);
         } finally {
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
         }
     }
 
@@ -116,29 +116,35 @@ public abstract class CheckpointIDCounterTestBase extends TestLogger {
             // Get the counts
             for (Future<List<Long>> result : resultFutures) {
                 List<Long> counts = result.get();
+                assertStrictlyMonotonous(counts);
                 all.addAll(counts);
             }
 
             // Verify
             Collections.sort(all);
 
-            assertEquals(expectedTotal, all.size());
+            assertThat(all.size()).isEqualTo(expectedTotal);
 
-            long current = 0;
-            for (long val : all) {
-                // Incrementing counts
-                assertEquals(++current, val);
-            }
+            assertStrictlyMonotonous(all);
 
             // The final count
-            assertEquals(expectedTotal + 1, counter.get());
-            assertEquals(expectedTotal + 1, counter.getAndIncrement());
+            final long lastCheckpointId = all.get(all.size() - 1);
+            assertThat(lastCheckpointId).isLessThan(counter.get());
+            assertThat(lastCheckpointId).isLessThan(counter.getAndIncrement());
         } finally {
             if (executor != null) {
                 executor.shutdown();
             }
 
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
+        }
+    }
+
+    private static void assertStrictlyMonotonous(List<Long> checkpointIds) {
+        long current = -1;
+        for (long checkpointId : checkpointIds) {
+            assertThat(current).isLessThan(checkpointId);
+            current = checkpointId;
         }
     }
 
@@ -150,12 +156,12 @@ public abstract class CheckpointIDCounterTestBase extends TestLogger {
 
         // Test setCount
         counter.setCount(1337);
-        assertEquals(1337, counter.get());
-        assertEquals(1337, counter.getAndIncrement());
-        assertEquals(1338, counter.get());
-        assertEquals(1338, counter.getAndIncrement());
+        assertThat(counter.get()).isEqualTo(1337);
+        assertThat(counter.getAndIncrement()).isEqualTo(1337);
+        assertThat(counter.get()).isEqualTo(1338);
+        assertThat(counter.getAndIncrement()).isEqualTo(1338);
 
-        counter.shutdown(JobStatus.FINISHED);
+        counter.shutdown(JobStatus.FINISHED).join();
     }
 
     /** Task repeatedly incrementing the {@link CheckpointIDCounter}. */

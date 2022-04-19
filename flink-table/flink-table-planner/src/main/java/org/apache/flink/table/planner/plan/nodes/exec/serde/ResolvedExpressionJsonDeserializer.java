@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -41,9 +42,15 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedExpre
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedExpressionJsonSerializer.TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedExpressionJsonSerializer.TYPE_REX_NODE_EXPRESSION;
 
-class ResolvedExpressionJsonDeserializer extends StdDeserializer<ResolvedExpression> {
+/**
+ * JSON deserializer for {@link ResolvedExpression}.
+ *
+ * @see ResolvedExpressionJsonSerializer for the reverse operation
+ */
+@Internal
+final class ResolvedExpressionJsonDeserializer extends StdDeserializer<ResolvedExpression> {
 
-    protected ResolvedExpressionJsonDeserializer() {
+    ResolvedExpressionJsonDeserializer() {
         super(ResolvedExpression.class);
     }
 

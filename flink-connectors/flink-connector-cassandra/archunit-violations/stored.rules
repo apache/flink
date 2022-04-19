@@ -1,4 +1,4 @@
 #
-#Thu Feb 03 14:58:10 CET 2022
-classes\ that\ are\ Java\ classes\ and\ have\ simple\ name\ ending\ with\ 'ITCase'\ and\ are\ top\ level\ classes\ and\ do\ not\ have\ modifier\ ABSTRACT\ should\ contain\ any\ fields\ that\ are\ public,\ static,\ and\ of\ type\ MiniClusterExtension\ and\ final\ and\ contain\ any\ fields\ that\ are\ public,\ static,\ and\ of\ type\ AllCallbackWrapper\ and\ final\ and\ annotated\ with\ @RegisterExtension\ or\ contain\ any\ fields\ that\ are\ public,\ static,\ and\ of\ type\ MiniClusterWithClientResource\ and\ final\ and\ annotated\ with\ @ClassRule\ or\ contain\ any\ fields\ that\ is\ of\ type\ MiniClusterWithClientResource\ and\ public\ and\ final\ and\ not\ static\ and\ annotated\ with\ @Rule=ab3290f1-643c-4f87-ace6-cddbe44827ef
-classes\ that\ are\ Java\ classes\ and\ are\ assignable\ to\ org.apache.flink.test.util.AbstractTestBase\ and\ do\ not\ have\ modifier\ ABSTRACT\ should\ have\ simple\ name\ ending\ with\ 'ITCase'=afc9ba9a-9c5a-4f94-96ab-8cdc080c9fa2
+#Tue Feb 22 12:16:49 CET 2022
+Tests\ inheriting\ from\ AbstractTestBase\ should\ have\ name\ ending\ with\ ITCase=b7279bb1-1eb7-40c0-931d-f6db7971d126
+ITCASE\ tests\ should\ use\ a\ MiniCluster\ resource\ or\ extension=dc1ba6f4-3d84-498c-a085-e02ba5936201

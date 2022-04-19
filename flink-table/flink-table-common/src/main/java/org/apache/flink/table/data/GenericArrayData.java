@@ -29,13 +29,28 @@ import java.util.Objects;
 /**
  * An internal data structure representing data of {@link ArrayType}.
  *
- * <p>{@link GenericArrayData} is a generic implementation of {@link ArrayData} which wraps regular
- * Java arrays.
- *
  * <p>Note: All elements of this data structure must be internal data structures and must be of the
  * same type. See {@link RowData} for more information about internal data structures.
  *
- * <p>For non-primitive arrays, elements can contain null for representing nullability.
+ * <p>{@link GenericArrayData} is a generic implementation of {@link ArrayData} which wraps regular
+ * Java arrays.
+ *
+ * <p>Every instance wraps a one-dimensional Java array. Non-primitive arrays can be used for
+ * representing element nullability. The Java array might be a primitive array such as {@code int[]}
+ * or an object array (i.e. instance of {@code Object[]}). Object arrays that contain boxed types
+ * (e.g. {@link Integer}) MUST be boxed arrays (i.e. {@code new Integer[]{1, 2, 3}}, not {@code new
+ * Object[]{1, 2, 3}}). For multidimensional arrays, an array of {@link GenericArrayData} MUST be
+ * passed. For example:
+ *
+ * <pre>{@code
+ * // ARRAY < ARRAY < INT NOT NULL > >
+ * new GenericArrayData(
+ *   new GenericArrayData[]{
+ *     new GenericArrayData(new int[3]),
+ *     new GenericArrayData(new int[5])
+ *   }
+ * )
+ * }</pre>
  */
 @PublicEvolving
 public final class GenericArrayData implements ArrayData {

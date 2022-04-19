@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.Types
@@ -47,16 +46,16 @@ class CompositeTypeTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  createTypeInformation[MyCaseClass],
-      /* 1 */  createTypeInformation[MyCaseClass2],
-      /* 2 */  createTypeInformation[(String, String)],
-      /* 3 */  new TupleTypeInfo(Types.STRING, Types.STRING),
-      /* 4 */  TypeExtractor.createTypeInfo(classOf[MyPojo]),
-      /* 5 */  Types.INT,
-      /* 6 */  TypeExtractor.createTypeInfo(classOf[MyCaseClass2]),
-      /* 7 */  createTypeInformation[Tuple1[Boolean]],
-      /* 8 */  createTypeInformation[Array[Tuple2[Boolean, Int]]],
-      /* 9 */  createTypeInformation[Array[Tuple1[Boolean]]],
+      /* 0 */ createTypeInformation[MyCaseClass],
+      /* 1 */ createTypeInformation[MyCaseClass2],
+      /* 2 */ createTypeInformation[(String, String)],
+      /* 3 */ new TupleTypeInfo(Types.STRING, Types.STRING),
+      /* 4 */ TypeExtractor.createTypeInfo(classOf[MyPojo]),
+      /* 5 */ Types.INT,
+      /* 6 */ TypeExtractor.createTypeInfo(classOf[MyCaseClass2]),
+      /* 7 */ createTypeInformation[Tuple1[Boolean]],
+      /* 8 */ createTypeInformation[Array[Tuple2[Boolean, Int]]],
+      /* 9 */ createTypeInformation[Array[Tuple1[Boolean]]],
       /* 10 */ createTypeInformation[Array[MyCaseClass]],
       /* 11 */ createTypeInformation[Array[MyPojo]],
       /* 12 */ createTypeInformation[Array[MyCaseClass3]],
@@ -89,4 +88,3 @@ object CompositeTypeTestBase {
     }
   }
 }
-

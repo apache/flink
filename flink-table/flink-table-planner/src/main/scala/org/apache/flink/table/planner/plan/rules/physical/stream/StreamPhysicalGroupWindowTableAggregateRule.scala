@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowTableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupWindowTableAggregate
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -33,9 +32,9 @@ import org.apache.calcite.rel.convert.ConverterRule
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[FlinkLogicalWindowTableAggregate]] into a
-  * [[StreamPhysicalGroupWindowTableAggregate]].
-  */
+ * Rule to convert a [[FlinkLogicalWindowTableAggregate]] into a
+ * [[StreamPhysicalGroupWindowTableAggregate]].
+ */
 class StreamPhysicalGroupWindowTableAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalWindowTableAggregate],
@@ -70,8 +69,8 @@ class StreamPhysicalGroupWindowTableAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
+    val tableConfig = ShortcutUtils.unwrapTableConfig(rel)
+    val emitStrategy = WindowEmitStrategy(tableConfig, agg.getWindow)
 
     new StreamPhysicalGroupWindowTableAggregate(
       cluster,

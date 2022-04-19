@@ -41,7 +41,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.isInternal;
  * @see DataTypeJsonDeserializer for the reverse operation
  */
 @Internal
-public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
+final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     private static final long serialVersionUID = 1L;
 
     /*
@@ -83,22 +83,22 @@ public final class DataTypeJsonSerializer extends StdSerializer<DataType> {
      */
 
     // Common fields
-    public static final String FIELD_NAME_TYPE = "logicalType";
-    public static final String FIELD_NAME_CONVERSION_CLASS = "conversionClass";
+    static final String FIELD_NAME_TYPE = "logicalType";
+    static final String FIELD_NAME_CONVERSION_CLASS = "conversionClass";
 
     // ARRAY, MULTISET
-    public static final String FIELD_NAME_ELEMENT_CLASS = "elementClass";
+    static final String FIELD_NAME_ELEMENT_CLASS = "elementClass";
 
     // MAP
-    public static final String FIELD_NAME_KEY_CLASS = "keyClass";
-    public static final String FIELD_NAME_VALUE_CLASS = "valueClass";
+    static final String FIELD_NAME_KEY_CLASS = "keyClass";
+    static final String FIELD_NAME_VALUE_CLASS = "valueClass";
 
     // ROW, STRUCTURED_TYPE, DISTINCT_TYPE
-    public static final String FIELD_NAME_FIELDS = "fields";
-    public static final String FIELD_NAME_FIELD_NAME = "name";
-    public static final String FIELD_NAME_FIELD_CLASS = "fieldClass";
+    static final String FIELD_NAME_FIELDS = "fields";
+    static final String FIELD_NAME_FIELD_NAME = "name";
+    static final String FIELD_NAME_FIELD_CLASS = "fieldClass";
 
-    public DataTypeJsonSerializer() {
+    DataTypeJsonSerializer() {
         super(DataType.class);
     }
 

@@ -21,7 +21,7 @@ import { Injectable, Injector } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzNotificationService, NzNotificationDataOptions } from 'ng-zorro-antd/notification';
 
 import { StatusService } from 'services';
 
@@ -33,6 +33,10 @@ export class AppInterceptor implements HttpInterceptor {
     // Error response from below url should be ignored
     const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
     const ignoreErrorMessage = ['File not found.'];
+    const option: NzNotificationDataOptions = {
+      nzDuration: 0,
+      nzStyle: { width: 'auto', 'white-space': 'pre-wrap' }
+    };
 
     return next.handle(req).pipe(
       catchError(res => {
@@ -45,7 +49,7 @@ export class AppInterceptor implements HttpInterceptor {
           this.injector.get<StatusService>(StatusService).listOfErrorMessage.push(errorMessage);
           this.injector
             .get<NzNotificationService>(NzNotificationService)
-            .info('Server Response Message:', errorMessage);
+            .info('Server Response Message:', errorMessage.replaceAll(' at ', '\n at '), option);
         }
         return throwError(res);
       })

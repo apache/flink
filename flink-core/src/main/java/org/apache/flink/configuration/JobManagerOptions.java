@@ -287,22 +287,6 @@ public class JobManagerOptions {
                                                             "here")))
                                     .build());
 
-    /** The minimum delay for the exponentially-increasing job cleanup retry interval. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    public static final ConfigOption<Duration> JOB_CLEANUP_MINIMUM_DELAY =
-            key("jobmanager.cleanup.min-delay")
-                    .defaultValue(Duration.ofSeconds(1))
-                    .withDescription(
-                            "The cleanup of each job is retried up to the point where it succeeds. The minimum delay is used for the first retry of a cleanup task. The delay will increase exponentially.");
-
-    /** The minimum delay for the exponentially-increasing job cleanup retry interval. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    public static final ConfigOption<Duration> JOB_CLEANUP_MAXIMUM_DELAY =
-            key("jobmanager.cleanup.max-delay")
-                    .defaultValue(Duration.ofHours(1))
-                    .withDescription(
-                            "The cleanup of each job is retried up to the point where it succeeds. The maximum delay marks the maximum amount of time used for a retry interval up to which the retry interval increases exponentially.");
-
     /** The location where the JobManager stores the archives of completed jobs. */
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<String> ARCHIVE_DIR =
@@ -541,13 +525,15 @@ public class JobManagerOptions {
         Documentation.Sections.ALL_JOB_MANAGER
     })
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
-            key("jobmanager.scheduler.adaptive-batch.min-parallelism")
+            key("jobmanager.adaptive-batch-scheduler.min-parallelism")
                     .intType()
                     .defaultValue(1)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s. "
+                                                    + "Currently, this option should be configured as a power of 2, "
+                                                    + "otherwise it will also be rounded up to a power of 2 automatically.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -557,13 +543,15 @@ public class JobManagerOptions {
         Documentation.Sections.ALL_JOB_MANAGER
     })
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
-            key("jobmanager.scheduler.adaptive-batch.max-parallelism")
+            key("jobmanager.adaptive-batch-scheduler.max-parallelism")
                     .intType()
                     .defaultValue(128)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s. "
+                                                    + "Currently, this option should be configured as a power of 2, "
+                                                    + "otherwise it will also be rounded down to a power of 2 automatically.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -572,16 +560,21 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_DATA_VOLUME_PER_TASK =
-            key("jobmanager.scheduler.adaptive-batch.data-volume-per-task")
+    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK =
+            key("jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task")
                     .memoryType()
                     .defaultValue(MemorySize.ofMebiBytes(1024))
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The size of data volume to expect each task instance to process if %s has been set to %s",
+                                            "The average size of data volume to expect each task instance to process if %s has been set to %s. "
+                                                    + "Note that since the parallelism of the vertices is adjusted to a power of 2, "
+                                                    + "the actual average size will be 0.75~1.5 times this value. "
+                                                    + "It is also important to note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
+                                                    + "the data actually processed by some tasks may far exceed this value.",
                                             code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
+                                            code(SchedulerType.AdaptiveBatch.name()),
+                                            code(ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key()))
                                     .build());
 
     @Documentation.Section({
@@ -589,7 +582,7 @@ public class JobManagerOptions {
         Documentation.Sections.ALL_JOB_MANAGER
     })
     public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
-            key("jobmanager.scheduler.adaptive-batch.source-parallelism.default")
+            key("jobmanager.adaptive-batch-scheduler.default-source-parallelism")
                     .intType()
                     .defaultValue(1)
                     .withDescription(

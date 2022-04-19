@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -59,6 +60,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
     private final boolean isFinal;
 
     public BatchExecHashAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -71,6 +73,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecHashAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -84,7 +87,8 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -92,11 +96,11 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = (RowType) getOutputType();
 
-        final TableConfig config = planner.getTableConfig();
         final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions
@@ -118,8 +122,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                             "NoGrouping");
         } else {
             managedMemory =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
                             .getBytes();
             generatedOperator =
                     new HashAggCodeGenerator(
@@ -137,8 +140,8 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(planner.getTableConfig()),
-                createTransformationDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism(),

@@ -79,12 +79,11 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
         if (argumentDataTypes.size() == 1) {
             final LogicalType argType = argumentDataTypes.get(0).getLogicalType();
             if (!areComparable(argType, argType)) {
-                if (throwOnFailure) {
-                    throw callContext.newValidationError(
-                            "Type '%s' should support %s comparison with itself.",
-                            argType, comparisonToString());
-                }
-                return Optional.empty();
+                return callContext.fail(
+                        throwOnFailure,
+                        "Type '%s' should support %s comparison with itself.",
+                        argType,
+                        comparisonToString());
             }
         } else {
             for (int i = 0; i < argumentDataTypes.size() - 1; i++) {
@@ -92,13 +91,13 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
                 final LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
 
                 if (!areComparable(firstType, secondType)) {
-                    if (throwOnFailure) {
-                        throw callContext.newValidationError(
-                                "All types in a comparison should support %s comparison with each other. "
-                                        + "Can not compare %s with %s",
-                                comparisonToString(), firstType, secondType);
-                    }
-                    return Optional.empty();
+                    return callContext.fail(
+                            throwOnFailure,
+                            "All types in a comparison should support %s comparison with each other. "
+                                    + "Can not compare %s with %s",
+                            comparisonToString(),
+                            firstType,
+                            secondType);
                 }
             }
         }
@@ -212,7 +211,8 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 
     @Override
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-        return Collections.singletonList(Signature.of(Signature.Argument.of("<COMPARABLE>...")));
+        return Collections.singletonList(
+                Signature.of(Signature.Argument.ofGroupVarying("COMPARABLE")));
     }
 
     private Boolean hasRequiredComparison(StructuredType structuredType) {

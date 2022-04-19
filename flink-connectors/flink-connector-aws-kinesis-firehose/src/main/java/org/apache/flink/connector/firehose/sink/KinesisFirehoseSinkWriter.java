@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
+import org.apache.flink.connector.base.sink.throwable.FatalExceptionClassifier;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
@@ -43,8 +44,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static org.apache.flink.connector.aws.util.AWSCredentialFatalExceptionClassifiers.getInvalidCredentialsExceptionClassifier;
+import static org.apache.flink.connector.aws.util.AWSCredentialFatalExceptionClassifiers.getSdkClientMisconfiguredExceptionClassifier;
+import static org.apache.flink.connector.base.sink.writer.AsyncSinkFatalExceptionClassifiers.getInterruptedExceptionClassifier;
 
 /**
  * Sink writer created by {@link KinesisFirehoseSink} to write to Kinesis Data Firehose. More
@@ -67,6 +71,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
 
     private static FirehoseAsyncClient createFirehoseClient(
             Properties firehoseClientProperties, SdkAsyncHttpClient httpClient) {
+        AWSGeneralUtil.validateAwsCredentials(firehoseClientProperties);
         return AWSAsyncSinkUtil.createAwsAsyncClient(
                 firehoseClientProperties,
                 httpClient,
@@ -75,8 +80,26 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 KinesisFirehoseConfigConstants.FIREHOSE_CLIENT_USER_AGENT_PREFIX);
     }
 
+    private static final FatalExceptionClassifier RESOURCE_NOT_FOUND_EXCEPTION_CLASSIFIER =
+            FatalExceptionClassifier.withRootCauseOfType(
+                    ResourceNotFoundException.class,
+                    err ->
+                            new KinesisFirehoseException(
+                                    "Encountered non-recoverable exception relating to not being able to find the specified resources",
+                                    err));
+
+    private static final FatalExceptionClassifier FIREHOSE_FATAL_EXCEPTION_CLASSIFIER =
+            FatalExceptionClassifier.createChain(
+                    getInterruptedExceptionClassifier(),
+                    getInvalidCredentialsExceptionClassifier(),
+                    RESOURCE_NOT_FOUND_EXCEPTION_CLASSIFIER,
+                    getSdkClientMisconfiguredExceptionClassifier());
+
+    // deprecated, use numRecordsSendErrorsCounter instead.
+    @Deprecated private final Counter numRecordsOutErrorsCounter;
+
     /* A counter for the total number of records that have encountered an error during put */
-    private final Counter numRecordsOutErrorsCounter;
+    private final Counter numRecordsSendErrorsCounter;
 
     /* Name of the delivery stream in Kinesis Data Firehose */
     private final String deliveryStreamName;
@@ -147,6 +170,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
         this.deliveryStreamName = deliveryStreamName;
         this.metrics = context.metricGroup();
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
+        this.numRecordsSendErrorsCounter = metrics.getNumRecordsSendErrorsCounter();
         this.httpClient = createHttpClient(firehoseClientProperties);
         this.firehoseClient = createFirehoseClient(firehoseClientProperties, httpClient);
     }
@@ -160,8 +184,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                         .records(requestEntries)
                         .deliveryStreamName(deliveryStreamName)
                         .build();
-
-        LOG.trace("Request to submit {} entries to KDF using KDF Sink.", requestEntries.size());
 
         CompletableFuture<PutRecordBatchResponse> future =
                 firehoseClient.putRecordBatch(batchRequest);
@@ -190,12 +212,13 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
 
     private void handleFullyFailedRequest(
             Throwable err, List<Record> requestEntries, Consumer<List<Record>> requestResult) {
-        LOG.warn(
-                "KDF Sink failed to persist {} entries to KDF first request was {}",
+        LOG.debug(
+                "KDF Sink failed to write and will retry {} entries to KDF first request was {}",
                 requestEntries.size(),
                 requestEntries.get(0).toString(),
                 err);
         numRecordsOutErrorsCounter.inc(requestEntries.size());
+        numRecordsSendErrorsCounter.inc(requestEntries.size());
 
         if (isRetryable(err)) {
             requestResult.accept(requestEntries);
@@ -206,11 +229,12 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             PutRecordBatchResponse response,
             List<Record> requestEntries,
             Consumer<List<Record>> requestResult) {
-        LOG.warn(
-                "KDF Sink failed to persist {} entries to KDF first request was {}",
+        LOG.debug(
+                "KDF Sink failed to write and will retry {} entries to KDF first request was {}",
                 requestEntries.size(),
                 requestEntries.get(0).toString());
         numRecordsOutErrorsCounter.inc(response.failedPutCount());
+        numRecordsSendErrorsCounter.inc(response.failedPutCount());
 
         if (failOnError) {
             getFatalExceptionCons()
@@ -230,12 +254,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
     }
 
     private boolean isRetryable(Throwable err) {
-        if (err instanceof CompletionException
-                && err.getCause() instanceof ResourceNotFoundException) {
-            getFatalExceptionCons()
-                    .accept(
-                            new KinesisFirehoseException(
-                                    "Encountered non-recoverable exception", err));
+        if (!FIREHOSE_FATAL_EXCEPTION_CLASSIFIER.isFatal(err, getFatalExceptionCons())) {
             return false;
         }
         if (failOnError) {

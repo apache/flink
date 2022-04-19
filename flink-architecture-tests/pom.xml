@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 
@@ -219,7 +219,7 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-aws-kinesis-data-streams</artifactId>
+				<artifactId>flink-connector-aws-kinesis-streams</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -227,13 +227,6 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-connector-kinesis</artifactId>
-				<version>${project.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.flink</groupId>
-				<artifactId>flink-connector-nifi</artifactId>
 				<version>${project.version}</version>
 				<scope>test</scope>
 			</dependency>

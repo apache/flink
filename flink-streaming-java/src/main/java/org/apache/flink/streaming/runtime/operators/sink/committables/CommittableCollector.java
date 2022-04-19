@@ -55,7 +55,7 @@ public class CommittableCollector<CommT> {
 
     private final int numberOfSubtasks;
 
-    CommittableCollector(int subtaskId, int numberOfSubtasks) {
+    public CommittableCollector(int subtaskId, int numberOfSubtasks) {
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
         this.checkpointCommittables = new TreeMap<>();
@@ -144,13 +144,14 @@ public class CommittableCollector<CommT> {
     }
 
     /**
-     * Returns all {@link CheckpointCommittableManager} that are currently hold by the collector.
+     * Returns {@link CheckpointCommittableManager} that is currently hold by the collector and
+     * associated with the {@link CommittableCollector#EOI} checkpoint id.
      *
-     * @return collection of {@link CheckpointCommittableManager}
+     * @return {@link CheckpointCommittableManager}
      */
     @Nullable
-    public Collection<? extends CheckpointCommittableManager<CommT>> getEndOfInputCommittables() {
-        return getCheckpointCommittablesUpTo(EOI);
+    public CommittableManager<CommT> getEndOfInputCommittable() {
+        return checkpointCommittables.get(EOI);
     }
 
     /**

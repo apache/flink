@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
@@ -193,6 +193,38 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowTables() {
         sql("show tables").ok("SHOW TABLES");
+        sql("show tables not like '%'").ok("SHOW TABLES NOT LIKE '%'");
+
+        sql("show tables from db1").ok("SHOW TABLES FROM `DB1`");
+        sql("show tables in db1").ok("SHOW TABLES IN `DB1`");
+
+        sql("show tables from catalog1.db1").ok("SHOW TABLES FROM `CATALOG1`.`DB1`");
+        sql("show tables in catalog1.db1").ok("SHOW TABLES IN `CATALOG1`.`DB1`");
+
+        sql("show tables from db1 like '%'").ok("SHOW TABLES FROM `DB1` LIKE '%'");
+        sql("show tables in db1 like '%'").ok("SHOW TABLES IN `DB1` LIKE '%'");
+
+        sql("show tables from catalog1.db1 like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` LIKE '%'");
+        sql("show tables in catalog1.db1 like '%'").ok("SHOW TABLES IN `CATALOG1`.`DB1` LIKE '%'");
+
+        sql("show tables from db1 not like '%'").ok("SHOW TABLES FROM `DB1` NOT LIKE '%'");
+        sql("show tables in db1 not like '%'").ok("SHOW TABLES IN `DB1` NOT LIKE '%'");
+
+        sql("show tables from catalog1.db1 not like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show tables in catalog1.db1 not like '%'")
+                .ok("SHOW TABLES IN `CATALOG1`.`DB1` NOT LIKE '%'");
+
+        sql("show tables ^db1^").fails("(?s).*Encountered \"db1\" at line 1, column 13.\n.*");
+        sql("show tables ^catalog1^.db1")
+                .fails("(?s).*Encountered \"catalog1\" at line 1, column 13.\n.*");
+
+        sql("show tables ^search^ db1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 13.\n.*");
+
+        sql("show tables from db1 ^likes^ '%t'")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 22.\n.*");
     }
 
     @Test
@@ -1607,6 +1639,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("RESET 'test-key'").ok("RESET 'test-key'");
     }
 
+    @Test
+    public void testTryCast() {
+        // Simple types
+        expr("try_cast(a as timestamp)").ok("TRY_CAST(`A` AS TIMESTAMP)");
+        expr("try_cast('abc' as timestamp)").ok("TRY_CAST('abc' AS TIMESTAMP)");
+
+        // Complex types
+        expr("try_cast(a as row(f0 int, f1 varchar))")
+                .ok("TRY_CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))");
+        expr("try_cast(a as row(f0 int array, f1 map<string, decimal(10, 2)>, f2 STRING NOT NULL))")
+                .ok(
+                        "TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL))");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override
@@ -1666,12 +1712,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                         createTable.validate();
                         fail("expected exception");
                     } catch (SqlValidateException e) {
-                        assertEquals(failMsg, e.getMessage());
+                        assertThat(e).hasMessage(failMsg);
                     }
                 }
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
-                    assertEquals(
-                            expectedColumnSql, ((SqlCreateTable) createTable).getColumnSqlString());
+                    assertThat(((SqlCreateTable) createTable).getColumnSqlString())
+                            .isEqualTo(expectedColumnSql);
                 }
                 return true;
             } else {

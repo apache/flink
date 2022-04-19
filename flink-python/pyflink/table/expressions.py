@@ -84,7 +84,7 @@ def _add_version_doc():
 
 def col(name: str) -> Expression:
     """
-    Creates an expression which refers to a table's field.
+    Creates an expression which refers to a table's column.
 
     Example:
     ::
@@ -93,7 +93,7 @@ def col(name: str) -> Expression:
 
     :param name: the field name to refer to
     """
-    return _unary_op("$", name)
+    return _unary_op("col", name)
 
 
 def lit(v, data_type: DataType = None) -> Expression:
@@ -438,7 +438,7 @@ def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
 def rand_integer(bound: Union[int, Expression[int]],
                  seed: Union[int, Expression[int]] = None) -> Expression:
     """
-    Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+    Returns a pseudorandom integer value between 0 (inclusive) and the specified value
     (exclusive) with a initial seed if specified. Two rand_integer() functions will return
     identical sequences of numbers if they have same initial seed and same bound.
     """

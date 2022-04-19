@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.data.RowData;
@@ -37,7 +37,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
@@ -72,7 +71,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             boolean isBatchOverWindow) {
         super(
@@ -80,7 +78,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
                 environmentManager,
                 functionUrn,
                 userDefinedFunctions,
-                jobOptions,
                 flinkMetricContainer,
                 null,
                 null,
@@ -97,7 +94,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     }
 
     @Override
-    public void open(PythonConfig config) throws Exception {
+    public void open(ReadableConfig config) throws Exception {
         super.open(config);
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);

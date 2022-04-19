@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.METADATA_COLUMN_PREFIX;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
@@ -202,13 +203,13 @@ public class PushProjectIntoTableSourceScanRule
         return projections;
     }
 
-    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig config) {
+    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
         return DynamicSourceUtils.isUpsertSource(
                         table.contextResolvedTable().getResolvedSchema(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(
                         table.contextResolvedTable().getResolvedSchema(),
                         table.tableSource(),
-                        config);
+                        tableConfig);
     }
 
     private List<RexNode> getPrimaryKeyProjections(LogicalTableScan scan) {
@@ -308,6 +309,7 @@ public class PushProjectIntoTableSourceScanRule
             final List<String> projectedMetadataKeys =
                     projectedMetadataColumns.stream()
                             .map(NestedColumn::name)
+                            .map(k -> k.substring(METADATA_COLUMN_PREFIX.length()))
                             .collect(Collectors.toList());
 
             abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));

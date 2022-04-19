@@ -37,7 +37,6 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -56,7 +55,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -92,19 +90,23 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     public static StreamTableEnvironment create(
-            StreamExecutionEnvironment executionEnvironment,
-            EnvironmentSettings settings,
-            TableConfig tableConfig) {
+            StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
 
         // temporary solution until FLINK-15635 is fixed
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+        final Executor executor = lookupExecutor(classLoader, executionEnvironment);
+
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
 
         final ModuleManager moduleManager = new ModuleManager();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(classLoader)
-                        .config(tableConfig.getConfiguration())
+                        .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
                                 new GenericInMemoryCatalog(
@@ -116,17 +118,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final Executor executor =
-                lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
-
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
-                        executor,
-                        tableConfig,
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
+                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
@@ -289,12 +283,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
-        List<Expression> expressions = ExpressionParser.INSTANCE.parseExpressionList(fields);
-        return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
-    }
-
-    @Override
     public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
         return createTable(asQueryOperation(dataStream, Optional.of(Arrays.asList(fields))));
     }
@@ -302,16 +290,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     @Override
     public <T> void registerDataStream(String name, DataStream<T> dataStream) {
         createTemporaryView(name, dataStream);
-    }
-
-    @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
-        createTemporaryView(name, dataStream, fields);
-    }
-
-    @Override
-    public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
-        createTemporaryView(path, fromDataStream(dataStream, fields));
     }
 
     @Override

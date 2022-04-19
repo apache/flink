@@ -24,8 +24,12 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.core.io.SimpleVersionedSerialization;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
@@ -34,6 +38,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -45,6 +50,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -168,12 +174,6 @@ class SinkWriterOperatorTest {
         testHarness.processElement(1, 1);
         testHarness.endInput();
         assertBasicOutput(testHarness.getOutput(), 1, Long.MAX_VALUE);
-
-        // Not flush new records during snapshot barrier
-        testHarness.processElement(2, 2);
-        testHarness.prepareSnapshotPreBarrier(1);
-        assertThat(testHarness.getOutput()).hasSize(2);
-        testHarness.close();
     }
 
     @ParameterizedTest
@@ -214,6 +214,8 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredTestHarness.endInput();
+        final long checkpointId = 2;
+        restoredTestHarness.prepareSnapshotPreBarrier(checkpointId);
 
         if (stateful) {
             assertBasicOutput(restoredTestHarness.getOutput(), 2, Long.MAX_VALUE);
@@ -263,6 +265,7 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored from previous sink
         compatibleWriterOperator.endInput();
+        compatibleWriterOperator.prepareSnapshotPreBarrier(1);
 
         OperatorSubtaskState operatorStateWithoutPreviousState =
                 compatibleWriterOperator.snapshot(1L, 1L);
@@ -288,9 +291,111 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredSinkOperator.endInput();
+        restoredSinkOperator.prepareSnapshotPreBarrier(2);
 
         assertEmitted(expectedOutput2, restoredSinkOperator.getOutput());
         restoredSinkOperator.close();
+    }
+
+    @Test
+    void testRestoreCommitterState() throws Exception {
+        final List<String> committables = Arrays.asList("state1", "state2");
+
+        final OneInputStreamOperatorTestHarness<String, String> committer =
+                new OneInputStreamOperatorTestHarness<>(
+                        new TestCommitterOperator(), StringSerializer.INSTANCE);
+
+        final OperatorSubtaskState committerState =
+                TestHarnessUtil.buildSubtaskState(committer, committables);
+
+        final TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
+        final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(
+                                TestSink.newBuilder()
+                                        .setDefaultCommitter()
+                                        .setWriter(sinkWriter)
+                                        .build()
+                                        .asV2()));
+
+        testHarness.initializeState(committerState);
+
+        testHarness.open();
+
+        testHarness.prepareSnapshotPreBarrier(2);
+
+        final List<StreamElement> output = fromOutput(testHarness.getOutput());
+        assertThat(output).hasSize(4);
+
+        assertThat(output.get(0).asRecord().getValue())
+                .isInstanceOf(CommittableSummary.class)
+                .satisfies(
+                        cs ->
+                                SinkV2Assertions.assertThat(((CommittableSummary<?>) cs))
+                                        .hasPendingCommittables(committables.size())
+                                        .hasCheckpointId(
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
+                                        .hasOverallCommittables(committables.size())
+                                        .hasFailedCommittables(0));
+        assertRestoredCommitterCommittable(
+                output.get(1).asRecord().getValue(), committables.get(0));
+        assertRestoredCommitterCommittable(
+                output.get(2).asRecord().getValue(), committables.get(1));
+        assertThat(output.get(3).asRecord().getValue())
+                .isInstanceOf(CommittableSummary.class)
+                .satisfies(
+                        cs ->
+                                SinkV2Assertions.assertThat(((CommittableSummary<?>) cs))
+                                        .hasPendingCommittables(0)
+                                        .hasCheckpointId(2L)
+                                        .hasOverallCommittables(0)
+                                        .hasFailedCommittables(0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
+        final TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
+        final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(
+                                TestSink.newBuilder()
+                                        .setWriter(sinkWriter)
+                                        .setDefaultCommitter()
+                                        .build()
+                                        .asV2()));
+        testHarness.open();
+        testHarness.processElement(1, 1);
+
+        assertThat(testHarness.getOutput()).isEmpty();
+        final String record = "(1,1," + Long.MIN_VALUE + ")";
+        assertThat(sinkWriter.elements).containsOnly(record);
+
+        testHarness.endInput();
+
+        if (isCheckpointingEnabled) {
+            testHarness.prepareSnapshotPreBarrier(1);
+        }
+
+        assertEmitted(Collections.singletonList(record), testHarness.getOutput());
+        assertThat(sinkWriter.elements).isEmpty();
+
+        testHarness.close();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertRestoredCommitterCommittable(Object record, String committable) {
+        assertThat(record)
+                .isInstanceOf(CommittableWithLineage.class)
+                .satisfies(
+                        cl ->
+                                SinkV2Assertions.assertThat((CommittableWithLineage<String>) cl)
+                                        .hasCommittable(committable)
+                                        .hasCheckpointId(
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
+                                        .hasSubtaskId(0));
     }
 
     @SuppressWarnings("unchecked")
@@ -397,6 +502,38 @@ class SinkWriterOperatorTest {
         }
     }
 
+    private static class TestCommitterOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+
+        private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
+                new ListStateDescriptor<>(
+                        "streaming_committer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
+        private ListState<List<String>> committerState;
+        private final List<String> buffer = new ArrayList<>();
+
+        @Override
+        public void initializeState(StateInitializationContext context) throws Exception {
+            super.initializeState(context);
+            committerState =
+                    new SimpleVersionedListState<>(
+                            context.getOperatorStateStore()
+                                    .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
+                            new TestingCommittableSerializer(
+                                    TestSink.StringCommittableSerializer.INSTANCE));
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            buffer.add(element.getValue());
+        }
+
+        @Override
+        public void snapshotState(StateSnapshotContext context) throws Exception {
+            super.snapshotState(context);
+            committerState.add(buffer);
+        }
+    }
+
     private static class DummySinkOperator extends AbstractStreamOperator<String>
             implements OneInputStreamOperator<String, String> {
 
@@ -445,6 +582,27 @@ class SinkWriterOperatorTest {
             List<String> result = elements;
             elements = new ArrayList<>();
             return result;
+        }
+    }
+
+    private static class TestingCommittableSerializer
+            extends SinkV1WriterCommittableSerializer<String> {
+
+        private final SimpleVersionedSerializer<String> committableSerializer;
+
+        public TestingCommittableSerializer(
+                SimpleVersionedSerializer<String> committableSerializer) {
+            super(committableSerializer);
+            this.committableSerializer = committableSerializer;
+        }
+
+        @Override
+        public byte[] serialize(List<String> obj) throws IOException {
+            final DataOutputSerializer out = new DataOutputSerializer(256);
+            out.writeInt(SinkV1CommittableDeserializer.MAGIC_NUMBER);
+            SimpleVersionedSerialization.writeVersionAndSerializeList(
+                    committableSerializer, obj, out);
+            return out.getCopyOfBuffer();
         }
     }
 }

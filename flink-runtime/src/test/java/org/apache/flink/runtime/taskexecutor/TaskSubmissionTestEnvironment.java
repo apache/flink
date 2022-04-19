@@ -60,7 +60,6 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
@@ -79,6 +78,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.mockito.Mockito.mock;
 
@@ -92,8 +92,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
     private final Time timeout = Time.milliseconds(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
-    private final TimerService<AllocationID> timerService =
-            new DefaultTimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+    private final TimerService<AllocationID> timerService;
 
     private final TestingHighAvailabilityServices haServices;
     private final TemporaryFolder temporaryFolder;
@@ -112,8 +111,14 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     taskManagerActionListeners,
             @Nullable String metricQueryServiceAddress,
             TestingRpcService testingRpcService,
-            ShuffleEnvironment<?, ?> shuffleEnvironment)
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            ScheduledExecutorService executor)
             throws Exception {
+
+        this.timerService =
+                new DefaultTimerService<>(
+                        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(),
+                        timeout.toMilliseconds());
 
         this.haServices = new TestingHighAvailabilityServices();
         this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
@@ -126,7 +131,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         final TaskSlotTable<Task> taskSlotTable =
                 slotSize > 0
-                        ? TaskSlotUtils.createTaskSlotTable(slotSize)
+                        ? TaskSlotUtils.createTaskSlotTable(slotSize, executor)
                         : TestingTaskSlotTable.<Task>newBuilder()
                                 .tryMarkSlotActiveReturns(true)
                                 .addTaskReturns(true)
@@ -330,6 +335,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         temporaryFolder.delete();
 
         testingFatalErrorHandler.rethrowError();
+
+        taskExecutor.close();
     }
 
     public static final class Builder {
@@ -410,7 +417,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             return this;
         }
 
-        public TaskSubmissionTestEnvironment build() throws Exception {
+        public TaskSubmissionTestEnvironment build(ScheduledExecutorService executorService)
+                throws Exception {
             final TestingRpcService testingRpcService = new TestingRpcService();
             final ShuffleEnvironment<?, ?> network =
                     optionalShuffleEnvironment.orElseGet(
@@ -436,7 +444,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     taskManagerActionListeners,
                     metricQueryServiceAddress,
                     testingRpcService,
-                    network);
+                    network,
+                    executorService);
         }
     }
 }

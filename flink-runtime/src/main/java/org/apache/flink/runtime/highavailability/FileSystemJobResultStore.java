@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.json.JobResultDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobResultSerializer;
+import org.apache.flink.runtime.util.NonClosingOutputStreamDecorator;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -52,7 +53,18 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
  */
 public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
-    private static final String DIRTY_SUFFIX = "_DIRTY";
+    @VisibleForTesting static final String FILE_EXTENSION = ".json";
+    @VisibleForTesting static final String DIRTY_FILE_EXTENSION = "_DIRTY" + FILE_EXTENSION;
+
+    @VisibleForTesting
+    public static boolean hasValidDirtyJobResultStoreEntryExtension(String filename) {
+        return filename.endsWith(DIRTY_FILE_EXTENSION);
+    }
+
+    @VisibleForTesting
+    public static boolean hasValidJobResultStoreEntryExtension(String filename) {
+        return filename.endsWith(FILE_EXTENSION);
+    }
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -103,7 +115,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a dirty entry for the given the Job ID.
      */
     private Path constructDirtyPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + DIRTY_SUFFIX + ".json");
+        return constructEntryPath(jobId.toString() + DIRTY_FILE_EXTENSION);
     }
 
     /**
@@ -114,14 +126,24 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a clean entry for the given the Job ID.
      */
     private Path constructCleanPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + ".json");
+        return constructEntryPath(jobId.toString() + FILE_EXTENSION);
+    }
+
+    @VisibleForTesting
+    Path constructEntryPath(String fileName) {
+        return new Path(this.basePath, fileName);
     }
 
     @Override
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
         final Path path = constructDirtyPath(jobResultEntry.getJobId());
-        OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE);
-        mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
+        try (OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE)) {
+            mapper.writeValue(
+                    // working around the internally used _writeAndClose method to ensure that close
+                    // is only called once
+                    new NonClosingOutputStreamDecorator(os),
+                    new JsonJobResultEntry(jobResultEntry));
+        }
     }
 
     @Override
@@ -154,19 +176,20 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        final FileStatus[] statuses = fileSystem.listStatus(this.basePath);
+
+        Preconditions.checkState(
+                statuses != null,
+                "The base directory of the JobResultStore isn't accessible. No dirty JobResults can be restored.");
+
         final Set<JobResult> dirtyResults = new HashSet<>();
-        final FileStatus fs = fileSystem.getFileStatus(this.basePath);
-        if (fs.isDir()) {
-            FileStatus[] statuses = fileSystem.listStatus(this.basePath);
-            for (FileStatus s : statuses) {
-                if (!s.isDir()) {
-                    String fileName = s.getPath().getName();
-                    if (fileName.contains(DIRTY_SUFFIX)) {
-                        JsonJobResultEntry jre =
-                                mapper.readValue(
-                                        fileSystem.open(s.getPath()), JsonJobResultEntry.class);
-                        dirtyResults.add(jre.getJobResult());
-                    }
+        for (FileStatus s : statuses) {
+            if (!s.isDir()) {
+                if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {
+                    JsonJobResultEntry jre =
+                            mapper.readValue(
+                                    fileSystem.open(s.getPath()), JsonJobResultEntry.class);
+                    dirtyResults.add(jre.getJobResult());
                 }
             }
         }

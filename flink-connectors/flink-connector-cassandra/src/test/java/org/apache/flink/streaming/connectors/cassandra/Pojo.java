@@ -18,12 +18,10 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import com.datastax.driver.mapping.annotations.Column;
-import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
-/** Test Pojo with DataStax annotations used. */
-@Table(keyspace = "flink", name = "test")
+/** Test Pojo with DataStax annotations created dynamically. */
 public class Pojo implements Serializable {
 
     private static final long serialVersionUID = 1038054554690916991L;
@@ -36,6 +34,9 @@ public class Pojo implements Serializable {
 
     @Column(name = "batch_id")
     private int batchID;
+
+    // required for deserialization
+    public Pojo() {}
 
     public Pojo(String id, int counter, int batchID) {
         this.id = id;

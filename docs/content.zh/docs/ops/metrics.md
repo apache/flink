@@ -1207,7 +1207,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The total size of the last checkpoint (in bytes).</td>
+      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointFullSize</td>
+      <td>The full size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1305,7 +1310,7 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>uploadQueueSize</td>
       <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -1328,7 +1333,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="20"><strong>Task</strong></th>
+      <th rowspan="23"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1429,6 +1434,21 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>mailboxMailsPerSecond</td>
+      <td>The number of actions processed from the task's mailbox per second which includes all actions, e.g., checkpointing, timer, or cancellation actions.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>mailboxLatencyMs</td>
+      <td>The latency is the time that actions spend waiting in the task's mailbox before being processed. The metric is a statistic of the latency in milliseconds that is measured approximately once every second and includes the last 60 measurements.</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mailboxQueueSize</td>
+      <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
       <td>estimatedTimeToConsumeBuffersMs</td>
       <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
@@ -1474,7 +1494,7 @@ Note that the metrics are only available via reporters.
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="3"><strong>Operator</strong></th>
+      <th rowspan="4"><strong>Operator</strong></th>
       <td>currentInput<strong>N</strong>Watermark</td>
       <td>
         The last watermark this operator has received in its <strong>N'th</strong> input (in milliseconds), with index <strong>N</strong> starting from 1. For example currentInput<strong>1</strong>Watermark, currentInput<strong>2</strong>Watermark, ...
@@ -1486,6 +1506,16 @@ Note that the metrics are only available via reporters.
       <td>currentOutputWatermark</td>
       <td>
         The last watermark this operator has emitted (in milliseconds).
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>watermarkAlignmentDrift</td>
+      <td>
+        The current drift from the minimal watermark emitted by all sources/tasks/splits that belong
+        to the same watermark group.
+        <p><strong>Note:</strong> Available only when watermark alignment is enabled and the first common watermark is
+        announced. You can configure the update interval in the WatermarkStrategy.</p>
       </td>
       <td>Gauge</td>
     </tr>

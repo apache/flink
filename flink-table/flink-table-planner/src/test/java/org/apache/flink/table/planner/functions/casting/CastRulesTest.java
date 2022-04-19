@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -39,6 +40,8 @@ import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -92,12 +95,13 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
 import static org.apache.flink.table.test.TableAssertions.assertThatGenericDataOfType;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class runs unit tests of {@link CastRule} implementations. For IT test cases, check out the
  * {@link CastFunctionITCase}
  */
+@Execution(ExecutionMode.CONCURRENT)
 class CastRulesTest {
 
     private static final ZoneId CET = ZoneId.of("CET");
@@ -482,6 +486,31 @@ class CastRulesTest {
                         .fail(STRING(), fromString("2021/09/27"), TableException.class)
                         .fromCase(
                                 STRING(),
+                                fromString("2021-09-27 12:34:56.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-9-1 1:1:1.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 1, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-9-01 1:01:10.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 10, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-1 01:1:01.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 1, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.123400000"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123400000)))
+                        .fromCase(
+                                STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
                                 timestampDataFromLocalDateTime(
                                         2021, 9, 27, 12, 34, 56, 123_456_789))
@@ -524,7 +553,15 @@ class CastRulesTest {
                         .fromCase(
                                 TIMESTAMP_LTZ(7),
                                 timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
-                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000)),
+                                timestampDataFromLocalDateTime(2021, 9, 26, 22, 0, 0, 123_400_000))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.123"),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 12, 34, 56, 123000000))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-27 12:34:56.12345"),
+                                timestampDataFromLocalDateTime(2021, 9, 27, 12, 34, 56, 123400000)),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fail(CHAR(3), fromString("foo"), TableException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableException.class)
@@ -537,15 +574,23 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 0))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123"),
                                 timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123_000_000))
-                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
-                        // lost
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.1234"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123400000))
                         .fromCase(
                                 STRING(),
                                 CET_CONTEXT,
                                 fromString("2021-09-27 12:34:56.123456789"),
-                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 0))
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123456789))
                         .fromCase(
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
@@ -584,7 +629,17 @@ class CastRulesTest {
                         .fromCase(
                                 TIMESTAMP_LTZ(7),
                                 timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_456_700),
-                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000)),
+                                timestampDataFromInstant(2021, 9, 27, 0, 0, 0, 123_400_000))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.123"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123000000))
+                        .fromCase(
+                                STRING(),
+                                CET_CONTEXT,
+                                fromString("2021-09-27 12:34:56.12345"),
+                                timestampDataFromInstant(2021, 9, 27, 12, 34, 56, 123400000)),
                 CastTestSpecBuilder.testCastTo(STRING())
                         .fromCase(STRING(), null, null)
                         .fromCase(NULL(), null, BinaryStringDataUtil.NULL_STRING)
@@ -1204,8 +1259,8 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
                                 ARRAY(INT().nullable()),
-                                new GenericArrayData(new Object[] {1, null, 2}),
-                                new GenericArrayData(new Object[] {1L, null, 2L})),
+                                new GenericArrayData(new Integer[] {1, null, 2}),
+                                new GenericArrayData(new Long[] {1L, null, 2L})),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
                         .fromCase(
                                 ARRAY(INT().notNull()),
@@ -1219,7 +1274,42 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                NullPointerException.class),
+                                NullPointerException.class)
+                        .fromCase(
+                                ARRAY(ARRAY(INT().nullable())),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        }),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Long[] {1L, 2L}),
+                                            new GenericArrayData(new Long[] {3L})
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(DECIMAL(10, 2).notNull())))
+                        .fromCase(
+                                ARRAY(ARRAY(INT().notNull())),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        }),
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(
+                                                    new Object[] {
+                                                        DecimalData.fromBigDecimal(
+                                                                BigDecimal.ONE, 10, 2),
+                                                        DecimalData.fromBigDecimal(
+                                                                new BigDecimal(2), 10, 2)
+                                                    }),
+                                            new GenericArrayData(
+                                                    new Object[] {
+                                                        DecimalData.fromBigDecimal(
+                                                                new BigDecimal(3), 10, 2)
+                                                    })
+                                        })),
                 CastTestSpecBuilder.testCastTo(MAP(DOUBLE().notNull(), DOUBLE().notNull()))
                         .fromCase(
                                 MAP(INT().nullable(), INT().nullable()),
@@ -1513,7 +1603,8 @@ class CastRulesTest {
                 Class<? extends Throwable> exception) {
             this.inputTypes.add(dataType);
             this.assertionExecutors.add(
-                    executor -> assertThrows(exception, () -> executor.cast(src)));
+                    executor ->
+                            assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
             return this;

@@ -42,9 +42,16 @@ public final class CommitterOperatorFactory<CommT>
                 CommittableMessage<CommT>, CommittableMessage<CommT>> {
 
     private final TwoPhaseCommittingSink<?, CommT> sink;
+    private final boolean isBatchMode;
+    private final boolean isCheckpointingEnabled;
 
-    public CommitterOperatorFactory(TwoPhaseCommittingSink<?, CommT> sink) {
+    public CommitterOperatorFactory(
+            TwoPhaseCommittingSink<?, CommT> sink,
+            boolean isBatchMode,
+            boolean isCheckpointingEnabled) {
         this.sink = checkNotNull(sink);
+        this.isBatchMode = isBatchMode;
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
     }
 
     @Override
@@ -58,7 +65,9 @@ public final class CommitterOperatorFactory<CommT>
                             processingTimeService,
                             sink.getCommittableSerializer(),
                             sink.createCommitter(),
-                            sink instanceof WithPostCommitTopology);
+                            sink instanceof WithPostCommitTopology,
+                            isBatchMode,
+                            isCheckpointingEnabled);
             committerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),

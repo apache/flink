@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +38,19 @@ class CommittableCollectorTest {
 
         assertThat(committableCollector.getCheckpointCommittablesUpTo(2)).hasSize(2);
 
-        assertThat(committableCollector.getEndOfInputCommittables()).hasSize(3);
+        assertThat(committableCollector.getEndOfInputCommittable()).isNull();
+    }
+
+    @Test
+    void testGetEndOfInputCommittable() {
+        final CommittableCollector<Integer> committableCollector = new CommittableCollector<>(1, 1);
+        CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, null, 1, 0, 0);
+        committableCollector.addMessage(first);
+
+        CommittableManager<Integer> endOfInputCommittable =
+                committableCollector.getEndOfInputCommittable();
+        assertThat(endOfInputCommittable).isNotNull();
+        SinkV2Assertions.assertThat(endOfInputCommittable.getSummary())
+                .hasCheckpointId(Long.MAX_VALUE);
     }
 }

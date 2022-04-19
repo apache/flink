@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWindowAggregate
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, WindowEmitStrategy}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.AggregateCall
 
 /**
@@ -75,6 +75,7 @@ class StreamPhysicalGroupWindowTableAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecGroupWindowAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       window,
@@ -82,7 +83,6 @@ class StreamPhysicalGroupWindowTableAggregate(
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

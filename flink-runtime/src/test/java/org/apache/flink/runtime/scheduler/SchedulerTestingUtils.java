@@ -67,7 +67,6 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -102,43 +101,49 @@ public class SchedulerTestingUtils {
 
     private SchedulerTestingUtils() {}
 
-    public static DefaultSchedulerBuilder newSchedulerBuilder(
-            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor) {
-        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor);
-    }
-
     public static DefaultScheduler createScheduler(
-            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
+            final JobGraph jobGraph,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final ScheduledExecutorService executorService)
             throws Exception {
-        return newSchedulerBuilder(jobGraph, mainThreadExecutor).build();
-    }
-
-    public static DefaultSchedulerBuilder createSchedulerBuilder(
-            JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
-
-        return createSchedulerBuilder(
-                jobGraph, mainThreadExecutor, new SimpleAckingTaskManagerGateway());
+        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService).build();
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
             JobGraph jobGraph,
             ComponentMainThreadExecutor mainThreadExecutor,
-            TaskExecutorOperatorEventGateway operatorEventGateway) {
+            ScheduledExecutorService scheduledExecutorService) {
+
+        return createSchedulerBuilder(
+                jobGraph,
+                mainThreadExecutor,
+                new SimpleAckingTaskManagerGateway(),
+                scheduledExecutorService);
+    }
+
+    public static DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            TaskExecutorOperatorEventGateway operatorEventGateway,
+            ScheduledExecutorService scheduledExecutorService) {
 
         final TaskManagerGateway gateway =
                 operatorEventGateway instanceof TaskManagerGateway
                         ? (TaskManagerGateway) operatorEventGateway
                         : new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
 
-        return createSchedulerBuilder(jobGraph, mainThreadExecutor, gateway);
+        return createSchedulerBuilder(
+                jobGraph, mainThreadExecutor, gateway, scheduledExecutorService);
     }
 
-    public static DefaultSchedulerBuilder createSchedulerBuilder(
+    private static DefaultSchedulerBuilder createSchedulerBuilder(
             JobGraph jobGraph,
             ComponentMainThreadExecutor mainThreadExecutor,
-            TaskManagerGateway taskManagerGateway) {
+            TaskManagerGateway taskManagerGateway,
+            ScheduledExecutorService executorService) {
 
-        return newSchedulerBuilder(jobGraph, mainThreadExecutor)
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph, mainThreadExecutor, executorService)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
                 .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                 .setExecutionSlotAllocatorFactory(
@@ -395,11 +400,10 @@ public class SchedulerTestingUtils {
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         protected Logger log = LOG;
-        protected Executor ioExecutor = TestingUtils.defaultExecutor();
+        protected Executor ioExecutor;
         protected Configuration jobMasterConfiguration = new Configuration();
-        protected ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-        protected ScheduledExecutor delayExecutor =
-                new ScheduledExecutorServiceAdapter(futureExecutor);
+        protected ScheduledExecutorService futureExecutor;
+        protected ScheduledExecutor delayExecutor;
         protected ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
         protected CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
         protected CheckpointRecoveryFactory checkpointRecoveryFactory =
@@ -424,9 +428,28 @@ public class SchedulerTestingUtils {
         protected JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
 
         public DefaultSchedulerBuilder(
-                final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
+                final JobGraph jobGraph,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                ScheduledExecutorService generalExecutorService) {
+            this(
+                    jobGraph,
+                    mainThreadExecutor,
+                    generalExecutorService,
+                    generalExecutorService,
+                    new ScheduledExecutorServiceAdapter(generalExecutorService));
+        }
+
+        public DefaultSchedulerBuilder(
+                final JobGraph jobGraph,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                Executor ioExecutor,
+                ScheduledExecutorService futureExecutor,
+                ScheduledExecutor delayExecuto) {
             this.jobGraph = jobGraph;
             this.mainThreadExecutor = mainThreadExecutor;
+            this.ioExecutor = ioExecutor;
+            this.futureExecutor = futureExecutor;
+            this.delayExecutor = delayExecuto;
         }
 
         public DefaultSchedulerBuilder setLogger(final Logger log) {

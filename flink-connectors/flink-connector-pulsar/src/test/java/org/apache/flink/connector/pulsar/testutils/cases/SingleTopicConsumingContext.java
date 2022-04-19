@@ -47,7 +47,6 @@ import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
  * source splits.
  */
 public class SingleTopicConsumingContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = 1L;
 
     private static final String TOPIC_NAME_PREFIX = "pulsar-single-topic";
     private final String topicName;

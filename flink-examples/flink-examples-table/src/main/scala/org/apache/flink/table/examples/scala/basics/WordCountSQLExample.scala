@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.examples.scala.basics
 
 import org.apache.flink.table.api._
@@ -26,23 +25,25 @@ object WordCountSQLExample {
   def main(args: Array[String]): Unit = {
 
     // set up the Table API
-    val settings = EnvironmentSettings.newInstance()
+    val settings = EnvironmentSettings
+      .newInstance()
       .inBatchMode()
       .build()
     val tableEnv = TableEnvironment.create(settings)
 
     // execute a Flink SQL job and print the result locally
-    tableEnv.executeSql(
-      // define the aggregation
-      "SELECT word, SUM(frequency) AS `count`\n"
+    tableEnv
+      .executeSql(
+        // define the aggregation
+        "SELECT word, SUM(frequency) AS `count`\n"
         // read from an artificial fixed-size table with rows and columns
-        + "FROM (\n"
-        + "  VALUES ('Hello', 1), ('Ciao', 1), ('Hello', 2)\n"
-        + ")\n"
-        // name the table and its columns
-        + "AS WordTable(word, frequency)\n"
-        // group for aggregation
-        + "GROUP BY word")
+          + "FROM (\n"
+          + "  VALUES ('Hello', 1), ('Ciao', 1), ('Hello', 2)\n"
+          + ")\n"
+          // name the table and its columns
+          + "AS WordTable(word, frequency)\n"
+          // group for aggregation
+          + "GROUP BY word")
       .print()
   }
 }

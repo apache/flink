@@ -223,15 +223,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     public void testCreateFlinkTaskManagerPod() throws Exception {
         this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
-        final KubernetesPod kubernetesPod =
-                new KubernetesPod(
-                        new PodBuilder()
-                                .editOrNewMetadata()
-                                .withName("mock-task-manager-pod")
-                                .endMetadata()
-                                .editOrNewSpec()
-                                .endSpec()
-                                .build());
+        final KubernetesPod kubernetesPod = buildKubernetesPod("mock-task-manager-pod");
         this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
         final Pod resultTaskManagerPod =
@@ -248,6 +240,31 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         .getMetadata()
                         .getUid(),
                 resultTaskManagerPod.getMetadata().getOwnerReferences().get(0).getUid());
+    }
+
+    @Test
+    public void testCreateTwoTaskManagerPods() throws Exception {
+        flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+        flinkKubeClient.createTaskManagerPod(buildKubernetesPod("mock-task-manager-pod1")).get();
+        mockGetDeploymentWithError();
+        try {
+            flinkKubeClient
+                    .createTaskManagerPod(buildKubernetesPod("mock-task-manager-pod2"))
+                    .get();
+        } catch (Exception e) {
+            fail("should only get the master deployment once");
+        }
+    }
+
+    private KubernetesPod buildKubernetesPod(String name) {
+        return new KubernetesPod(
+                new PodBuilder()
+                        .editOrNewMetadata()
+                        .withName(name)
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .endSpec()
+                        .build());
     }
 
     @Test
@@ -373,15 +390,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     public void testStopAndCleanupCluster() throws Exception {
         this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
-        final KubernetesPod kubernetesPod =
-                new KubernetesPod(
-                        new PodBuilder()
-                                .editOrNewMetadata()
-                                .withName(TASKMANAGER_POD_NAME)
-                                .endMetadata()
-                                .editOrNewSpec()
-                                .endSpec()
-                                .build());
+        final KubernetesPod kubernetesPod = buildKubernetesPod(TASKMANAGER_POD_NAME);
         this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
 
         assertEquals(
@@ -455,10 +464,28 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
+    public void testDeleteNotExistingConfigMapByLabels() throws Exception {
+        assertThat(
+                this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(false));
+        this.flinkKubeClient.deleteConfigMapsByLabels(TESTING_LABELS).get();
+        assertThat(
+                this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(false));
+    }
+
+    @Test
     public void testDeleteConfigMapByName() throws Exception {
         this.flinkKubeClient.createConfigMap(buildTestingConfigMap()).get();
         assertThat(
                 this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(true));
+        this.flinkKubeClient.deleteConfigMap(TESTING_CONFIG_MAP_NAME).get();
+        assertThat(
+                this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(false));
+    }
+
+    @Test
+    public void testDeleteNotExistingConfigMapByName() throws Exception {
+        assertThat(
+                this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(false));
         this.flinkKubeClient.deleteConfigMap(TESTING_CONFIG_MAP_NAME).get();
         assertThat(
                 this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME).isPresent(), is(false));

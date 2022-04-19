@@ -52,7 +52,7 @@ under the License.
 </table>
 
 请注意，流连接器目前不是二进制发行版的一部分。
-有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})
+有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/configuration/overview" >}})。
 
 ## 安装 Elasticsearch
 
@@ -132,7 +132,6 @@ private static IndexRequest createIndexRequest(String element) {
 
     return Requests.indexRequest()
         .index("my-index")
-        .type("my-type")
         .id(element)
         .source(json);
 }
@@ -165,7 +164,7 @@ def createIndexRequest(element: (String)): IndexRequest = {
     "data" -> element.asInstanceOf[AnyRef]
   )
 
-  Requests.indexRequest.index("my-index").`type`("my-type").source(mapAsJavaMap(json))
+  Requests.indexRequest.index("my-index").source(mapAsJavaMap(json))
 }
 ```
 
@@ -210,16 +209,13 @@ def createIndexRequest(element: (String)): IndexRequest = {
 
 ### Elasticsearch Sinks 和容错
 
-默认情况下，Flink Elasticsearch Sink 不会提供任何传递健壮性的保障。
-用户可以选择启用 Elasticsearch sink 的 at-least-once 语义。
-
-通过启用 Flink checkpoint，Flink Elasticsearch Sink 可以保证至少一次将操作请求发送到 Elasticsearch 集群。
+通过启用 Flink checkpoint，Flink Elasticsearch Sink 保证至少一次将操作请求发送到 Elasticsearch 集群。
 这是通过在进行 checkpoint 时等待 `BulkProcessor` 中所有挂起的操作请求来实现。
 这有效地保证了在触发 checkpoint 之前所有的请求被 Elasticsearch 成功确认，然后继续处理发送到 sink 的记录。
 
 关于 checkpoint 和容错的更多详细信息，请参见[容错文档]({{< ref "docs/learn-flink/fault_tolerance" >}})。
 
-要使用具有容错特性的 Elasticsearch Sinks，需要配置启用 at-least-once 分发并且在执行环境中启用作业拓扑的 checkpoint：
+要使用具有容错特性的 Elasticsearch Sinks，需要在执行环境中启用作业拓扑的 checkpoint：
 
 {{< tabs "d00d1e93-4844-40d7-b0ec-9ec37e73145e" >}}
 {{< tab "Java" >}}
@@ -275,6 +271,10 @@ val sinkBuilder = new Elasticsearch7SinkBuilder[String]
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+<p style="border-radius: 5px; padding: 5px" class="bg-info">
+Using UpdateRequests with deterministic ids and the upsert method it is possible to achieve exactly-once semantics in Elasticsearch when AT_LEAST_ONCE delivery is configured for the connector.
+</p>
 
 ### 处理失败的 Elasticsearch 请求
 
@@ -373,7 +373,7 @@ checkpoint 会进行等待，直到 Elasticsearch 节点队列有足够的容量
 ## 将 Elasticsearch 连接器打包到 Uber-Jar 中
 
 建议构建一个包含所有依赖的 uber-jar (可执行的 jar)，以便更好地执行你的 Flink 程序。
-(更多信息参见[此文档]({{< ref "docs/dev/datastream/project-configuration" >}}))。
+(更多信息参见[此文档]({{< ref "docs/dev/configuration/overview" >}}))。
 
 或者，你可以将连接器的 jar 文件放入 Flink 的 `lib/` 目录下，使其在全局范围内可用，即可用于所有的作业。
 

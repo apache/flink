@@ -20,12 +20,15 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore.StateHandleWithDeleteMarker;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -33,6 +36,8 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -43,23 +48,26 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link KubernetesStateHandleStore} operations. */
 public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase {
 
     private static final String PREFIX = "test-prefix-";
+
     private final String key = PREFIX + JobID.generate();
     private final Predicate<String> filter = k -> k.startsWith(PREFIX);
-    private final TestingLongStateHandleHelper.LongStateHandle state =
-            new TestingLongStateHandleHelper.LongStateHandle(12345L);
-
     private final TestingLongStateHandleHelper longStateStorage =
             new TestingLongStateHandleHelper();
+
+    private TestingLongStateHandleHelper.LongStateHandle state;
 
     @Before
     public void setup() {
         super.setup();
+        state = new TestingLongStateHandleHelper.LongStateHandle(12345L);
         TestingLongStateHandleHelper.clearGlobalState();
     }
 
@@ -89,14 +97,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAddAlreadyExistingKey() throws Exception {
+    public void testAddAndLockWithExistingKey() throws Exception {
         new Context() {
             {
                 runTest(
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            getLeaderConfigMap().getData().put(key, "existing data");
+                            final TestingLongStateHandleHelper.LongStateHandle oldState =
+                                    addRegularEntry(getLeaderConfigMap(), key, 1337L);
 
                             final KubernetesStateHandleStore<
                                             TestingLongStateHandleHelper.LongStateHandle>
@@ -108,8 +117,11 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                                     filter,
                                                     LOCK_IDENTITY);
 
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(12345L);
+
                             try {
-                                store.addAndLock(key, state);
+                                store.addAndLock(key, newState);
                                 fail("Exception should be thrown.");
                             } catch (StateHandleStore.AlreadyExistException ex) {
                                 final String msg =
@@ -118,11 +130,54 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                                 key, LEADER_CONFIGMAP_NAME);
                                 assertThat(ex, FlinkMatchers.containsMessage(msg));
                             }
-                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
-                            assertThat(
-                                    TestingLongStateHandleHelper
-                                            .getDiscardCallCountForStateHandleByIndex(0),
-                                    is(1));
+
+                            // Both initial & new handles should be in the storage (we never clean
+                            // it for testing).
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            // Only the new one (second entry in the store) should have been
+                            // discarded.
+                            assertThat(oldState.isDiscarded(), is(false));
+                            assertThat(newState.isDiscarded(), is(true));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testAddAndLockWithDeletingEntry() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final TestingLongStateHandleHelper.LongStateHandle oldState =
+                                    addDeletingEntry(getLeaderConfigMap(), key, 1337L);
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(3L);
+                            store.addAndLock(
+                                    key, new TestingLongStateHandleHelper.LongStateHandle(3L));
+
+                            assertThat(store.getAndLock(key).retrieveState().getValue(), is(3L));
+
+                            // Both initial & new handles should be in the storage (we never clean
+                            // it for testing).
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            // Only the old one (first entry in the store) should have been
+                            // discarded.
+                            assertThat(oldState.getNumberOfSuccessfulDiscardCalls(), is(1));
+                            assertThat(newState.getNumberOfSuccessfulDiscardCalls(), is(0));
                         });
             }
         };
@@ -273,6 +328,101 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
+    public void testReplaceWithDeletingKey() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final TestingLongStateHandleHelper.LongStateHandle oldState =
+                                    addDeletingEntry(getLeaderConfigMap(), key, 1337);
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
+
+                            assertThat(store.exists(key), is(StringResourceVersion.notExisting()));
+                            assertThrows(
+                                    StateHandleStore.NotExistException.class,
+                                    () ->
+                                            store.replace(
+                                                    key,
+                                                    StringResourceVersion.notExisting(),
+                                                    newState));
+
+                            // Both handles should have been stored and discarded.
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            assertThat(oldState.isDiscarded(), is(true));
+                            assertThat(newState.isDiscarded(), is(true));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testReplaceWithDeletingKeyWithFailingDiscard() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final Exception discardException = new Exception("Unable to discard.");
+                            final TestingLongStateHandleHelper.LongStateHandle oldState =
+                                    addDeletingEntry(
+                                            getLeaderConfigMap(),
+                                            key,
+                                            new TestingLongStateHandleHelper.LongStateHandle(
+                                                    1337,
+                                                    discardIdx -> {
+                                                        throw discardException;
+                                                    }));
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
+
+                            assertThat(store.exists(key), is(StringResourceVersion.notExisting()));
+                            final StateHandleStore.NotExistException exception =
+                                    assertThrows(
+                                            StateHandleStore.NotExistException.class,
+                                            () ->
+                                                    store.replace(
+                                                            key,
+                                                            StringResourceVersion.notExisting(),
+                                                            newState));
+                            assertThat(exception.getSuppressed().length, is(1));
+                            assertThat(
+                                    exception.getSuppressed()[0],
+                                    FlinkMatchers.containsCause(discardException));
+
+                            // Only the new handle should have been discarded.
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            assertThat(oldState.isDiscarded(), is(false));
+                            assertThat(newState.isDiscarded(), is(true));
+                        });
+            }
+        };
+    }
+
+    @Test
     public void testReplaceWithNoLeadershipAndDiscardState() throws Exception {
         new Context() {
             {
@@ -295,7 +445,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -483,6 +633,36 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
+    public void testExistsWithDeletingEntry() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final TestingLongStateHandleHelper.LongStateHandle state =
+                                    addDeletingEntry(getLeaderConfigMap(), key, 1337L);
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            final StringResourceVersion resourceVersion = store.exists(key);
+                            assertThat(resourceVersion.isExisting(), is(false));
+                            // We don't try to pro-actively remove the entry here.
+                            assertThat(state.isDiscarded(), is(false));
+                        });
+            }
+        };
+    }
+
+    @Test
     public void testGetNonExistingKey() throws Exception {
         new Context() {
             {
@@ -624,6 +804,33 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
+    public void testRemoveOfNonExistingState() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            assertThat(store.getAllAndLock().size(), is(0));
+                            assertThat(store.releaseAndTryRemove(key), is(true));
+                            assertThat(store.getAllAndLock().size(), is(0));
+
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
+                        });
+            }
+        };
+    }
+
+    @Test
     public void testRemoveFailedShouldNotDiscardState() throws Exception {
         new Context() {
             {
@@ -644,7 +851,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             store.addAndLock(key, state);
                             // Lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -724,5 +931,192 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         });
             }
         };
+    }
+
+    @Test
+    public void testReleaseAndTryRemoveIsIdempotent() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            final RuntimeException discardException =
+                                    new RuntimeException("Test exception.");
+                            store.addAndLock(
+                                    key,
+                                    new TestingLongStateHandleHelper.LongStateHandle(
+                                            2L,
+                                            discardIdx -> {
+                                                if (discardIdx == 0) {
+                                                    throw discardException;
+                                                }
+                                            }));
+
+                            assertThat(store.getAllAndLock().size(), is(1));
+                            assertThat(
+                                    store.getAndLock(key),
+                                    is(notNullValue(RetrievableStateHandle.class)));
+
+                            // First remove attempt should fail when we're discarding the underlying
+                            // state.
+                            final Exception exception =
+                                    assertThrows(
+                                            Exception.class, () -> store.releaseAndTryRemove(key));
+                            assertThat(exception, FlinkMatchers.containsCause(discardException));
+
+                            // Now we should see that the node is "soft-deleted". This means it can
+                            // no longer be accessed by the get methods, but the underlying state
+                            // still exists.
+                            assertThat(store.getAllAndLock().size(), is(0));
+                            assertThrows(Exception.class, () -> store.getAndLock(key));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
+                            assertThat(getLeaderConfigMap().getData().containsKey(key), is(true));
+
+                            // Second retry should succeed and remove the underlying state and the
+                            // reference in config map.
+                            assertThat(store.releaseAndTryRemove(key), is(true));
+                            assertThat(store.getAllAndLock().size(), is(0));
+                            assertThrows(Exception.class, () -> store.getAndLock(key));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(1));
+                            assertThat(getLeaderConfigMap().getData().containsKey(key), is(false));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testReleaseAndTryRemoveAllIsIdempotent() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            final int numKeys = 10;
+
+                            final RuntimeException discardException =
+                                    new RuntimeException("Test exception.");
+                            final List<TestingLongStateHandleHelper.LongStateHandle> states =
+                                    new ArrayList<>();
+                            for (int idx = 0; idx < numKeys; idx++) {
+                                final boolean failFirstDiscard = idx % 2 == 0;
+                                final TestingLongStateHandleHelper.LongStateHandle state =
+                                        new TestingLongStateHandleHelper.LongStateHandle(
+                                                idx + 1,
+                                                discardIdx -> {
+                                                    if (failFirstDiscard && discardIdx == 0) {
+                                                        throw discardException;
+                                                    }
+                                                });
+                                states.add(state);
+                                store.addAndLock(key + "_" + idx, state);
+                            }
+
+                            // All keys should be retrievable
+                            assertThat(store.getAllAndLock().size(), is(numKeys));
+                            for (int idx = 0; idx < numKeys; idx++) {
+                                assertThat(
+                                        store.getAndLock(key + "_" + idx),
+                                        is(notNullValue(RetrievableStateHandle.class)));
+                            }
+
+                            // First remove attempt should fail when we're discarding the underlying
+                            // state.
+                            final Exception exception =
+                                    assertThrows(Exception.class, store::releaseAndTryRemoveAll);
+                            assertThat(exception, FlinkMatchers.containsCause(discardException));
+
+                            // Now we should see that the all nodes are "soft-deleted". This means
+                            // it can no longer be accessed by the get methods, but the underlying
+                            // state still exists.
+                            assertThat(store.getAllAndLock().size(), is(0));
+                            for (int idx = 0; idx < numKeys; idx++) {
+                                final String indexKey = key + "_" + idx;
+                                assertThrows(Exception.class, () -> store.getAndLock(indexKey));
+                                assertThat(
+                                        getLeaderConfigMap().getData().containsKey(indexKey),
+                                        is(true));
+                            }
+                            // Half of the state handles should have been discarded.
+                            assertThat(
+                                    states.stream()
+                                            .filter(
+                                                    TestingLongStateHandleHelper.LongStateHandle
+                                                            ::isDiscarded)
+                                            .count(),
+                                    is((long) numKeys / 2));
+
+                            // Second retry should succeed and remove the underlying state and the
+                            // reference in config map.
+                            store.releaseAndTryRemoveAll();
+                            assertThat(store.getAllAndLock().size(), is(0));
+                            for (int idx = 0; idx < numKeys; idx++) {
+                                final String indexKey = key + "_" + idx;
+                                assertThrows(Exception.class, () -> store.getAndLock(indexKey));
+                                assertThat(
+                                        getLeaderConfigMap().getData().containsKey(indexKey),
+                                        is(false));
+                            }
+                            // All handles should have been discarded.
+                            assertThat(
+                                    states.stream()
+                                            .filter(
+                                                    TestingLongStateHandleHelper.LongStateHandle
+                                                            ::isDiscarded)
+                                            .count(),
+                                    is((long) numKeys));
+                        });
+            }
+        };
+    }
+
+    private TestingLongStateHandleHelper.LongStateHandle addRegularEntry(
+            KubernetesConfigMap configMap, String key, long value) throws IOException {
+        final TestingLongStateHandleHelper.LongStateHandle state =
+                new TestingLongStateHandleHelper.LongStateHandle(value);
+        final String deleting =
+                KubernetesStateHandleStore.serializeStateHandle(
+                        new StateHandleWithDeleteMarker<>(longStateStorage.store(state)));
+        configMap.getData().put(key, deleting);
+        return state;
+    }
+
+    private TestingLongStateHandleHelper.LongStateHandle addDeletingEntry(
+            KubernetesConfigMap configMap, String key, long value) throws IOException {
+        return addDeletingEntry(
+                configMap, key, new TestingLongStateHandleHelper.LongStateHandle(value));
+    }
+
+    private TestingLongStateHandleHelper.LongStateHandle addDeletingEntry(
+            KubernetesConfigMap configMap,
+            String key,
+            TestingLongStateHandleHelper.LongStateHandle state)
+            throws IOException {
+        final String deleting =
+                KubernetesStateHandleStore.serializeStateHandle(
+                        new StateHandleWithDeleteMarker<>(longStateStorage.store(state))
+                                .toDeleting());
+        configMap.getData().put(key, deleting);
+        return state;
     }
 }

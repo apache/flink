@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.data;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.TimeZone;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TimestampData}. */
 public class TimestampDataTest {
@@ -31,16 +32,16 @@ public class TimestampDataTest {
     @Test
     public void testNormal() {
         // From long to TimestampData and vice versa
-        Assert.assertEquals(1123L, TimestampData.fromEpochMillis(1123L).getMillisecond());
-        Assert.assertEquals(-1123L, TimestampData.fromEpochMillis(-1123L).getMillisecond());
+        assertThat(TimestampData.fromEpochMillis(1123L).getMillisecond()).isEqualTo(1123L);
+        assertThat(TimestampData.fromEpochMillis(-1123L).getMillisecond()).isEqualTo(-1123L);
 
-        Assert.assertEquals(1123L, TimestampData.fromEpochMillis(1123L, 45678).getMillisecond());
-        Assert.assertEquals(
-                45678, TimestampData.fromEpochMillis(1123L, 45678).getNanoOfMillisecond());
+        assertThat(TimestampData.fromEpochMillis(1123L, 45678).getMillisecond()).isEqualTo(1123L);
+        assertThat(TimestampData.fromEpochMillis(1123L, 45678).getNanoOfMillisecond())
+                .isEqualTo(45678);
 
-        Assert.assertEquals(-1123L, TimestampData.fromEpochMillis(-1123L, 45678).getMillisecond());
-        Assert.assertEquals(
-                45678, TimestampData.fromEpochMillis(-1123L, 45678).getNanoOfMillisecond());
+        assertThat(TimestampData.fromEpochMillis(-1123L, 45678).getMillisecond()).isEqualTo(-1123L);
+        assertThat(TimestampData.fromEpochMillis(-1123L, 45678).getNanoOfMillisecond())
+                .isEqualTo(45678);
 
         // From TimestampData to TimestampData and vice versa
         java.sql.Timestamp t19 = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123456789");
@@ -48,16 +49,16 @@ public class TimestampDataTest {
         java.sql.Timestamp t13 = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123");
         java.sql.Timestamp t10 = java.sql.Timestamp.valueOf("1969-01-02 00:00:00");
 
-        Assert.assertEquals(t19, TimestampData.fromTimestamp(t19).toTimestamp());
-        Assert.assertEquals(t16, TimestampData.fromTimestamp(t16).toTimestamp());
-        Assert.assertEquals(t13, TimestampData.fromTimestamp(t13).toTimestamp());
-        Assert.assertEquals(t10, TimestampData.fromTimestamp(t10).toTimestamp());
+        assertThat(TimestampData.fromTimestamp(t19).toTimestamp()).isEqualTo(t19);
+        assertThat(TimestampData.fromTimestamp(t16).toTimestamp()).isEqualTo(t16);
+        assertThat(TimestampData.fromTimestamp(t13).toTimestamp()).isEqualTo(t13);
+        assertThat(TimestampData.fromTimestamp(t10).toTimestamp()).isEqualTo(t10);
 
         java.sql.Timestamp t2 = java.sql.Timestamp.valueOf("1979-01-02 00:00:00.123456");
-        Assert.assertEquals(t2, TimestampData.fromTimestamp(t2).toTimestamp());
+        assertThat(TimestampData.fromTimestamp(t2).toTimestamp()).isEqualTo(t2);
 
         java.sql.Timestamp t3 = new java.sql.Timestamp(1572333940000L);
-        Assert.assertEquals(t3, TimestampData.fromTimestamp(t3).toTimestamp());
+        assertThat(TimestampData.fromTimestamp(t3).toTimestamp()).isEqualTo(t3);
 
         // From LocalDateTime to TimestampData and vice versa
         LocalDateTime ldt19 = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 123456789);
@@ -65,29 +66,30 @@ public class TimestampDataTest {
         LocalDateTime ldt13 = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 123000000);
         LocalDateTime ldt10 = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 0);
 
-        Assert.assertEquals(ldt19, TimestampData.fromLocalDateTime(ldt19).toLocalDateTime());
-        Assert.assertEquals(ldt16, TimestampData.fromLocalDateTime(ldt16).toLocalDateTime());
-        Assert.assertEquals(ldt13, TimestampData.fromLocalDateTime(ldt13).toLocalDateTime());
-        Assert.assertEquals(ldt10, TimestampData.fromLocalDateTime(ldt10).toLocalDateTime());
+        assertThat(TimestampData.fromLocalDateTime(ldt19).toLocalDateTime()).isEqualTo(ldt19);
+        assertThat(TimestampData.fromLocalDateTime(ldt16).toLocalDateTime()).isEqualTo(ldt16);
+        assertThat(TimestampData.fromLocalDateTime(ldt13).toLocalDateTime()).isEqualTo(ldt13);
+        assertThat(TimestampData.fromLocalDateTime(ldt10).toLocalDateTime()).isEqualTo(ldt10);
 
         LocalDateTime ldt2 = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 0);
-        Assert.assertEquals(ldt2, TimestampData.fromLocalDateTime(ldt2).toLocalDateTime());
+        assertThat(TimestampData.fromLocalDateTime(ldt2).toLocalDateTime()).isEqualTo(ldt2);
 
         LocalDateTime ldt3 = LocalDateTime.of(1989, 1, 2, 0, 0, 0, 123456789);
-        Assert.assertEquals(ldt3, TimestampData.fromLocalDateTime(ldt3).toLocalDateTime());
+        assertThat(TimestampData.fromLocalDateTime(ldt3).toLocalDateTime()).isEqualTo(ldt3);
 
         LocalDateTime ldt4 = LocalDateTime.of(1989, 1, 2, 0, 0, 0, 123456789);
         java.sql.Timestamp t4 = java.sql.Timestamp.valueOf(ldt4);
-        Assert.assertEquals(TimestampData.fromLocalDateTime(ldt4), TimestampData.fromTimestamp(t4));
+        assertThat(TimestampData.fromTimestamp(t4))
+                .isEqualTo(TimestampData.fromLocalDateTime(ldt4));
 
         // From Instant to TimestampData and vice versa
         Instant instant1 = Instant.ofEpochMilli(123L);
         Instant instant2 = Instant.ofEpochSecond(0L, 123456789L);
         Instant instant3 = Instant.ofEpochSecond(-2L, 123456789L);
 
-        Assert.assertEquals(instant1, TimestampData.fromInstant(instant1).toInstant());
-        Assert.assertEquals(instant2, TimestampData.fromInstant(instant2).toInstant());
-        Assert.assertEquals(instant3, TimestampData.fromInstant(instant3).toInstant());
+        assertThat(TimestampData.fromInstant(instant1).toInstant()).isEqualTo(instant1);
+        assertThat(TimestampData.fromInstant(instant2).toInstant()).isEqualTo(instant2);
+        assertThat(TimestampData.fromInstant(instant3).toInstant()).isEqualTo(instant3);
     }
 
     @Test
@@ -96,10 +98,10 @@ public class TimestampDataTest {
         TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"));
 
         java.sql.Timestamp dstBegin2018 = java.sql.Timestamp.valueOf("2018-03-11 03:00:00");
-        Assert.assertEquals(dstBegin2018, TimestampData.fromTimestamp(dstBegin2018).toTimestamp());
+        assertThat(TimestampData.fromTimestamp(dstBegin2018).toTimestamp()).isEqualTo(dstBegin2018);
 
         java.sql.Timestamp dstBegin2019 = java.sql.Timestamp.valueOf("2019-03-10 02:00:00");
-        Assert.assertEquals(dstBegin2019, TimestampData.fromTimestamp(dstBegin2019).toTimestamp());
+        assertThat(TimestampData.fromTimestamp(dstBegin2019).toTimestamp()).isEqualTo(dstBegin2019);
 
         TimeZone.setDefault(tz);
     }
@@ -108,27 +110,25 @@ public class TimestampDataTest {
     public void testToString() {
 
         java.sql.Timestamp t = java.sql.Timestamp.valueOf("1969-01-02 00:00:00.123456789");
-        Assert.assertEquals(
-                "1969-01-02T00:00:00.123456789", TimestampData.fromTimestamp(t).toString());
+        assertThat(TimestampData.fromTimestamp(t).toString())
+                .isEqualTo("1969-01-02T00:00:00.123456789");
 
-        Assert.assertEquals(
-                "1970-01-01T00:00:00.123", TimestampData.fromEpochMillis(123L).toString());
-        Assert.assertEquals(
-                "1970-01-01T00:00:00.123456789",
-                TimestampData.fromEpochMillis(123L, 456789).toString());
+        assertThat(TimestampData.fromEpochMillis(123L).toString())
+                .isEqualTo("1970-01-01T00:00:00.123");
+        assertThat(TimestampData.fromEpochMillis(123L, 456789).toString())
+                .isEqualTo("1970-01-01T00:00:00.123456789");
 
-        Assert.assertEquals(
-                "1969-12-31T23:59:59.877", TimestampData.fromEpochMillis(-123L).toString());
-        Assert.assertEquals(
-                "1969-12-31T23:59:59.877456789",
-                TimestampData.fromEpochMillis(-123L, 456789).toString());
+        assertThat(TimestampData.fromEpochMillis(-123L).toString())
+                .isEqualTo("1969-12-31T23:59:59.877");
+        assertThat(TimestampData.fromEpochMillis(-123L, 456789).toString())
+                .isEqualTo("1969-12-31T23:59:59.877456789");
 
         LocalDateTime ldt = LocalDateTime.of(1969, 1, 2, 0, 0, 0, 123456789);
-        Assert.assertEquals(
-                "1969-01-02T00:00:00.123456789", TimestampData.fromLocalDateTime(ldt).toString());
+        assertThat(TimestampData.fromLocalDateTime(ldt).toString())
+                .isEqualTo("1969-01-02T00:00:00.123456789");
 
         Instant instant = Instant.ofEpochSecond(0L, 123456789L);
-        Assert.assertEquals(
-                "1970-01-01T00:00:00.123456789", TimestampData.fromInstant(instant).toString());
+        assertThat(TimestampData.fromInstant(instant).toString())
+                .isEqualTo("1970-01-01T00:00:00.123456789");
     }
 }

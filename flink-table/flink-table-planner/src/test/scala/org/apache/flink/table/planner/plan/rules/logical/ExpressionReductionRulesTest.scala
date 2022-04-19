@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
@@ -27,9 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
-  * Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]].
-  */
+/** Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]]. */
 class ExpressionReductionRulesTest extends TableTestBase {
 
   private val util = batchTestUtil()

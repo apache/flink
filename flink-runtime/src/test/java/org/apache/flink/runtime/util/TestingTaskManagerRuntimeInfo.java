@@ -38,7 +38,8 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
     public TestingTaskManagerRuntimeInfo() {
         this(
                 new Configuration(),
-                System.getProperty("java.io.tmpdir").split(",|" + File.pathSeparator));
+                EnvironmentInformation.getTemporaryFileDirectory()
+                        .split(",|" + File.pathSeparator));
     }
 
     public TestingTaskManagerRuntimeInfo(Configuration configuration) {
@@ -62,7 +63,9 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
                 configuration,
                 tmpDirectories,
                 InetAddress.getLoopbackAddress().getHostAddress(),
-                new File("tmp_" + UUID.randomUUID()));
+                new File(
+                        EnvironmentInformation.getTemporaryFileDirectory(),
+                        "tmp_" + UUID.randomUUID()));
     }
 
     public TestingTaskManagerRuntimeInfo(

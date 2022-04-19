@@ -39,7 +39,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_alias(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        t = t.alias("d, e, f")
+        t = t.alias("d", "e", "f")
         result = t.select(t.d, t.e, t.f)
         resolved_schema = result._j_table.getQueryOperation().getResolvedSchema()
         self.assertEqual(['d', 'e', 'f'], list(resolved_schema.getColumnNames()))

@@ -135,6 +135,20 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
 
+### Retryable Cleanup
+
+After jobs reach a globally-terminal state, a cleanup of all related resources is performed. This cleanup can be retried in case of failure. Different retry strategies can be configured to change this behavior:
+
+{{< generated/cleanup_configuration >}}
+
+**Fixed-Delay Cleanup Retry Strategy**
+
+{{< generated/fixed_delay_cleanup_strategy_configuration >}}
+
+**Exponential-Delay Cleanup Retry Strategy**
+
+{{< generated/exponential_delay_cleanup_strategy_configuration >}}
+
 ### Checkpoints and State Backends
 
 These options control the basic setup of state backends and checkpointing behavior.
@@ -151,6 +165,10 @@ High-availability here refers to the ability of the JobManager process to recove
 The JobManager ensures consistency during recovery across TaskManagers. For the JobManager itself to recover consistently, an external service must store a minimal amount of recovery metadata (like "ID of last committed checkpoint"), as well as help to elect and lock which JobManager is the leader (to avoid split-brain situations).
 
 {{< generated/common_high_availability_section >}}
+
+**Options for the JobResultStore in high-availability setups**
+
+{{< generated/common_high_availability_jrs_section >}}
 
 **Options for high-availability setups with ZooKeeper**
 

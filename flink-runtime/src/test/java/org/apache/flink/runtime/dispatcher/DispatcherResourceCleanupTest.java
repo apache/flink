@@ -165,7 +165,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
             TestingDispatcher.Builder dispatcherBuilder,
             JobManagerRunnerFactory jobManagerRunnerFactory)
             throws Exception {
-        dispatcher = dispatcherBuilder.setJobManagerRunnerFactory(jobManagerRunnerFactory).build();
+        dispatcher =
+                dispatcherBuilder
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .build(rpcService);
 
         dispatcher.start();
 
@@ -176,7 +179,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 new DefaultJobManagerRunnerRegistry(2);
         return TestingDispatcher.builder()
-                .setRpcService(rpcService)
                 .setBlobServer(blobServer)
                 .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
@@ -526,14 +528,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private void assertLocalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
-        assertThat(localCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(localCleanupFuture.get(), equalTo(jobId));
         assertThat(globalCleanupFuture.isDone(), is(false));
     }
 
     private void assertGlobalCleanupTriggered(JobID jobId)
             throws ExecutionException, InterruptedException, TimeoutException {
         assertThat(localCleanupFuture.isDone(), is(false));
-        assertThat(globalCleanupFuture.get(100, TimeUnit.MILLISECONDS), equalTo(jobId));
+        assertThat(globalCleanupFuture.get(), equalTo(jobId));
     }
 
     @Test
@@ -694,7 +696,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                             CompletableFuture.completedFuture(
                                                     new ExecutionGraphInfo(
                                                             ArchivedExecutionGraph
-                                                                    .createFromInitializingJob(
+                                                                    .createSparseArchivedExecutionGraph(
                                                                             jobGraph.getJobID(),
                                                                             jobGraph.getName(),
                                                                             JobStatus.RUNNING,

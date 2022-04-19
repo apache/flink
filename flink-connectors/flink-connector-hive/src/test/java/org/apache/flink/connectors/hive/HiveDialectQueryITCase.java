@@ -157,7 +157,7 @@ public class HiveDialectQueryITCase {
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
                                         + " (select salary,count(*) as cnt from employee group by salary) a"));
-        if (HiveVersionTestUtil.HIVE_220_OR_LATER) {
+        if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
         }
@@ -308,6 +308,25 @@ public class HiveDialectQueryITCase {
                     result.toString());
         } finally {
             tableEnv.executeSql("drop table test_values");
+        }
+    }
+
+    @Test
+    public void testJoinInvolvingComplexType() throws Exception {
+        tableEnv.executeSql("CREATE TABLE test2a (a ARRAY<INT>)");
+        tableEnv.executeSql("CREATE TABLE test2b (a INT)");
+        try {
+            tableEnv.executeSql("insert into test2a SELECT ARRAY(1, 2)").await();
+            tableEnv.executeSql("insert into test2b values (2), (3), (4)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select *  from test2b join test2a on test2b.a = test2a.a[1]")
+                                    .collect());
+            assertEquals("[+I[2, [1, 2]]]", result.toString());
+        } finally {
+            tableEnv.executeSql("drop table test2a");
+            tableEnv.executeSql("drop table test2b");
         }
     }
 

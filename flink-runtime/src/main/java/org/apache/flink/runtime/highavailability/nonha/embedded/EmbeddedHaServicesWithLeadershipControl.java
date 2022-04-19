@@ -40,13 +40,18 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
         this(
                 executor,
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous, stateRegistryFactory, ioExecutor) -> {
+                        (maxCheckpoints,
+                                previous,
+                                stateRegistryFactory,
+                                ioExecutor,
+                                restoreMode) -> {
                             List<CompletedCheckpoint> checkpoints =
                                     previous != null
                                             ? previous.getAllCheckpoints()
                                             : Collections.emptyList();
                             SharedStateRegistry stateRegistry =
-                                    stateRegistryFactory.create(ioExecutor, checkpoints);
+                                    stateRegistryFactory.create(
+                                            ioExecutor, checkpoints, restoreMode);
                             if (previous != null) {
                                 if (!previous.getShutdownStatus().isPresent()) {
                                     throw new IllegalStateException(

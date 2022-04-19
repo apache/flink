@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -46,7 +45,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
@@ -58,7 +56,6 @@ import static org.junit.Assert.assertThat;
 /** Integration tests for the {@link TaskExecutor}. */
 public class TaskExecutorITCase extends TestLogger {
 
-    private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
     private static final int NUM_TMS = 2;
     private static final int SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
@@ -137,9 +134,7 @@ public class TaskExecutorITCase extends TestLogger {
         assertThat(jobResultFuture.isDone(), is(false));
 
         CommonTestUtils.waitUntilCondition(
-                jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
-                Deadline.fromNow(TESTING_TIMEOUT),
-                50L);
+                jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())), 50L);
 
         return jobResultFuture;
     }

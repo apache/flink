@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -27,11 +28,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 
 import java.io.IOException;
 
-/** JSON deserializer for {@link FlinkVersion}. */
-public class FlinkVersionJsonDeserializer extends StdDeserializer<FlinkVersion> {
+/**
+ * JSON deserializer for {@link FlinkVersion}.
+ *
+ * @see FlinkVersionJsonSerializer for the reverse operation
+ */
+@Internal
+final class FlinkVersionJsonDeserializer extends StdDeserializer<FlinkVersion> {
     private static final long serialVersionUID = 1L;
 
-    public FlinkVersionJsonDeserializer() {
+    FlinkVersionJsonDeserializer() {
         super(FlinkVersion.class);
     }
 

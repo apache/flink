@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -32,9 +31,9 @@ import java.util.{List => JList}
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Minus]] that is a relational expression which returns the rows of
-  * its first input minus any matching rows from its other inputs in Flink.
-  */
+ * Sub-class of [[Minus]] that is a relational expression which returns the rows of its first input
+ * minus any matching rows from its other inputs in Flink.
+ */
 class FlinkLogicalMinus(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

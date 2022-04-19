@@ -108,6 +108,9 @@ public class AdaptiveBatchSchedulerITCase extends TestLogger {
         configuration.setInteger(
                 JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);
+        configuration.set(
+                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK,
+                MemorySize.parse("150kb"));
         configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 

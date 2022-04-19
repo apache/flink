@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
+import org.apache.flink.table.planner.runtime.utils.TestData.{data3, nullablesOfData3, type3}
 
 class LimitITCase extends LegacyLimitITCase {
   override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    BatchTestBase.configForMiniCluster(tableConfig)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)

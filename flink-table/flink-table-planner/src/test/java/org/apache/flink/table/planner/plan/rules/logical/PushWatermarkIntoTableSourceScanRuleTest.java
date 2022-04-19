@@ -48,7 +48,7 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
  * PushWatermarkIntoTableSourceScanRule}.
  */
 public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
-    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     @Before
     public void setup() {
@@ -237,10 +237,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 
     @Test
     public void testWatermarkWithIdleSource() {
-        util.tableEnv()
-                .getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
+        util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"

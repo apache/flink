@@ -22,11 +22,14 @@ import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -36,11 +39,12 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     /** Mapping of subtask id to {@link SubtaskCommittableManager}. */
     private final Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers;
 
-    private final long checkpointId;
+    @Nullable private final Long checkpointId;
     private final int subtaskId;
     private final int numberOfSubtasks;
 
-    CheckpointCommittableManagerImpl(int subtaskId, int numberOfSubtasks, long checkpointId) {
+    CheckpointCommittableManagerImpl(
+            int subtaskId, int numberOfSubtasks, @Nullable Long checkpointId) {
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
         this.checkpointId = checkpointId;
@@ -49,7 +53,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     CheckpointCommittableManagerImpl(
             Map<Integer, SubtaskCommittableManager<CommT>> subtasksCommittableManagers,
-            long checkpointId) {
+            @Nullable Long checkpointId) {
         this.subtasksCommittableManagers = checkNotNull(subtasksCommittableManagers);
         this.subtaskId = 0;
         this.numberOfSubtasks = 1;
@@ -58,6 +62,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
 
     @Override
     public long getCheckpointId() {
+        checkNotNull(checkpointId);
         return checkpointId;
     }
 
@@ -138,7 +143,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     CheckpointCommittableManagerImpl<CommT> merge(CheckpointCommittableManagerImpl<CommT> other) {
-        checkArgument(other.checkpointId == checkpointId);
+        checkArgument(Objects.equals(other.checkpointId, checkpointId));
         for (Map.Entry<Integer, SubtaskCommittableManager<CommT>> subtaskEntry :
                 other.subtasksCommittableManagers.entrySet()) {
             subtasksCommittableManagers.merge(
@@ -150,7 +155,7 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     CheckpointCommittableManagerImpl<CommT> copy() {
-        return new CheckpointCommittableManagerImpl<CommT>(
+        return new CheckpointCommittableManagerImpl<>(
                 subtasksCommittableManagers.entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, (e) -> e.getValue().copy())),
                 checkpointId);

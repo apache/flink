@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
+import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -38,7 +39,6 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -126,7 +126,7 @@ public class OperatorCoordinatorHolder
     private final int operatorParallelism;
     private final int operatorMaxParallelism;
 
-    private Consumer<Throwable> globalFailureHandler;
+    private GlobalFailureHandler globalFailureHandler;
     private ComponentMainThreadExecutor mainThreadExecutor;
 
     private OperatorCoordinatorHolder(
@@ -149,7 +149,7 @@ public class OperatorCoordinatorHolder
     }
 
     public void lazyInitialize(
-            Consumer<Throwable> globalFailureHandler,
+            GlobalFailureHandler globalFailureHandler,
             ComponentMainThreadExecutor mainThreadExecutor) {
 
         this.globalFailureHandler = globalFailureHandler;
@@ -304,7 +304,7 @@ public class OperatorCoordinatorHolder
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             result.completeExceptionally(t);
-            globalFailureHandler.accept(t);
+            globalFailureHandler.handleGlobalFailure(t);
         }
     }
 
@@ -412,7 +412,8 @@ public class OperatorCoordinatorHolder
             coordinator.subtaskReady(subtask, gateway);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            globalFailureHandler.accept(new FlinkException("Error from OperatorCoordinator", t));
+            globalFailureHandler.handleGlobalFailure(
+                    new FlinkException("Error from OperatorCoordinator", t));
         }
     }
 
@@ -503,7 +504,7 @@ public class OperatorCoordinatorHolder
         private final int operatorParallelism;
         private final CoordinatorStore coordinatorStore;
 
-        private Consumer<Throwable> globalFailureHandler;
+        private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
 
         private volatile boolean failed;
@@ -521,7 +522,7 @@ public class OperatorCoordinatorHolder
             this.coordinatorStore = checkNotNull(coordinatorStore);
         }
 
-        void lazyInitialize(Consumer<Throwable> globalFailureHandler, Executor schedulerExecutor) {
+        void lazyInitialize(GlobalFailureHandler globalFailureHandler, Executor schedulerExecutor) {
             this.globalFailureHandler = checkNotNull(globalFailureHandler);
             this.schedulerExecutor = checkNotNull(schedulerExecutor);
         }
@@ -570,7 +571,7 @@ public class OperatorCoordinatorHolder
             }
             failed = true;
 
-            schedulerExecutor.execute(() -> globalFailureHandler.accept(e));
+            schedulerExecutor.execute(() -> globalFailureHandler.handleGlobalFailure(e));
         }
 
         @Override

@@ -1064,8 +1064,10 @@ public class StreamingJobGraphGenerator {
 
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
-                && (edge.getPartitioner() instanceof ForwardPartitioner)
-                && edge.getExchangeMode() != StreamExchangeMode.BATCH
+                && arePartitionerAndExchangeModeChainable(
+                        edge.getPartitioner(),
+                        edge.getExchangeMode(),
+                        streamGraph.getExecutionConfig().isDynamicGraph())
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 
@@ -1081,6 +1083,22 @@ public class StreamingJobGraphGenerator {
             }
         }
         return true;
+    }
+
+    @VisibleForTesting
+    static boolean arePartitionerAndExchangeModeChainable(
+            StreamPartitioner<?> partitioner,
+            StreamExchangeMode exchangeMode,
+            boolean isDynamicGraph) {
+        if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
+            checkState(isDynamicGraph);
+            return true;
+        } else if ((partitioner instanceof ForwardPartitioner)
+                && exchangeMode != StreamExchangeMode.BATCH) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @VisibleForTesting

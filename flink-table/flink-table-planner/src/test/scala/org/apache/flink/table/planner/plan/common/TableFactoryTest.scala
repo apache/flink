@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectIdentifier}
@@ -24,9 +23,9 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import org.junit.{Assert, Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Test}
 
 import java.util.Optional
 
@@ -47,10 +46,12 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
       ObjectIdentifier.of("cat", "default", "t1"),
       ObjectIdentifier.of("cat", "default", "t2"),
       isBatch)
-    util.tableEnv.getConfig.getConfiguration.setBoolean(TestContextTableFactory.REQUIRED_KEY, true)
-    util.tableEnv.registerCatalog("cat", new GenericInMemoryCatalog("default") {
-      override def getTableFactory: Optional[TableFactory] = Optional.of(factory)
-    })
+    util.tableEnv.getConfig.set(TestContextTableFactory.REQUIRED_KEY, Boolean.box(true))
+    util.tableEnv.registerCatalog(
+      "cat",
+      new GenericInMemoryCatalog("default") {
+        override def getTableFactory: Optional[TableFactory] = Optional.of(factory)
+      })
     util.tableEnv.useCatalog("cat")
 
     val sourceDDL =

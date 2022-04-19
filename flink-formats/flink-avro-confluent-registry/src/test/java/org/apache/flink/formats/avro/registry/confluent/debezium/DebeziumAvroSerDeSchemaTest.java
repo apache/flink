@@ -28,6 +28,8 @@ import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentSchemaRegistryCoder;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -35,12 +37,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -58,11 +62,10 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DebeziumAvroDeserializationSchema}. */
-public class DebeziumAvroSerDeSchemaTest {
+class DebeziumAvroSerDeSchemaTest {
 
     private static final String SUBJECT = "testDebeziumAvro";
 
@@ -78,10 +81,10 @@ public class DebeziumAvroSerDeSchemaTest {
     private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST =
             new Schema.Parser().parse(new String(readBytesFromFile("debezium-test-schema.json")));
 
-    private SchemaRegistryClient client = new MockSchemaRegistryClient();
+    private final SchemaRegistryClient client = new MockSchemaRegistryClient();
 
     @Test
-    public void testSerializationDeserialization() throws Exception {
+    void testSerializationDeserialization() throws Exception {
 
         RowType rowTypeDe =
                 DebeziumAvroDeserializationSchema.createDebeziumAvroRowType(
@@ -92,7 +95,7 @@ public class DebeziumAvroSerDeSchemaTest {
 
         DebeziumAvroSerializationSchema dbzSerializer =
                 new DebeziumAvroSerializationSchema(getSerializationSchema(rowTypeSe));
-        dbzSerializer.open(mock(SerializationSchema.InitializationContext.class));
+        dbzSerializer.open(new MockInitializationContext());
 
         byte[] serialize = dbzSerializer.serialize(debeziumRow2RowData());
 
@@ -100,7 +103,7 @@ public class DebeziumAvroSerDeSchemaTest {
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
                         InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
-        dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+        dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();
         dbzDeserializer.deserialize(serialize, collector);
@@ -110,37 +113,37 @@ public class DebeziumAvroSerDeSchemaTest {
 
         List<String> expected =
                 Collections.singletonList("+I(107,rocks,box of assorted rocks,5.3)");
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
-    public void testInsertDataDeserialization() throws Exception {
+    void testInsertDataDeserialization() throws Exception {
         List<String> actual = testDeserialization("debezium-avro-insert.avro");
 
         List<String> expected =
                 Collections.singletonList("+I(1,lisi,test debezium avro data,21.799999237060547)");
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
-    public void testUpdateDataDeserialization() throws Exception {
+    void testUpdateDataDeserialization() throws Exception {
         List<String> actual = testDeserialization("debezium-avro-update.avro");
 
         List<String> expected =
                 Arrays.asList(
                         "-U(1,lisi,test debezium avro data,21.799999237060547)",
                         "+U(1,zhangsan,test debezium avro data,21.799999237060547)");
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
-    public void testDeleteDataDeserialization() throws Exception {
+    void testDeleteDataDeserialization() throws Exception {
         List<String> actual = testDeserialization("debezium-avro-delete.avro");
 
         List<String> expected =
                 Collections.singletonList(
                         "-D(1,zhangsan,test debezium avro data,21.799999237060547)");
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     public List<String> testDeserialization(String dataPath) throws Exception {
@@ -153,7 +156,7 @@ public class DebeziumAvroSerDeSchemaTest {
         DebeziumAvroDeserializationSchema dbzDeserializer =
                 new DebeziumAvroDeserializationSchema(
                         InternalTypeInfo.of(rowType), getDeserializationSchema(rowTypeDe));
-        dbzDeserializer.open(mock(DeserializationSchema.InitializationContext.class));
+        dbzDeserializer.open(new MockInitializationContext());
 
         SimpleCollector collector = new SimpleCollector();
         dbzDeserializer.deserialize(readBytesFromFile(dataPath), collector);
@@ -200,7 +203,7 @@ public class DebeziumAvroSerDeSchemaTest {
     private static byte[] readBytesFromFile(String filePath) {
         try {
             URL url = DebeziumAvroSerDeSchemaTest.class.getClassLoader().getResource(filePath);
-            assert url != null;
+            assertThat(url).isNotNull();
             Path path = new File(url.getFile()).toPath();
             return FileUtils.readAllBytes(path);
         } catch (IOException e) {
@@ -210,7 +213,7 @@ public class DebeziumAvroSerDeSchemaTest {
 
     private static class SimpleCollector implements Collector<RowData> {
 
-        private List<RowData> list = new ArrayList<>();
+        private final List<RowData> list = new ArrayList<>();
 
         @Override
         public void collect(RowData record) {
@@ -220,6 +223,20 @@ public class DebeziumAvroSerDeSchemaTest {
         @Override
         public void close() {
             // do nothing
+        }
+    }
+
+    private static class MockInitializationContext
+            implements DeserializationSchema.InitializationContext,
+                    SerializationSchema.InitializationContext {
+        @Override
+        public MetricGroup getMetricGroup() {
+            return new UnregisteredMetricsGroup();
+        }
+
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
         }
     }
 }

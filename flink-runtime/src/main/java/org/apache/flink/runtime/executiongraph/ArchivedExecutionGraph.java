@@ -331,10 +331,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     }
 
     /**
-     * Create a sparse ArchivedExecutionGraph for a job while it is still initializing. Most fields
-     * will be empty, only job status and error-related fields are set.
+     * Create a sparse ArchivedExecutionGraph for a job. Most fields will be empty, only job status
+     * and error-related fields are set.
      */
-    public static ArchivedExecutionGraph createFromInitializingJob(
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
             JobID jobId,
             String jobName,
             JobStatus jobStatus,

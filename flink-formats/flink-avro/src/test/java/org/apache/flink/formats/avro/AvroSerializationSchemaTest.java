@@ -24,41 +24,41 @@ import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AvroDeserializationSchema}. */
-public class AvroSerializationSchemaTest {
+class AvroSerializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
     @Test
-    public void testGenericRecord() throws Exception {
+    void testGenericRecord() throws Exception {
         SerializationSchema<GenericRecord> serializationSchema =
                 AvroSerializationSchema.forGeneric(address.getSchema());
 
         byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
         byte[] dataSerialized = serializationSchema.serialize(address);
-        assertArrayEquals(encodedAddress, dataSerialized);
+        assertThat(dataSerialized).isEqualTo(encodedAddress);
     }
 
     @Test
-    public void testSpecificRecord() throws Exception {
+    void testSpecificRecord() throws Exception {
         SerializationSchema<Address> serializer =
                 AvroSerializationSchema.forSpecific(Address.class);
 
         byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
         byte[] serializedAddress = serializer.serialize(address);
-        assertArrayEquals(encodedAddress, serializedAddress);
+        assertThat(serializedAddress).isEqualTo(encodedAddress);
     }
 
     @Test
-    public void testSpecificRecordWithUnionLogicalType() throws Exception {
+    void testSpecificRecordWithUnionLogicalType() throws Exception {
         Random rnd = new Random();
         UnionLogicalType data = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
         AvroSerializationSchema<UnionLogicalType> serializer =
@@ -66,6 +66,6 @@ public class AvroSerializationSchemaTest {
 
         byte[] encodedData = writeRecord(data);
         byte[] serializedData = serializer.serialize(data);
-        assertArrayEquals(encodedData, serializedData);
+        assertThat(serializedData).isEqualTo(encodedData);
     }
 }

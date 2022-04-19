@@ -71,19 +71,11 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "MOD",
-        "kind" : "MOD",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "HASH_CODE",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
@@ -110,14 +102,15 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-local-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0, 2 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -220,15 +213,16 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-incremental-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "partialAggGrouping" : [ 0, 1 ],
     "finalAggGrouping" : [ 0 ],
     "partialOriginalAggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -264,14 +258,14 @@
   }, {
     "id" : 8,
     "type" : "stream-exec-global-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -295,6 +289,12 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

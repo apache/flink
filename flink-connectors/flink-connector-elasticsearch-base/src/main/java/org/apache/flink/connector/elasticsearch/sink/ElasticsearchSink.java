@@ -19,18 +19,15 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import org.apache.http.HttpHost;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -55,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see ElasticsearchSinkBuilderBase on how to construct a ElasticsearchSink
  */
 @PublicEvolving
-public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
+public class ElasticsearchSink<IN> implements Sink<IN> {
 
     private final List<HttpHost> hosts;
     private final ElasticsearchEmitter<? super IN> emitter;
@@ -81,8 +78,7 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
     }
 
     @Override
-    public SinkWriter<IN, Void, Void> createWriter(InitContext context, List<Void> states)
-            throws IOException {
+    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
         return new ElasticsearchWriter<>(
                 hosts,
                 emitter,
@@ -94,28 +90,8 @@ public class ElasticsearchSink<IN> implements Sink<IN, Void, Void, Void> {
                 context.getMailboxExecutor());
     }
 
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getWriterStateSerializer() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<Committer<Void>> createCommitter() throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter() throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getCommittableSerializer() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
+    @VisibleForTesting
+    DeliveryGuarantee getDeliveryGuarantee() {
+        return deliveryGuarantee;
     }
 }

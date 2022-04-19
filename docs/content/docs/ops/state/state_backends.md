@@ -61,6 +61,8 @@ The HashMapStateBackend is encouraged for:
 It is also recommended to set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
+Unlike EmbeddedRocksDBStateBackend, the HashMapStateBackend stores data as objects on the heap so that it is unsafe to reuse objects.
+
 ### The EmbeddedRocksDBStateBackend
 
 The EmbeddedRocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
@@ -83,7 +85,7 @@ Note that the amount of state that you can keep is only limited by the amount of
 This allows keeping very large state, compared to the HashMapStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
 this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
-on-heap representation as the heap-based backends are doing.
+on-heap representation as the heap-based backends are doing. It's safe for EmbeddedRocksDBStateBackend to reuse objects due to the de-/serialization.
 
 Check also recommendations about the [task executor memory configuration]({{< ref "docs/deployment/memory/mem_tuning" >}}#rocksdb-state-backend) for the EmbeddedRocksDBStateBackend.
 
@@ -419,7 +421,7 @@ env.enable_changelog_statebackend(true)
 
 ### Monitoring
 
-Available metrics are listed [here]({{< ref "docs/ops/metrics#changelog" >}}).
+Available metrics are listed [here]({{< ref "docs/ops/metrics#state-changelog" >}}).
 
 If a task is backpressured by writing state changes, it will be shown as busy (red) in the UI.
 
@@ -427,9 +429,9 @@ If a task is backpressured by writing state changes, it will be shown as busy (r
 
 **Enabling Changelog**
 
-Resuming from both savepoints and checkpoints is supported:
+Resuming only from savepoints in canonical format is supported:
 - given an existing non-changelog job
-- take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
+- take a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) (canonical format is the default)
 - alter configuration (enable Changelog)
 - resume from the taken snapshot
 

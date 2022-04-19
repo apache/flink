@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,6 +49,14 @@ under the License.
 			<artifactId>flink-connector-files</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
@@ -366,15 +374,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
 		
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -403,10 +402,6 @@ under the License.
 						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
 						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
 					</classpathDependencyExcludes>
-					<!-- We override the fork behaviour for those expensive tests to avoid process
-					kills due to container limits on travis -->
-					<forkCount>${flink.forkCountTestPackage}</forkCount>
-					<reuseForks>false</reuseForks>
 					<environmentVariables>
 						<!-- Make sure external hadoop environment will not affect maven building -->
 						<HADOOP_HOME />

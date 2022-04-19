@@ -1040,7 +1040,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         }
 
         cl = Thread.currentThread().getContextClassLoader();
-        subclassSerializerCache = new HashMap<Class<?>, TypeSerializer<?>>();
+        subclassSerializerCache = new HashMap<>();
     }
 
     // --------------------------------------------------------------------------------------------

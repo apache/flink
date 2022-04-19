@@ -82,7 +82,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 @Internal
 public final class OperationTreeBuilder {
 
-    private final TableConfig config;
+    private final TableConfig tableConfig;
     private final FunctionLookup functionCatalog;
     private final DataTypeFactory typeFactory;
     private final TableReferenceLookup tableReferenceLookup;
@@ -100,7 +100,7 @@ public final class OperationTreeBuilder {
     private final ValuesOperationFactory valuesOperationFactory;
 
     private OperationTreeBuilder(
-            TableConfig config,
+            TableConfig tableConfig,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
@@ -112,7 +112,7 @@ public final class OperationTreeBuilder {
             AggregateOperationFactory aggregateOperationFactory,
             JoinOperationFactory joinOperationFactory,
             ValuesOperationFactory valuesOperationFactory) {
-        this.config = config;
+        this.tableConfig = tableConfig;
         this.functionCatalog = functionLookup;
         this.typeFactory = typeFactory;
         this.tableReferenceLookup = tableReferenceLookup;
@@ -128,14 +128,14 @@ public final class OperationTreeBuilder {
     }
 
     public static OperationTreeBuilder create(
-            TableConfig config,
+            TableConfig tableConfig,
             FunctionLookup functionCatalog,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
             SqlExpressionResolver sqlExpressionResolver,
             boolean isStreamingMode) {
         return new OperationTreeBuilder(
-                config,
+                tableConfig,
                 functionCatalog,
                 typeFactory,
                 tableReferenceLookup,
@@ -390,7 +390,7 @@ public final class OperationTreeBuilder {
     public ExpressionResolver.ExpressionResolverBuilder getResolverBuilder(
             QueryOperation... tableOperation) {
         return ExpressionResolver.resolverFor(
-                config,
+                tableConfig,
                 tableReferenceLookup,
                 functionCatalog,
                 typeFactory,

@@ -36,12 +36,14 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.nio.file.Files;
@@ -54,7 +56,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsString;
@@ -71,6 +73,10 @@ public class JarRunHandlerParameterTest
     private static final boolean ALLOW_NON_RESTORED_STATE_QUERY = true;
     private static final String RESTORE_PATH = "/foo/bar";
 
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     private static JarRunHandler handler;
 
     private static Path jarWithEagerSink;
@@ -82,7 +88,6 @@ public class JarRunHandlerParameterTest
                 () -> CompletableFuture.completedFuture(restfulGateway);
         final Time timeout = Time.seconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
-        final Executor executor = TestingUtils.defaultExecutor();
 
         final Path jarLocation = Paths.get(System.getProperty("targetDir"));
         final String parameterProgramWithEagerSink = "parameter-program-with-eager-sink.jar";
@@ -99,7 +104,7 @@ public class JarRunHandlerParameterTest
                         JarRunHeaders.getInstance(),
                         jarDir,
                         new Configuration(),
-                        executor,
+                        EXECUTOR_RESOURCE.getExecutor(),
                         ConfigurationVerifyingDetachedApplicationRunner::new);
     }
 

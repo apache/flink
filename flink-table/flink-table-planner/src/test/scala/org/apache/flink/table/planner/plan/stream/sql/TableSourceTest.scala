@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
@@ -280,7 +279,7 @@ class TableSourceTest extends TableTestBase {
          |""".stripMargin
     )
 
-    //TODO: always push projection into table source in FLINK-22118
+    // TODO: always push projection into table source in FLINK-22118
     util.verifyExecPlan(
       s"""
          |SELECT

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -38,7 +37,8 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-class OpenApiSpecGeneratorTest extends TestLogger {
+/** Test class for {@link OpenApiSpecGenerator}. */
+class OpenApiSpecGeneratorTest {
 
     @Test
     void testExcludeFromDocumentation() throws Exception {

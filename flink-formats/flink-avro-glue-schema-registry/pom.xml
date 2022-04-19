@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -82,6 +82,20 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-aws-base</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

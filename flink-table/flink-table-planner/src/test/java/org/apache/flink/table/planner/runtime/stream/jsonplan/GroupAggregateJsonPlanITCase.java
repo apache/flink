@@ -53,20 +53,13 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
         super.setup();
         if (isMiniBatchEnabled) {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
-            tableEnv.getConfig()
-                    .getConfiguration()
+                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
                     .set(
                             ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
-                            Duration.ofSeconds(10));
-            tableEnv.getConfig()
-                    .getConfiguration()
+                            Duration.ofSeconds(10))
                     .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5L);
         } else {
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
+            tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, false);
         }
     }
 

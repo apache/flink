@@ -49,4 +49,9 @@ public interface Histogram extends Metric {
      * @return Statistics about the currently recorded elements
      */
     HistogramStatistics getStatistics();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.HISTOGRAM;
+    }
 }

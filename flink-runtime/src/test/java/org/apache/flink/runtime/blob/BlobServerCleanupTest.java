@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -380,10 +379,7 @@ public class BlobServerCleanupTest extends TestLogger {
 
         try (final BlobServer blobServer =
                 createTestInstance(temporaryFolder.getAbsolutePath(), cleanupInterval)) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blob.exists(),
-                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)),
-                    "The transient blob has not been cleaned up automatically.");
+            CommonTestUtils.waitUntilCondition(() -> !blob.exists());
         }
     }
 

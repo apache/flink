@@ -64,7 +64,7 @@ See below for how to use Azure Blob Storage in a Flink job:
 env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Write to Azure Blob storage
-stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>")
+stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Use Azure Blob Storage as checkpoint storage
 env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");

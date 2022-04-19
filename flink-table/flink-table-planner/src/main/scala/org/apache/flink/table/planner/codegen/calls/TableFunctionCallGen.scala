@@ -15,18 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newName
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
-import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
 import org.apache.flink.table.planner.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -47,11 +46,10 @@ import scala.collection.JavaConversions._
  * generator will be a reference to a [[WrappingCollector]]. Furthermore, atomic types are wrapped
  * into a row by the collector.
  *
- * @param tableFunction user-defined [[TableFunction]] that might be overloaded
+ * @param tableFunction
+ *   user-defined [[TableFunction]] that might be overloaded
  */
-class TableFunctionCallGen(
-    rexCall: RexCall,
-    tableFunction: TableFunction[_])
+class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
   extends CallGenerator {
 
   override def generate(
@@ -71,16 +69,12 @@ class TableFunctionCallGen(
     val parameters = prepareUDFArgs(ctx, operands, tableFunction)
     val functionCallCode =
       s"""
-        |${parameters.map(_.code).mkString("\n")}
-        |$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")});
-        |""".stripMargin
+         |${parameters.map(_.code).mkString("\n")}
+         |$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")});
+         |""".stripMargin
 
     // has no result
-    GeneratedExpression(
-      resultCollectorTerm,
-      NEVER_NULL,
-      functionCallCode,
-      returnType)
+    GeneratedExpression(resultCollectorTerm, NEVER_NULL, functionCallCode, returnType)
   }
 
   def prepareUDFArgs(
@@ -96,18 +90,19 @@ class TableFunctionCallGen(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val arguments = UserDefinedFunctionUtils.transformRexNodes(rexCall.operands)
     val operandTypes = rexCall.operands
-        .map(_.getType)
-        .map(FlinkTypeFactory.toLogicalType).toArray
+      .map(_.getType)
+      .map(FlinkTypeFactory.toLogicalType)
+      .toArray
     val func = sqlFunction.makeFunction(arguments, operandTypes)
     val argTypes = getEvalMethodSignature(
       func,
       rexCall.operands
         .map(_.getType)
-        .map(FlinkTypeFactory.toLogicalType).toArray)
-    sqlFunction
-        .getFunction
-        .asInstanceOf[FlinkTableFunction]
-        .getExternalResultType(func, arguments, argTypes)
+        .map(FlinkTypeFactory.toLogicalType)
+        .toArray)
+    sqlFunction.getFunction
+      .asInstanceOf[FlinkTableFunction]
+      .getExternalResultType(func, arguments, argTypes)
   }
 
   /**
@@ -131,15 +126,15 @@ class TableFunctionCallGen(
         wrappedInternalType,
         classOf[GenericRowData])
       s"""
-       |${wrappedResult.code}
-       |outputResult(${wrappedResult.resultTerm});
-       |""".stripMargin
+         |${wrappedResult.code}
+         |outputResult(${wrappedResult.resultTerm});
+         |""".stripMargin
     } else {
       s"""
-        |if ($externalTerm != null) {
-        |  outputResult($externalTerm);
-        |}
-        |""".stripMargin
+         |if ($externalTerm != null) {
+         |  outputResult($externalTerm);
+         |}
+         |""".stripMargin
     }
 
     val resultCollector = CollectorCodeGenerator.generateWrappingCollector(
@@ -148,7 +143,8 @@ class TableFunctionCallGen(
       externalType,
       externalTerm,
       CodeGenUtils.genToInternalConverter(ctx, externalDataType),
-      collectorCode)
+      collectorCode
+    )
     val resultCollectorTerm = newName("resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
     resultCollectorTerm

@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
 import org.junit._
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
-class SemiAntiJoinStreamITCase(state: StateBackendMode)
-  extends StreamingWithStateTestBase(state)  {
+class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithStateTestBase(state) {
 
   override def before(): Unit = {
     super.before()
@@ -415,29 +413,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode)
 
   @Test
   def testStreamNotInWithoutEqual(): Unit = {
-    val data1 = List(
-      (1, 1),
-      (1, 1),
-      (2, 2),
-      (2, 2),
-      (3, 3),
-      (3, 3),
-      (4, 4),
-      (4, 4),
-      (5, 5),
-      (5, 5))
+    val data1 = List((1, 1), (1, 1), (2, 2), (2, 2), (3, 3), (3, 3), (4, 4), (4, 4), (5, 5), (5, 5))
 
-    val data2 = List(
-      (1, 1),
-      (2, 2),
-      (3, 3),
-      (4, 4),
-      (5, 5),
-      (6, 6),
-      (7, 7),
-      (8, 8),
-      (9, 9),
-      (10, 10))
+    val data2 =
+      List((1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10))
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
@@ -454,9 +433,7 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq("1", "1",
-      "2", "2",
-      "3", "3")
+    val expected = Seq("1", "1", "2", "2", "3", "3")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -468,11 +445,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode)
       (30, "SALES", "CHICAGO"),
       (40, "OPERATIONS", "BOSTON"))
 
-    val data2 = List(
-      (7369, "SMITH", 20),
-      (7499, "ALLEN", 30),
-      (7566, "JONES", 20),
-      (7654, "MARTIN", 30))
+    val data2 =
+      List((7369, "SMITH", 20), (7499, "ALLEN", 30), (7566, "JONES", 20), (7654, "MARTIN", 30))
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'deptno, 'dname, 'loc)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'empno, 'ename, 'deptno)
@@ -497,25 +471,9 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode)
 
   @Test
   def testStreamNotExistsWithoutEqual(): Unit = {
-    val data1 = List(
-      (1, 1),
-      (1, 1),
-      (2, 2),
-      (2, 2),
-      (3, 3),
-      (3, 3),
-      (4, 4),
-      (4, 4),
-      (5, 5),
-      (5, 5))
+    val data1 = List((1, 1), (1, 1), (2, 2), (2, 2), (3, 3), (3, 3), (4, 4), (4, 4), (5, 5), (5, 5))
 
-    val data2 = List(
-      (5, 5),
-      (6, 6),
-      (7, 7),
-      (8, 8),
-      (9, 9),
-      (10, 10))
+    val data2 = List((5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10))
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
@@ -532,12 +490,7 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode)
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = Seq("1", "1",
-      "2", "2",
-      "3", "3",
-      "4", "4",
-      "5", "5")
+    val expected = Seq("1", "1", "2", "2", "3", "3", "4", "4", "5", "5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }
-

@@ -18,7 +18,6 @@
 
 package org.apache.flink.kubernetes;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
@@ -40,7 +39,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -211,12 +209,7 @@ public class KubernetesResourceManagerDriverTest
                                             new KubernetesTooOldResourceVersionException(
                                                     new Exception("too old resource version")));
                             // Verify the old watch is closed and a new one is created
-                            CommonTestUtils.waitUntilCondition(
-                                    () -> getPodsWatches().size() == 2,
-                                    Deadline.fromNow(Duration.ofSeconds(TIMEOUT_SEC)),
-                                    String.format(
-                                            "New watch is not created in %s seconds.",
-                                            TIMEOUT_SEC));
+                            CommonTestUtils.waitUntilCondition(() -> getPodsWatches().size() == 2);
                             assertThat(getPodsWatches().get(0).isClosed(), is(true));
                             assertThat(getPodsWatches().get(1).isClosed(), is(false));
                         });

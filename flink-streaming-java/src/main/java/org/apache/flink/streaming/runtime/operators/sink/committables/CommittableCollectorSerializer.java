@@ -42,7 +42,6 @@ public final class CommittableCollectorSerializer<CommT>
         implements SimpleVersionedSerializer<CommittableCollector<CommT>> {
 
     private static final int MAGIC_NUMBER = 0xb91f252c;
-    private static final long EOI = Long.MAX_VALUE;
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final int subtaskId;
@@ -85,19 +84,9 @@ public final class CommittableCollectorSerializer<CommT>
     }
 
     private CommittableCollector<CommT> deserializeV1(DataInputView in) throws IOException {
-        final List<CommT> r = new ArrayList<>();
-        final int committableSerializerVersion = in.readInt();
-        final int numOfCommittable = in.readInt();
-
-        for (int i = 0; i < numOfCommittable; i++) {
-            final byte[] bytes = new byte[in.readInt()];
-            in.readFully(bytes);
-            final CommT committable =
-                    committableSerializer.deserialize(committableSerializerVersion, bytes);
-            r.add(committable);
-        }
-
-        return CommittableCollector.ofLegacy(r);
+        return CommittableCollector.ofLegacy(
+                SinkV1CommittableDeserializer.readVersionAndDeserializeList(
+                        committableSerializer, in));
     }
 
     private void serializeV2(

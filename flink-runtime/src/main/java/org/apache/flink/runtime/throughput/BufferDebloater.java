@@ -34,6 +34,7 @@ public class BufferDebloater {
     private static final Logger LOG = LoggerFactory.getLogger(BufferDebloater.class);
     private static final long MILLIS_IN_SECOND = 1000;
 
+    private final String owningTaskName;
     private final int gateIndex;
     private final long targetTotalBufferSize;
     private final int maxBufferSize;
@@ -45,12 +46,14 @@ public class BufferDebloater {
     private int lastBufferSize;
 
     public BufferDebloater(
+            String owningTaskName,
             int gateIndex,
             long targetTotalBufferSize,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             long numberOfSamples) {
+        this.owningTaskName = owningTaskName;
         this.gateIndex = gateIndex;
         this.targetTotalBufferSize = targetTotalBufferSize;
         this.maxBufferSize = maxBufferSize;
@@ -61,7 +64,8 @@ public class BufferDebloater {
         bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
 
         LOG.debug(
-                "Buffer debloater init settings: gateIndex={}, targetTotalBufferSize={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
+                "{}: Buffer debloater init settings: gateIndex={}, targetTotalBufferSize={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",
+                owningTaskName,
                 gateIndex,
                 targetTotalBufferSize,
                 maxBufferSize,
@@ -89,7 +93,8 @@ public class BufferDebloater {
         boolean skipUpdate = skipUpdate(newSize);
 
         LOG.debug(
-                "Buffer size recalculation: gateIndex={}, currentSize={}, newSize={}, instantThroughput={}, desiredBufferSize={}, buffersInUse={}, estimatedTimeToConsumeBuffers={}, announceNewSize={}",
+                "{}: Buffer size recalculation: gateIndex={}, currentSize={}, newSize={}, instantThroughput={}, desiredBufferSize={}, buffersInUse={}, estimatedTimeToConsumeBuffers={}, announceNewSize={}",
+                owningTaskName,
                 gateIndex,
                 lastBufferSize,
                 newSize,

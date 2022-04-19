@@ -45,12 +45,16 @@ import org.apache.calcite.rel.core.TableScan;
  * </ul>
  */
 public class SourceAbilityContext implements FlinkContext {
+
     private final RowType sourceRowType;
     private final FlinkContext context;
+    private final FlinkTypeFactory typeFactory;
 
-    public SourceAbilityContext(FlinkContext context, RowType sourceRowType) {
+    public SourceAbilityContext(
+            FlinkContext context, FlinkTypeFactory typeFactory, RowType sourceRowType) {
         this.context = context;
         this.sourceRowType = sourceRowType;
+        this.typeFactory = typeFactory;
     }
 
     @Override
@@ -83,6 +87,10 @@ public class SourceAbilityContext implements FlinkContext {
         return context.getSqlExprToRexConverterFactory();
     }
 
+    public FlinkTypeFactory getTypeFactory() {
+        return typeFactory;
+    }
+
     @Override
     public <C> C unwrap(Class<C> clazz) {
         if (clazz.isInstance(this)) {
@@ -99,6 +107,7 @@ public class SourceAbilityContext implements FlinkContext {
     public static SourceAbilityContext from(TableScan scan) {
         return new SourceAbilityContext(
                 ShortcutUtils.unwrapContext(scan),
+                ShortcutUtils.unwrapTypeFactory(scan),
                 FlinkTypeFactory.toLogicalRowType(scan.getRowType()));
     }
 }

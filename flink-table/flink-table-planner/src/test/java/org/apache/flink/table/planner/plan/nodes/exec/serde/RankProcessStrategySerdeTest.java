@@ -25,7 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankProcessStrategy json ser/de. */
 public class RankProcessStrategySerdeTest {
@@ -44,7 +44,7 @@ public class RankProcessStrategySerdeTest {
             RankProcessStrategy result =
                     mapper.readValue(
                             mapper.writeValueAsString(strategy), RankProcessStrategy.class);
-            assertEquals(strategy.toString(), result.toString());
+            assertThat(result.toString()).isEqualTo(strategy.toString());
         }
     }
 }

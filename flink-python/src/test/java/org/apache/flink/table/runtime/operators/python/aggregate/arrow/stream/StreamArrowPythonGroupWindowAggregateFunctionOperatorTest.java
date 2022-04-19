@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -55,7 +54,6 @@ import org.junit.Test;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -475,7 +473,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 },
                 UTC_ZONE_ID,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,
@@ -522,7 +520,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }

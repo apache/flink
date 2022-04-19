@@ -19,7 +19,6 @@
 package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -69,7 +68,6 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
 
     protected final PulsarClient pulsarClient;
     protected final PulsarAdmin pulsarAdmin;
-    protected final Configuration configuration;
     protected final SourceConfiguration sourceConfiguration;
     protected final PulsarDeserializationSchema<OUT> deserializationSchema;
     protected final AtomicBoolean wakeup;
@@ -80,12 +78,10 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected PulsarPartitionSplitReaderBase(
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
-            Configuration configuration,
             SourceConfiguration sourceConfiguration,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
-        this.configuration = configuration;
         this.sourceConfiguration = sourceConfiguration;
         this.deserializationSchema = deserializationSchema;
         this.wakeup = new AtomicBoolean(false);
@@ -217,7 +213,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     /** Create a specified {@link Consumer} by the given topic partition. */
     protected Consumer<byte[]> createPulsarConsumer(TopicPartition partition) {
         ConsumerBuilder<byte[]> consumerBuilder =
-                createConsumerBuilder(pulsarClient, Schema.BYTES, configuration);
+                createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
 
         consumerBuilder.topic(partition.getFullTopicName());
 

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator;
@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -55,7 +56,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-watermark-assigner",
         version = 1,
-        consumedOptions = "table.exec.source.idle-timeout",
         producedTransformations = StreamExecWatermarkAssigner.WATERMARK_ASSIGNER_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -74,6 +74,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
     private final int rowtimeFieldIndex;
 
     public StreamExecWatermarkAssigner(
+            ReadableConfig tableConfig,
             RexNode watermarkExpr,
             int rowtimeFieldIndex,
             InputProperty inputProperty,
@@ -82,6 +83,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWatermarkAssigner.class),
+                ExecNodeContext.newPersistedConfig(StreamExecWatermarkAssigner.class, tableConfig),
                 watermarkExpr,
                 rowtimeFieldIndex,
                 Collections.singletonList(inputProperty),
@@ -93,12 +95,13 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
     public StreamExecWatermarkAssigner(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
             @JsonProperty(FIELD_NAME_ROWTIME_FIELD_INDEX) int rowtimeFieldIndex,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.watermarkExpr = checkNotNull(watermarkExpr);
         this.rowtimeFieldIndex = rowtimeFieldIndex;
@@ -106,24 +109,21 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        final TableConfig tableConfig = planner.getTableConfig();
         final GeneratedWatermarkGenerator watermarkGenerator =
                 WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
-                        tableConfig,
+                        config,
                         (RowType) inputEdge.getOutputType(),
                         watermarkExpr,
                         JavaScalaConversionUtil.toScala(Optional.empty()));
 
         final long idleTimeout =
-                tableConfig
-                        .getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT)
-                        .toMillis();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
 
         final WatermarkAssignerOperatorFactory operatorFactory =
                 new WatermarkAssignerOperatorFactory(
@@ -131,8 +131,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(
-                        WATERMARK_ASSIGNER_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

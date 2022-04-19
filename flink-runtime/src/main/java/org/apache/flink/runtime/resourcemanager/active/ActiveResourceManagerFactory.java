@@ -38,6 +38,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 
 import javax.annotation.Nullable;
 
@@ -93,6 +94,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
             RpcService rpcService,
             UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
+            DelegationTokenManager delegationTokenManager,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
@@ -114,6 +116,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 leaderSessionId,
                 resourceId,
                 heartbeatServices,
+                delegationTokenManager,
                 resourceManagerRuntimeServices.getSlotManager(),
                 ResourceManagerPartitionTrackerImpl::new,
                 resourceManagerRuntimeServices.getJobLeaderIdService(),

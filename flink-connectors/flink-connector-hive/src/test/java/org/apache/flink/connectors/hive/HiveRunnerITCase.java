@@ -243,7 +243,7 @@ public class HiveRunnerITCase {
     public void testDifferentFormats() throws Exception {
         String[] formats = new String[] {"orc", "parquet", "sequencefile", "csv", "avro"};
         for (String format : formats) {
-            if (format.equals("avro") && !HiveVersionTestUtil.HIVE_110_OR_LATER) {
+            if (format.equals("avro") && !HiveVersionTestUtil.HIVE_230_OR_LATER) {
                 // timestamp is not supported for avro tables before 1.1.0
                 continue;
             }
@@ -256,9 +256,9 @@ public class HiveRunnerITCase {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
         try {
-            tableEnv.executeSql("create table db1.src1 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.src2 (x decimal(10,2))");
-            tableEnv.executeSql("create table db1.dest (x decimal(10,2))");
+            tableEnv.executeSql("create table db1.src1 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.src2 (x decimal(12,2))");
+            tableEnv.executeSql("create table db1.dest (x decimal(12,2))");
             // populate src1 from Hive
             // TABLE keyword in INSERT INTO is mandatory prior to 1.1.0
             hiveShell.execute(
@@ -532,16 +532,14 @@ public class HiveRunnerITCase {
     public void testOrcSchemaEvol() throws Exception {
         // not supported until 2.1.0 -- https://issues.apache.org/jira/browse/HIVE-11981,
         // https://issues.apache.org/jira/browse/HIVE-13178
-        Assume.assumeTrue(HiveVersionTestUtil.HIVE_210_OR_LATER);
+        Assume.assumeTrue(HiveVersionTestUtil.HIVE_230_OR_LATER);
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
         try {
             tableEnv.executeSql("create table db1.src (x smallint,y int) stored as orc");
             hiveShell.execute("insert into table db1.src values (1,100),(2,200)");
 
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
 
             tableEnv.executeSql("alter table db1.src change x x int");
             assertEquals(
@@ -648,7 +646,7 @@ public class HiveRunnerITCase {
         List<Object> row2 = new ArrayList<>(Arrays.asList(2, "b", "2019-08-26 00:00:00.1"));
         // some data types are not supported for parquet tables in early versions --
         // https://issues.apache.org/jira/browse/HIVE-6384
-        if (HiveVersionTestUtil.HIVE_120_OR_LATER || !format.equals("parquet")) {
+        if (HiveVersionTestUtil.HIVE_310_OR_LATER || !format.equals("parquet")) {
             tableSchema = "(i int,s string,ts timestamp,dt date)";
             row1.add("2018-08-20");
             row2.add("2019-08-26");

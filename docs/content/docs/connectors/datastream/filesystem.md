@@ -65,10 +65,10 @@ You can start building a File Source via one of the following API calls:
 {{< tab "Java" >}}
 ```java
 // reads the contents of a file from a file stream. 
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
 // reads batches of records from a file at a time
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -405,7 +405,7 @@ Schema schema = ...;
 DataStream<GenericRecord> input = ...;
 
 final FileSink<GenericRecord> sink = FileSink
-	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
 	.build();
 
 input.sinkTo(sink);
@@ -958,6 +958,79 @@ val sink = FileSink
 {{< /tab >}}
 {{< /tabs >}}
 
+### Compaction
+
+Since version 1.15 `FileSink` supports compaction of the `pending` files,
+which allows the application to have smaller checkpoint interval without generating a lot of small files,
+especially when using the [bulk encoded formats]({{< ref "docs/connectors/datastream/filesystem#bulk-encoded-formats" >}})
+that have to rolling on taking checkpoints.
+
+Compaction could be enabled with
+
+{{< tabs "enablecompaction" >}}
+{{< tab "Java" >}}
+```java
+
+FileSink<Integer> fileSink=
+	FileSink.forRowFormat(new Path(path),new SimpleStringEncoder<Integer>())
+	    .enableCompact(
+	        FileCompactStrategy.Builder.newBuilder()
+	            .setSizeThreshold(1024)
+	            .enableCompactionOnCheckpoint(5)
+	            .build(),
+	        new RecordWiseFileCompactor<>(
+	            new DecoderBasedReader.Factory<>(SimpleStringDecoder::new)))
+	    .build();
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+val fileSink: FileSink[Integer] =
+  FileSink.forRowFormat(new Path(path), new SimpleStringEncoder[Integer]())
+    .enableCompact(
+      FileCompactStrategy.Builder.newBuilder()
+        .setSizeThreshold(1024)
+        .enableCompactionOnCheckpoint(5)
+        .build(),
+      new RecordWiseFileCompactor(
+        new DecoderBasedReader.Factory(() => new SimpleStringDecoder)))
+    .build()
+
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Once enabled, the compaction happens between the files become `pending` and get committed. The pending files will
+be first committed to temporary files whose path starts with `.`. Then these files will be compacted according to
+the strategy by the compactor specified by the users, and the new compacted pending files will be generated.
+Then these pending files will be emitted to the committer to be committed to the formal files. After that, the source files will be removed.
+
+When enabling compaction, you need to specify the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}}
+and the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}}.
+
+The {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} specifies
+when and which files get compacted. Currently, there are two parallel conditions: the target file size and the number of checkpoints get passed.
+Once the total size of the cached files has reached the size threshold or the number of checkpoints since the last compaction has reached the specified number, 
+the cached files will be scheduled to compact.
+
+The {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} specifies how to compact
+the give list of `Path` and write the result file. It could be classified into two types according to how to write the file:
+
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}**: 
+  The users can write the compacted results into an output stream. This is useful when the users don't want to or can't read records from the input files. 
+  An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}} that concats the list of files directly.
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}**: 
+  The compactor can read records one-by-one from the input files and write into the result file similar to the `FileWriter`. 
+  An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} that reads records from the source files and then writes them with the `CompactingFileWriter`. Users need to specify how to read records from the source files.
+
+{{< hint info >}}
+**Important Note 1** Once the compaction is enabled, you must explicitly call `disableCompact` when building the `FileSink` if you want to disable compaction.
+
+**Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
+{{< /hint >}}
+
 ### Important Considerations
 
 #### General
@@ -977,8 +1050,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports three filesystems: 
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports four filesystems: 
+HDFS, S3, OSS, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 
@@ -1012,6 +1085,12 @@ that don't complete within a specified number of days after being initiated. Thi
 aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out
 before the job is restarted. This will result in your job not being able to restore from that savepoint as the
 pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
+
+#### OSS-specific
+
+<span class="label label-danger">Important Note</span>: To guarantee exactly-once semantics while
+being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.aliyun.com/document_detail/155825.html)
+feature of OSS(similar with S3).
 
 {{< top >}}
 

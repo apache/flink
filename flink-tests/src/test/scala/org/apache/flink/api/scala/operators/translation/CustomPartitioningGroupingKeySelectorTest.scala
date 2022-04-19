@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.functions.Partitioner
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.scala._
+import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType
+
 import org.junit.Assert._
 import org.junit.Test
-import org.apache.flink.api.scala._
-import org.apache.flink.api.common.functions.Partitioner
-import org.apache.flink.runtime.operators.shipping.ShipStrategyType
-import org.apache.flink.optimizer.plan.SingleInputPlanNode
-import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.InvalidProgramException
 
 class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
 
@@ -36,11 +36,12 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0,0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0)).rebalance().setParallelism(4)
 
       data
-        .groupBy( _._1 ).withPartitioner(new TestPartitionerInt())
-        .reduce( (a,b) => a )
+        .groupBy(_._1)
+        .withPartitioner(new TestPartitionerInt())
+        .reduce((a, b) => a)
         .output(new DiscardingOutputFormat[(Int, Int)])
 
       val p = env.createProgramPlan()
@@ -55,8 +56,7 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       assertEquals(ShipStrategyType.FORWARD, keyRemovingMapper.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -69,26 +69,29 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0,0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0)).rebalance().setParallelism(4)
 
       data
-        .groupBy( _._1 ).withPartitioner(new TestPartitionerInt())
-        .reduce( (a, b) => a)
+        .groupBy(_._1)
+        .withPartitioner(new TestPartitionerInt())
+        .reduce((a, b) => a)
         .output(new DiscardingOutputFormat[(Int, Int)])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
 
       val sink = op.getDataSinks.iterator().next()
-      val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
-                        .getInput.getSource.asInstanceOf[SingleInputPlanNode]
+      val reducer = sink.getInput.getSource
+        .asInstanceOf[SingleInputPlanNode]
+        .getInput
+        .getSource
+        .asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -101,13 +104,13 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0,0,0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0, 0)).rebalance().setParallelism(4)
 
       data
         .groupBy(0)
         .withPartitioner(new TestPartitionerInt())
         .sortGroup(1, Order.ASCENDING)
-        .reduce( (a,b) => a)
+        .reduce((a, b) => a)
         .output(new DiscardingOutputFormat[(Int, Int, Int)])
 
       val p = env.createProgramPlan()
@@ -121,8 +124,7 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
 
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -135,28 +137,30 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0,0,0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0, 0)).rebalance().setParallelism(4)
 
       data
         .groupBy(_._1)
         .withPartitioner(new TestPartitionerInt())
         .sortGroup(_._2, Order.ASCENDING)
-        .reduce( (a,b) => a)
+        .reduce((a, b) => a)
         .output(new DiscardingOutputFormat[(Int, Int, Int)])
 
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
 
       val sink = op.getDataSinks.iterator().next()
-      val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
-                        .getInput.getSource.asInstanceOf[SingleInputPlanNode]
+      val reducer = sink.getInput.getSource
+        .asInstanceOf[SingleInputPlanNode]
+        .getInput
+        .getSource
+        .asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
       assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -169,13 +173,14 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0,0,0,0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0, 0, 0)).rebalance().setParallelism(4)
 
       data
-        .groupBy(0).withPartitioner(new TestPartitionerInt())
+        .groupBy(0)
+        .withPartitioner(new TestPartitionerInt())
         .sortGroup(1, Order.ASCENDING)
         .sortGroup(2, Order.DESCENDING)
-        .reduce( (a,b) => a)
+        .reduce((a, b) => a)
         .output(new DiscardingOutputFormat[(Int, Int, Int, Int)])
 
       val p = env.createProgramPlan()
@@ -189,8 +194,7 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
       assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
 
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -203,19 +207,17 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0, 0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0)).rebalance().setParallelism(4)
 
       try {
         data
-          .groupBy( _._1 )
+          .groupBy(_._1)
           .withPartitioner(new TestPartitionerLong())
         fail("Should throw an exception")
-      }
-      catch {
+      } catch {
         case e: InvalidProgramException =>
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -228,20 +230,18 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0, 0, 0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0, 0)).rebalance().setParallelism(4)
 
       try {
         data
-          .groupBy( _._1 )
+          .groupBy(_._1)
           .sortGroup(1, Order.ASCENDING)
           .withPartitioner(new TestPartitionerLong())
         fail("Should throw an exception")
-      }
-      catch {
+      } catch {
         case e: InvalidProgramException =>
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)
@@ -254,17 +254,15 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val data = env.fromElements( (0, 0, 0) ).rebalance().setParallelism(4)
+      val data = env.fromElements((0, 0, 0)).rebalance().setParallelism(4)
 
       try {
-        data.groupBy( v => (v._1, v._2) ).withPartitioner(new TestPartitionerInt())
+        data.groupBy(v => (v._1, v._2)).withPartitioner(new TestPartitionerInt())
         fail("Should throw an exception")
-      }
-      catch {
+      } catch {
         case e: InvalidProgramException =>
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         e.printStackTrace()
         fail(e.getMessage)

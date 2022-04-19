@@ -873,6 +873,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
                     SqlFunctionCategory.STRING);
 
+    public static final SqlFunction TRY_CAST = new SqlTryCastFunction();
+
     /** <code>AUXILIARY_GROUP</code> aggregate function. Only be used in internally. */
     public static final SqlAggFunction AUXILIARY_GROUP = new SqlAuxiliaryGroupAggFunction();
 
@@ -1138,7 +1140,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     // JSON FUNCTIONS
     public static final SqlFunction JSON_EXISTS = SqlStdOperatorTable.JSON_EXISTS;
-    public static final SqlFunction JSON_VALUE = SqlStdOperatorTable.JSON_VALUE;
+    public static final SqlFunction JSON_VALUE = new SqlJsonValueFunctionWrapper("JSON_VALUE");
     public static final SqlFunction JSON_QUERY = new SqlJsonQueryFunctionWrapper();
     public static final SqlFunction JSON_OBJECT = new SqlJsonObjectFunctionWrapper();
     public static final SqlAggFunction JSON_OBJECTAGG_NULL_ON_NULL =

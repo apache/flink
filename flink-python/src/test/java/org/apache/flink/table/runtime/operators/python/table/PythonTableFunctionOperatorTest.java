@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -40,7 +39,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
-import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
@@ -96,7 +94,7 @@ public class PythonTableFunctionOperatorTest
                 udfOutputType,
                 JoinTypeUtil.getFlinkJoinType(joinRelType),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdtfInputProjection",
                         inputType,
                         udfInputType,
@@ -133,7 +131,6 @@ public class PythonTableFunctionOperatorTest
                     udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer());
         }
     }
