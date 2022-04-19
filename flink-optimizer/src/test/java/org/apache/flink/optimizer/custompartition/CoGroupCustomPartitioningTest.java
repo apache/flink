@@ -37,15 +37,16 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupCustomPartitioningTest extends CompilerTestBase {
 
     @Test
-    public void testCoGroupWithTuples() {
+    void testCoGroupWithTuples() {
         try {
             final Partitioner<Long> partitioner = new TestPartitionerLong();
 
@@ -70,10 +71,12 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             DualInputPlanNode join = (DualInputPlanNode) sink.getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2().getShipStrategy());
-            assertEquals(partitioner, join.getInput1().getPartitioner());
-            assertEquals(partitioner, join.getInput2().getPartitioner());
+            assertThat(join.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput1().getPartitioner()).isEqualTo(partitioner);
+            assertThat(join.getInput2().getPartitioner()).isEqualTo(partitioner);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -81,7 +84,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupWithTuplesWrongType() {
+    void testCoGroupWithTuplesWrongType() {
         try {
             final Partitioner<Integer> partitioner = new TestPartitionerInt();
 
@@ -104,7 +107,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupWithPojos() {
+    void testCoGroupWithPojos() {
         try {
             final Partitioner<Integer> partitioner = new TestPartitionerInt();
 
@@ -126,10 +129,12 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             DualInputPlanNode join = (DualInputPlanNode) sink.getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2().getShipStrategy());
-            assertEquals(partitioner, join.getInput1().getPartitioner());
-            assertEquals(partitioner, join.getInput2().getPartitioner());
+            assertThat(join.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput1().getPartitioner()).isEqualTo(partitioner);
+            assertThat(join.getInput2().getPartitioner()).isEqualTo(partitioner);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -137,7 +142,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupWithPojosWrongType() {
+    void testCoGroupWithPojosWrongType() {
         try {
             final Partitioner<Long> partitioner = new TestPartitionerLong();
 
@@ -160,7 +165,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupWithKeySelectors() {
+    void testCoGroupWithKeySelectors() {
         try {
             final Partitioner<Integer> partitioner = new TestPartitionerInt();
 
@@ -182,10 +187,12 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             DualInputPlanNode join = (DualInputPlanNode) sink.getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2().getShipStrategy());
-            assertEquals(partitioner, join.getInput1().getPartitioner());
-            assertEquals(partitioner, join.getInput2().getPartitioner());
+            assertThat(join.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(join.getInput1().getPartitioner()).isEqualTo(partitioner);
+            assertThat(join.getInput2().getPartitioner()).isEqualTo(partitioner);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -193,7 +200,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupWithKeySelectorsWrongType() {
+    void testCoGroupWithKeySelectorsWrongType() {
         try {
             final Partitioner<Long> partitioner = new TestPartitionerLong();
 
@@ -219,7 +226,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
     }
 
     @Test
-    public void testIncompatibleHashAndCustomPartitioning() {
+    void testIncompatibleHashAndCustomPartitioning() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -263,10 +270,13 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             DualInputPlanNode coGroup = (DualInputPlanNode) sink.getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, coGroup.getInput1().getShipStrategy());
-            assertTrue(
-                    coGroup.getInput2().getShipStrategy() == ShipStrategyType.PARTITION_HASH
-                            || coGroup.getInput2().getShipStrategy() == ShipStrategyType.FORWARD);
+            assertThat(coGroup.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(
+                            coGroup.getInput2().getShipStrategy() == ShipStrategyType.PARTITION_HASH
+                                    || coGroup.getInput2().getShipStrategy()
+                                            == ShipStrategyType.FORWARD)
+                    .isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

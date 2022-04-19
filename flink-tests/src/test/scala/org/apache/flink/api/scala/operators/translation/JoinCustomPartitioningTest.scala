@@ -18,18 +18,15 @@
 package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.functions.Partitioner
-import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.optimizer.plan.DualInputPlanNode
-import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 class JoinCustomPartitioningTest extends CompilerTestBase {
 
@@ -56,10 +53,10 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val join = sink.getInput.getSource.asInstanceOf[DualInputPlanNode]
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2.getShipStrategy)
-      assertEquals(partitioner, join.getInput1.getPartitioner)
-      assertEquals(partitioner, join.getInput2.getPartitioner)
+      assertThat(join.getInput1.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput2.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput1.getPartitioner).isEqualTo(partitioner)
+      assertThat(join.getInput2.getPartitioner).isEqualTo(partitioner)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -119,10 +116,10 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val join = sink.getInput.getSource.asInstanceOf[DualInputPlanNode]
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2.getShipStrategy)
-      assertEquals(partitioner, join.getInput1.getPartitioner)
-      assertEquals(partitioner, join.getInput2.getPartitioner)
+      assertThat(join.getInput1.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput2.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput1.getPartitioner).isEqualTo(partitioner)
+      assertThat(join.getInput2.getPartitioner).isEqualTo(partitioner)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -182,10 +179,10 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val join = sink.getInput.getSource.asInstanceOf[DualInputPlanNode]
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput1.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, join.getInput2.getShipStrategy)
-      assertEquals(partitioner, join.getInput1.getPartitioner)
-      assertEquals(partitioner, join.getInput2.getPartitioner)
+      assertThat(join.getInput1.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput2.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(join.getInput1.getPartitioner).isEqualTo(partitioner)
+      assertThat(join.getInput2.getPartitioner).isEqualTo(partitioner)
     } catch {
       case e: Exception => {
         e.printStackTrace()

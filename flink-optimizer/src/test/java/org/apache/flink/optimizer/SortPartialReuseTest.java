@@ -33,15 +33,16 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class SortPartialReuseTest extends CompilerTestBase {
 
     @Test
-    public void testPartialPartitioningReuse() {
+    void testPartialPartitioningReuse() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -66,14 +67,15 @@ public class SortPartialReuseTest extends CompilerTestBase {
             SingleInputPlanNode reducer2 = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode reducer1 = (SingleInputPlanNode) reducer2.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // should be locally forwarding, reusing sort and partitioning
-            assertEquals(ShipStrategyType.FORWARD, reducer2.getInput().getShipStrategy());
-            assertEquals(LocalStrategy.NONE, reducer2.getInput().getLocalStrategy());
+            assertThat(reducer2.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer2.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
 
-            assertEquals(ShipStrategyType.FORWARD, reducer1.getInput().getShipStrategy());
-            assertEquals(LocalStrategy.COMBININGSORT, reducer1.getInput().getLocalStrategy());
+            assertThat(reducer1.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer1.getInput().getLocalStrategy())
+                    .isEqualTo(LocalStrategy.COMBININGSORT);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -81,7 +83,7 @@ public class SortPartialReuseTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningNotReused() {
+    void testCustomPartitioningNotReused() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -114,17 +116,20 @@ public class SortPartialReuseTest extends CompilerTestBase {
             SingleInputPlanNode combiner = (SingleInputPlanNode) reducer2.getInput().getSource();
             SingleInputPlanNode reducer1 = (SingleInputPlanNode) combiner.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // should be locally forwarding, reusing sort and partitioning
-            assertEquals(ShipStrategyType.PARTITION_HASH, reducer2.getInput().getShipStrategy());
-            assertEquals(LocalStrategy.COMBININGSORT, reducer2.getInput().getLocalStrategy());
+            assertThat(reducer2.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(reducer2.getInput().getLocalStrategy())
+                    .isEqualTo(LocalStrategy.COMBININGSORT);
 
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-            assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(combiner.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
 
-            assertEquals(ShipStrategyType.FORWARD, reducer1.getInput().getShipStrategy());
-            assertEquals(LocalStrategy.COMBININGSORT, reducer1.getInput().getLocalStrategy());
+            assertThat(reducer1.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer1.getInput().getLocalStrategy())
+                    .isEqualTo(LocalStrategy.COMBININGSORT);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

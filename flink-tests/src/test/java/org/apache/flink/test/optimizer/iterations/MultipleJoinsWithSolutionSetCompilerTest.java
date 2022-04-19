@@ -38,10 +38,10 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test multiple joins with the solution set. */
 @SuppressWarnings("serial")
@@ -74,14 +74,18 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
             DualInputPlanNode join1 = or.getNode(JOIN_1);
             DualInputPlanNode join2 = or.getNode(JOIN_2);
 
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, join1.getDriverStrategy());
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, join2.getDriverStrategy());
+            assertThat(join1.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
+            assertThat(join2.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, join1.getInput2().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_HASH, join2.getInput1().getShipStrategy());
+            assertThat(join1.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(join2.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
-            assertEquals(SolutionSetPlanNode.class, join1.getInput1().getSource().getClass());
-            assertEquals(SolutionSetPlanNode.class, join2.getInput2().getSource().getClass());
+            assertThat(join1.getInput1().getSource().getClass())
+                    .isEqualTo(SolutionSetPlanNode.class);
+            assertThat(join2.getInput2().getSource().getClass())
+                    .isEqualTo(SolutionSetPlanNode.class);
 
             new JobGraphGenerator().compileJobGraph(optPlan);
         } catch (Exception e) {

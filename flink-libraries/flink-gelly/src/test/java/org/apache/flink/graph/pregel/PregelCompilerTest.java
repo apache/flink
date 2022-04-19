@@ -39,10 +39,9 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.NullValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Validate compiled {@link VertexCentricIteration} programs. */
 public class PregelCompilerTest extends CompilerTestBase {
@@ -84,36 +83,39 @@ public class PregelCompilerTest extends CompilerTestBase {
 
         // check the sink
         SinkPlanNode sink = op.getDataSinks().iterator().next();
-        assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(sink.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the iteration
         WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+        assertThat(iteration.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the solution set delta
         PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-        assertTrue(ssDelta instanceof SingleInputPlanNode);
+        assertThat(ssDelta).isInstanceOf(SingleInputPlanNode.class);
 
         SingleInputPlanNode ssFlatMap =
                 (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+        assertThat(ssFlatMap.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(ssFlatMap.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         // check the computation coGroup
         DualInputPlanNode computationCoGroup =
                 (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-        assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-        assertEquals(
-                ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-        assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+        assertThat(computationCoGroup.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(computationCoGroup.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(computationCoGroup.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(computationCoGroup.getInput2().getTempMode().isCached()).isTrue();
 
-        assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+        assertThat(computationCoGroup.getInput2().getShipStrategyKeys())
+                .isEqualTo(new FieldList(0));
 
         // check that the initial partitioning is pushed out of the loop
-        assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-        assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+        assertThat(iteration.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(iteration.getInput1().getShipStrategyKeys()).isEqualTo(new FieldList(0));
     }
 
     @SuppressWarnings("serial")
@@ -159,36 +161,39 @@ public class PregelCompilerTest extends CompilerTestBase {
 
         // check the sink
         SinkPlanNode sink = op.getDataSinks().iterator().next();
-        assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(sink.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the iteration
         WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+        assertThat(iteration.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the solution set delta
         PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-        assertTrue(ssDelta instanceof SingleInputPlanNode);
+        assertThat(ssDelta).isInstanceOf(SingleInputPlanNode.class);
 
         SingleInputPlanNode ssFlatMap =
                 (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+        assertThat(ssFlatMap.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(ssFlatMap.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         // check the computation coGroup
         DualInputPlanNode computationCoGroup =
                 (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-        assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-        assertEquals(
-                ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-        assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+        assertThat(computationCoGroup.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(computationCoGroup.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(computationCoGroup.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(computationCoGroup.getInput2().getTempMode().isCached()).isTrue();
 
-        assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+        assertThat(computationCoGroup.getInput2().getShipStrategyKeys())
+                .isEqualTo(new FieldList(0));
 
         // check that the initial partitioning is pushed out of the loop
-        assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-        assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+        assertThat(iteration.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(iteration.getInput1().getShipStrategyKeys()).isEqualTo(new FieldList(0));
     }
 
     @SuppressWarnings("serial")
@@ -227,40 +232,43 @@ public class PregelCompilerTest extends CompilerTestBase {
 
         // check the sink
         SinkPlanNode sink = op.getDataSinks().iterator().next();
-        assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(sink.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the iteration
         WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
+        assertThat(iteration.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
 
         // check the combiner
         SingleInputPlanNode combiner = (SingleInputPlanNode) iteration.getInput2().getSource();
-        assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+        assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         // check the solution set delta
         PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
-        assertTrue(ssDelta instanceof SingleInputPlanNode);
+        assertThat(ssDelta).isInstanceOf(SingleInputPlanNode.class);
 
         SingleInputPlanNode ssFlatMap =
                 (SingleInputPlanNode) ((SingleInputPlanNode) (ssDelta)).getInput().getSource();
-        assertEquals(DEFAULT_PARALLELISM, ssFlatMap.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, ssFlatMap.getInput().getShipStrategy());
+        assertThat(ssFlatMap.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(ssFlatMap.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         // check the computation coGroup
         DualInputPlanNode computationCoGroup =
                 (DualInputPlanNode) (ssFlatMap.getInput().getSource());
-        assertEquals(DEFAULT_PARALLELISM, computationCoGroup.getParallelism());
-        assertEquals(ShipStrategyType.FORWARD, computationCoGroup.getInput1().getShipStrategy());
-        assertEquals(
-                ShipStrategyType.PARTITION_HASH, computationCoGroup.getInput2().getShipStrategy());
-        assertTrue(computationCoGroup.getInput2().getTempMode().isCached());
+        assertThat(computationCoGroup.getParallelism()).isEqualTo(DEFAULT_PARALLELISM);
+        assertThat(computationCoGroup.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(computationCoGroup.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(computationCoGroup.getInput2().getTempMode().isCached()).isTrue();
 
-        assertEquals(new FieldList(0), computationCoGroup.getInput2().getShipStrategyKeys());
+        assertThat(computationCoGroup.getInput2().getShipStrategyKeys())
+                .isEqualTo(new FieldList(0));
 
         // check that the initial partitioning is pushed out of the loop
-        assertEquals(ShipStrategyType.PARTITION_HASH, iteration.getInput1().getShipStrategy());
-        assertEquals(new FieldList(0), iteration.getInput1().getShipStrategyKeys());
+        assertThat(iteration.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(iteration.getInput1().getShipStrategyKeys()).isEqualTo(new FieldList(0));
     }
 
     @SuppressWarnings("serial")

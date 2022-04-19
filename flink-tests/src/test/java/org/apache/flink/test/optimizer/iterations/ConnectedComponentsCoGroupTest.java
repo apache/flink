@@ -45,8 +45,9 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** */
 @SuppressWarnings("serial")
@@ -95,59 +96,57 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
         // --------------------------------------------------------------------
 
         // test all drivers
-        Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
+        assertThat(sink.getDriverStrategy()).isEqualTo(DriverStrategy.NONE);
+        assertThat(vertexSource.getDriverStrategy()).isEqualTo(DriverStrategy.NONE);
+        assertThat(edgesSource.getDriverStrategy()).isEqualTo(DriverStrategy.NONE);
 
-        Assert.assertEquals(DriverStrategy.INNER_MERGE, neighborsJoin.getDriverStrategy());
-        Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
-        Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
+        assertThat(neighborsJoin.getDriverStrategy()).isEqualTo(DriverStrategy.INNER_MERGE);
+        assertThat(neighborsJoin.getKeysForInput1()).isEqualTo(set0);
+        assertThat(neighborsJoin.getKeysForInput2()).isEqualTo(set0);
 
-        Assert.assertEquals(DriverStrategy.CO_GROUP, cogroup.getDriverStrategy());
-        Assert.assertEquals(set0, cogroup.getKeysForInput1());
-        Assert.assertEquals(set0, cogroup.getKeysForInput2());
+        assertThat(cogroup.getDriverStrategy()).isEqualTo(DriverStrategy.CO_GROUP);
+        assertThat(cogroup.getKeysForInput1()).isEqualTo(set0);
+        assertThat(cogroup.getKeysForInput2()).isEqualTo(set0);
 
         // test all the shipping strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH,
-                iter.getInitialSolutionSetInput().getShipStrategy());
-        Assert.assertEquals(set0, iter.getInitialSolutionSetInput().getShipStrategyKeys());
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH, iter.getInitialWorksetInput().getShipStrategy());
-        Assert.assertEquals(set0, iter.getInitialWorksetInput().getShipStrategyKeys());
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(iter.getInitialSolutionSetInput().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(iter.getInitialSolutionSetInput().getShipStrategyKeys()).isEqualTo(set0);
+        assertThat(iter.getInitialWorksetInput().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(iter.getInitialWorksetInput().getShipStrategyKeys()).isEqualTo(set0);
 
-        Assert.assertEquals(
-                ShipStrategyType.FORWARD, neighborsJoin.getInput1().getShipStrategy()); // workset
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH,
-                neighborsJoin.getInput2().getShipStrategy()); // edges
-        Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
-        Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
+        assertThat(neighborsJoin.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.FORWARD); // workset
+        assertThat(neighborsJoin.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH); // edges
+        assertThat(neighborsJoin.getInput2().getShipStrategyKeys()).isEqualTo(set0);
+        assertThat(neighborsJoin.getInput2().getTempMode().isCached()).isTrue();
 
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH, cogroup.getInput1().getShipStrategy()); // min id
-        Assert.assertEquals(
-                ShipStrategyType.FORWARD, cogroup.getInput2().getShipStrategy()); // solution set
+        assertThat(cogroup.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH); // min id
+        assertThat(cogroup.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.FORWARD); // solution set
 
         // test all the local strategies
-        Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
-        Assert.assertEquals(
-                LocalStrategy.NONE, iter.getInitialSolutionSetInput().getLocalStrategy());
+        assertThat(sink.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
+        assertThat(iter.getInitialSolutionSetInput().getLocalStrategy())
+                .isEqualTo(LocalStrategy.NONE);
 
         // the sort for the neighbor join in the first iteration is pushed out of the loop
-        Assert.assertEquals(LocalStrategy.SORT, iter.getInitialWorksetInput().getLocalStrategy());
-        Assert.assertEquals(
-                LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
-        Assert.assertEquals(
-                LocalStrategy.SORT, neighborsJoin.getInput2().getLocalStrategy()); // edges
+        assertThat(iter.getInitialWorksetInput().getLocalStrategy()).isEqualTo(LocalStrategy.SORT);
+        assertThat(neighborsJoin.getInput1().getLocalStrategy())
+                .isEqualTo(LocalStrategy.NONE); // workset
+        assertThat(neighborsJoin.getInput2().getLocalStrategy())
+                .isEqualTo(LocalStrategy.SORT); // edges
 
-        Assert.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
-        Assert.assertEquals(
-                LocalStrategy.NONE, cogroup.getInput2().getLocalStrategy()); // solution set
+        assertThat(cogroup.getInput1().getLocalStrategy()).isEqualTo(LocalStrategy.SORT);
+        assertThat(cogroup.getInput2().getLocalStrategy())
+                .isEqualTo(LocalStrategy.NONE); // solution set
 
         // check the caches
-        Assert.assertTrue(TempMode.CACHED == neighborsJoin.getInput2().getTempMode());
+        assertThat(neighborsJoin.getInput2().getTempMode()).isSameAs(TempMode.CACHED);
 
         JobGraphGenerator jgg = new JobGraphGenerator();
         jgg.compileJobGraph(optPlan);

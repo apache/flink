@@ -32,10 +32,11 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,7 +48,8 @@ import java.util.Map;
  * Base class for Optimizer tests. Offers utility methods to trigger optimization of a program and
  * to fetch the nodes in an optimizer plan that correspond the node in the program plan.
  */
-public abstract class CompilerTestBase extends TestLogger implements java.io.Serializable {
+@ExtendWith({TestLoggerExtension.class})
+public abstract class CompilerTestBase implements java.io.Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -75,7 +77,7 @@ public abstract class CompilerTestBase extends TestLogger implements java.io.Ser
 
     // ------------------------------------------------------------------------
 
-    @Before
+    @BeforeEach
     public void setup() {
         Configuration flinkConf = new Configuration();
         this.dataStats = new DataStatistics();

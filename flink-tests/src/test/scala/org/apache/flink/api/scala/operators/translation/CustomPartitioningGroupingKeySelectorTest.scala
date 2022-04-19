@@ -26,8 +26,8 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
 
@@ -52,10 +52,10 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       val reducer = keyRemovingMapper.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, keyRemovingMapper.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(keyRemovingMapper.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -88,9 +88,9 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
         .asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -120,9 +120,9 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
 
     } catch {
       case e: Exception => {
@@ -157,9 +157,9 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
         .asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -190,9 +190,9 @@ class CustomPartitioningGroupingKeySelectorTest extends CompilerTestBase {
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
 
     } catch {
       case e: Exception => {

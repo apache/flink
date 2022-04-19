@@ -24,8 +24,8 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 class PartitionOperatorTranslationTest extends CompilerTestBase {
 
@@ -52,8 +52,8 @@ class PartitionOperatorTranslationTest extends CompilerTestBase {
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val partitioner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput.getShipStrategy)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(partitioner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
     } catch {
       case e: Exception => {
         e.printStackTrace()

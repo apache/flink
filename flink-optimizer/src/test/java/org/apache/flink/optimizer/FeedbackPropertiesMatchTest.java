@@ -52,15 +52,16 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.*;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class FeedbackPropertiesMatchTest {
 
     @Test
-    public void testNoPartialSolutionFoundSingleInputOnly() {
+    void testNoPartialSolutionFoundSingleInputOnly() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Source");
 
@@ -84,7 +85,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(otherTarget, gp, lp);
-                assertTrue(report == NO_PARTIAL_SOLUTION);
+                assertThat(report).isSameAs(NO_PARTIAL_SOLUTION);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -93,7 +94,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testSingleInputOperators() {
+    void testSingleInputOperators() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Source");
 
@@ -116,7 +117,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some global feedback properties and none are ever required and present
@@ -127,7 +129,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some local feedback properties and none are ever required and present
@@ -137,7 +140,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some global and local feedback properties and none are ever required and present
@@ -148,7 +152,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // --------------------------- requirements on channel 1 -----------------------
@@ -170,7 +175,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required local properties, which are matched exactly
@@ -189,7 +195,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global and local properties, which are matched exactly
@@ -212,7 +219,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global and local properties, which are over-fulfilled
@@ -235,7 +243,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global properties that are not met
@@ -255,7 +264,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required local properties that are not met
@@ -274,7 +283,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required global and local properties where the global properties are not met
@@ -297,7 +306,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required global and local properties where the local properties are not met
@@ -320,7 +329,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // --------------------------- requirements on channel 2 -----------------------
@@ -342,7 +351,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required local properties, which are matched exactly
@@ -361,7 +371,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global and local properties, which are matched exactly
@@ -384,7 +395,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global and local properties, which are over-fulfilled
@@ -407,7 +419,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global properties that are not met
@@ -427,7 +440,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required local properties that are not met
@@ -446,7 +459,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required global and local properties where the global properties are not met
@@ -469,7 +482,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some required global and local properties where the local properties are not met
@@ -492,7 +505,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // ---------------------- requirements mixed on 1 and 2 -----------------------
@@ -517,7 +530,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required local properties at step one and some more at step 2
@@ -543,7 +557,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required global properties at step one and some local ones at step 2
@@ -566,7 +581,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some required local properties at step one and some global ones at step 2
@@ -589,7 +605,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some fulfilled global properties at step one and some non-fulfilled local ones at
@@ -613,7 +630,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some fulfilled local properties at step one and some non-fulfilled global ones at
@@ -637,7 +654,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some non-fulfilled global properties at step one and some fulfilled local ones at
@@ -661,7 +678,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // some non-fulfilled local properties at step one and some fulfilled global ones at
@@ -685,7 +702,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -694,7 +711,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testSingleInputOperatorsWithReCreation() {
+    void testSingleInputOperatorsWithReCreation() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Source");
 
@@ -733,7 +750,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(MET, report);
+                assertThat(report).isEqualTo(MET);
             }
 
             // set ship strategy in second channel, so previous non matching global properties void
@@ -763,7 +780,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // set local strategy in first channel, so later non matching local properties do not
@@ -794,7 +811,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // set local strategy in second channel, so previous non matching local properties void
@@ -825,7 +843,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // create the properties on the same node as the requirement
@@ -861,7 +879,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map2.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(MET, report);
+                assertThat(report).isEqualTo(MET);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -870,7 +888,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testSingleInputOperatorsChainOfThree() {
+    void testSingleInputOperatorsChainOfThree() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Source");
 
@@ -919,7 +937,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map3.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // set global strategy in first channel, so later non matching global properties do not
@@ -955,7 +974,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         map3.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -964,7 +984,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testNoPartialSolutionFoundTwoInputOperator() {
+    void testNoPartialSolutionFoundTwoInputOperator() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Partial Solution");
 
@@ -1002,7 +1022,7 @@ public class FeedbackPropertiesMatchTest {
             FeedbackPropertiesMeetRequirementsReport report =
                     join.checkPartialSolutionPropertiesMet(
                             target, new GlobalProperties(), new LocalProperties());
-            assertEquals(NO_PARTIAL_SOLUTION, report);
+            assertThat(report).isEqualTo(NO_PARTIAL_SOLUTION);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -1010,7 +1030,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testTwoOperatorsOneIndependent() {
+    void testTwoOperatorsOneIndependent() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Partial Solution");
             SourcePlanNode source = new SourcePlanNode(getSourceNode(), "Other Source");
@@ -1077,7 +1097,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some properties from the partial solution, no required properties
@@ -1091,7 +1112,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // produced properties match relevant input
@@ -1114,7 +1136,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // produced properties do not match relevant input
@@ -1137,7 +1160,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // produced properties overridden before join
@@ -1167,7 +1190,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(MET, report);
+                assertThat(report).isEqualTo(MET);
             }
 
             // produced properties before join match, after join match as well
@@ -1199,7 +1222,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         join.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // produced properties before join match, after join do not match
@@ -1231,7 +1255,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // produced properties are overridden, does not matter that they do not match
@@ -1261,7 +1285,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(MET, report);
+                assertThat(report).isEqualTo(MET);
             }
 
             // local property overridden before join, local property mismatch after join not
@@ -1286,7 +1310,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // local property overridden before join, global property mismatch after join void the
@@ -1314,7 +1339,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1323,7 +1348,7 @@ public class FeedbackPropertiesMatchTest {
     }
 
     @Test
-    public void testTwoOperatorsBothDependent() {
+    void testTwoOperatorsBothDependent() {
         try {
             SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Partial Solution");
 
@@ -1369,7 +1394,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // some properties from the partial solution, no required properties
@@ -1380,7 +1406,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // test requirements on one input and met
@@ -1400,7 +1427,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // test requirements on both input and met
@@ -1423,7 +1451,8 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
+                assertThat(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET)
+                        .isTrue();
             }
 
             // test requirements on both inputs, one not met
@@ -1452,7 +1481,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // test override on both inputs, later requirement ignored
@@ -1484,7 +1513,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(MET, report);
+                assertThat(report).isEqualTo(MET);
             }
 
             // test override on one inputs, later requirement met
@@ -1510,7 +1539,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(PENDING, report);
+                assertThat(report).isEqualTo(PENDING);
             }
 
             // test override on one input, later requirement not met
@@ -1536,7 +1565,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
 
             // test override on one input locally, later global requirement not met
@@ -1560,7 +1589,7 @@ public class FeedbackPropertiesMatchTest {
 
                 FeedbackPropertiesMeetRequirementsReport report =
                         afterJoin.checkPartialSolutionPropertiesMet(target, gp, lp);
-                assertEquals(NOT_MET, report);
+                assertThat(report).isEqualTo(NOT_MET);
             }
         } catch (Exception e) {
             e.printStackTrace();

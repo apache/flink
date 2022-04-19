@@ -29,15 +29,15 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupOnConflictingPartitioningsTest extends CompilerTestBase {
 
     @Test
-    public void testRejectCoGroupOnHashAndRangePartitioning() {
+    void testRejectCoGroupOnHashAndRangePartitioning() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

@@ -36,16 +36,16 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class PartitioningReusageTest extends CompilerTestBase {
 
     @Test
-    public void noPreviousPartitioningJoin1() {
+    void noPreviousPartitioningJoin1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -69,7 +69,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void noPreviousPartitioningJoin2() {
+    void noPreviousPartitioningJoin2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -93,7 +93,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningJoin1() {
+    void reuseSinglePartitioningJoin1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -120,7 +120,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningJoin2() {
+    void reuseSinglePartitioningJoin2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -147,7 +147,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningJoin3() {
+    void reuseSinglePartitioningJoin3() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -175,7 +175,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningJoin4() {
+    void reuseSinglePartitioningJoin4() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -202,7 +202,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningJoin5() {
+    void reuseSinglePartitioningJoin5() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -230,7 +230,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin1() {
+    void reuseBothPartitioningJoin1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -261,7 +261,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin2() {
+    void reuseBothPartitioningJoin2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -292,7 +292,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin3() {
+    void reuseBothPartitioningJoin3() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -323,7 +323,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin4() {
+    void reuseBothPartitioningJoin4() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -354,7 +354,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin5() {
+    void reuseBothPartitioningJoin5() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -385,7 +385,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin6() {
+    void reuseBothPartitioningJoin6() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -416,7 +416,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningJoin7() {
+    void reuseBothPartitioningJoin7() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -447,7 +447,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void noPreviousPartitioningCoGroup1() {
+    void noPreviousPartitioningCoGroup1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -468,7 +468,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void noPreviousPartitioningCoGroup2() {
+    void noPreviousPartitioningCoGroup2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -489,7 +489,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningCoGroup1() {
+    void reuseSinglePartitioningCoGroup1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -516,7 +516,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningCoGroup2() {
+    void reuseSinglePartitioningCoGroup2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -543,7 +543,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningCoGroup3() {
+    void reuseSinglePartitioningCoGroup3() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -570,7 +570,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningCoGroup4() {
+    void reuseSinglePartitioningCoGroup4() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -597,7 +597,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseSinglePartitioningCoGroup5() {
+    void reuseSinglePartitioningCoGroup5() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -621,7 +621,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup1() {
+    void reuseBothPartitioningCoGroup1() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -651,7 +651,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup2() {
+    void reuseBothPartitioningCoGroup2() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -681,7 +681,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup3() {
+    void reuseBothPartitioningCoGroup3() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -711,7 +711,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup4() {
+    void reuseBothPartitioningCoGroup4() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -741,7 +741,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup5() {
+    void reuseBothPartitioningCoGroup5() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -771,7 +771,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup6() {
+    void reuseBothPartitioningCoGroup6() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -801,7 +801,7 @@ public class PartitioningReusageTest extends CompilerTestBase {
     }
 
     @Test
-    public void reuseBothPartitioningCoGroup7() {
+    void reuseBothPartitioningCoGroup7() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -842,12 +842,13 @@ public class PartitioningReusageTest extends CompilerTestBase {
             FieldList pFields1 = inProps1.getPartitioningFields();
             FieldList pFields2 = inProps2.getPartitioningFields();
 
-            assertTrue(
-                    "Inputs are not the same number of fields. Input 1: "
-                            + pFields1
-                            + ", Input 2: "
-                            + pFields2,
-                    pFields1.size() == pFields2.size());
+            assertThat(pFields1.size())
+                    .as(
+                            "Inputs are not the same number of fields. Input 1: "
+                                    + pFields1
+                                    + ", Input 2: "
+                                    + pFields2)
+                    .isEqualTo(pFields2.size());
 
             FieldList reqPFields1 = join.getKeysForInput1();
             FieldList reqPFields2 = join.getKeysForInput2();
@@ -905,12 +906,13 @@ public class PartitioningReusageTest extends CompilerTestBase {
             FieldList pFields1 = inProps1.getPartitioningFields();
             FieldList pFields2 = inProps2.getPartitioningFields();
 
-            assertTrue(
-                    "Inputs are not the same number of fields. Input 1: "
-                            + pFields1
-                            + ", Input 2: "
-                            + pFields2,
-                    pFields1.size() == pFields2.size());
+            assertThat(pFields1.size())
+                    .as(
+                            "Inputs are not the same number of fields. Input 1: "
+                                    + pFields1
+                                    + ", Input 2: "
+                                    + pFields2)
+                    .isEqualTo(pFields2.size());
 
             FieldList reqPFields1 = coGroup.getKeysForInput1();
             FieldList reqPFields2 = coGroup.getKeysForInput2();

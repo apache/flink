@@ -30,15 +30,16 @@ import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 
     @Test
-    public void testDistinctPreservesPartitioningOfDistinctFields() {
+    void testDistinctPreservesPartitioningOfDistinctFields() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(4);
@@ -62,14 +63,14 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
             SingleInputPlanNode distinctReducer =
                     (SingleInputPlanNode) reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // reducer can be forward, reuses partitioning from distinct
-            assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
+            assertThat(reducer.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // distinct reducer is partitioned
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH, distinctReducer.getInput().getShipStrategy());
+            assertThat(distinctReducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -77,7 +78,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testDistinctDestroysPartitioningOfNonDistinctFields() {
+    void testDistinctDestroysPartitioningOfNonDistinctFields() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(4);
@@ -102,16 +103,17 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
             SingleInputPlanNode distinctReducer =
                     (SingleInputPlanNode) combiner.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // reducer must repartition, because it works on a different field
-            assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
+            assertThat(reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // distinct reducer is partitioned
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH, distinctReducer.getInput().getShipStrategy());
+            assertThat(distinctReducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

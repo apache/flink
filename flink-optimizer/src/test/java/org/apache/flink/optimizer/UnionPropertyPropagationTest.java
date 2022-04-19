@@ -39,16 +39,17 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SuppressWarnings({"serial"})
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
     @Test
-    public void testUnion1() {
+    void testUnion1() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -81,9 +82,10 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                 && visitable.getProgramOperator()
                                         instanceof GroupReduceOperatorBase) {
                             for (Channel inConn : visitable.getInputs()) {
-                                Assert.assertTrue(
-                                        "Reduce should just forward the input if it is already partitioned",
-                                        inConn.getShipStrategy() == ShipStrategyType.FORWARD);
+                                assertThat(inConn.getShipStrategy())
+                                        .as(
+                                                "Reduce should just forward the input if it is already partitioned")
+                                        .isSameAs(ShipStrategyType.FORWARD);
                             }
                             // just check latest ReduceNode
                             return false;
@@ -99,7 +101,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testUnion2() {
+    void testUnion2() {
         final int NUM_INPUTS = 4;
 
         // construct the plan it will be multiple flat maps, all unioned
@@ -138,12 +140,12 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                 && visitable.getProgramOperator()
                                         instanceof GroupReduceOperatorBase) {
                             final Channel inConn = ((SingleInputPlanNode) visitable).getInput();
-                            Assert.assertTrue(
-                                    "Union should just forward the Partitioning",
-                                    inConn.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assert.assertTrue(
-                                    "Union Node should be under Group operator",
-                                    inConn.getSource() instanceof NAryUnionPlanNode);
+                            assertThat(inConn.getShipStrategy())
+                                    .as("Union should just forward the Partitioning")
+                                    .isSameAs(ShipStrategyType.FORWARD);
+                            assertThat(inConn.getSource())
+                                    .as("Union Node should be under Group operator")
+                                    .isInstanceOf(NAryUnionPlanNode.class);
                         }
 
                         /* Test on the union input connections
@@ -156,18 +158,18 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                     numberInputs++) {
                                 final Channel inConn = inputs.next();
                                 PlanNode inNode = inConn.getSource();
-                                Assert.assertTrue(
-                                        "Input of Union should be FlatMapOperators",
-                                        inNode.getProgramOperator() instanceof FlatMapOperatorBase);
-                                Assert.assertTrue(
-                                        "Shipment strategy under union should partition the data",
-                                        inConn.getShipStrategy()
-                                                == ShipStrategyType.PARTITION_HASH);
+                                assertThat(inNode.getProgramOperator())
+                                        .as("Input of Union should be FlatMapOperators")
+                                        .isInstanceOf(FlatMapOperatorBase.class);
+                                assertThat(inConn.getShipStrategy())
+                                        .as(
+                                                "Shipment strategy under union should partition the data")
+                                        .isSameAs(ShipStrategyType.PARTITION_HASH);
                             }
 
-                            Assert.assertTrue(
-                                    "NAryUnion should have " + NUM_INPUTS + " inputs",
-                                    numberInputs == NUM_INPUTS);
+                            assertThat(numberInputs)
+                                    .as("NAryUnion should have " + NUM_INPUTS + " inputs")
+                                    .isSameAs(NUM_INPUTS);
                             return false;
                         }
                         return true;

@@ -32,15 +32,17 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.within;
 
 @SuppressWarnings("serial")
 public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 
     @Test
-    public void testUnionStaticFirst() {
+    void testUnionStaticFirst() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -58,7 +60,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(2, op.getDataSinks().size());
+            assertThat(op.getDataSinks()).hasSize(2);
 
             BulkIterationPlanNode iterPlan =
                     (BulkIterationPlanNode)
@@ -69,21 +71,21 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
             NAryUnionPlanNode staticUnion = (NAryUnionPlanNode) mixedUnion.getInput1().getSource();
             NAryUnionPlanNode dynamicUnion = (NAryUnionPlanNode) mixedUnion.getInput2().getSource();
 
-            assertTrue(mixedUnion.unionsStaticAndDynamicPath());
-            assertFalse(mixedUnion.getInput1().isOnDynamicPath());
-            assertTrue(mixedUnion.getInput2().isOnDynamicPath());
-            assertTrue(mixedUnion.getInput1().getTempMode().isCached());
+            assertThat(mixedUnion.unionsStaticAndDynamicPath()).isTrue();
+            assertThat(mixedUnion.getInput1().isOnDynamicPath()).isFalse();
+            assertThat(mixedUnion.getInput2().isOnDynamicPath()).isTrue();
+            assertThat(mixedUnion.getInput1().getTempMode().isCached()).isTrue();
 
             for (Channel c : staticUnion.getInputs()) {
-                assertFalse(c.isOnDynamicPath());
+                assertThat(c.isOnDynamicPath()).isFalse();
             }
             for (Channel c : dynamicUnion.getInputs()) {
-                assertTrue(c.isOnDynamicPath());
+                assertThat(c.isOnDynamicPath()).isTrue();
             }
 
-            assertEquals(0.5, iterPlan.getRelativeMemoryPerSubTask(), 0.0);
-            assertEquals(0.5, mixedUnion.getInput1().getRelativeTempMemory(), 0.0);
-            assertEquals(0.0, mixedUnion.getInput2().getRelativeTempMemory(), 0.0);
+            assertThat(iterPlan.getRelativeMemoryPerSubTask()).isEqualTo(0.5, within(0.0));
+            assertThat(mixedUnion.getInput1().getRelativeTempMemory()).isEqualTo(0.5, within(0.0));
+            assertThat(mixedUnion.getInput2().getRelativeTempMemory()).isEqualTo(0.0, within(0.0));
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -93,7 +95,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
     }
 
     @Test
-    public void testUnionStaticSecond() {
+    void testUnionStaticSecond() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -111,7 +113,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(2, op.getDataSinks().size());
+            assertThat(op.getDataSinks()).hasSize(2);
 
             BulkIterationPlanNode iterPlan =
                     (BulkIterationPlanNode)
@@ -122,20 +124,20 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
             NAryUnionPlanNode staticUnion = (NAryUnionPlanNode) mixedUnion.getInput1().getSource();
             NAryUnionPlanNode dynamicUnion = (NAryUnionPlanNode) mixedUnion.getInput2().getSource();
 
-            assertTrue(mixedUnion.unionsStaticAndDynamicPath());
-            assertFalse(mixedUnion.getInput1().isOnDynamicPath());
-            assertTrue(mixedUnion.getInput2().isOnDynamicPath());
-            assertTrue(mixedUnion.getInput1().getTempMode().isCached());
+            assertThat(mixedUnion.unionsStaticAndDynamicPath()).isTrue();
+            assertThat(mixedUnion.getInput1().isOnDynamicPath()).isFalse();
+            assertThat(mixedUnion.getInput2().isOnDynamicPath()).isTrue();
+            assertThat(mixedUnion.getInput1().getTempMode().isCached()).isTrue();
 
-            assertEquals(0.5, iterPlan.getRelativeMemoryPerSubTask(), 0.0);
-            assertEquals(0.5, mixedUnion.getInput1().getRelativeTempMemory(), 0.0);
-            assertEquals(0.0, mixedUnion.getInput2().getRelativeTempMemory(), 0.0);
+            assertThat(iterPlan.getRelativeMemoryPerSubTask()).isEqualTo(0.5, within(0.0));
+            assertThat(mixedUnion.getInput1().getRelativeTempMemory()).isEqualTo(0.5, within(0.0));
+            assertThat(mixedUnion.getInput2().getRelativeTempMemory()).isEqualTo(0.0, within(0.0));
 
             for (Channel c : staticUnion.getInputs()) {
-                assertFalse(c.isOnDynamicPath());
+                assertThat(c.isOnDynamicPath()).isFalse();
             }
             for (Channel c : dynamicUnion.getInputs()) {
-                assertTrue(c.isOnDynamicPath());
+                assertThat(c.isOnDynamicPath()).isTrue();
             }
 
             new JobGraphGenerator().compileJobGraph(op);

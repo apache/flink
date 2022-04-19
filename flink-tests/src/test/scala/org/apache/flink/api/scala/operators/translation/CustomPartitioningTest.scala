@@ -25,8 +25,8 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 class CustomPartitioningTest extends CompilerTestBase {
 
@@ -55,18 +55,19 @@ class CustomPartitioningTest extends CompilerTestBase {
       val partitioner = mapper.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val balancer = partitioner.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(parallelism, sink.getParallelism)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(sink.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.FORWARD, mapper.getInput.getShipStrategy)
-      assertEquals(parallelism, mapper.getParallelism)
+      assertThat(mapper.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(mapper.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput.getShipStrategy)
-      assertEquals(part, partitioner.getInput.getPartitioner)
-      assertEquals(parallelism, partitioner.getParallelism)
+      assertThat(partitioner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(partitioner.getInput.getPartitioner).isEqualTo(part)
+      assertThat(partitioner.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput.getShipStrategy)
-      assertEquals(parallelism, balancer.getParallelism)
+      assertThat(balancer.getInput.getShipStrategy)
+        .isEqualTo(ShipStrategyType.PARTITION_FORCED_REBALANCE)
+      assertThat(balancer.getParallelism).isEqualTo(parallelism)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -123,18 +124,19 @@ class CustomPartitioningTest extends CompilerTestBase {
       val partitioner = mapper.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val balancer = partitioner.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(parallelism, sink.getParallelism)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(sink.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.FORWARD, mapper.getInput.getShipStrategy)
-      assertEquals(parallelism, mapper.getParallelism)
+      assertThat(mapper.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(mapper.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput.getShipStrategy)
-      assertEquals(part, partitioner.getInput.getPartitioner)
-      assertEquals(parallelism, partitioner.getParallelism)
+      assertThat(partitioner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(partitioner.getInput.getPartitioner).isEqualTo(part)
+      assertThat(partitioner.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput.getShipStrategy)
-      assertEquals(parallelism, balancer.getParallelism)
+      assertThat(balancer.getInput.getShipStrategy)
+        .isEqualTo(ShipStrategyType.PARTITION_FORCED_REBALANCE)
+      assertThat(balancer.getParallelism).isEqualTo(parallelism)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -194,24 +196,25 @@ class CustomPartitioningTest extends CompilerTestBase {
       val keyExtractor = partitioner.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val balancer = keyExtractor.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(parallelism, sink.getParallelism)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(sink.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.FORWARD, mapper.getInput.getShipStrategy)
-      assertEquals(parallelism, mapper.getParallelism)
+      assertThat(mapper.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(mapper.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.FORWARD, keyRemover.getInput.getShipStrategy)
-      assertEquals(parallelism, keyRemover.getParallelism)
+      assertThat(keyRemover.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(keyRemover.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput.getShipStrategy)
-      assertEquals(part, partitioner.getInput.getPartitioner)
-      assertEquals(parallelism, partitioner.getParallelism)
+      assertThat(partitioner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(partitioner.getInput.getPartitioner).isEqualTo(part)
+      assertThat(partitioner.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.FORWARD, keyExtractor.getInput.getShipStrategy)
-      assertEquals(parallelism, keyExtractor.getParallelism)
+      assertThat(keyExtractor.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(keyExtractor.getParallelism).isEqualTo(parallelism)
 
-      assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput.getShipStrategy)
-      assertEquals(parallelism, balancer.getParallelism)
+      assertThat(balancer.getInput.getShipStrategy)
+        .isEqualTo(ShipStrategyType.PARTITION_FORCED_REBALANCE)
+      assertThat(balancer.getParallelism).isEqualTo(parallelism)
     } catch {
       case e: Exception => {
         e.printStackTrace()

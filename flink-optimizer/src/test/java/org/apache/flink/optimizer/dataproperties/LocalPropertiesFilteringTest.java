@@ -31,9 +31,10 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class LocalPropertiesFilteringTest {
 
@@ -60,7 +61,7 @@ public class LocalPropertiesFilteringTest {
                             BasicTypeInfo.INT_TYPE_INFO);
 
     @Test
-    public void testAllErased1() {
+    void testAllErased1() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -72,13 +73,13 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testAllErased2() {
+    void testAllErased2() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -89,13 +90,13 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testGroupingPreserved1() {
+    void testGroupingPreserved1() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0;2;3"}, null, null, tupleInfo, tupleInfo);
@@ -104,17 +105,17 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNotNull(filtered.getGroupedFields());
-        assertEquals(3, filtered.getGroupedFields().size());
-        assertTrue(filtered.getGroupedFields().contains(0));
-        assertTrue(filtered.getGroupedFields().contains(2));
-        assertTrue(filtered.getGroupedFields().contains(3));
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNotNull();
+        assertThat(filtered.getGroupedFields()).hasSize(3);
+        assertThat(filtered.getGroupedFields()).contains(0);
+        assertThat(filtered.getGroupedFields()).contains(2);
+        assertThat(filtered.getGroupedFields()).contains(3);
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testGroupingPreserved2() {
+    void testGroupingPreserved2() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0->4;2->0;3->7"}, null, null, tupleInfo, tupleInfo);
@@ -123,17 +124,17 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNotNull(filtered.getGroupedFields());
-        assertEquals(3, filtered.getGroupedFields().size());
-        assertTrue(filtered.getGroupedFields().contains(4));
-        assertTrue(filtered.getGroupedFields().contains(0));
-        assertTrue(filtered.getGroupedFields().contains(7));
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNotNull();
+        assertThat(filtered.getGroupedFields()).hasSize(3);
+        assertThat(filtered.getGroupedFields()).contains(4);
+        assertThat(filtered.getGroupedFields()).contains(0);
+        assertThat(filtered.getGroupedFields()).contains(7);
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testGroupingErased() {
+    void testGroupingErased() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0->4;2->0"}, null, null, tupleInfo, tupleInfo);
@@ -142,13 +143,13 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testSortingPreserved1() {
+    void testSortingPreserved1() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0;2;5"}, null, null, tupleInfo, tupleInfo);
@@ -163,27 +164,27 @@ public class LocalPropertiesFilteringTest {
         FieldList gFields = filtered.getGroupedFields();
         Ordering order = filtered.getOrdering();
 
-        assertNotNull(gFields);
-        assertEquals(3, gFields.size());
-        assertTrue(gFields.contains(0));
-        assertTrue(gFields.contains(2));
-        assertTrue(gFields.contains(5));
-        assertNotNull(order);
-        assertEquals(3, order.getNumberOfFields());
-        assertEquals(2, order.getFieldNumber(0).intValue());
-        assertEquals(0, order.getFieldNumber(1).intValue());
-        assertEquals(5, order.getFieldNumber(2).intValue());
-        assertEquals(Order.ASCENDING, order.getOrder(0));
-        assertEquals(Order.DESCENDING, order.getOrder(1));
-        assertEquals(Order.DESCENDING, order.getOrder(2));
-        assertEquals(IntValue.class, order.getType(0));
-        assertEquals(StringValue.class, order.getType(1));
-        assertEquals(LongValue.class, order.getType(2));
-        assertNull(filtered.getUniqueFields());
+        assertThat(gFields).isNotNull();
+        assertThat(gFields).hasSize(3);
+        assertThat(gFields).contains(0);
+        assertThat(gFields).contains(2);
+        assertThat(gFields).contains(5);
+        assertThat(order).isNotNull();
+        assertThat(order.getNumberOfFields()).isEqualTo(3);
+        assertThat(order.getFieldNumber(0).intValue()).isEqualTo(2);
+        assertThat(order.getFieldNumber(1).intValue()).isEqualTo(0);
+        assertThat(order.getFieldNumber(2).intValue()).isEqualTo(5);
+        assertThat(order.getOrder(0)).isEqualTo(Order.ASCENDING);
+        assertThat(order.getOrder(1)).isEqualTo(Order.DESCENDING);
+        assertThat(order.getOrder(2)).isEqualTo(Order.DESCENDING);
+        assertThat(order.getType(0)).isEqualTo(IntValue.class);
+        assertThat(order.getType(1)).isEqualTo(StringValue.class);
+        assertThat(order.getType(2)).isEqualTo(LongValue.class);
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testSortingPreserved2() {
+    void testSortingPreserved2() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0->3;2->7;5->1"}, null, null, tupleInfo, tupleInfo);
@@ -198,27 +199,27 @@ public class LocalPropertiesFilteringTest {
         FieldList gFields = filtered.getGroupedFields();
         Ordering order = filtered.getOrdering();
 
-        assertNotNull(gFields);
-        assertEquals(3, gFields.size());
-        assertTrue(gFields.contains(3));
-        assertTrue(gFields.contains(7));
-        assertTrue(gFields.contains(1));
-        assertNotNull(order);
-        assertEquals(3, order.getNumberOfFields());
-        assertEquals(7, order.getFieldNumber(0).intValue());
-        assertEquals(3, order.getFieldNumber(1).intValue());
-        assertEquals(1, order.getFieldNumber(2).intValue());
-        assertEquals(Order.ASCENDING, order.getOrder(0));
-        assertEquals(Order.DESCENDING, order.getOrder(1));
-        assertEquals(Order.DESCENDING, order.getOrder(2));
-        assertEquals(IntValue.class, order.getType(0));
-        assertEquals(StringValue.class, order.getType(1));
-        assertEquals(LongValue.class, order.getType(2));
-        assertNull(filtered.getUniqueFields());
+        assertThat(gFields).isNotNull();
+        assertThat(gFields).hasSize(3);
+        assertThat(gFields).contains(3);
+        assertThat(gFields).contains(7);
+        assertThat(gFields).contains(1);
+        assertThat(order).isNotNull();
+        assertThat(order.getNumberOfFields()).isEqualTo(3);
+        assertThat(order.getFieldNumber(0).intValue()).isEqualTo(7);
+        assertThat(order.getFieldNumber(1).intValue()).isEqualTo(3);
+        assertThat(order.getFieldNumber(2).intValue()).isEqualTo(1);
+        assertThat(order.getOrder(0)).isEqualTo(Order.ASCENDING);
+        assertThat(order.getOrder(1)).isEqualTo(Order.DESCENDING);
+        assertThat(order.getOrder(2)).isEqualTo(Order.DESCENDING);
+        assertThat(order.getType(0)).isEqualTo(IntValue.class);
+        assertThat(order.getType(1)).isEqualTo(StringValue.class);
+        assertThat(order.getType(2)).isEqualTo(LongValue.class);
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testSortingPreserved3() {
+    void testSortingPreserved3() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0;2"}, null, null, tupleInfo, tupleInfo);
@@ -233,23 +234,23 @@ public class LocalPropertiesFilteringTest {
         FieldList gFields = filtered.getGroupedFields();
         Ordering order = filtered.getOrdering();
 
-        assertNotNull(gFields);
-        assertEquals(2, gFields.size());
-        assertTrue(gFields.contains(0));
-        assertTrue(gFields.contains(2));
-        assertNotNull(order);
-        assertEquals(2, order.getNumberOfFields());
-        assertEquals(2, order.getFieldNumber(0).intValue());
-        assertEquals(0, order.getFieldNumber(1).intValue());
-        assertEquals(Order.ASCENDING, order.getOrder(0));
-        assertEquals(Order.DESCENDING, order.getOrder(1));
-        assertEquals(IntValue.class, order.getType(0));
-        assertEquals(StringValue.class, order.getType(1));
-        assertNull(filtered.getUniqueFields());
+        assertThat(gFields).isNotNull();
+        assertThat(gFields).hasSize(2);
+        assertThat(gFields).contains(0);
+        assertThat(gFields).contains(2);
+        assertThat(order).isNotNull();
+        assertThat(order.getNumberOfFields()).isEqualTo(2);
+        assertThat(order.getFieldNumber(0).intValue()).isEqualTo(2);
+        assertThat(order.getFieldNumber(1).intValue()).isEqualTo(0);
+        assertThat(order.getOrder(0)).isEqualTo(Order.ASCENDING);
+        assertThat(order.getOrder(1)).isEqualTo(Order.DESCENDING);
+        assertThat(order.getType(0)).isEqualTo(IntValue.class);
+        assertThat(order.getType(1)).isEqualTo(StringValue.class);
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testSortingPreserved4() {
+    void testSortingPreserved4() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"2->7;5"}, null, null, tupleInfo, tupleInfo);
@@ -264,19 +265,19 @@ public class LocalPropertiesFilteringTest {
         FieldList gFields = filtered.getGroupedFields();
         Ordering order = filtered.getOrdering();
 
-        assertNotNull(gFields);
-        assertEquals(1, gFields.size());
-        assertTrue(gFields.contains(7));
-        assertNotNull(order);
-        assertEquals(1, order.getNumberOfFields());
-        assertEquals(7, order.getFieldNumber(0).intValue());
-        assertEquals(Order.ASCENDING, order.getOrder(0));
-        assertEquals(IntValue.class, order.getType(0));
-        assertNull(filtered.getUniqueFields());
+        assertThat(gFields).isNotNull();
+        assertThat(gFields).hasSize(1);
+        assertThat(gFields).contains(7);
+        assertThat(order).isNotNull();
+        assertThat(order.getNumberOfFields()).isEqualTo(1);
+        assertThat(order.getFieldNumber(0).intValue()).isEqualTo(7);
+        assertThat(order.getOrder(0)).isEqualTo(Order.ASCENDING);
+        assertThat(order.getType(0)).isEqualTo(IntValue.class);
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testSortingErased() {
+    void testSortingErased() {
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sp, new String[] {"0;5"}, null, null, tupleInfo, tupleInfo);
@@ -291,13 +292,13 @@ public class LocalPropertiesFilteringTest {
         FieldList gFields = filtered.getGroupedFields();
         Ordering order = filtered.getOrdering();
 
-        assertNull(gFields);
-        assertNull(order);
-        assertNull(filtered.getUniqueFields());
+        assertThat(gFields).isNull();
+        assertThat(order).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
     @Test
-    public void testUniqueFieldsPreserved1() {
+    void testUniqueFieldsPreserved1() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -312,16 +313,16 @@ public class LocalPropertiesFilteringTest {
         FieldSet expected1 = new FieldSet(0, 1, 2);
         FieldSet expected2 = new FieldSet(3, 4);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNotNull(filtered.getUniqueFields());
-        assertEquals(2, filtered.getUniqueFields().size());
-        assertTrue(filtered.getUniqueFields().contains(expected1));
-        assertTrue(filtered.getUniqueFields().contains(expected2));
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNotNull();
+        assertThat(filtered.getUniqueFields()).hasSize(2);
+        assertThat(filtered.getUniqueFields()).contains(expected1);
+        assertThat(filtered.getUniqueFields()).contains(expected2);
     }
 
     @Test
-    public void testUniqueFieldsPreserved2() {
+    void testUniqueFieldsPreserved2() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -336,19 +337,19 @@ public class LocalPropertiesFilteringTest {
         FieldSet expected1 = new FieldSet(0, 1, 2);
         FieldSet expected2 = new FieldSet(3, 4);
 
-        assertNull(filtered.getOrdering());
-        assertNotNull(filtered.getGroupedFields());
-        assertEquals(2, filtered.getGroupedFields().size());
-        assertTrue(filtered.getGroupedFields().contains(1));
-        assertTrue(filtered.getGroupedFields().contains(2));
-        assertNotNull(filtered.getUniqueFields());
-        assertEquals(2, filtered.getUniqueFields().size());
-        assertTrue(filtered.getUniqueFields().contains(expected1));
-        assertTrue(filtered.getUniqueFields().contains(expected2));
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getGroupedFields()).isNotNull();
+        assertThat(filtered.getGroupedFields()).hasSize(2);
+        assertThat(filtered.getGroupedFields()).contains(1);
+        assertThat(filtered.getGroupedFields()).contains(2);
+        assertThat(filtered.getUniqueFields()).isNotNull();
+        assertThat(filtered.getUniqueFields()).hasSize(2);
+        assertThat(filtered.getUniqueFields()).contains(expected1);
+        assertThat(filtered.getUniqueFields()).contains(expected2);
     }
 
     @Test
-    public void testUniqueFieldsPreserved3() {
+    void testUniqueFieldsPreserved3() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -363,16 +364,16 @@ public class LocalPropertiesFilteringTest {
         FieldSet expected1 = new FieldSet(5, 6, 7);
         FieldSet expected2 = new FieldSet(3, 4);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNotNull(filtered.getUniqueFields());
-        assertEquals(2, filtered.getUniqueFields().size());
-        assertTrue(filtered.getUniqueFields().contains(expected1));
-        assertTrue(filtered.getUniqueFields().contains(expected2));
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNotNull();
+        assertThat(filtered.getUniqueFields()).hasSize(2);
+        assertThat(filtered.getUniqueFields()).contains(expected1);
+        assertThat(filtered.getUniqueFields()).contains(expected2);
     }
 
     @Test
-    public void testUniqueFieldsErased() {
+    void testUniqueFieldsErased() {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -385,13 +386,13 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties filtered = lProps.filterBySemanticProperties(sp, 0);
 
-        assertNull(filtered.getGroupedFields());
-        assertNull(filtered.getOrdering());
-        assertNull(filtered.getUniqueFields());
+        assertThat(filtered.getGroupedFields()).isNull();
+        assertThat(filtered.getOrdering()).isNull();
+        assertThat(filtered.getUniqueFields()).isNull();
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
-    public void testInvalidInputIndex() {
+    @Test
+    void testInvalidInputIndex() {
 
         SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -399,6 +400,7 @@ public class LocalPropertiesFilteringTest {
 
         LocalProperties lprops = LocalProperties.forGrouping(new FieldList(0, 1));
 
-        lprops.filterBySemanticProperties(sprops, 1);
+        assertThatThrownBy(() -> lprops.filterBySemanticProperties(sprops, 1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 }

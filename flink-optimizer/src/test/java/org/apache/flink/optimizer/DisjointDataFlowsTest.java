@@ -25,15 +25,15 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class DisjointDataFlowsTest extends CompilerTestBase {
 
     @Test
-    public void testDisjointFlows() {
+    void testDisjointFlows() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

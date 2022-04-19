@@ -26,8 +26,8 @@ import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail}
+import org.junit.jupiter.api.Test
 
 class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
 
@@ -51,9 +51,9 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -82,9 +82,9 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
       val combiner = reducer.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.FORWARD, combiner.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
+      assertThat(combiner.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -112,8 +112,8 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -142,8 +142,8 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -173,8 +173,8 @@ class CustomPartitioningGroupingTupleTest extends CompilerTestBase {
       val sink = op.getDataSinks.iterator().next()
       val reducer = sink.getInput.getSource.asInstanceOf[SingleInputPlanNode]
 
-      assertEquals(ShipStrategyType.FORWARD, sink.getInput.getShipStrategy)
-      assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput.getShipStrategy)
+      assertThat(sink.getInput.getShipStrategy).isEqualTo(ShipStrategyType.FORWARD)
+      assertThat(reducer.getInput.getShipStrategy).isEqualTo(ShipStrategyType.PARTITION_CUSTOM)
     } catch {
       case e: Exception => {
         e.printStackTrace()

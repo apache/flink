@@ -29,15 +29,15 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class OpenIterationTest extends CompilerTestBase {
 
     @Test
-    public void testSinkInOpenBulkIteration() {
+    void testSinkInOpenBulkIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -62,7 +62,7 @@ public class OpenIterationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testSinkInClosedBulkIteration() {
+    void testSinkInClosedBulkIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -91,7 +91,7 @@ public class OpenIterationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testSinkOnSolutionSetDeltaIteration() {
+    void testSinkOnSolutionSetDeltaIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -119,7 +119,7 @@ public class OpenIterationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testSinkOnWorksetDeltaIteration() {
+    void testSinkOnWorksetDeltaIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -147,7 +147,7 @@ public class OpenIterationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testOperationOnSolutionSet() {
+    void testOperationOnSolutionSet() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

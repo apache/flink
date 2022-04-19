@@ -41,17 +41,18 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class UnionReplacementTest extends CompilerTestBase {
 
     @Test
-    public void testUnionReplacement() {
+    void testUnionReplacement() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             DataSet<String> input1 = env.fromElements("test1");
@@ -88,7 +89,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * a single operator with two outputs).
      */
     @Test
-    public void testUnionWithTwoOutputs() throws Exception {
+    void testUnionWithTwoOutputs() throws Exception {
 
         // -----------------------------------------------------------------------------------------
         // Build test program
@@ -127,61 +128,67 @@ public class UnionReplacementTest extends CompilerTestBase {
         SingleInputPlanNode groupRed2 = resolver.getNode("2");
 
         // check partitioning is correct
-        assertTrue(
-                "Reduce input should be partitioned on 0.",
-                groupRed1
-                        .getInput()
-                        .getGlobalProperties()
-                        .getPartitioningFields()
-                        .isExactMatch(new FieldList(0)));
-        assertTrue(
-                "Reduce input should be partitioned on 1.",
-                groupRed2
-                        .getInput()
-                        .getGlobalProperties()
-                        .getPartitioningFields()
-                        .isExactMatch(new FieldList(1)));
+        assertThat(
+                        groupRed1
+                                .getInput()
+                                .getGlobalProperties()
+                                .getPartitioningFields()
+                                .isExactMatch(new FieldList(0)))
+                .as("Reduce input should be partitioned on 0.")
+                .isTrue();
+        assertThat(
+                        groupRed2
+                                .getInput()
+                                .getGlobalProperties()
+                                .getPartitioningFields()
+                                .isExactMatch(new FieldList(1)))
+                .as("Reduce input should be partitioned on 1.")
+                .isTrue();
 
         // check group reduce inputs are n-ary unions with three inputs
-        assertTrue(
-                "Reduce input should be n-ary union with three inputs.",
-                groupRed1.getInput().getSource() instanceof NAryUnionPlanNode
-                        && ((NAryUnionPlanNode) groupRed1.getInput().getSource())
-                                        .getListOfInputs()
-                                        .size()
-                                == 3);
-        assertTrue(
-                "Reduce input should be n-ary union with three inputs.",
-                groupRed2.getInput().getSource() instanceof NAryUnionPlanNode
-                        && ((NAryUnionPlanNode) groupRed2.getInput().getSource())
-                                        .getListOfInputs()
-                                        .size()
-                                == 3);
+        assertThat(
+                        groupRed1.getInput().getSource() instanceof NAryUnionPlanNode
+                                && ((NAryUnionPlanNode) groupRed1.getInput().getSource())
+                                                .getListOfInputs()
+                                                .size()
+                                        == 3)
+                .as("Reduce input should be n-ary union with three inputs.")
+                .isTrue();
+        assertThat(
+                        groupRed2.getInput().getSource() instanceof NAryUnionPlanNode
+                                && ((NAryUnionPlanNode) groupRed2.getInput().getSource())
+                                                .getListOfInputs()
+                                                .size()
+                                        == 3)
+                .as("Reduce input should be n-ary union with three inputs.")
+                .isTrue();
 
         // check channel from union to group reduce is forwarding
-        assertTrue(
-                "Channel between union and group reduce should be forwarding",
-                groupRed1.getInput().getShipStrategy().equals(ShipStrategyType.FORWARD));
-        assertTrue(
-                "Channel between union and group reduce should be forwarding",
-                groupRed2.getInput().getShipStrategy().equals(ShipStrategyType.FORWARD));
+        assertThat(groupRed1.getInput().getShipStrategy().equals(ShipStrategyType.FORWARD))
+                .as("Channel between union and group reduce should be forwarding")
+                .isTrue();
+        assertThat(groupRed2.getInput().getShipStrategy().equals(ShipStrategyType.FORWARD))
+                .as("Channel between union and group reduce should be forwarding")
+                .isTrue();
 
         // check that all inputs of unions are hash partitioned
         List<Channel> union123In =
                 ((NAryUnionPlanNode) groupRed1.getInput().getSource()).getListOfInputs();
         for (Channel i : union123In) {
-            assertTrue(
-                    "Union input channel should hash partition on 0",
-                    i.getShipStrategy().equals(ShipStrategyType.PARTITION_HASH)
-                            && i.getShipStrategyKeys().isExactMatch(new FieldList(0)));
+            assertThat(
+                            i.getShipStrategy().equals(ShipStrategyType.PARTITION_HASH)
+                                    && i.getShipStrategyKeys().isExactMatch(new FieldList(0)))
+                    .as("Union input channel should hash partition on 0")
+                    .isTrue();
         }
         List<Channel> union234In =
                 ((NAryUnionPlanNode) groupRed2.getInput().getSource()).getListOfInputs();
         for (Channel i : union234In) {
-            assertTrue(
-                    "Union input channel should hash partition on 0",
-                    i.getShipStrategy().equals(ShipStrategyType.PARTITION_HASH)
-                            && i.getShipStrategyKeys().isExactMatch(new FieldList(1)));
+            assertThat(
+                            i.getShipStrategy().equals(ShipStrategyType.PARTITION_HASH)
+                                    && i.getShipStrategyKeys().isExactMatch(new FieldList(1)))
+                    .as("Union input channel should hash partition on 0")
+                    .isTrue();
         }
     }
 
@@ -198,7 +205,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * pushed to the inputs of the unions (Src1, Src2, Src3).
      */
     @Test
-    public void testConsecutiveUnionsWithHashPartitioning() throws Exception {
+    void testConsecutiveUnionsWithHashPartitioning() throws Exception {
 
         // -----------------------------------------------------------------------------------------
         // Build test program
@@ -229,43 +236,37 @@ public class UnionReplacementTest extends CompilerTestBase {
         SingleInputPlanNode sink = resolver.getNode("out");
 
         // check partitioning is correct
-        assertEquals(
-                "Sink input should be hash partitioned.",
-                PartitioningProperty.HASH_PARTITIONED,
-                sink.getInput().getGlobalProperties().getPartitioning());
-        assertEquals(
-                "Sink input should be hash partitioned on 1.",
-                new FieldList(1),
-                sink.getInput().getGlobalProperties().getPartitioningFields());
+        assertThat(sink.getInput().getGlobalProperties().getPartitioning())
+                .isEqualTo(PartitioningProperty.HASH_PARTITIONED)
+                .as("Sink input should be hash partitioned.");
+        assertThat(sink.getInput().getGlobalProperties().getPartitioningFields())
+                .as("Sink input should be hash partitioned on 1.")
+                .isEqualTo(new FieldList(1));
 
         SingleInputPlanNode partitioner = (SingleInputPlanNode) sink.getInput().getSource();
-        assertTrue(partitioner.getDriverStrategy() == DriverStrategy.UNARY_NO_OP);
-        assertEquals(
-                "Partitioner input should be hash partitioned.",
-                PartitioningProperty.HASH_PARTITIONED,
-                partitioner.getInput().getGlobalProperties().getPartitioning());
-        assertEquals(
-                "Partitioner input should be hash partitioned on 1.",
-                new FieldList(1),
-                partitioner.getInput().getGlobalProperties().getPartitioningFields());
-        assertEquals(
-                "Partitioner input channel should be forwarding",
-                ShipStrategyType.FORWARD,
-                partitioner.getInput().getShipStrategy());
+        assertThat(partitioner.getDriverStrategy()).isSameAs(DriverStrategy.UNARY_NO_OP);
+        assertThat(partitioner.getInput().getGlobalProperties().getPartitioning())
+                .as("Partitioner input should be hash partitioned.")
+                .isEqualTo(PartitioningProperty.HASH_PARTITIONED);
+        assertThat(partitioner.getInput().getGlobalProperties().getPartitioningFields())
+                .as("Partitioner input should be hash partitioned on 1.")
+                .isEqualTo(new FieldList(1));
+        assertThat(partitioner.getInput().getShipStrategy())
+                .as("Partitioner input channel should be forwarding")
+                .isEqualTo(ShipStrategyType.FORWARD);
 
         NAryUnionPlanNode union = (NAryUnionPlanNode) partitioner.getInput().getSource();
         // all union inputs should be hash partitioned
         for (Channel c : union.getInputs()) {
-            assertEquals(
-                    "Union input should be hash partitioned",
-                    PartitioningProperty.HASH_PARTITIONED,
-                    c.getGlobalProperties().getPartitioning());
-            assertEquals(
-                    "Union input channel should be hash partitioning",
-                    ShipStrategyType.PARTITION_HASH,
-                    c.getShipStrategy());
-            assertTrue(
-                    "Union input should be data source", c.getSource() instanceof SourcePlanNode);
+            assertThat(c.getGlobalProperties().getPartitioning())
+                    .as("Union input should be hash partitioned")
+                    .isEqualTo(PartitioningProperty.HASH_PARTITIONED);
+            assertThat(c.getShipStrategy())
+                    .as("Union input channel should be hash partitioning")
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(c.getSource())
+                    .as("Union input should be data source")
+                    .isInstanceOf(SourcePlanNode.class);
         }
     }
 
@@ -281,7 +282,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * pushed to the inputs of the unions (Src1, Src2, Src3).
      */
     @Test
-    public void testConsecutiveUnionsWithRebalance() throws Exception {
+    void testConsecutiveUnionsWithRebalance() throws Exception {
 
         // -----------------------------------------------------------------------------------------
         // Build test program
@@ -310,35 +311,31 @@ public class UnionReplacementTest extends CompilerTestBase {
         SingleInputPlanNode sink = resolver.getNode("out");
 
         // check partitioning is correct
-        assertEquals(
-                "Sink input should be force rebalanced.",
-                PartitioningProperty.FORCED_REBALANCED,
-                sink.getInput().getGlobalProperties().getPartitioning());
+        assertThat(sink.getInput().getGlobalProperties().getPartitioning())
+                .as("Sink input should be force rebalanced.")
+                .isEqualTo(PartitioningProperty.FORCED_REBALANCED);
 
         SingleInputPlanNode partitioner = (SingleInputPlanNode) sink.getInput().getSource();
-        assertTrue(partitioner.getDriverStrategy() == DriverStrategy.UNARY_NO_OP);
-        assertEquals(
-                "Partitioner input should be force rebalanced.",
-                PartitioningProperty.FORCED_REBALANCED,
-                partitioner.getInput().getGlobalProperties().getPartitioning());
-        assertEquals(
-                "Partitioner input channel should be forwarding",
-                ShipStrategyType.FORWARD,
-                partitioner.getInput().getShipStrategy());
+        assertThat(partitioner.getDriverStrategy()).isSameAs(DriverStrategy.UNARY_NO_OP);
+        assertThat(partitioner.getInput().getGlobalProperties().getPartitioning())
+                .as("Partitioner input should be force rebalanced.")
+                .isEqualTo(PartitioningProperty.FORCED_REBALANCED);
+        assertThat(partitioner.getInput().getShipStrategy())
+                .as("Partitioner input channel should be forwarding")
+                .isEqualTo(ShipStrategyType.FORWARD);
 
         NAryUnionPlanNode union = (NAryUnionPlanNode) partitioner.getInput().getSource();
         // all union inputs should be force rebalanced
         for (Channel c : union.getInputs()) {
-            assertEquals(
-                    "Union input should be force rebalanced",
-                    PartitioningProperty.FORCED_REBALANCED,
-                    c.getGlobalProperties().getPartitioning());
-            assertEquals(
-                    "Union input channel should be rebalancing",
-                    ShipStrategyType.PARTITION_FORCED_REBALANCE,
-                    c.getShipStrategy());
-            assertTrue(
-                    "Union input should be data source", c.getSource() instanceof SourcePlanNode);
+            assertThat(c.getGlobalProperties().getPartitioning())
+                    .as("Union input should be force rebalanced")
+                    .isEqualTo(PartitioningProperty.FORCED_REBALANCED);
+            assertThat(c.getShipStrategy())
+                    .as("Union input channel should be rebalancing")
+                    .isEqualTo(ShipStrategyType.PARTITION_FORCED_REBALANCE);
+            assertThat(c.getSource())
+                    .as("Union input should be data source")
+                    .isInstanceOf(SourcePlanNode.class);
         }
     }
 
@@ -355,7 +352,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * (Src1, Src2, Src3).
      */
     @Test
-    public void testConsecutiveUnionsWithRangePartitioning() throws Exception {
+    void testConsecutiveUnionsWithRangePartitioning() throws Exception {
 
         // -----------------------------------------------------------------------------------------
         // Build test program
@@ -386,46 +383,39 @@ public class UnionReplacementTest extends CompilerTestBase {
         SingleInputPlanNode sink = resolver.getNode("out");
 
         // check partitioning is correct
-        assertEquals(
-                "Sink input should be range partitioned.",
-                PartitioningProperty.RANGE_PARTITIONED,
-                sink.getInput().getGlobalProperties().getPartitioning());
-        assertEquals(
-                "Sink input should be range partitioned on 1",
-                new Ordering(1, null, Order.ASCENDING),
-                sink.getInput().getGlobalProperties().getPartitioningOrdering());
+        assertThat(sink.getInput().getGlobalProperties().getPartitioning())
+                .as("Sink input should be range partitioned.")
+                .isEqualTo(PartitioningProperty.RANGE_PARTITIONED);
+        assertThat(sink.getInput().getGlobalProperties().getPartitioningOrdering())
+                .as("Sink input should be range partitioned on 1")
+                .isEqualTo(new Ordering(1, null, Order.ASCENDING));
 
         SingleInputPlanNode partitioner = (SingleInputPlanNode) sink.getInput().getSource();
-        assertTrue(partitioner.getDriverStrategy() == DriverStrategy.UNARY_NO_OP);
-        assertEquals(
-                "Partitioner input should be range partitioned.",
-                PartitioningProperty.RANGE_PARTITIONED,
-                partitioner.getInput().getGlobalProperties().getPartitioning());
-        assertEquals(
-                "Partitioner input should be range partitioned on 1",
-                new Ordering(1, null, Order.ASCENDING),
-                partitioner.getInput().getGlobalProperties().getPartitioningOrdering());
-        assertEquals(
-                "Partitioner input channel should be forwarding",
-                ShipStrategyType.FORWARD,
-                partitioner.getInput().getShipStrategy());
+        assertThat(partitioner.getDriverStrategy()).isSameAs(DriverStrategy.UNARY_NO_OP);
+        assertThat(partitioner.getInput().getGlobalProperties().getPartitioning())
+                .as("Partitioner input should be range partitioned.")
+                .isEqualTo(PartitioningProperty.RANGE_PARTITIONED);
+        assertThat(partitioner.getInput().getGlobalProperties().getPartitioningOrdering())
+                .as("Partitioner input should be range partitioned on 1")
+                .isEqualTo(new Ordering(1, null, Order.ASCENDING));
+        assertThat(partitioner.getInput().getShipStrategy())
+                .as("Partitioner input channel should be forwarding")
+                .isEqualTo(ShipStrategyType.FORWARD);
 
         NAryUnionPlanNode union = (NAryUnionPlanNode) partitioner.getInput().getSource();
         // all union inputs should be range partitioned
         for (Channel c : union.getInputs()) {
-            assertEquals(
-                    "Union input should be range partitioned",
-                    PartitioningProperty.RANGE_PARTITIONED,
-                    c.getGlobalProperties().getPartitioning());
-            assertEquals(
-                    "Union input channel should be forwarded",
-                    ShipStrategyType.FORWARD,
-                    c.getShipStrategy());
+            assertThat(c.getGlobalProperties().getPartitioning())
+                    .as("Union input should be range partitioned")
+                    .isEqualTo(PartitioningProperty.RANGE_PARTITIONED);
+            assertThat(c.getShipStrategy())
+                    .as("Union input channel should be forwarded")
+                    .isEqualTo(ShipStrategyType.FORWARD);
             // range partitioning is executed as custom partitioning with prior sampling
             SingleInputPlanNode partitionMap = (SingleInputPlanNode) c.getSource();
-            assertEquals(DriverStrategy.MAP, partitionMap.getDriverStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_CUSTOM, partitionMap.getInput().getShipStrategy());
+            assertThat(partitionMap.getDriverStrategy()).isEqualTo(DriverStrategy.MAP);
+            assertThat(partitionMap.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
         }
     }
 
@@ -442,7 +432,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * Src2, Src3).
      */
     @Test
-    public void testConsecutiveUnionsWithBroadcast() throws Exception {
+    void testConsecutiveUnionsWithBroadcast() throws Exception {
 
         // -----------------------------------------------------------------------------------------
         // Build test program
@@ -478,22 +468,19 @@ public class UnionReplacementTest extends CompilerTestBase {
         DualInputPlanNode join = resolver.getNode("join");
 
         // check input of join is broadcast
-        assertEquals(
-                "First join input should be fully replicated.",
-                PartitioningProperty.FULL_REPLICATION,
-                join.getInput1().getGlobalProperties().getPartitioning());
+        assertThat(join.getInput1().getGlobalProperties().getPartitioning())
+                .as("First join input should be fully replicated.")
+                .isEqualTo(PartitioningProperty.FULL_REPLICATION);
 
         NAryUnionPlanNode union = (NAryUnionPlanNode) join.getInput1().getSource();
         // check that all union inputs are broadcast
         for (Channel c : union.getInputs()) {
-            assertEquals(
-                    "Union input should be fully replicated",
-                    PartitioningProperty.FULL_REPLICATION,
-                    c.getGlobalProperties().getPartitioning());
-            assertEquals(
-                    "Union input channel should be broadcasting",
-                    ShipStrategyType.BROADCAST,
-                    c.getShipStrategy());
+            assertThat(c.getGlobalProperties().getPartitioning())
+                    .as("Union input should be fully replicated")
+                    .isEqualTo(PartitioningProperty.FULL_REPLICATION);
+            assertThat(c.getShipStrategy())
+                    .as("Union input channel should be broadcasting")
+                    .isEqualTo(ShipStrategyType.BROADCAST);
         }
     }
 
@@ -509,7 +496,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * Out \-/ \- PreFilter2 -/-\- Union - PostFilter2 - Reducer2 -/
      */
     @Test
-    public void testUnionForwardOutput() throws Exception {
+    void testUnionForwardOutput() throws Exception {
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -549,8 +536,8 @@ public class UnionReplacementTest extends CompilerTestBase {
         SingleInputPlanNode unionOut1 = resolver.getNode("postFilter1");
         SingleInputPlanNode unionOut2 = resolver.getNode("postFilter2");
 
-        assertEquals(ShipStrategyType.FORWARD, unionOut1.getInput().getShipStrategy());
-        assertEquals(ShipStrategyType.FORWARD, unionOut2.getInput().getShipStrategy());
+        assertThat(unionOut1.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(unionOut2.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /**
@@ -566,7 +553,7 @@ public class UnionReplacementTest extends CompilerTestBase {
      * connections.
      */
     @Test
-    public void testUnionInputOutputDifferentDOP() throws Exception {
+    void testUnionInputOutputDifferentDOP() throws Exception {
 
         int fullDop = DEFAULT_PARALLELISM;
         int halfDop = DEFAULT_PARALLELISM / 2;
@@ -611,22 +598,22 @@ public class UnionReplacementTest extends CompilerTestBase {
         NAryUnionPlanNode unionDopHalf = (NAryUnionPlanNode) outDopHalf.getInput().getSource();
 
         // check in map nodes
-        assertEquals(2, inDopFull.getOutgoingChannels().size());
-        assertEquals(2, inDopHalf.getOutgoingChannels().size());
-        assertEquals(fullDop, inDopFull.getParallelism());
-        assertEquals(halfDop, inDopHalf.getParallelism());
+        assertThat(inDopFull.getOutgoingChannels()).hasSize(2);
+        assertThat(inDopHalf.getOutgoingChannels()).hasSize(2);
+        assertThat(inDopFull.getParallelism()).isEqualTo(fullDop);
+        assertThat(inDopHalf.getParallelism()).isEqualTo(halfDop);
 
         // check union nodes
-        assertEquals(fullDop, unionDopFull.getParallelism());
-        assertEquals(halfDop, unionDopHalf.getParallelism());
+        assertThat(unionDopFull.getParallelism()).isEqualTo(fullDop);
+        assertThat(unionDopHalf.getParallelism()).isEqualTo(halfDop);
 
         // check out map nodes
-        assertEquals(fullDop, outDopFull.getParallelism());
-        assertEquals(halfDop, outDopHalf.getParallelism());
+        assertThat(outDopFull.getParallelism()).isEqualTo(fullDop);
+        assertThat(outDopHalf.getParallelism()).isEqualTo(halfDop);
 
         // check Union -> outMap ship strategies
-        assertEquals(ShipStrategyType.FORWARD, outDopHalf.getInput().getShipStrategy());
-        assertEquals(ShipStrategyType.FORWARD, outDopFull.getInput().getShipStrategy());
+        assertThat(outDopHalf.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(outDopFull.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         // check inMap -> Union ship strategies
         Channel fullFull;
@@ -649,9 +636,9 @@ public class UnionReplacementTest extends CompilerTestBase {
             halfHalf = inDopHalf.getOutgoingChannels().get(0);
         }
 
-        assertEquals(ShipStrategyType.FORWARD, fullFull.getShipStrategy());
-        assertEquals(ShipStrategyType.FORWARD, halfHalf.getShipStrategy());
-        assertEquals(ShipStrategyType.PARTITION_RANDOM, fullHalf.getShipStrategy());
-        assertEquals(ShipStrategyType.PARTITION_RANDOM, halfFull.getShipStrategy());
+        assertThat(fullFull.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(halfHalf.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(fullHalf.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_RANDOM);
+        assertThat(halfFull.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_RANDOM);
     }
 }

@@ -32,15 +32,17 @@ import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class NestedIterationsTest extends CompilerTestBase {
 
     @Test
-    public void testRejectNestedBulkIterations() {
+    void testRejectNestedBulkIterations() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -61,11 +63,10 @@ public class NestedIterationsTest extends CompilerTestBase {
 
             Plan p = env.createProgramPlan();
 
-            try {
-                compileNoStats(p);
-            } catch (CompilerException e) {
-                assertTrue(e.getMessage().toLowerCase().indexOf("nested iterations") != -1);
-            }
+            assertThatThrownBy(() -> compileNoStats(p))
+                    .isInstanceOf(CompilerException.class)
+                    .extracting(Throwable::getMessage)
+                    .satisfies(s -> assertThat(s).containsIgnoringCase("nested iterations"));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -73,7 +74,7 @@ public class NestedIterationsTest extends CompilerTestBase {
     }
 
     @Test
-    public void testRejectNestedWorksetIterations() {
+    void testRejectNestedWorksetIterations() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -103,11 +104,10 @@ public class NestedIterationsTest extends CompilerTestBase {
 
             Plan p = env.createProgramPlan();
 
-            try {
-                compileNoStats(p);
-            } catch (CompilerException e) {
-                assertTrue(e.getMessage().toLowerCase().indexOf("nested iterations") != -1);
-            }
+            assertThatThrownBy(() -> compileNoStats(p))
+                    .isInstanceOf(CompilerException.class)
+                    .extracting(Throwable::getMessage)
+                    .satisfies(s -> assertThat(s).containsIgnoringCase("nested iterations"));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -115,7 +115,7 @@ public class NestedIterationsTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBulkIterationInClosure() {
+    void testBulkIterationInClosure() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -155,7 +155,7 @@ public class NestedIterationsTest extends CompilerTestBase {
     }
 
     @Test
-    public void testDeltaIterationInClosure() {
+    void testDeltaIterationInClosure() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

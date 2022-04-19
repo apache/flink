@@ -41,15 +41,11 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Validate the compilation and result of a single iteration of KMeans. */
 @SuppressWarnings("serial")
@@ -99,44 +95,44 @@ public class KMeansSingleStepTest extends CompilerTestBase {
         final SingleInputPlanNode mapper = or.getNode(MAPPER_NAME);
 
         // check the mapper
-        assertEquals(1, mapper.getBroadcastInputs().size());
-        assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-        assertEquals(
-                ShipStrategyType.BROADCAST, mapper.getBroadcastInputs().get(0).getShipStrategy());
+        assertThat(mapper.getBroadcastInputs()).hasSize(1);
+        assertThat(mapper.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(mapper.getBroadcastInputs().get(0).getShipStrategy())
+                .isEqualTo(ShipStrategyType.BROADCAST);
 
-        assertEquals(LocalStrategy.NONE, mapper.getInput().getLocalStrategy());
-        assertEquals(LocalStrategy.NONE, mapper.getBroadcastInputs().get(0).getLocalStrategy());
+        assertThat(mapper.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
+        assertThat(mapper.getBroadcastInputs().get(0).getLocalStrategy())
+                .isEqualTo(LocalStrategy.NONE);
 
-        assertEquals(DriverStrategy.MAP, mapper.getDriverStrategy());
+        assertThat(mapper.getDriverStrategy()).isEqualTo(DriverStrategy.MAP);
 
-        assertNull(mapper.getInput().getLocalStrategyKeys());
-        assertNull(mapper.getInput().getLocalStrategySortOrder());
-        assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategyKeys());
-        assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategySortOrder());
+        assertThat(mapper.getInput().getLocalStrategyKeys()).isNull();
+        assertThat(mapper.getInput().getLocalStrategySortOrder()).isNull();
+        assertThat(mapper.getBroadcastInputs().get(0).getLocalStrategyKeys()).isNull();
+        assertThat(mapper.getBroadcastInputs().get(0).getLocalStrategySortOrder()).isNull();
 
         // check the combiner
-        Assert.assertNotNull(combiner);
-        assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-        assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
-        assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-        assertNull(combiner.getInput().getLocalStrategyKeys());
-        assertNull(combiner.getInput().getLocalStrategySortOrder());
-        assertEquals(set0, combiner.getKeys(0));
-        assertEquals(set0, combiner.getKeys(1));
+        assertThat(combiner).isNotNull();
+        assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(combiner.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
+        assertThat(combiner.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_GROUP_COMBINE);
+        assertThat(combiner.getInput().getLocalStrategyKeys()).isNull();
+        assertThat(combiner.getInput().getLocalStrategySortOrder()).isNull();
+        assertThat(combiner.getKeys(0)).isEqualTo(set0);
+        assertThat(combiner.getKeys(1)).isEqualTo(set0);
 
         // check the reducer
-        assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
-        assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
-        assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
-        assertEquals(set0, reducer.getKeys(0));
-        assertEquals(set0, reducer.getInput().getLocalStrategyKeys());
-        assertTrue(
-                Arrays.equals(
-                        reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
+        assertThat(reducer.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(reducer.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.COMBININGSORT);
+        assertThat(reducer.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_GROUP_REDUCE);
+        assertThat(reducer.getKeys(0)).isEqualTo(set0);
+        assertThat(reducer.getInput().getLocalStrategyKeys()).isEqualTo(set0);
+        assertThat(reducer.getInput().getLocalStrategySortOrder())
+                .isEqualTo(reducer.getSortOrders(0));
 
         // check the sink
-        assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(sink.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
     }
 
     public static Plan getKMeansPlan() throws Exception {

@@ -42,15 +42,17 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class ReplicatingDataSourceTest extends CompilerTestBase {
 
     /** Tests join program with replicated data source. */
     @Test
-    public void checkJoinWithReplicatedSourceInput() {
+    void checkJoinWithReplicatedSourceInput() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -81,15 +83,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests join program with replicated data source behind map. */
     @Test
-    public void checkJoinWithReplicatedSourceInputBehindMap() {
+    void checkJoinWithReplicatedSourceInputBehindMap() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -124,15 +128,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests join program with replicated data source behind filter. */
     @Test
-    public void checkJoinWithReplicatedSourceInputBehindFilter() {
+    void checkJoinWithReplicatedSourceInputBehindFilter() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -167,15 +173,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests join program with replicated data source behind flatMap. */
     @Test
-    public void checkJoinWithReplicatedSourceInputBehindFlatMap() {
+    void checkJoinWithReplicatedSourceInputBehindFlatMap() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -210,15 +218,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests join program with replicated data source behind map partition. */
     @Test
-    public void checkJoinWithReplicatedSourceInputBehindMapPartition() {
+    void checkJoinWithReplicatedSourceInputBehindMapPartition() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -253,15 +263,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests join program with replicated data source behind multiple map ops. */
     @Test
-    public void checkJoinWithReplicatedSourceInputBehindMultiMaps() {
+    void checkJoinWithReplicatedSourceInputBehindMultiMaps() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -299,15 +311,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        assertThat(joinIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(joinIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests cross program with replicated data source. */
     @Test
-    public void checkCrossWithReplicatedSourceInput() {
+    void checkCrossWithReplicatedSourceInput() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -338,15 +352,17 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
+        assertThat(crossIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(crossIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /** Tests cross program with replicated data source behind map and filter. */
     @Test
-    public void checkCrossWithReplicatedSourceInputBehindMap() {
+    void checkCrossWithReplicatedSourceInputBehindMap() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -380,17 +396,19 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
+        assertThat(crossIn1)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(crossIn2)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /**
      * Tests compiler fail for join program with replicated data source and changing parallelism.
      */
-    @Test(expected = CompilerException.class)
-    public void checkJoinWithReplicatedSourceInputChangingparallelism() {
+    @Test
+    void checkJoinWithReplicatedSourceInputChangingparallelism() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -415,15 +433,15 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         Plan plan = env.createProgramPlan();
 
         // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
+        assertThatThrownBy(() -> compileNoStats(plan)).isInstanceOf(CompilerException.class);
     }
 
     /**
      * Tests compiler fail for join program with replicated data source behind map and changing
      * parallelism.
      */
-    @Test(expected = CompilerException.class)
-    public void checkJoinWithReplicatedSourceInputBehindMapChangingparallelism() {
+    @Test
+    void checkJoinWithReplicatedSourceInputBehindMapChangingparallelism() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -449,12 +467,12 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         Plan plan = env.createProgramPlan();
 
         // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
+        assertThatThrownBy(() -> compileNoStats(plan)).isInstanceOf(CompilerException.class);
     }
 
     /** Tests compiler fail for join program with replicated data source behind reduce. */
-    @Test(expected = CompilerException.class)
-    public void checkJoinWithReplicatedSourceInputBehindReduce() {
+    @Test
+    void checkJoinWithReplicatedSourceInputBehindReduce() {
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
 
@@ -478,12 +496,12 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         Plan plan = env.createProgramPlan();
 
         // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
+        assertThatThrownBy(() -> compileNoStats(plan)).isInstanceOf(CompilerException.class);
     }
 
     /** Tests compiler fail for join program with replicated data source behind rebalance. */
-    @Test(expected = CompilerException.class)
-    public void checkJoinWithReplicatedSourceInputBehindRebalance() {
+    @Test
+    void checkJoinWithReplicatedSourceInputBehindRebalance() {
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
 
@@ -507,7 +525,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         Plan plan = env.createProgramPlan();
 
         // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
+        assertThatThrownBy(() -> compileNoStats(plan)).isInstanceOf(CompilerException.class);
     }
 
     public static class IdMap<T> implements MapFunction<T, T> {

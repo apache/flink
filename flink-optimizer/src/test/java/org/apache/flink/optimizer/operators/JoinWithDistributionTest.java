@@ -29,14 +29,14 @@ import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class JoinWithDistributionTest extends CompilerTestBase {
 
     @Test
-    public void JoinWithSameDistributionTest() throws Exception {
+    void JoinWithSameDistributionTest() throws Exception {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -61,12 +61,12 @@ public class JoinWithDistributionTest extends CompilerTestBase {
         DualInputPlanNode join = (DualInputPlanNode) sink.getInput().getSource();
         Channel input1 = join.getInput1();
         Channel input2 = join.getInput2();
-        assertEquals(ShipStrategyType.FORWARD, input1.getShipStrategy());
-        assertEquals(ShipStrategyType.FORWARD, input2.getShipStrategy());
+        assertThat(input1.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(input2.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
     }
 
     @Test
-    public void JoinWithDifferentDistributionTest() throws Exception {
+    void JoinWithDifferentDistributionTest() throws Exception {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple3<Integer, Integer, Integer>> set1 =
                 env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
@@ -91,8 +91,8 @@ public class JoinWithDistributionTest extends CompilerTestBase {
         DualInputPlanNode join = (DualInputPlanNode) sink.getInput().getSource();
         Channel input1 = join.getInput1();
         Channel input2 = join.getInput2();
-        assertEquals(ShipStrategyType.PARTITION_HASH, input1.getShipStrategy());
-        assertEquals(ShipStrategyType.PARTITION_HASH, input2.getShipStrategy());
+        assertThat(input1.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(input2.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
     }
 
     public static class JoinFunc

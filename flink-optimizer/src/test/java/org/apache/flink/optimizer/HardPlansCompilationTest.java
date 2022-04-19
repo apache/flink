@@ -29,7 +29,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * This class tests plans that once failed because of a bug:
@@ -48,7 +48,7 @@ public class HardPlansCompilationTest extends CompilerTestBase {
      * <p>First cross has SameKeyFirst output contract
      */
     @Test
-    public void testTicket158() {
+    void testTicket158() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);

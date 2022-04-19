@@ -36,8 +36,9 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests in this class:
@@ -59,7 +60,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
      * hash, because random is a full network transit as well.
      */
     @Test
-    public void checkPropertyHandlingWithIncreasingGlobalParallelism1() {
+    void checkPropertyHandlingWithIncreasingGlobalParallelism1() {
         final int p = DEFAULT_PARALLELISM;
 
         // construct the plan
@@ -106,10 +107,12 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType redIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.PARTITION_HASH, mapIn);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, redIn);
+        assertThat(mapIn)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(redIn)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
     }
 
     /**
@@ -120,7 +123,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
      * reduce is not reusable. Expected to re-establish partitioning between map and reduce (hash).
      */
     @Test
-    public void checkPropertyHandlingWithIncreasingGlobalParallelism2() {
+    void checkPropertyHandlingWithIncreasingGlobalParallelism2() {
         final int p = DEFAULT_PARALLELISM;
 
         // construct the plan
@@ -168,12 +171,12 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType reduceIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, mapIn);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.",
-                ShipStrategyType.PARTITION_HASH,
-                reduceIn);
+        assertThat(mapIn)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(reduceIn)
+                .as("Invalid ship strategy for an operator.")
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
     }
 
     /**
@@ -184,7 +187,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
      * instance. Expected to re-establish partitioning between map and reduce via a local hash.
      */
     @Test
-    public void checkPropertyHandlingWithIncreasingLocalParallelism() {
+    void checkPropertyHandlingWithIncreasingLocalParallelism() {
         final int p = DEFAULT_PARALLELISM * 2;
 
         // construct the plan
@@ -231,16 +234,17 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType reduceIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertTrue(
-                "Invalid ship strategy for an operator.",
-                (ShipStrategyType.PARTITION_RANDOM == mapIn
-                                && ShipStrategyType.PARTITION_HASH == reduceIn)
-                        || (ShipStrategyType.PARTITION_HASH == mapIn
-                                && ShipStrategyType.FORWARD == reduceIn));
+        assertThat(
+                        (ShipStrategyType.PARTITION_RANDOM == mapIn
+                                        && ShipStrategyType.PARTITION_HASH == reduceIn)
+                                || (ShipStrategyType.PARTITION_HASH == mapIn
+                                        && ShipStrategyType.FORWARD == reduceIn))
+                .as("Invalid ship strategy for an operator.")
+                .isTrue();
     }
 
     @Test
-    public void checkPropertyHandlingWithDecreasingParallelism() {
+    void checkPropertyHandlingWithDecreasingParallelism() {
         final int p = DEFAULT_PARALLELISM;
 
         // construct the plan
@@ -285,16 +289,18 @@ public class ParallelismChangeTest extends CompilerTestBase {
         SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
         SingleInputPlanNode map2Node = (SingleInputPlanNode) red2Node.getPredecessor();
 
-        Assert.assertTrue(
-                "The no sorting local strategy.",
-                LocalStrategy.SORT == red2Node.getInput().getLocalStrategy()
-                        || LocalStrategy.SORT == map2Node.getInput().getLocalStrategy());
+        assertThat(
+                        LocalStrategy.SORT == red2Node.getInput().getLocalStrategy()
+                                || LocalStrategy.SORT == map2Node.getInput().getLocalStrategy())
+                .as("The no sorting local strategy.")
+                .isTrue();
 
-        Assert.assertTrue(
-                "The no partitioning ship strategy.",
-                ShipStrategyType.PARTITION_HASH == red2Node.getInput().getShipStrategy()
-                        || ShipStrategyType.PARTITION_HASH
-                                == map2Node.getInput().getShipStrategy());
+        assertThat(
+                        ShipStrategyType.PARTITION_HASH == red2Node.getInput().getShipStrategy()
+                                || ShipStrategyType.PARTITION_HASH
+                                        == map2Node.getInput().getShipStrategy())
+                .as("The no partitioning ship strategy.")
+                .isTrue();
     }
 
     /**
@@ -312,7 +318,7 @@ public class ParallelismChangeTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void checkPropertyHandlingWithTwoInputs() {
+    void checkPropertyHandlingWithTwoInputs() {
 
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -359,14 +365,12 @@ public class ParallelismChangeTest extends CompilerTestBase {
                             Channel c1 = node.getInput1();
                             Channel c2 = node.getInput2();
 
-                            Assert.assertEquals(
-                                    "Incompatible shipping strategy chosen for match",
-                                    ShipStrategyType.FORWARD,
-                                    c1.getShipStrategy());
-                            Assert.assertEquals(
-                                    "Incompatible shipping strategy chosen for match",
-                                    ShipStrategyType.PARTITION_HASH,
-                                    c2.getShipStrategy());
+                            assertThat(c1.getShipStrategy())
+                                    .as("Incompatible shipping strategy chosen for match")
+                                    .isEqualTo(ShipStrategyType.FORWARD);
+                            assertThat(c2.getShipStrategy())
+                                    .as("Incompatible shipping strategy chosen for match")
+                                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
                             return false;
                         }
                         return true;

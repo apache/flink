@@ -37,10 +37,10 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This test case has been created to validate that correct strategies are used if orders within
@@ -50,7 +50,7 @@ import static org.junit.Assert.fail;
 public class GroupOrderTest extends CompilerTestBase {
 
     @Test
-    public void testReduceWithGroupOrder() {
+    void testReduceWithGroupOrder() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -81,24 +81,24 @@ public class GroupOrderTest extends CompilerTestBase {
         SingleInputPlanNode reducer = resolver.getNode("Reduce");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
+        assertThat(sinkNode.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(reducer.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
 
         Channel c = reducer.getInput();
-        Assert.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
+        assertThat(c.getLocalStrategy()).isEqualTo(LocalStrategy.SORT);
 
         FieldList ship = new FieldList(1);
         FieldList local = new FieldList(1, 3);
-        Assert.assertEquals(ship, c.getShipStrategyKeys());
-        Assert.assertEquals(local, c.getLocalStrategyKeys());
-        Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders(0)[0]);
+        assertThat(c.getShipStrategyKeys()).isEqualTo(ship);
+        assertThat(c.getLocalStrategyKeys()).isEqualTo(local);
+        assertThat(c.getLocalStrategySortOrder()[0]).isSameAs(reducer.getSortOrders(0)[0]);
 
         // check that we indeed sort descending
-        Assert.assertEquals(false, c.getLocalStrategySortOrder()[1]);
+        assertThat(c.getLocalStrategySortOrder()[1]).isFalse();
     }
 
     @Test
-    public void testCoGroupWithGroupOrder() {
+    void testCoGroupWithGroupOrder() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -152,17 +152,17 @@ public class GroupOrderTest extends CompilerTestBase {
         DualInputPlanNode coGroupNode = resolver.getNode("CoGroup");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH, coGroupNode.getInput1().getShipStrategy());
-        Assert.assertEquals(
-                ShipStrategyType.PARTITION_HASH, coGroupNode.getInput2().getShipStrategy());
+        assertThat(sinkNode.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(coGroupNode.getInput1().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(coGroupNode.getInput2().getShipStrategy())
+                .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
         Channel c1 = coGroupNode.getInput1();
         Channel c2 = coGroupNode.getInput2();
 
-        Assert.assertEquals(LocalStrategy.SORT, c1.getLocalStrategy());
-        Assert.assertEquals(LocalStrategy.SORT, c2.getLocalStrategy());
+        assertThat(c1.getLocalStrategy()).isEqualTo(LocalStrategy.SORT);
+        assertThat(c2.getLocalStrategy()).isEqualTo(LocalStrategy.SORT);
 
         FieldList ship1 = new FieldList(3, 0);
         FieldList ship2 = new FieldList(6, 0);
@@ -170,19 +170,19 @@ public class GroupOrderTest extends CompilerTestBase {
         FieldList local1 = new FieldList(3, 0, 5);
         FieldList local2 = new FieldList(6, 0, 1, 4);
 
-        Assert.assertEquals(ship1, c1.getShipStrategyKeys());
-        Assert.assertEquals(ship2, c2.getShipStrategyKeys());
-        Assert.assertEquals(local1, c1.getLocalStrategyKeys());
-        Assert.assertEquals(local2, c2.getLocalStrategyKeys());
+        assertThat(c1.getShipStrategyKeys()).isEqualTo(ship1);
+        assertThat(c2.getShipStrategyKeys()).isEqualTo(ship2);
+        assertThat(c1.getLocalStrategyKeys()).isEqualTo(local1);
+        assertThat(c2.getLocalStrategyKeys()).isEqualTo(local2);
 
-        Assert.assertTrue(c1.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
-        Assert.assertTrue(c1.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
-        Assert.assertTrue(c2.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
-        Assert.assertTrue(c2.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
+        assertThat(c1.getLocalStrategySortOrder()[0]).isSameAs(coGroupNode.getSortOrders()[0]);
+        assertThat(c1.getLocalStrategySortOrder()[1]).isSameAs(coGroupNode.getSortOrders()[1]);
+        assertThat(c2.getLocalStrategySortOrder()[0]).isSameAs(coGroupNode.getSortOrders()[0]);
+        assertThat(c2.getLocalStrategySortOrder()[1]).isSameAs(coGroupNode.getSortOrders()[1]);
 
         // check that the local group orderings are correct
-        Assert.assertEquals(false, c1.getLocalStrategySortOrder()[2]);
-        Assert.assertEquals(false, c2.getLocalStrategySortOrder()[2]);
-        Assert.assertEquals(true, c2.getLocalStrategySortOrder()[3]);
+        assertThat(c1.getLocalStrategySortOrder()[2]).isFalse();
+        assertThat(c2.getLocalStrategySortOrder()[2]).isFalse();
+        assertThat(c2.getLocalStrategySortOrder()[3]).isTrue();
     }
 }

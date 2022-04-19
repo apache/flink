@@ -39,11 +39,11 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test compilation of PageRank implementation. */
 public class PageRankCompilerTest extends CompilerTestBase {
@@ -108,14 +108,13 @@ public class PageRankCompilerTest extends CompilerTestBase {
                     (BulkIterationPlanNode) sinkPlanNode.getInput().getSource();
 
             // check that the partitioning is pushed out of the first loop
-            Assert.assertEquals(
-                    ShipStrategyType.PARTITION_HASH, iterPlanNode.getInput().getShipStrategy());
-            Assert.assertEquals(LocalStrategy.NONE, iterPlanNode.getInput().getLocalStrategy());
+            assertThat(iterPlanNode.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(iterPlanNode.getInput().getLocalStrategy()).isEqualTo(LocalStrategy.NONE);
 
             BulkPartialSolutionPlanNode partSolPlanNode = iterPlanNode.getPartialSolutionPlanNode();
-            Assert.assertEquals(
-                    ShipStrategyType.FORWARD,
-                    partSolPlanNode.getOutgoingChannels().get(0).getShipStrategy());
+            assertThat(partSolPlanNode.getOutgoingChannels().get(0).getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

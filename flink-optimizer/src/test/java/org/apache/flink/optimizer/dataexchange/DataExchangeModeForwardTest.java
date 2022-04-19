@@ -32,10 +32,10 @@ import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This test verifies that the optimizer assigns the correct data exchange mode to a simple forward
@@ -49,7 +49,7 @@ import static org.junit.Assert.fail;
 public class DataExchangeModeForwardTest extends CompilerTestBase {
 
     @Test
-    public void testPipelinedForced() {
+    void testPipelinedForced() {
         // PIPELINED_FORCED should result in pipelining all the way
         verifySimpleForwardPlan(
                 ExecutionMode.PIPELINED_FORCED,
@@ -62,7 +62,7 @@ public class DataExchangeModeForwardTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPipelined() {
+    void testPipelined() {
         // PIPELINED should result in pipelining all the way
         verifySimpleForwardPlan(
                 ExecutionMode.PIPELINED,
@@ -75,7 +75,7 @@ public class DataExchangeModeForwardTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatch() {
+    void testBatch() {
         // BATCH should result in batching the shuffle all the way
         verifySimpleForwardPlan(
                 ExecutionMode.BATCH,
@@ -88,7 +88,7 @@ public class DataExchangeModeForwardTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatchForced() {
+    void testBatchForced() {
         // BATCH_FORCED should result in batching all the way
         verifySimpleForwardPlan(
                 ExecutionMode.BATCH_FORCED,
@@ -143,12 +143,12 @@ public class DataExchangeModeForwardTest extends CompilerTestBase {
                     (SingleInputPlanNode) keyExtractorNode.getPredecessor();
             SingleInputPlanNode mapNode = (SingleInputPlanNode) filterNode.getPredecessor();
 
-            assertEquals(toMap, mapNode.getInput().getDataExchangeMode());
-            assertEquals(toFilter, filterNode.getInput().getDataExchangeMode());
-            assertEquals(toKeyExtractor, keyExtractorNode.getInput().getDataExchangeMode());
-            assertEquals(toCombiner, combineNode.getInput().getDataExchangeMode());
-            assertEquals(toReduce, reduceNode.getInput().getDataExchangeMode());
-            assertEquals(toSink, sinkNode.getInput().getDataExchangeMode());
+            assertThat(mapNode.getInput().getDataExchangeMode()).isEqualTo(toMap);
+            assertThat(filterNode.getInput().getDataExchangeMode()).isEqualTo(toFilter);
+            assertThat(keyExtractorNode.getInput().getDataExchangeMode()).isEqualTo(toKeyExtractor);
+            assertThat(combineNode.getInput().getDataExchangeMode()).isEqualTo(toCombiner);
+            assertThat(reduceNode.getInput().getDataExchangeMode()).isEqualTo(toReduce);
+            assertThat(sinkNode.getInput().getDataExchangeMode()).isEqualTo(toSink);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

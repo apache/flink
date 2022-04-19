@@ -40,12 +40,13 @@ import org.apache.flink.optimizer.traversals.BranchesVisitor;
 import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
 import org.apache.flink.optimizer.traversals.IdAndEstimatesVisitor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** This test checks whether connections are correctly marked as pipelined breaking. */
 @SuppressWarnings("serial")
@@ -59,7 +60,7 @@ public class PipelineBreakingTest {
      * </pre>
      */
     @Test
-    public void testSimpleForwardPlan() {
+    void testSimpleForwardPlan() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -90,11 +91,11 @@ public class PipelineBreakingTest {
             SingleInputNode filterNode = (SingleInputNode) keyExtractorNode.getPredecessorNode();
             SingleInputNode mapNode = (SingleInputNode) filterNode.getPredecessorNode();
 
-            assertFalse(sinkNode.getInputConnection().isBreakingPipeline());
-            assertFalse(reduceNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(keyExtractorNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(filterNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(mapNode.getIncomingConnection().isBreakingPipeline());
+            assertThat(sinkNode.getInputConnection().isBreakingPipeline()).isFalse();
+            assertThat(reduceNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(keyExtractorNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(filterNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(mapNode.getIncomingConnection().isBreakingPipeline()).isFalse();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -118,7 +119,7 @@ public class PipelineBreakingTest {
      * </pre>
      */
     @Test
-    public void testBranchingPlanNotReJoined() {
+    void testBranchingPlanNotReJoined() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -167,23 +168,22 @@ public class PipelineBreakingTest {
 
             // verify the non-pipeline breaking status
 
-            assertFalse(sinkAfterFilter.getInputConnection().isBreakingPipeline());
-            assertFalse(sinkAfterJoin.getInputConnection().isBreakingPipeline());
-            assertFalse(sinkDirect.getInputConnection().isBreakingPipeline());
+            assertThat(sinkAfterFilter.getInputConnection().isBreakingPipeline()).isFalse();
+            assertThat(sinkAfterJoin.getInputConnection().isBreakingPipeline()).isFalse();
+            assertThat(sinkDirect.getInputConnection().isBreakingPipeline()).isFalse();
 
-            assertFalse(filterNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(mapNode.getIncomingConnection().isBreakingPipeline());
+            assertThat(filterNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(mapNode.getIncomingConnection().isBreakingPipeline()).isFalse();
 
-            assertFalse(joinNode.getFirstIncomingConnection().isBreakingPipeline());
-            assertFalse(joinNode.getSecondIncomingConnection().isBreakingPipeline());
-            assertFalse(joinInput.getIncomingConnection().isBreakingPipeline());
+            assertThat(joinNode.getFirstIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(joinNode.getSecondIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(joinInput.getIncomingConnection().isBreakingPipeline()).isFalse();
 
             // some other sanity checks on the plan construction (cannot hurt)
 
-            assertEquals(
-                    mapNode,
-                    ((SingleInputNode) joinNode.getFirstPredecessorNode()).getPredecessorNode());
-            assertEquals(mapNode, sinkDirect.getPredecessorNode());
+            assertThat(((SingleInputNode) joinNode.getFirstPredecessorNode()).getPredecessorNode())
+                    .isEqualTo(mapNode);
+            assertThat(sinkDirect.getPredecessorNode()).isEqualTo(mapNode);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -207,7 +207,7 @@ public class PipelineBreakingTest {
      * </pre>
      */
     @Test
-    public void testReJoinedBranches() {
+    void testReJoinedBranches() {
         try {
             // build a test program
 
@@ -276,28 +276,28 @@ public class PipelineBreakingTest {
 
             // test sanity checks (that we constructed the DAG correctly)
 
-            assertEquals(reduceNode, joinNode.getFirstPredecessorNode());
-            assertEquals(mapNode, filterNode.getPredecessorNode());
-            assertEquals(joinNode, coGroupNode.getFirstPredecessorNode());
-            assertEquals(filterNode, otherReduceNode.getPredecessorNode());
+            assertThat(joinNode.getFirstPredecessorNode()).isEqualTo(reduceNode);
+            assertThat(filterNode.getPredecessorNode()).isEqualTo(mapNode);
+            assertThat(coGroupNode.getFirstPredecessorNode()).isEqualTo(joinNode);
+            assertThat(otherReduceNode.getPredecessorNode()).isEqualTo(filterNode);
 
             // verify the pipeline breaking status
 
-            assertFalse(sinkAfterReduce.getInputConnection().isBreakingPipeline());
-            assertFalse(sinkAfterFlatMap.getInputConnection().isBreakingPipeline());
-            assertFalse(sinkAfterCoGroup.getInputConnection().isBreakingPipeline());
+            assertThat(sinkAfterReduce.getInputConnection().isBreakingPipeline()).isFalse();
+            assertThat(sinkAfterFlatMap.getInputConnection().isBreakingPipeline()).isFalse();
+            assertThat(sinkAfterCoGroup.getInputConnection().isBreakingPipeline()).isFalse();
 
-            assertFalse(mapNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(flatMapNode.getIncomingConnection().isBreakingPipeline());
-            assertFalse(joinNode.getFirstIncomingConnection().isBreakingPipeline());
-            assertFalse(coGroupNode.getFirstIncomingConnection().isBreakingPipeline());
-            assertFalse(coGroupNode.getSecondIncomingConnection().isBreakingPipeline());
+            assertThat(mapNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(flatMapNode.getIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(joinNode.getFirstIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(coGroupNode.getFirstIncomingConnection().isBreakingPipeline()).isFalse();
+            assertThat(coGroupNode.getSecondIncomingConnection().isBreakingPipeline()).isFalse();
 
             // these should be pipeline breakers
-            assertTrue(reduceNode.getIncomingConnection().isBreakingPipeline());
-            assertTrue(filterNode.getIncomingConnection().isBreakingPipeline());
-            assertTrue(otherReduceNode.getIncomingConnection().isBreakingPipeline());
-            assertTrue(joinNode.getSecondIncomingConnection().isBreakingPipeline());
+            assertThat(reduceNode.getIncomingConnection().isBreakingPipeline()).isTrue();
+            assertThat(filterNode.getIncomingConnection().isBreakingPipeline()).isTrue();
+            assertThat(otherReduceNode.getIncomingConnection().isBreakingPipeline()).isTrue();
+            assertThat(joinNode.getSecondIncomingConnection().isBreakingPipeline()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

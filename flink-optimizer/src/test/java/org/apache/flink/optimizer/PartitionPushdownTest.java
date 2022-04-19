@@ -30,15 +30,16 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class PartitionPushdownTest extends CompilerTestBase {
 
     @Test
-    public void testPartitioningNotPushedDown() {
+    void testPartitioningNotPushedDown() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -63,13 +64,16 @@ public class PartitionPushdownTest extends CompilerTestBase {
             SingleInputPlanNode agg1Reducer =
                     (SingleInputPlanNode) agg2Combiner.getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, agg2Reducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(0), agg2Reducer.getInput().getShipStrategyKeys());
+            assertThat(agg2Reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(agg2Reducer.getInput().getShipStrategyKeys()).isEqualTo(new FieldList(0));
 
-            assertEquals(ShipStrategyType.FORWARD, agg2Combiner.getInput().getShipStrategy());
+            assertThat(agg2Combiner.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(0, 1), agg1Reducer.getInput().getShipStrategyKeys());
+            assertThat(agg1Reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(agg1Reducer.getInput().getShipStrategyKeys()).isEqualTo(new FieldList(0, 1));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -77,7 +81,7 @@ public class PartitionPushdownTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPartitioningReused() {
+    void testPartitioningReused() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -100,10 +104,12 @@ public class PartitionPushdownTest extends CompilerTestBase {
             SingleInputPlanNode agg1Reducer =
                     (SingleInputPlanNode) agg2Reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, agg2Reducer.getInput().getShipStrategy());
+            assertThat(agg2Reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(0), agg1Reducer.getInput().getShipStrategyKeys());
+            assertThat(agg1Reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(agg1Reducer.getInput().getShipStrategyKeys()).isEqualTo(new FieldList(0));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

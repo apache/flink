@@ -36,10 +36,9 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Validate program compilation. */
 public class WordCountCompilerTest extends CompilerTestBase {
@@ -101,21 +100,21 @@ public class WordCountCompilerTest extends CompilerTestBase {
         SingleInputPlanNode mapper = resolver.getNode("Tokenize Lines");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+        assertThat(mapper.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+        assertThat(reducer.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
+        assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
         Channel c = reducer.getInput();
-        Assert.assertEquals(LocalStrategy.COMBININGSORT, c.getLocalStrategy());
+        assertThat(c.getLocalStrategy()).isEqualTo(LocalStrategy.COMBININGSORT);
         FieldList l = new FieldList(0);
-        Assert.assertEquals(l, c.getShipStrategyKeys());
-        Assert.assertEquals(l, c.getLocalStrategyKeys());
-        Assert.assertTrue(Arrays.equals(c.getLocalStrategySortOrder(), reducer.getSortOrders(0)));
+        assertThat(c.getShipStrategyKeys()).isEqualTo(l);
+        assertThat(c.getLocalStrategyKeys()).isEqualTo(l);
+        assertThat(c.getLocalStrategySortOrder()).isEqualTo(reducer.getSortOrders(0));
 
         // check the combiner
         SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
-        Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-        Assert.assertEquals(l, combiner.getKeys(0));
-        Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+        assertThat(combiner.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_GROUP_COMBINE);
+        assertThat(combiner.getKeys(0)).isEqualTo(l);
+        assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
     }
 }

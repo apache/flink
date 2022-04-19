@@ -25,13 +25,14 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.dag.DataSourceNode;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ChannelTest {
 
     @Test
-    public void testGetEstimatesNoReplicationFactor() {
+    void testGetEstimatesNoReplicationFactor() {
         final long NUM_RECORD = 1001;
         final long SIZE = 467131;
 
@@ -40,18 +41,18 @@ public class ChannelTest {
         Channel channel = new Channel(planNode);
 
         // no estimates here
-        Assert.assertEquals(-1, channel.getEstimatedOutputSize());
-        Assert.assertEquals(-1, channel.getEstimatedNumRecords());
+        assertThat(channel.getEstimatedOutputSize()).isEqualTo(-1);
+        assertThat(channel.getEstimatedNumRecords()).isEqualTo(-1);
 
         // set estimates
         source.setEstimatedNumRecords(NUM_RECORD);
         source.setEstimatedOutputSize(SIZE);
-        Assert.assertEquals(SIZE, channel.getEstimatedOutputSize());
-        Assert.assertEquals(NUM_RECORD, channel.getEstimatedNumRecords());
+        assertThat(channel.getEstimatedOutputSize()).isEqualTo(SIZE);
+        assertThat(channel.getEstimatedNumRecords()).isEqualTo(NUM_RECORD);
     }
 
     @Test
-    public void testGetEstimatesWithReplicationFactor() {
+    void testGetEstimatesWithReplicationFactor() {
         final long NUM_RECORD = 1001;
         final long SIZE = 467131;
 
@@ -63,14 +64,14 @@ public class ChannelTest {
         channel.setReplicationFactor(REPLICATION);
 
         // no estimates here
-        Assert.assertEquals(-1, channel.getEstimatedOutputSize());
-        Assert.assertEquals(-1, channel.getEstimatedNumRecords());
+        assertThat(channel.getEstimatedOutputSize()).isEqualTo(-1);
+        assertThat(channel.getEstimatedNumRecords()).isEqualTo(-1);
 
         // set estimates
         source.setEstimatedNumRecords(NUM_RECORD);
         source.setEstimatedOutputSize(SIZE);
-        Assert.assertEquals(SIZE * REPLICATION, channel.getEstimatedOutputSize());
-        Assert.assertEquals(NUM_RECORD * REPLICATION, channel.getEstimatedNumRecords());
+        assertThat(channel.getEstimatedOutputSize()).isEqualTo(SIZE * REPLICATION);
+        assertThat(channel.getEstimatedNumRecords()).isEqualTo(NUM_RECORD * REPLICATION);
     }
 
     //	private static final OptimizerNode getSingleInputNode() {

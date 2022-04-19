@@ -37,12 +37,12 @@ import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This test checks the correct assignment of the DataExchangeMode to connections for programs that
@@ -65,7 +65,7 @@ import static org.junit.Assert.fail;
 public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
 
     @Test
-    public void testPipelinedForced() {
+    void testPipelinedForced() {
         // PIPELINED_FORCED should result in pipelining all the way
         verifyBranchingJoiningPlan(
                 ExecutionMode.PIPELINED_FORCED,
@@ -86,7 +86,7 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPipelined() {
+    void testPipelined() {
         // PIPELINED should result in pipelining all the way
         verifyBranchingJoiningPlan(
                 ExecutionMode.PIPELINED,
@@ -108,7 +108,7 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatch() {
+    void testBatch() {
         // BATCH should result in batching the shuffle all the way
         verifyBranchingJoiningPlan(
                 ExecutionMode.BATCH,
@@ -130,7 +130,7 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatchForced() {
+    void testBatchForced() {
         // BATCH_FORCED should result in batching all the way
         verifyBranchingJoiningPlan(
                 ExecutionMode.BATCH_FORCED,
@@ -236,41 +236,41 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
             SingleInputPlanNode reduceNode = (SingleInputPlanNode) joinNode.getInput1().getSource();
             SingleInputPlanNode reduceCombinerNode =
                     (SingleInputPlanNode) reduceNode.getPredecessor();
-            assertEquals(reduceNode, reduceSink.getPredecessor());
+            assertThat(reduceSink.getPredecessor()).isEqualTo(reduceNode);
 
             SingleInputPlanNode filterNode = (SingleInputPlanNode) joinNode.getInput2().getSource();
-            assertEquals(filterNode, otherReduceCombinerNode.getPredecessor());
+            assertThat(otherReduceCombinerNode.getPredecessor()).isEqualTo(filterNode);
 
             SingleInputPlanNode mapNode = (SingleInputPlanNode) filterNode.getPredecessor();
-            assertEquals(mapNode, reduceCombinerNode.getPredecessor());
+            assertThat(reduceCombinerNode.getPredecessor()).isEqualTo(mapNode);
 
             SingleInputPlanNode flatMapNode = (SingleInputPlanNode) flatMapSink.getPredecessor();
-            assertEquals(joinNode, flatMapNode.getPredecessor());
+            assertThat(flatMapNode.getPredecessor()).isEqualTo(joinNode);
 
             // verify the data exchange modes
 
-            assertEquals(toReduceSink, reduceSink.getInput().getDataExchangeMode());
-            assertEquals(toFlatMapSink, flatMapSink.getInput().getDataExchangeMode());
-            assertEquals(toCoGroupSink, cgSink.getInput().getDataExchangeMode());
+            assertThat(reduceSink.getInput().getDataExchangeMode()).isEqualTo(toReduceSink);
+            assertThat(flatMapSink.getInput().getDataExchangeMode()).isEqualTo(toFlatMapSink);
+            assertThat(cgSink.getInput().getDataExchangeMode()).isEqualTo(toCoGroupSink);
 
-            assertEquals(toCoGroup1, coGroupNode.getInput1().getDataExchangeMode());
-            assertEquals(toCoGroup2, coGroupNode.getInput2().getDataExchangeMode());
+            assertThat(coGroupNode.getInput1().getDataExchangeMode()).isEqualTo(toCoGroup1);
+            assertThat(coGroupNode.getInput2().getDataExchangeMode()).isEqualTo(toCoGroup2);
 
-            assertEquals(toJoin1, joinNode.getInput1().getDataExchangeMode());
-            assertEquals(toJoin2, joinNode.getInput2().getDataExchangeMode());
+            assertThat(joinNode.getInput1().getDataExchangeMode()).isEqualTo(toJoin1);
+            assertThat(joinNode.getInput2().getDataExchangeMode()).isEqualTo(toJoin2);
 
-            assertEquals(toOtherReduce, otherReduceNode.getInput().getDataExchangeMode());
-            assertEquals(
-                    toOtherReduceCombiner,
-                    otherReduceCombinerNode.getInput().getDataExchangeMode());
+            assertThat(otherReduceNode.getInput().getDataExchangeMode()).isEqualTo(toOtherReduce);
+            assertThat(otherReduceCombinerNode.getInput().getDataExchangeMode())
+                    .isEqualTo(toOtherReduceCombiner);
 
-            assertEquals(toFlatMap, flatMapNode.getInput().getDataExchangeMode());
+            assertThat(flatMapNode.getInput().getDataExchangeMode()).isEqualTo(toFlatMap);
 
-            assertEquals(toFilter, filterNode.getInput().getDataExchangeMode());
-            assertEquals(toReduce, reduceNode.getInput().getDataExchangeMode());
-            assertEquals(toReduceCombiner, reduceCombinerNode.getInput().getDataExchangeMode());
+            assertThat(filterNode.getInput().getDataExchangeMode()).isEqualTo(toFilter);
+            assertThat(reduceNode.getInput().getDataExchangeMode()).isEqualTo(toReduce);
+            assertThat(reduceCombinerNode.getInput().getDataExchangeMode())
+                    .isEqualTo(toReduceCombiner);
 
-            assertEquals(toMap, mapNode.getInput().getDataExchangeMode());
+            assertThat(mapNode.getInput().getDataExchangeMode()).isEqualTo(toMap);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

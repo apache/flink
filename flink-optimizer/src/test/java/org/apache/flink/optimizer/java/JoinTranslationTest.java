@@ -35,20 +35,21 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class JoinTranslationTest extends CompilerTestBase {
 
     @Test
-    public void testBroadcastHashFirstTest() {
+    void testBroadcastHashFirstTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.BROADCAST_HASH_FIRST);
-            assertEquals(ShipStrategyType.BROADCAST, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, node.getInput2().getShipStrategy());
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.BROADCAST);
+            assertThat(node.getInput2().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(node.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -56,12 +57,12 @@ public class JoinTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBroadcastHashSecondTest() {
+    void testBroadcastHashSecondTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.BROADCAST_HASH_SECOND);
-            assertEquals(ShipStrategyType.FORWARD, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.BROADCAST, node.getInput2().getShipStrategy());
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(node.getInput2().getShipStrategy()).isEqualTo(ShipStrategyType.BROADCAST);
+            assertThat(node.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -69,12 +70,14 @@ public class JoinTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPartitionHashFirstTest() {
+    void testPartitionHashFirstTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_HASH_FIRST);
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -82,12 +85,14 @@ public class JoinTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPartitionHashSecondTest() {
+    void testPartitionHashSecondTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_HASH_SECOND);
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getDriverStrategy()).isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -95,12 +100,14 @@ public class JoinTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPartitionSortMergeTest() {
+    void testPartitionSortMergeTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_SORT_MERGE);
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
-            assertEquals(DriverStrategy.INNER_MERGE, node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getDriverStrategy()).isEqualTo(DriverStrategy.INNER_MERGE);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());
@@ -108,14 +115,18 @@ public class JoinTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testOptimizerChoosesTest() {
+    void testOptimizerChoosesTest() {
         try {
             DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.OPTIMIZER_CHOOSES);
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
-            assertTrue(
-                    DriverStrategy.HYBRIDHASH_BUILD_FIRST == node.getDriverStrategy()
-                            || DriverStrategy.HYBRIDHASH_BUILD_SECOND == node.getDriverStrategy());
+            assertThat(node.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(node.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(
+                            DriverStrategy.HYBRIDHASH_BUILD_FIRST == node.getDriverStrategy()
+                                    || DriverStrategy.HYBRIDHASH_BUILD_SECOND
+                                            == node.getDriverStrategy())
+                    .isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getClass().getSimpleName() + ": " + e.getMessage());

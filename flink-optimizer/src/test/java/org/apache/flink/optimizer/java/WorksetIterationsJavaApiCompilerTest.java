@@ -38,11 +38,10 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests that validate optimizer choices when using operators that are requesting certain specific
@@ -57,7 +56,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
     private static final String SOLUTION_DELTA_MAPPER_NAME = "Test Map Delta";
 
     @Test
-    public void testJavaApiWithDeferredSoltionSetUpdateWithMapper() {
+    void testJavaApiWithDeferredSoltionSetUpdateWithMapper() {
         try {
             Plan plan = getJavaTestPlan(false, true);
 
@@ -74,36 +73,35 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
             // the in-loop partitioning is before the final reducer
 
             // verify joinWithInvariant
-            assertEquals(
-                    ShipStrategyType.FORWARD, joinWithInvariantNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithInvariantNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput1());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput2());
+            assertThat(joinWithInvariantNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithInvariantNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithInvariantNode.getKeysForInput1()).isEqualTo(new FieldList(1, 2));
+            assertThat(joinWithInvariantNode.getKeysForInput2()).isEqualTo(new FieldList(1, 2));
 
             // verify joinWithSolutionSet
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithSolutionSetNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.FORWARD,
-                    joinWithSolutionSetNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
+            assertThat(joinWithSolutionSetNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithSolutionSetNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithSolutionSetNode.getKeysForInput1()).isEqualTo(new FieldList(1, 0));
 
             // verify reducer
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
+            assertThat(worksetReducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(worksetReducer.getKeys(0)).isEqualTo(new FieldList(1, 2));
 
             // currently, the system may partition before or after the mapper
             ShipStrategyType ss1 = deltaMapper.getInput().getShipStrategy();
             ShipStrategyType ss2 = deltaMapper.getOutgoingChannels().get(0).getShipStrategy();
 
-            assertTrue(
-                    (ss1 == ShipStrategyType.FORWARD && ss2 == ShipStrategyType.PARTITION_HASH)
-                            || (ss2 == ShipStrategyType.FORWARD
-                                    && ss1 == ShipStrategyType.PARTITION_HASH));
+            assertThat(
+                            (ss1 == ShipStrategyType.FORWARD
+                                            && ss2 == ShipStrategyType.PARTITION_HASH)
+                                    || (ss2 == ShipStrategyType.FORWARD
+                                            && ss1 == ShipStrategyType.PARTITION_HASH))
+                    .isTrue();
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -114,7 +112,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testJavaApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
+    void testJavaApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
         try {
             Plan plan = getJavaTestPlan(false, false);
 
@@ -130,36 +128,31 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
             // the in-loop partitioning is before the final reducer
 
             // verify joinWithInvariant
-            assertEquals(
-                    ShipStrategyType.FORWARD, joinWithInvariantNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithInvariantNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput1());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput2());
+            assertThat(joinWithInvariantNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithInvariantNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithInvariantNode.getKeysForInput1()).isEqualTo(new FieldList(1, 2));
+            assertThat(joinWithInvariantNode.getKeysForInput2()).isEqualTo(new FieldList(1, 2));
 
             // verify joinWithSolutionSet
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithSolutionSetNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.FORWARD,
-                    joinWithSolutionSetNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
+            assertThat(joinWithSolutionSetNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithSolutionSetNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithSolutionSetNode.getKeysForInput1()).isEqualTo(new FieldList(1, 0));
 
             // verify reducer
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
+            assertThat(worksetReducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(worksetReducer.getKeys(0)).isEqualTo(new FieldList(1, 2));
 
             // verify solution delta
-            assertEquals(2, joinWithSolutionSetNode.getOutgoingChannels().size());
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithSolutionSetNode.getOutgoingChannels().get(1).getShipStrategy());
+            assertThat(joinWithSolutionSetNode.getOutgoingChannels()).hasSize(2);
+            assertThat(joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithSolutionSetNode.getOutgoingChannels().get(1).getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -170,7 +163,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testJavaApiWithDirectSoltionSetUpdate() {
+    void testJavaApiWithDirectSoltionSetUpdate() {
         try {
             Plan plan = getJavaTestPlan(true, false);
 
@@ -186,32 +179,29 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
             // the in-loop partitioning is before the final reducer
 
             // verify joinWithInvariant
-            assertEquals(
-                    ShipStrategyType.FORWARD, joinWithInvariantNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithInvariantNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput1());
-            assertEquals(new FieldList(1, 2), joinWithInvariantNode.getKeysForInput2());
+            assertThat(joinWithInvariantNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithInvariantNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithInvariantNode.getKeysForInput1()).isEqualTo(new FieldList(1, 2));
+            assertThat(joinWithInvariantNode.getKeysForInput2()).isEqualTo(new FieldList(1, 2));
 
             // verify joinWithSolutionSet
-            assertEquals(
-                    ShipStrategyType.PARTITION_HASH,
-                    joinWithSolutionSetNode.getInput1().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.FORWARD,
-                    joinWithSolutionSetNode.getInput2().getShipStrategy());
-            assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
+            assertThat(joinWithSolutionSetNode.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
+            assertThat(joinWithSolutionSetNode.getInput2().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(joinWithSolutionSetNode.getKeysForInput1()).isEqualTo(new FieldList(1, 0));
 
             // verify reducer
-            assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());
-            assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
+            assertThat(worksetReducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(worksetReducer.getKeys(0)).isEqualTo(new FieldList(1, 2));
 
             // verify solution delta
-            assertEquals(1, joinWithSolutionSetNode.getOutgoingChannels().size());
-            assertEquals(
-                    ShipStrategyType.FORWARD,
-                    joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
+            assertThat(joinWithSolutionSetNode.getOutgoingChannels()).hasSize(1);
+            assertThat(joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy())
+                    .isEqualTo(ShipStrategyType.FORWARD);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -222,7 +212,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testRejectPlanIfSolutionSetKeysAndJoinKeysDontMatch() {
+    void testRejectPlanIfSolutionSetKeysAndJoinKeysDontMatch() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(DEFAULT_PARALLELISM);

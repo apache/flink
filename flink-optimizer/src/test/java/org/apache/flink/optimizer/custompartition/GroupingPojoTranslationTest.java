@@ -33,15 +33,16 @@ import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class GroupingPojoTranslationTest extends CompilerTestBase {
 
     @Test
-    public void testCustomPartitioningTupleReduce() {
+    void testCustomPartitioningTupleReduce() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -59,9 +60,10 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -69,7 +71,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleGroupReduce() {
+    void testCustomPartitioningTupleGroupReduce() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -87,9 +89,10 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -97,7 +100,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleGroupReduceSorted() {
+    void testCustomPartitioningTupleGroupReduceSorted() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -116,9 +119,10 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -126,7 +130,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleGroupReduceSorted2() {
+    void testCustomPartitioningTupleGroupReduceSorted2() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -146,9 +150,10 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            assertThat(sink.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(reducer.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(combiner.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -156,7 +161,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleInvalidType() {
+    void testCustomPartitioningTupleInvalidType() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -174,7 +179,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleInvalidTypeSorted() {
+    void testCustomPartitioningTupleInvalidTypeSorted() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -194,7 +199,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCustomPartitioningTupleRejectCompositeKey() {
+    void testCustomPartitioningTupleRejectCompositeKey() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

@@ -29,10 +29,10 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests that validate optimizer choices when using operators that are requesting certain specific
@@ -42,7 +42,7 @@ import static org.junit.Assert.fail;
 public class AdditionalOperatorsTest extends CompilerTestBase {
 
     @Test
-    public void testCrossWithSmall() {
+    void testCrossWithSmall() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -62,8 +62,8 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
             Channel in1 = crossPlanNode.getInput1();
             Channel in2 = crossPlanNode.getInput2();
 
-            assertEquals(ShipStrategyType.FORWARD, in1.getShipStrategy());
-            assertEquals(ShipStrategyType.BROADCAST, in2.getShipStrategy());
+            assertThat(in1.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(in2.getShipStrategy()).isEqualTo(ShipStrategyType.BROADCAST);
         } catch (CompilerException ce) {
             ce.printStackTrace();
             fail("The Flink optimizer is unable to compile this plan correctly.");
@@ -71,7 +71,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCrossWithLarge() {
+    void testCrossWithLarge() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -91,8 +91,8 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
             Channel in1 = crossPlanNode.getInput1();
             Channel in2 = crossPlanNode.getInput2();
 
-            assertEquals(ShipStrategyType.BROADCAST, in1.getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, in2.getShipStrategy());
+            assertThat(in1.getShipStrategy()).isEqualTo(ShipStrategyType.BROADCAST);
+            assertThat(in2.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
         } catch (CompilerException ce) {
             ce.printStackTrace();
             fail("The pact compiler is unable to compile this plan correctly.");

@@ -30,15 +30,16 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class WorksetIterationCornerCasesTest extends CompilerTestBase {
 
     @Test
-    public void testWorksetIterationNotDependingOnSolutionSet() {
+    void testWorksetIterationNotDependingOnSolutionSet() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -60,7 +61,7 @@ public class WorksetIterationCornerCasesTest extends CompilerTestBase {
             WorksetIterationPlanNode wipn =
                     (WorksetIterationPlanNode)
                             op.getDataSinks().iterator().next().getInput().getSource();
-            assertTrue(wipn.getSolutionSetPlanNode().getOutgoingChannels().isEmpty());
+            assertThat(wipn.getSolutionSetPlanNode().getOutgoingChannels()).isEmpty();
 
             JobGraphGenerator jgg = new JobGraphGenerator();
             jgg.compileJobGraph(op);

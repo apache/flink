@@ -25,15 +25,16 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class JoinGlobalPropertiesCompatibilityTest {
 
     @Test
-    public void checkCompatiblePartitionings() {
+    void checkCompatiblePartitionings() {
         try {
             final FieldList keysLeft = new FieldList(1, 4);
             final FieldList keysRight = new FieldList(3, 1);
@@ -53,7 +54,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setHashPartitioned(keysRight);
 
-                assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isTrue();
             }
 
             // test compatible custom partitioning
@@ -76,7 +77,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setCustomPartitioned(keysRight, part);
 
-                assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isTrue();
             }
 
             // test custom partitioning matching any partitioning
@@ -99,7 +100,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setCustomPartitioned(keysRight, part);
 
-                assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isTrue();
             }
 
             TestDistribution dist1 = new TestDistribution(1);
@@ -124,7 +125,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 propsLeft.setRangePartitioned(ordering1, dist1);
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setRangePartitioned(ordering2, dist2);
-                assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isTrue();
             }
             // test compatible range partitioning with two orderings
             {
@@ -144,7 +145,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 propsLeft.setRangePartitioned(ordering1, dist1);
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setRangePartitioned(ordering2, dist2);
-                assertTrue(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isTrue();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -153,7 +154,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
     }
 
     @Test
-    public void checkInompatiblePartitionings() {
+    void checkInompatiblePartitionings() {
         try {
             final FieldList keysLeft = new FieldList(1);
             final FieldList keysRight = new FieldList(3);
@@ -188,7 +189,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setCustomPartitioned(keysRight, part);
 
-                assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isFalse();
             }
 
             // test incompatible custom partitionings
@@ -203,7 +204,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setCustomPartitioned(keysRight, part2);
 
-                assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isFalse();
             }
 
             TestDistribution dist1 = new TestDistribution(1);
@@ -230,7 +231,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 propsLeft.setRangePartitioned(ordering1, dist1);
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setRangePartitioned(ordering2, dist2);
-                assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isFalse();
             }
 
             // test incompatible range partitioning with different ordering
@@ -253,7 +254,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 propsLeft.setRangePartitioned(ordering1, dist1);
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setRangePartitioned(ordering2, dist2);
-                assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isFalse();
             }
 
             TestDistribution dist3 = new TestDistribution(1);
@@ -279,7 +280,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
                 propsLeft.setRangePartitioned(ordering1, dist3);
                 GlobalProperties propsRight = new GlobalProperties();
                 propsRight.setRangePartitioned(ordering2, dist4);
-                assertFalse(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight));
+                assertThat(descr.areCompatible(reqLeft, reqRight, propsLeft, propsRight)).isFalse();
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -47,19 +47,19 @@ import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 
     @Test
-    public void testCostComputationWithMultipleDataSinks() {
+    void testCostComputationWithMultipleDataSinks() {
         final int SINKS = 5;
 
         try {
@@ -101,7 +101,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      */
     @SuppressWarnings("unchecked")
     @Test
-    public void testBranchingWithMultipleDataSinks2() {
+    void testBranchingWithMultipleDataSinks2() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(DEFAULT_PARALLELISM);
@@ -124,13 +124,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            assertEquals("Wrong number of data sinks.", 3, oPlan.getDataSinks().size());
+            assertThat(oPlan.getDataSinks()).as("Wrong number of data sinks.").hasSize(3);
 
             // remove matching sinks to check relation
             for (SinkPlanNode sink : oPlan.getDataSinks()) {
-                assertTrue(sinks.remove(sink.getProgramOperator()));
+                assertThat(sinks.remove(sink.getProgramOperator())).isTrue();
             }
-            assertTrue(sinks.isEmpty());
+            assertThat(sinks).isEmpty();
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -165,7 +165,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testBranchingSourceMultipleTimes() {
+    void testBranchingSourceMultipleTimes() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(DEFAULT_PARALLELISM);
@@ -280,7 +280,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testBranchingWithMultipleDataSinks() {
+    void testBranchingWithMultipleDataSinks() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(DEFAULT_PARALLELISM);
@@ -345,7 +345,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testBranchEachContractType() {
+    void testBranchEachContractType() {
         try {
             // construct the plan
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -439,12 +439,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testBranchingUnion() {
+    void testBranchingUnion() {
         try {
             // construct the plan
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -496,7 +496,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -510,7 +510,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testBranchingWithMultipleDataSinksSmall() {
+    void testBranchingWithMultipleDataSinksSmall() {
         try {
             String outPath1 = "/tmp/out1";
             String outPath2 = "/tmp/out2";
@@ -529,7 +529,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            Assert.assertEquals("Wrong number of data sinks.", 2, oPlan.getDataSinks().size());
+            assertThat(oPlan.getDataSinks()).as("Wrong number of data sinks.").hasSize(2);
 
             // sinks contain all sink paths
             Set<String> allSinks = new HashSet<String>();
@@ -545,7 +545,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
                                                 .getUserCodeObject())
                                 .getOutputFilePath()
                                 .toString();
-                Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
+                assertThat(allSinks.remove(path)).as("Invalid data sink.").isTrue();
             }
 
             // ---------- compile plan to job graph to verify that no error is thrown ----------
@@ -554,7 +554,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -571,7 +571,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * caught.
      */
     @Test
-    public void testBranchingDisjointPlan() {
+    void testBranchingDisjointPlan() {
         // construct the plan
         final String out1Path = "file:///test/1";
         final String out2Path = "file:///test/2";
@@ -594,7 +594,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBranchAfterIteration() {
+    void testBranchAfterIteration() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         DataSet<Long> sourceA = env.generateSequence(0, 1);
@@ -612,12 +612,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testBranchBeforeIteration() {
+    void testBranchBeforeIteration() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         DataSet<Long> source1 = env.generateSequence(0, 1);
@@ -642,7 +642,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -658,7 +658,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testClosure() {
+    void testClosure() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         DataSet<Long> sourceA = env.generateSequence(0, 1);
@@ -680,7 +680,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -698,7 +698,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testClosureDeltaIteration() {
+    void testClosureDeltaIteration() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         DataSet<Tuple2<Long, Long>> sourceA =
@@ -735,7 +735,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -758,7 +758,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testDeltaIterationWithStaticInput() {
+    void testDeltaIterationWithStaticInput() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
         DataSet<Tuple2<Long, Long>> source = env.generateSequence(0, 1).map(new Duplicator<Long>());
@@ -794,7 +794,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -814,7 +814,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testIterationWithStaticInput() {
+    void testIterationWithStaticInput() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(100);
@@ -845,7 +845,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBranchingBroadcastVariable() {
+    void testBranchingBroadcastVariable() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(100);
 
@@ -884,12 +884,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testBCVariableClosure() {
+    void testBCVariableClosure() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
@@ -915,12 +915,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testMultipleIterations() {
+    void testMultipleIterations() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(100);
 
@@ -958,12 +958,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testMultipleIterationsWithClosueBCVars() {
+    void testMultipleIterationsWithClosueBCVars() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(100);
 
@@ -989,12 +989,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testBranchesOnlyInBCVariables1() {
+    void testBranchesOnlyInBCVariables1() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(100);
@@ -1017,7 +1017,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBranchesOnlyInBCVariables2() {
+    void testBranchesOnlyInBCVariables2() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(100);

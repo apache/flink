@@ -27,15 +27,15 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class DeltaIterationDependenciesTest extends CompilerTestBase {
 
     @Test
-    public void testExceptionWhenNewWorksetNotDependentOnWorkset() {
+    void testExceptionWhenNewWorksetNotDependentOnWorkset() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

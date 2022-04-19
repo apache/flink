@@ -33,16 +33,16 @@ import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class DistinctCompilationTest extends CompilerTestBase implements java.io.Serializable {
 
     @Test
-    public void testDistinctPlain() {
+    void testDistinctPlain() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -73,23 +73,24 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
                     (SingleInputPlanNode) reduceNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, combineNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(combineNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_PARTIAL_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(0, 1), reduceNode.getKeys(0));
-            assertEquals(new FieldList(0, 1), combineNode.getKeys(0));
-            assertEquals(new FieldList(0, 1), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(0, 1));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(0, 1));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(0, 1));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -98,7 +99,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
     }
 
     @Test
-    public void testDistinctWithCombineHint() {
+    void testDistinctWithCombineHint() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -130,23 +131,24 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
                     (SingleInputPlanNode) reduceNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, combineNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(combineNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.HASHED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HASHED_PARTIAL_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(0, 1), reduceNode.getKeys(0));
-            assertEquals(new FieldList(0, 1), combineNode.getKeys(0));
-            assertEquals(new FieldList(0, 1), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(0, 1));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(0, 1));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(0, 1));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -155,7 +157,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
     }
 
     @Test
-    public void testDistinctWithSelectorFunctionKey() {
+    void testDistinctWithSelectorFunctionKey() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -197,26 +199,27 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
                     (SingleInputPlanNode) sinkNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, keyExtractor.getInput().getSource());
-            assertEquals(keyProjector, sinkNode.getInput().getSource());
+            assertThat(keyExtractor.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(keyProjector);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_PARTIAL_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(0), reduceNode.getKeys(0));
-            assertEquals(new FieldList(0), combineNode.getKeys(0));
-            assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(0));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(0));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(0));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, keyExtractor.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(keyExtractor.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
 
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, keyProjector.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(keyProjector.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -225,7 +228,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
     }
 
     @Test
-    public void testDistinctWithFieldPositionKeyCombinable() {
+    void testDistinctWithFieldPositionKeyCombinable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -255,23 +258,24 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
                     (SingleInputPlanNode) reduceNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, combineNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(combineNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.SORTED_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_PARTIAL_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(1), reduceNode.getKeys(0));
-            assertEquals(new FieldList(1), combineNode.getKeys(0));
-            assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(1));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(1));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(1));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

@@ -37,15 +37,16 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class GroupReduceCompilationTest extends CompilerTestBase implements java.io.Serializable {
 
     @Test
-    public void testAllGroupReduceNoCombiner() {
+    void testAllGroupReduceNoCombiner() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -73,16 +74,16 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
             SinkPlanNode sinkNode = resolver.getNode("sink");
 
             // check wiring
-            assertEquals(sourceNode, reduceNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(reduceNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that reduce has the right strategy
-            assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.ALL_GROUP_REDUCE);
 
             // check parallelism
-            assertEquals(1, sourceNode.getParallelism());
-            assertEquals(1, reduceNode.getParallelism());
-            assertEquals(1, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(1);
+            assertThat(reduceNode.getParallelism()).isEqualTo(1);
+            assertThat(sinkNode.getParallelism()).isEqualTo(1);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -91,7 +92,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
     }
 
     @Test
-    public void testAllReduceWithCombiner() {
+    void testAllReduceWithCombiner() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -119,18 +120,19 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
                     (SingleInputPlanNode) reduceNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, combineNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(combineNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.ALL_GROUP_REDUCE_COMBINE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy()).isEqualTo(DriverStrategy.ALL_GROUP_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.ALL_GROUP_REDUCE_COMBINE);
 
             // check parallelism
-            assertEquals(8, sourceNode.getParallelism());
-            assertEquals(8, combineNode.getParallelism());
-            assertEquals(1, reduceNode.getParallelism());
-            assertEquals(1, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(8);
+            assertThat(combineNode.getParallelism()).isEqualTo(8);
+            assertThat(reduceNode.getParallelism()).isEqualTo(1);
+            assertThat(sinkNode.getParallelism()).isEqualTo(1);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -139,7 +141,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
     }
 
     @Test
-    public void testGroupedReduceWithFieldPositionKeyNonCombinable() {
+    void testGroupedReduceWithFieldPositionKeyNonCombinable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -173,20 +175,21 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
             SinkPlanNode sinkNode = resolver.getNode("sink");
 
             // check wiring
-            assertEquals(sourceNode, reduceNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(reduceNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(1), reduceNode.getKeys(0));
-            assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(1));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(1));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -195,7 +198,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
     }
 
     @Test
-    public void testGroupedReduceWithFieldPositionKeyCombinable() {
+    void testGroupedReduceWithFieldPositionKeyCombinable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -227,24 +230,26 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
                     (SingleInputPlanNode) reduceNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, combineNode.getInput().getSource());
-            assertEquals(reduceNode, sinkNode.getInput().getSource());
+            assertThat(combineNode.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(reduceNode);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_COMBINE);
 
             // check the keys
-            assertEquals(new FieldList(1), reduceNode.getKeys(0));
-            assertEquals(new FieldList(1), combineNode.getKeys(0));
-            assertEquals(new FieldList(1), combineNode.getKeys(1));
-            assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(1));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(1));
+            assertThat(combineNode.getKeys(1)).isEqualTo(new FieldList(1));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(1));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -253,7 +258,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
     }
 
     @Test
-    public void testGroupedReduceWithSelectorFunctionKeyNoncombinable() {
+    void testGroupedReduceWithSelectorFunctionKeyNoncombinable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -298,23 +303,24 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
                     (SingleInputPlanNode) sinkNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, keyExtractor.getInput().getSource());
-            assertEquals(keyProjector, sinkNode.getInput().getSource());
+            assertThat(keyExtractor.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(keyProjector);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_REDUCE);
 
             // check the keys
-            assertEquals(new FieldList(0), reduceNode.getKeys(0));
-            assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(0));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(0));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, keyExtractor.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(keyExtractor.getParallelism()).isEqualTo(6);
 
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, keyProjector.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(keyProjector.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -323,7 +329,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
     }
 
     @Test
-    public void testGroupedReduceWithSelectorFunctionKeyCombinable() {
+    void testGroupedReduceWithSelectorFunctionKeyCombinable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -368,27 +374,29 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
                     (SingleInputPlanNode) sinkNode.getInput().getSource();
 
             // check wiring
-            assertEquals(sourceNode, keyExtractor.getInput().getSource());
-            assertEquals(keyProjector, sinkNode.getInput().getSource());
+            assertThat(keyExtractor.getInput().getSource()).isEqualTo(sourceNode);
+            assertThat(sinkNode.getInput().getSource()).isEqualTo(keyProjector);
 
             // check that both reduce and combiner have the same strategy
-            assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
-            assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
+            assertThat(reduceNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_REDUCE);
+            assertThat(combineNode.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.SORTED_GROUP_COMBINE);
 
             // check the keys
-            assertEquals(new FieldList(0), reduceNode.getKeys(0));
-            assertEquals(new FieldList(0), combineNode.getKeys(0));
-            assertEquals(new FieldList(0), combineNode.getKeys(1));
-            assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+            assertThat(reduceNode.getKeys(0)).isEqualTo(new FieldList(0));
+            assertThat(combineNode.getKeys(0)).isEqualTo(new FieldList(0));
+            assertThat(combineNode.getKeys(1)).isEqualTo(new FieldList(0));
+            assertThat(reduceNode.getInput().getLocalStrategyKeys()).isEqualTo(new FieldList(0));
 
             // check parallelism
-            assertEquals(6, sourceNode.getParallelism());
-            assertEquals(6, keyExtractor.getParallelism());
-            assertEquals(6, combineNode.getParallelism());
+            assertThat(sourceNode.getParallelism()).isEqualTo(6);
+            assertThat(keyExtractor.getParallelism()).isEqualTo(6);
+            assertThat(combineNode.getParallelism()).isEqualTo(6);
 
-            assertEquals(8, reduceNode.getParallelism());
-            assertEquals(8, keyProjector.getParallelism());
-            assertEquals(8, sinkNode.getParallelism());
+            assertThat(reduceNode.getParallelism()).isEqualTo(8);
+            assertThat(keyProjector.getParallelism()).isEqualTo(8);
+            assertThat(sinkNode.getParallelism()).isEqualTo(8);
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

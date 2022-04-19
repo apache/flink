@@ -27,9 +27,9 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This test case has been created to validate a bug that occurred when the ReduceOperator was used
@@ -39,7 +39,7 @@ import static org.junit.Assert.fail;
 public class ReduceAllTest extends CompilerTestBase {
 
     @Test
-    public void testReduce() {
+    void testReduce() {
         // construct the plan
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);

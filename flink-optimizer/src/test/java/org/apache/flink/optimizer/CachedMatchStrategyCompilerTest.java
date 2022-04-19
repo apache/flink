@@ -34,10 +34,10 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests that validate optimizer choice when using hash joins inside of iterations */
 @SuppressWarnings("serial")
@@ -48,7 +48,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
      * HYBRIDHASH_BUILD_SECOND_CACHED when inside of an iteration an on the static path
      */
     @Test
-    public void testRightSide() {
+    void testRightSide() {
         try {
 
             Plan plan = getTestPlanRightStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
@@ -59,10 +59,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
             DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 
             // verify correct join strategy
-            assertEquals(
-                    DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, innerJoin.getDriverStrategy());
-            assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
+            assertThat(innerJoin.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
+            assertThat(innerJoin.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(innerJoin.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -77,7 +77,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
      * variant
      */
     @Test
-    public void testRightSideCountercheck() {
+    void testRightSideCountercheck() {
         try {
 
             Plan plan = getTestPlanRightStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
@@ -88,9 +88,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
             DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 
             // verify correct join strategy
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, innerJoin.getDriverStrategy());
-            assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
-            assertEquals(TempMode.CACHED, innerJoin.getInput2().getTempMode());
+            assertThat(innerJoin.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
+            assertThat(innerJoin.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(innerJoin.getInput2().getTempMode()).isEqualTo(TempMode.CACHED);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -105,7 +106,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
      * HYBRIDHASH_BUILD_FIRST_CACHED when inside of an iteration an on the static path
      */
     @Test
-    public void testLeftSide() {
+    void testLeftSide() {
         try {
 
             Plan plan = getTestPlanLeftStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
@@ -116,10 +117,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
             DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 
             // verify correct join strategy
-            assertEquals(
-                    DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED, innerJoin.getDriverStrategy());
-            assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
+            assertThat(innerJoin.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED);
+            assertThat(innerJoin.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(innerJoin.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -134,7 +135,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
      * variant
      */
     @Test
-    public void testLeftSideCountercheck() {
+    void testLeftSideCountercheck() {
         try {
 
             Plan plan = getTestPlanLeftStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
@@ -145,9 +146,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
             DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 
             // verify correct join strategy
-            assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, innerJoin.getDriverStrategy());
-            assertEquals(TempMode.CACHED, innerJoin.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
+            assertThat(innerJoin.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
+            assertThat(innerJoin.getInput1().getTempMode()).isEqualTo(TempMode.CACHED);
+            assertThat(innerJoin.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {
@@ -164,7 +166,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
      * makes sure that all relevant plans are correctly enumerated by the optimizer.
      */
     @Test
-    public void testCorrectChoosing() {
+    void testCorrectChoosing() {
         try {
 
             Plan plan = getTestPlanRightStatic("");
@@ -186,10 +188,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
             DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 
             // verify correct join strategy
-            assertEquals(
-                    DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, innerJoin.getDriverStrategy());
-            assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
+            assertThat(innerJoin.getDriverStrategy())
+                    .isEqualTo(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
+            assertThat(innerJoin.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(innerJoin.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(oPlan);
         } catch (Exception e) {

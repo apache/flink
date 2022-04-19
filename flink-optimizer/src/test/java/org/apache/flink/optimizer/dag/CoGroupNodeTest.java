@@ -24,16 +24,16 @@ import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CoGroupNodeTest {
 
     @Test
-    public void testGetSemanticProperties() {
+    void testGetSemanticProperties() {
 
         DualInputSemanticProperties origProps = new DualInputSemanticProperties();
         // props for first input
@@ -60,37 +60,37 @@ public class CoGroupNodeTest {
         SemanticProperties filteredProps = node.getSemanticPropertiesForLocalPropertyFiltering();
 
         // check first input props
-        assertTrue(filteredProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(filteredProps.getForwardingTargetFields(0, 2).size() == 1);
-        assertTrue(filteredProps.getForwardingTargetFields(0, 2).contains(2));
-        assertTrue(filteredProps.getForwardingTargetFields(0, 3).size() == 1);
-        assertTrue(filteredProps.getForwardingTargetFields(0, 3).contains(4));
-        assertTrue(filteredProps.getForwardingTargetFields(0, 6).size() == 0);
-        assertTrue(filteredProps.getForwardingSourceField(0, 1) < 0);
-        assertTrue(filteredProps.getForwardingSourceField(0, 2) == 2);
-        assertTrue(filteredProps.getForwardingSourceField(0, 4) == 3);
-        assertTrue(filteredProps.getForwardingSourceField(0, 0) < 0);
+        assertThat(filteredProps.getForwardingTargetFields(0, 0)).hasSize(0);
+        assertThat(filteredProps.getForwardingTargetFields(0, 2)).hasSize(1);
+        assertThat(filteredProps.getForwardingTargetFields(0, 2)).contains(2);
+        assertThat(filteredProps.getForwardingTargetFields(0, 3)).hasSize(1);
+        assertThat(filteredProps.getForwardingTargetFields(0, 3)).contains(4);
+        assertThat(filteredProps.getForwardingTargetFields(0, 6)).hasSize(0);
+        assertThat(filteredProps.getForwardingSourceField(0, 1)).isLessThan(0);
+        assertThat(filteredProps.getForwardingSourceField(0, 2)).isEqualTo(2);
+        assertThat(filteredProps.getForwardingSourceField(0, 4)).isEqualTo(3);
+        assertThat(filteredProps.getForwardingSourceField(0, 0)).isLessThan(0);
         // check second input props
-        assertTrue(filteredProps.getReadFields(0).size() == 4);
-        assertTrue(filteredProps.getReadFields(0).contains(0));
-        assertTrue(filteredProps.getReadFields(0).contains(2));
-        assertTrue(filteredProps.getReadFields(0).contains(4));
-        assertTrue(filteredProps.getReadFields(0).contains(7));
+        assertThat(filteredProps.getReadFields(0)).hasSize(4);
+        assertThat(filteredProps.getReadFields(0)).contains(0);
+        assertThat(filteredProps.getReadFields(0)).contains(2);
+        assertThat(filteredProps.getReadFields(0)).contains(4);
+        assertThat(filteredProps.getReadFields(0)).contains(7);
 
-        assertTrue(filteredProps.getForwardingTargetFields(1, 1).size() == 0);
-        assertTrue(filteredProps.getForwardingTargetFields(1, 2).size() == 0);
-        assertTrue(filteredProps.getForwardingTargetFields(1, 3).size() == 1);
-        assertTrue(filteredProps.getForwardingTargetFields(1, 3).contains(7));
-        assertTrue(filteredProps.getForwardingTargetFields(1, 6).size() == 1);
-        assertTrue(filteredProps.getForwardingTargetFields(1, 6).contains(6));
-        assertTrue(filteredProps.getForwardingSourceField(1, 2) < 0);
-        assertTrue(filteredProps.getForwardingSourceField(1, 8) < 0);
-        assertTrue(filteredProps.getForwardingSourceField(1, 7) == 3);
-        assertTrue(filteredProps.getForwardingSourceField(1, 6) == 6);
+        assertThat(filteredProps.getForwardingTargetFields(1, 1)).hasSize(0);
+        assertThat(filteredProps.getForwardingTargetFields(1, 2)).hasSize(0);
+        assertThat(filteredProps.getForwardingTargetFields(1, 3)).hasSize(1);
+        assertThat(filteredProps.getForwardingTargetFields(1, 3)).contains(7);
+        assertThat(filteredProps.getForwardingTargetFields(1, 6)).hasSize(1);
+        assertThat(filteredProps.getForwardingTargetFields(1, 6)).contains(6);
+        assertThat(filteredProps.getForwardingSourceField(1, 2)).isLessThan(0);
+        assertThat(filteredProps.getForwardingSourceField(1, 8)).isLessThan(0);
+        assertThat(filteredProps.getForwardingSourceField(1, 7)).isEqualTo(3);
+        assertThat(filteredProps.getForwardingSourceField(1, 6)).isEqualTo(6);
 
-        assertTrue(filteredProps.getReadFields(1).size() == 3);
-        assertTrue(filteredProps.getReadFields(1).contains(1));
-        assertTrue(filteredProps.getReadFields(1).contains(3));
-        assertTrue(filteredProps.getReadFields(1).contains(4));
+        assertThat(filteredProps.getReadFields(1)).hasSize(3);
+        assertThat(filteredProps.getReadFields(1)).contains(1);
+        assertThat(filteredProps.getReadFields(1)).contains(3);
+        assertThat(filteredProps.getReadFields(1)).contains(4);
     }
 }

@@ -44,17 +44,18 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class IterationsCompilerTest extends CompilerTestBase {
 
     @Test
-    public void testSolutionSetDeltaDependsOnBroadcastVariable() {
+    void testSolutionSetDeltaDependsOnBroadcastVariable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -95,7 +96,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testTwoIterationsWithMapperInbetween() throws Exception {
+    void testTwoIterationsWithMapperInbetween() throws Exception {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -116,22 +117,22 @@ public class IterationsCompilerTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(1, op.getDataSinks().size());
-            assertTrue(
-                    op.getDataSinks().iterator().next().getInput().getSource()
-                            instanceof WorksetIterationPlanNode);
+            assertThat(op.getDataSinks()).hasSize(1);
+            assertThat(op.getDataSinks().iterator().next().getInput().getSource())
+                    .isInstanceOf(WorksetIterationPlanNode.class);
 
             WorksetIterationPlanNode wipn =
                     (WorksetIterationPlanNode)
                             op.getDataSinks().iterator().next().getInput().getSource();
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
+            assertThat(wipn.getInput1().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
-            assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
+            assertThat(wipn.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(wipn.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+            assertThat(wipn.getInput1().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
+            assertThat(wipn.getInput2().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -141,7 +142,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testTwoIterationsDirectlyChained() throws Exception {
+    void testTwoIterationsDirectlyChained() throws Exception {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -160,10 +161,9 @@ public class IterationsCompilerTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(1, op.getDataSinks().size());
-            assertTrue(
-                    op.getDataSinks().iterator().next().getInput().getSource()
-                            instanceof WorksetIterationPlanNode);
+            assertThat(op.getDataSinks()).hasSize(1);
+            assertThat(op.getDataSinks().iterator().next().getInput().getSource())
+                    .isInstanceOf(WorksetIterationPlanNode.class);
 
             WorksetIterationPlanNode wipn =
                     (WorksetIterationPlanNode)
@@ -172,20 +172,20 @@ public class IterationsCompilerTest extends CompilerTestBase {
 
             // the hash partitioning has been pushed out of the delta iteration into the bulk
             // iteration
-            assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
+            assertThat(wipn.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             // the input of the root step function is the last operator of the step function
             // since the work has been pushed out of the bulk iteration, it has to guarantee the
             // hash partitioning
             for (Channel c : bipn.getRootOfStepFunction().getInputs()) {
-                assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+                assertThat(c.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
             }
 
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+            assertThat(wipn.getInput1().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
+            assertThat(wipn.getInput2().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
 
-            assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
+            assertThat(wipn.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(wipn.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -195,7 +195,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testTwoWorksetIterationsDirectlyChained() throws Exception {
+    void testTwoWorksetIterationsDirectlyChained() throws Exception {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -215,22 +215,21 @@ public class IterationsCompilerTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(1, op.getDataSinks().size());
-            assertTrue(
-                    op.getDataSinks().iterator().next().getInput().getSource()
-                            instanceof WorksetIterationPlanNode);
+            assertThat(op.getDataSinks()).hasSize(1);
+            assertThat(op.getDataSinks().iterator().next().getInput().getSource())
+                    .isInstanceOf(WorksetIterationPlanNode.class);
 
             WorksetIterationPlanNode wipn =
                     (WorksetIterationPlanNode)
                             op.getDataSinks().iterator().next().getInput().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
+            assertThat(wipn.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
-            assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
+            assertThat(wipn.getInput1().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
+            assertThat(wipn.getInput2().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
 
-            assertEquals(TempMode.NONE, wipn.getInput1().getTempMode());
-            assertEquals(TempMode.NONE, wipn.getInput2().getTempMode());
+            assertThat(wipn.getInput1().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(wipn.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -240,7 +239,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testIterationPushingWorkOut() throws Exception {
+    void testIterationPushingWorkOut() throws Exception {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -260,10 +259,9 @@ public class IterationsCompilerTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(1, op.getDataSinks().size());
-            assertTrue(
-                    op.getDataSinks().iterator().next().getInput().getSource()
-                            instanceof BulkIterationPlanNode);
+            assertThat(op.getDataSinks()).hasSize(1);
+            assertThat(op.getDataSinks().iterator().next().getInput().getSource())
+                    .isInstanceOf(BulkIterationPlanNode.class);
 
             BulkIterationPlanNode bipn =
                     (BulkIterationPlanNode)
@@ -271,15 +269,16 @@ public class IterationsCompilerTest extends CompilerTestBase {
 
             // check that work has been pushed out
             for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
-                assertEquals(ShipStrategyType.FORWARD, c.getShipStrategy());
+                assertThat(c.getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
             }
 
             // the end of the step function has to produce the necessary properties
             for (Channel c : bipn.getRootOfStepFunction().getInputs()) {
-                assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+                assertThat(c.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
             }
 
-            assertEquals(ShipStrategyType.PARTITION_HASH, bipn.getInput().getShipStrategy());
+            assertThat(bipn.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_HASH);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -289,7 +288,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testIterationNotPushingWorkOut() throws Exception {
+    void testIterationNotPushingWorkOut() throws Exception {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -310,10 +309,9 @@ public class IterationsCompilerTest extends CompilerTestBase {
             Plan p = env.createProgramPlan();
             OptimizedPlan op = compileNoStats(p);
 
-            assertEquals(1, op.getDataSinks().size());
-            assertTrue(
-                    op.getDataSinks().iterator().next().getInput().getSource()
-                            instanceof BulkIterationPlanNode);
+            assertThat(op.getDataSinks()).hasSize(1);
+            assertThat(op.getDataSinks().iterator().next().getInput().getSource())
+                    .isInstanceOf(BulkIterationPlanNode.class);
 
             BulkIterationPlanNode bipn =
                     (BulkIterationPlanNode)
@@ -321,10 +319,10 @@ public class IterationsCompilerTest extends CompilerTestBase {
 
             // check that work has not been pushed out
             for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
-                assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+                assertThat(c.getShipStrategy()).isEqualTo(ShipStrategyType.PARTITION_HASH);
             }
 
-            assertEquals(ShipStrategyType.FORWARD, bipn.getInput().getShipStrategy());
+            assertThat(bipn.getInput().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -334,7 +332,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testWorksetIterationPipelineBreakerPlacement() {
+    void testWorksetIterationPipelineBreakerPlacement() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(8);
@@ -373,7 +371,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testResetPartialSolution() {
+    void testResetPartialSolution() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -434,7 +432,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
      * @throws Exception
      */
     @Test
-    public void testBulkIterationWithPartialSolutionProperties() throws Exception {
+    void testBulkIterationWithPartialSolutionProperties() throws Exception {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple1<Long>> input1 =

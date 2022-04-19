@@ -38,11 +38,12 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SuppressWarnings({"serial"})
 public class PropertyDataSourceTest extends CompilerTestBase {
@@ -56,7 +57,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
                     BasicTypeInfo.STRING_TYPE_INFO);
 
     @Test
-    public void checkSinglePartitionedSource1() {
+    void checkSinglePartitionedSource1() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -80,15 +81,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource2() {
+    void checkSinglePartitionedSource2() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -112,16 +113,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(0, 1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0, 1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource3() {
+    void checkSinglePartitionedSource3() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -145,16 +145,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(0, 1, 2, 3, 4)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0, 1, 2, 3, 4));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource4() {
+    void checkSinglePartitionedSource4() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -178,16 +177,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(1, 2, 3)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1, 2, 3));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource5() {
+    void checkSinglePartitionedSource5() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -211,15 +209,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(3)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(3));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource6() {
+    void checkSinglePartitionedSource6() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -243,16 +241,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(2, 4)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(2, 4));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedSource7() {
+    void checkSinglePartitionedSource7() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -276,17 +273,16 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(0, 1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-        Assert.assertTrue(gprops.getCustomPartitioner() != null);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0, 1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.CUSTOM_PARTITIONING);
+        assertThat(gprops.getCustomPartitioner()).isNotNull();
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource1() {
+    void checkSinglePartitionedGroupedSource1() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -310,16 +306,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(0));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource2() {
+    void checkSinglePartitionedGroupedSource2() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -343,16 +338,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 1)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(0, 1));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource3() {
+    void checkSinglePartitionedGroupedSource3() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -376,15 +370,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource4() {
+    void checkSinglePartitionedGroupedSource4() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -408,16 +402,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(0, 1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0, 1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource5() {
+    void checkSinglePartitionedGroupedSource5() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -441,16 +434,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(4)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(4)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(4));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(4));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource6() {
+    void checkSinglePartitionedGroupedSource6() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -476,16 +468,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 2)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(2));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(0, 2));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource7() {
+    void checkSinglePartitionedGroupedSource7() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -509,16 +500,16 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1, 2, 3)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(2));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray()))
+                .isEqualTo(new FieldSet(1, 2, 3));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedGroupedSource8() {
+    void checkSinglePartitionedGroupedSource8() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -542,16 +533,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(1, 2, 3)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1, 2, 3));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource1() {
+    void checkSinglePartitionedOrderedSource1() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -577,16 +567,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                (new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(1));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource2() {
+    void checkSinglePartitionedOrderedSource2() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -612,16 +601,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                (new FieldSet(lprops.getGroupedFields().toArray())).equals(new FieldSet(1, 0)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(1, 0));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource3() {
+    void checkSinglePartitionedOrderedSource3() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -647,15 +635,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource4() {
+    void checkSinglePartitionedOrderedSource4() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -681,16 +669,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(0, 1)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0, 1));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource5() {
+    void checkSinglePartitionedOrderedSource5() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -717,16 +704,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(0, 2)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(2));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray())).isEqualTo(new FieldSet(0, 2));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource6() {
+    void checkSinglePartitionedOrderedSource6() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -752,16 +738,16 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray())).equals(new FieldSet(2)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(
-                new FieldSet(lprops.getGroupedFields().toArray()).equals(new FieldSet(1, 2, 3)));
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(2));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(new FieldSet(lprops.getGroupedFields().toArray()))
+                .isEqualTo(new FieldSet(1, 2, 3));
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkSinglePartitionedOrderedSource7() {
+    void checkSinglePartitionedOrderedSource7() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -787,16 +773,15 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops = sourceNode.getGlobalProperties();
         LocalProperties lprops = sourceNode.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops.getPartitioningFields().toArray()))
-                        .equals(new FieldSet(1, 2, 3)));
-        Assert.assertTrue(gprops.getPartitioning() == PartitioningProperty.ANY_PARTITIONING);
-        Assert.assertTrue(lprops.getGroupedFields() == null);
-        Assert.assertTrue(lprops.getOrdering() == null);
+        assertThat(new FieldSet(gprops.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(1, 2, 3));
+        assertThat(gprops.getPartitioning()).isSameAs(PartitioningProperty.ANY_PARTITIONING);
+        assertThat(lprops.getGroupedFields()).isNull();
+        assertThat(lprops.getOrdering()).isNull();
     }
 
     @Test
-    public void checkCoPartitionedSources1() {
+    void checkCoPartitionedSources1() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -838,23 +823,23 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
         LocalProperties lprops2 = sourceNode2.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-        Assert.assertTrue(lprops1.getGroupedFields() == null);
-        Assert.assertTrue(lprops1.getOrdering() == null);
+        assertThat(new FieldSet(gprops1.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops1.getPartitioning()).isSameAs(PartitioningProperty.CUSTOM_PARTITIONING);
+        assertThat(lprops1.getGroupedFields()).isNull();
+        assertThat(lprops1.getOrdering()).isNull();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-        Assert.assertTrue(lprops2.getGroupedFields() == null);
-        Assert.assertTrue(lprops2.getOrdering() == null);
+        assertThat(new FieldSet(gprops2.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops2.getPartitioning()).isSameAs(PartitioningProperty.CUSTOM_PARTITIONING);
+        assertThat(lprops2.getGroupedFields()).isNull();
+        assertThat(lprops2.getOrdering()).isNull();
 
-        Assert.assertTrue(gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
+        assertThat(gprops1.getCustomPartitioner()).isEqualTo(gprops2.getCustomPartitioner());
     }
 
     @Test
-    public void checkCoPartitionedSources2() {
+    void checkCoPartitionedSources2() {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -896,19 +881,19 @@ public class PropertyDataSourceTest extends CompilerTestBase {
         GlobalProperties gprops2 = sourceNode2.getGlobalProperties();
         LocalProperties lprops2 = sourceNode2.getLocalProperties();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops1.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-        Assert.assertTrue(lprops1.getGroupedFields() == null);
-        Assert.assertTrue(lprops1.getOrdering() == null);
+        assertThat(new FieldSet(gprops1.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops1.getPartitioning()).isSameAs(PartitioningProperty.CUSTOM_PARTITIONING);
+        assertThat(lprops1.getGroupedFields()).isNull();
+        assertThat(lprops1.getOrdering()).isNull();
 
-        Assert.assertTrue(
-                (new FieldSet(gprops2.getPartitioningFields().toArray())).equals(new FieldSet(0)));
-        Assert.assertTrue(gprops2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING);
-        Assert.assertTrue(lprops2.getGroupedFields() == null);
-        Assert.assertTrue(lprops2.getOrdering() == null);
+        assertThat(new FieldSet(gprops2.getPartitioningFields().toArray()))
+                .isEqualTo(new FieldSet(0));
+        assertThat(gprops2.getPartitioning()).isSameAs(PartitioningProperty.CUSTOM_PARTITIONING);
+        assertThat(lprops2.getGroupedFields()).isNull();
+        assertThat(lprops2.getOrdering()).isNull();
 
-        Assert.assertTrue(!gprops1.getCustomPartitioner().equals(gprops2.getCustomPartitioner()));
+        assertThat(gprops1.getCustomPartitioner()).isNotEqualTo(gprops2.getCustomPartitioner());
     }
 
     public static class SomePojo {

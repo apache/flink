@@ -32,12 +32,12 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This test checks the correct assignment of the DataExchangeMode to connections for programs that
@@ -59,7 +59,7 @@ import static org.junit.Assert.fail;
 public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
 
     @Test
-    public void testPipelinedForced() {
+    void testPipelinedForced() {
         // PIPELINED_FORCED should result in pipelining all the way
         verifyBranchigPlan(
                 ExecutionMode.PIPELINED_FORCED,
@@ -73,7 +73,7 @@ public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPipelined() {
+    void testPipelined() {
         // PIPELINED should result in pipelining all the way
         verifyBranchigPlan(
                 ExecutionMode.PIPELINED,
@@ -87,7 +87,7 @@ public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatch() {
+    void testBatch() {
         // BATCH should result in batching the shuffle all the way
         verifyBranchigPlan(
                 ExecutionMode.BATCH,
@@ -101,7 +101,7 @@ public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
     }
 
     @Test
-    public void testBatchForced() {
+    void testBatchForced() {
         // BATCH_FORCED should result in batching all the way
         verifyBranchigPlan(
                 ExecutionMode.BATCH_FORCED,
@@ -170,19 +170,19 @@ public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
             SingleInputPlanNode mapNode = (SingleInputPlanNode) filterNode.getPredecessor();
 
             DualInputPlanNode joinNode = (DualInputPlanNode) joinSink.getPredecessor();
-            assertEquals(mapNode, joinNode.getInput1().getSource());
+            assertThat(joinNode.getInput1().getSource()).isEqualTo(mapNode);
 
-            assertEquals(mapNode, directSink.getPredecessor());
+            assertThat(directSink.getPredecessor()).isEqualTo(mapNode);
 
-            assertEquals(toFilterSink, filterSink.getInput().getDataExchangeMode());
-            assertEquals(toJoinSink, joinSink.getInput().getDataExchangeMode());
-            assertEquals(toDirectSink, directSink.getInput().getDataExchangeMode());
+            assertThat(filterSink.getInput().getDataExchangeMode()).isEqualTo(toFilterSink);
+            assertThat(joinSink.getInput().getDataExchangeMode()).isEqualTo(toJoinSink);
+            assertThat(directSink.getInput().getDataExchangeMode()).isEqualTo(toDirectSink);
 
-            assertEquals(toMap, mapNode.getInput().getDataExchangeMode());
-            assertEquals(toFilter, filterNode.getInput().getDataExchangeMode());
+            assertThat(mapNode.getInput().getDataExchangeMode()).isEqualTo(toMap);
+            assertThat(filterNode.getInput().getDataExchangeMode()).isEqualTo(toFilter);
 
-            assertEquals(toJoin1, joinNode.getInput1().getDataExchangeMode());
-            assertEquals(toJoin2, joinNode.getInput2().getDataExchangeMode());
+            assertThat(joinNode.getInput1().getDataExchangeMode()).isEqualTo(toJoin1);
+            assertThat(joinNode.getInput2().getDataExchangeMode()).isEqualTo(toJoin2);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

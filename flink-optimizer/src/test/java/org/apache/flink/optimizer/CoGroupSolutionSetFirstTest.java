@@ -36,8 +36,10 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
@@ -59,7 +61,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
     }
 
     @Test
-    public void testCoGroupSolutionSet() {
+    void testCoGroupSolutionSet() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple1<Integer>> raw = env.readCsvFile(IN_FILE).types(Integer.class);
 
@@ -83,7 +85,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
         try {
             oPlan = compileNoStats(plan);
         } catch (CompilerException e) {
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
 
         oPlan.accept(
@@ -102,16 +104,13 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
                             Channel in1 = dpn.getInput1();
                             Channel in2 = dpn.getInput2();
 
-                            Assert.assertTrue(in1.getLocalProperties().getOrdering() == null);
-                            Assert.assertTrue(in2.getLocalProperties().getOrdering() != null);
-                            Assert.assertTrue(
-                                    in2.getLocalProperties()
-                                            .getOrdering()
-                                            .getInvolvedIndexes()
-                                            .contains(0));
-                            Assert.assertTrue(in1.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assert.assertTrue(
-                                    in2.getShipStrategy() == ShipStrategyType.PARTITION_HASH);
+                            assertThat(in1.getLocalProperties().getOrdering()).isNull();
+                            assertThat(in2.getLocalProperties().getOrdering()).isNotNull();
+                            assertThat(in2.getLocalProperties().getOrdering().getInvolvedIndexes())
+                                    .contains(0);
+                            assertThat(in1.getShipStrategy()).isSameAs(ShipStrategyType.FORWARD);
+                            assertThat(in2.getShipStrategy())
+                                    .isSameAs(ShipStrategyType.PARTITION_HASH);
                             return false;
                         }
                         return true;

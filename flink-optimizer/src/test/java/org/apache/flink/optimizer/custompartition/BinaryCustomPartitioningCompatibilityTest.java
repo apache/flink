@@ -34,15 +34,16 @@ import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase {
 
     @Test
-    public void testCompatiblePartitioningJoin() {
+    void testCompatiblePartitioningJoin() {
         try {
             final Partitioner<Long> partitioner =
                     new Partitioner<Long>() {
@@ -74,15 +75,15 @@ public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase 
             SingleInputPlanNode partitioner1 = (SingleInputPlanNode) join.getInput1().getSource();
             SingleInputPlanNode partitioner2 = (SingleInputPlanNode) join.getInput2().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, join.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, join.getInput2().getShipStrategy());
+            assertThat(join.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(join.getInput2().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
-            assertEquals(
-                    ShipStrategyType.PARTITION_CUSTOM, partitioner1.getInput().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_CUSTOM, partitioner2.getInput().getShipStrategy());
-            assertEquals(partitioner, partitioner1.getInput().getPartitioner());
-            assertEquals(partitioner, partitioner2.getInput().getPartitioner());
+            assertThat(partitioner1.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(partitioner2.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(partitioner1.getInput().getPartitioner()).isEqualTo(partitioner);
+            assertThat(partitioner2.getInput().getPartitioner()).isEqualTo(partitioner);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {
@@ -92,7 +93,7 @@ public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase 
     }
 
     @Test
-    public void testCompatiblePartitioningCoGroup() {
+    void testCompatiblePartitioningCoGroup() {
         try {
             final Partitioner<Long> partitioner =
                     new Partitioner<Long>() {
@@ -127,15 +128,15 @@ public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase 
             SingleInputPlanNode partitioner2 =
                     (SingleInputPlanNode) coGroup.getInput2().getSource();
 
-            assertEquals(ShipStrategyType.FORWARD, coGroup.getInput1().getShipStrategy());
-            assertEquals(ShipStrategyType.FORWARD, coGroup.getInput2().getShipStrategy());
+            assertThat(coGroup.getInput1().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
+            assertThat(coGroup.getInput2().getShipStrategy()).isEqualTo(ShipStrategyType.FORWARD);
 
-            assertEquals(
-                    ShipStrategyType.PARTITION_CUSTOM, partitioner1.getInput().getShipStrategy());
-            assertEquals(
-                    ShipStrategyType.PARTITION_CUSTOM, partitioner2.getInput().getShipStrategy());
-            assertEquals(partitioner, partitioner1.getInput().getPartitioner());
-            assertEquals(partitioner, partitioner2.getInput().getPartitioner());
+            assertThat(partitioner1.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(partitioner2.getInput().getShipStrategy())
+                    .isEqualTo(ShipStrategyType.PARTITION_CUSTOM);
+            assertThat(partitioner1.getInput().getPartitioner()).isEqualTo(partitioner);
+            assertThat(partitioner2.getInput().getPartitioner()).isEqualTo(partitioner);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {

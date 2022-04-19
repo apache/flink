@@ -28,15 +28,15 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class JoinOnConflictingPartitioningsTest extends CompilerTestBase {
 
     @Test
-    public void testRejectJoinOnHashAndRangePartitioning() {
+    void testRejectJoinOnHashAndRangePartitioning() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

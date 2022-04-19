@@ -36,15 +36,16 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class IterationCompilerTest extends CompilerTestBase {
 
     @Test
-    public void testIdentityIteration() {
+    void testIdentityIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(43);
@@ -63,7 +64,7 @@ public class IterationCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testEmptyWorksetIteration() {
+    void testEmptyWorksetIteration() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(43);
@@ -94,7 +95,7 @@ public class IterationCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testIterationWithUnionRoot() {
+    void testIterationWithUnionRoot() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(43);
@@ -120,11 +121,11 @@ public class IterationCompilerTest extends CompilerTestBase {
             SingleInputPlanNode noop = (SingleInputPlanNode) iterNode.getRootOfStepFunction();
             NAryUnionPlanNode union = (NAryUnionPlanNode) noop.getInput().getSource();
 
-            assertTrue(noop.isOnDynamicPath());
-            assertTrue(noop.getCostWeight() >= 1);
+            assertThat(noop.isOnDynamicPath()).isTrue();
+            assertThat(noop.getCostWeight()).isGreaterThanOrEqualTo(1);
 
-            assertTrue(union.isOnDynamicPath());
-            assertTrue(union.getCostWeight() >= 1);
+            assertThat(union.isOnDynamicPath()).isTrue();
+            assertThat(union.getCostWeight()).isGreaterThanOrEqualTo(1);
 
             // see that the jobgraph generator can translate this
             new JobGraphGenerator().compileJobGraph(op);
@@ -135,7 +136,7 @@ public class IterationCompilerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testWorksetIterationWithUnionRoot() {
+    void testWorksetIterationWithUnionRoot() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(43);
@@ -185,17 +186,17 @@ public class IterationCompilerTest extends CompilerTestBase {
             NAryUnionPlanNode solutionDeltaUnion =
                     (NAryUnionPlanNode) solutionDeltaNoop.getInput().getSource();
 
-            assertTrue(nextWorksetNoop.isOnDynamicPath());
-            assertTrue(nextWorksetNoop.getCostWeight() >= 1);
+            assertThat(nextWorksetNoop.isOnDynamicPath()).isTrue();
+            assertThat(nextWorksetNoop.getCostWeight()).isGreaterThanOrEqualTo(1);
 
-            assertTrue(solutionDeltaNoop.isOnDynamicPath());
-            assertTrue(solutionDeltaNoop.getCostWeight() >= 1);
+            assertThat(solutionDeltaNoop.isOnDynamicPath()).isTrue();
+            assertThat(solutionDeltaNoop.getCostWeight()).isGreaterThanOrEqualTo(1);
 
-            assertTrue(nextWorksetUnion.isOnDynamicPath());
-            assertTrue(nextWorksetUnion.getCostWeight() >= 1);
+            assertThat(nextWorksetUnion.isOnDynamicPath()).isTrue();
+            assertThat(nextWorksetUnion.getCostWeight()).isGreaterThanOrEqualTo(1);
 
-            assertTrue(solutionDeltaUnion.isOnDynamicPath());
-            assertTrue(solutionDeltaUnion.getCostWeight() >= 1);
+            assertThat(solutionDeltaUnion.isOnDynamicPath()).isTrue();
+            assertThat(solutionDeltaUnion.getCostWeight()).isGreaterThanOrEqualTo(1);
 
             new JobGraphGenerator().compileJobGraph(op);
         } catch (Exception e) {

@@ -23,16 +23,16 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class MapPartitionNodeTest {
 
     @Test
-    public void testGetSemanticProperties() {
+    void testGetSemanticProperties() {
 
         SingleInputSemanticProperties origProps = new SingleInputSemanticProperties();
         origProps.addForwardedField(0, 1);
@@ -47,14 +47,14 @@ public class MapPartitionNodeTest {
 
         SemanticProperties filteredProps = node.getSemanticPropertiesForLocalPropertyFiltering();
 
-        assertTrue(filteredProps.getForwardingTargetFields(0, 0).size() == 0);
-        assertTrue(filteredProps.getForwardingTargetFields(0, 2).size() == 0);
-        assertTrue(filteredProps.getForwardingSourceField(0, 1) < 0);
-        assertTrue(filteredProps.getForwardingSourceField(0, 2) < 0);
-        assertTrue(filteredProps.getReadFields(0).size() == 4);
-        assertTrue(filteredProps.getReadFields(0).contains(0));
-        assertTrue(filteredProps.getReadFields(0).contains(2));
-        assertTrue(filteredProps.getReadFields(0).contains(4));
-        assertTrue(filteredProps.getReadFields(0).contains(7));
+        assertThat(filteredProps.getForwardingTargetFields(0, 0)).hasSize(0);
+        assertThat(filteredProps.getForwardingTargetFields(0, 2)).hasSize(0);
+        assertThat(filteredProps.getForwardingSourceField(0, 1)).isLessThan(0);
+        assertThat(filteredProps.getForwardingSourceField(0, 2)).isLessThan(0);
+        assertThat(filteredProps.getReadFields(0)).hasSize(4);
+        assertThat(filteredProps.getReadFields(0)).contains(0);
+        assertThat(filteredProps.getReadFields(0)).contains(2);
+        assertThat(filteredProps.getReadFields(0)).contains(4);
+        assertThat(filteredProps.getReadFields(0)).contains(7);
     }
 }

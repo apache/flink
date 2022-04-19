@@ -25,10 +25,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionPlanUtil;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.StringContains.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ExecutionPlanUtil}. We have to test this here in flink-optimizer because the
@@ -38,7 +37,7 @@ import static org.hamcrest.core.StringContains.containsString;
 public class ExecutionPlanUtilTest {
 
     @Test
-    public void executionPlanCanBeRetrieved() {
+    void executionPlanCanBeRetrieved() {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(8);
 
@@ -54,8 +53,8 @@ public class ExecutionPlanUtilTest {
         Plan plan = env.createProgramPlan();
         String executionPlanAsJSON = ExecutionPlanUtil.getExecutionPlanAsJSON(plan);
 
-        assertThat(executionPlanAsJSON, containsString("sourceThatWillNotRun"));
-        assertThat(executionPlanAsJSON, containsString("sinkThatWillNotRun"));
-        assertThat(executionPlanAsJSON, containsString("theMap"));
+        assertThat(executionPlanAsJSON).contains("sourceThatWillNotRun");
+        assertThat(executionPlanAsJSON).contains("sinkThatWillNotRun");
+        assertThat(executionPlanAsJSON).contains("theMap");
     }
 }

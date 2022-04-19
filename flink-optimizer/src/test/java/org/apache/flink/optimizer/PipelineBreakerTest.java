@@ -37,9 +37,10 @@ import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests in this class validate that the {@link ExecutionMode#PIPELINED} execution mode properly
@@ -49,7 +50,7 @@ import static org.junit.Assert.*;
 public class PipelineBreakerTest extends CompilerTestBase {
 
     @Test
-    public void testPipelineBreakerWithBroadcastVariable() {
+    void testPipelineBreakerWithBroadcastVariable() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.getConfig().setExecutionMode(ExecutionMode.PIPELINED);
@@ -71,14 +72,13 @@ public class PipelineBreakerTest extends CompilerTestBase {
             SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
             SingleInputPlanNode mapperInput = (SingleInputPlanNode) mapper.getInput().getSource();
 
-            assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-            assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+            assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(mapper.getBroadcastInputs().get(0).getTempMode()).isEqualTo(TempMode.NONE);
 
-            assertEquals(DataExchangeMode.BATCH, mapperInput.getInput().getDataExchangeMode());
-            assertEquals(
-                    DataExchangeMode.BATCH,
-                    mapper.getBroadcastInputs().get(0).getDataExchangeMode());
-
+            assertThat(mapperInput.getInput().getDataExchangeMode())
+                    .isEqualTo(DataExchangeMode.BATCH);
+            assertThat(mapper.getBroadcastInputs().get(0).getDataExchangeMode())
+                    .isEqualTo(DataExchangeMode.BATCH);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -86,7 +86,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPipelineBreakerBroadcastedAllReduce() {
+    void testPipelineBreakerBroadcastedAllReduce() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.getConfig().setExecutionMode(ExecutionMode.PIPELINED);
@@ -115,8 +115,8 @@ public class PipelineBreakerTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
 
-            assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-            assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
+            assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+            assertThat(mapper.getInput().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -142,7 +142,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
      * </pre>
      */
     @Test
-    public void testPipelineBreakerBroadcastedPartialSolution() {
+    void testPipelineBreakerBroadcastedPartialSolution() {
         try {
             ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
             env.getConfig().setExecutionMode(ExecutionMode.PIPELINED);
@@ -176,8 +176,8 @@ public class PipelineBreakerTest extends CompilerTestBase {
             SingleInputPlanNode mapper =
                     (SingleInputPlanNode) iterationPlanNode.getRootOfStepFunction();
 
-            assertEquals(TempMode.CACHED, mapper.getInput().getTempMode());
-            assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
+            assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.CACHED);
+            assertThat(mapper.getInput().getDataExchangeMode()).isEqualTo(DataExchangeMode.BATCH);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -185,7 +185,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
     }
 
     @Test
-    public void testPipelineBreakerWithCross() {
+    void testPipelineBreakerWithCross() {
         try {
             {
                 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -209,10 +209,12 @@ public class PipelineBreakerTest extends CompilerTestBase {
                 DualInputPlanNode cross = (DualInputPlanNode) sink.getInput().getSource();
                 SingleInputPlanNode mapper = (SingleInputPlanNode) cross.getInput1().getSource();
 
-                assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-                assertEquals(TempMode.NONE, cross.getInput2().getTempMode());
-                assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
-                assertEquals(DataExchangeMode.BATCH, cross.getInput2().getDataExchangeMode());
+                assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(cross.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(mapper.getInput().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
+                assertThat(cross.getInput2().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
             }
 
             {
@@ -238,10 +240,12 @@ public class PipelineBreakerTest extends CompilerTestBase {
                 DualInputPlanNode cross = (DualInputPlanNode) sink.getInput().getSource();
                 SingleInputPlanNode mapper = (SingleInputPlanNode) cross.getInput1().getSource();
 
-                assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-                assertEquals(TempMode.NONE, cross.getInput2().getTempMode());
-                assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
-                assertEquals(DataExchangeMode.BATCH, cross.getInput2().getDataExchangeMode());
+                assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(cross.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(mapper.getInput().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
+                assertThat(cross.getInput2().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
             }
 
             {
@@ -267,10 +271,12 @@ public class PipelineBreakerTest extends CompilerTestBase {
                 DualInputPlanNode cross = (DualInputPlanNode) sink.getInput().getSource();
                 SingleInputPlanNode mapper = (SingleInputPlanNode) cross.getInput1().getSource();
 
-                assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-                assertEquals(TempMode.NONE, cross.getInput2().getTempMode());
-                assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
-                assertEquals(DataExchangeMode.BATCH, cross.getInput2().getDataExchangeMode());
+                assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(cross.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(mapper.getInput().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
+                assertThat(cross.getInput2().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
             }
 
             {
@@ -296,10 +302,12 @@ public class PipelineBreakerTest extends CompilerTestBase {
                 DualInputPlanNode cross = (DualInputPlanNode) sink.getInput().getSource();
                 SingleInputPlanNode mapper = (SingleInputPlanNode) cross.getInput1().getSource();
 
-                assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-                assertEquals(TempMode.NONE, cross.getInput2().getTempMode());
-                assertEquals(DataExchangeMode.BATCH, mapper.getInput().getDataExchangeMode());
-                assertEquals(DataExchangeMode.BATCH, cross.getInput2().getDataExchangeMode());
+                assertThat(mapper.getInput().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(cross.getInput2().getTempMode()).isEqualTo(TempMode.NONE);
+                assertThat(mapper.getInput().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
+                assertThat(cross.getInput2().getDataExchangeMode())
+                        .isEqualTo(DataExchangeMode.BATCH);
             }
         } catch (Exception e) {
             e.printStackTrace();
