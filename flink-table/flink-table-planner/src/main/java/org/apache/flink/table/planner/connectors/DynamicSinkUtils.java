@@ -419,16 +419,7 @@ public final class DynamicSinkUtils {
         for (Integer columnIndex : metadataColumns) {
             MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(columnIndex);
             String metadataKey = metadataColumn.getMetadataKey().orElse(metadataColumn.getName());
-            if (metadataKeysToMetadataColumns.containsKey(metadataKey)) {
-                throw new ValidationException(
-                        String.format(
-                                "The column `%s` and `%s` in the table are both from the same metadata key '%s'. "
-                                        + "Please specify one of the columns as the metadata column and use the computed column syntax "
-                                        + "to specify the others.",
-                                metadataKeysToMetadataColumns.get(metadataKey).getName(),
-                                metadataColumn.getName(),
-                                metadataKey));
-            }
+            // After resolving, every metadata column has the unique metadata key.
             metadataKeysToMetadataColumns.put(metadataKey, metadataColumn);
         }
 
