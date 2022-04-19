@@ -555,6 +555,7 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
                 final int numSlots, final Configuration configuration) {
             super(
                     new MiniClusterConfiguration.Builder()
+                            .withRandomPorts()
                             .setRpcServiceSharing(RpcServiceSharing.SHARED)
                             .setNumTaskManagers(1)
                             .setConfiguration(configuration)

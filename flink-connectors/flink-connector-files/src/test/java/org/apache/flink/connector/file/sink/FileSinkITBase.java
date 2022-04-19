@@ -18,8 +18,6 @@
 
 package org.apache.flink.connector.file.sink;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
 import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.fs.Path;
@@ -64,13 +62,11 @@ public abstract class FileSinkITBase extends TestLogger {
 
         JobGraph jobGraph = createJobGraph(path);
 
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "18081-19000");
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
                         .setNumTaskManagers(1)
                         .setNumSlotsPerTaskManager(4)
-                        .setConfiguration(config)
                         .build();
 
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
