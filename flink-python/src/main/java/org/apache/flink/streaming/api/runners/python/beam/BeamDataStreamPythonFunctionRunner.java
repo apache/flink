@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.construction.graph.TimerReference;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,7 +81,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
-            FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor,
+            @Nullable FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor,
             Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
         super(
                 taskName,
@@ -106,118 +107,67 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
     @Override
     protected void buildTransforms(RunnerApi.Components.Builder componentsBuilder) {
         for (int i = 0; i < userDefinedDataStreamFunctions.size(); i++) {
-            String functionUrn;
-            if (i == 0) {
-                functionUrn = headOperatorFunctionUrn;
-            } else {
-                functionUrn = STATELESS_FUNCTION_URN;
-            }
 
-            FlinkFnApi.UserDefinedDataStreamFunction functionProto =
-                    userDefinedDataStreamFunctions.get(i);
+            final Map<String, String> outputCollectionMap = new HashMap<>();
 
-            // Use ParDoPayload as a wrapper of the actual payload as timer is only supported in
-            // ParDo
-            final RunnerApi.ParDoPayload.Builder payloadBuilder =
-                    RunnerApi.ParDoPayload.newBuilder()
-                            .setDoFn(
-                                    RunnerApi.FunctionSpec.newBuilder()
-                                            .setUrn(functionUrn)
-                                            .setPayload(
-                                                    org.apache.beam.vendor.grpc.v1p26p0.com.google
-                                                            .protobuf.ByteString.copyFrom(
-                                                            functionProto.toByteArray()))
-                                            .build());
-
-            // Timer is only available in the head operator
-            if (i == 0 && timerCoderDescriptor != null) {
-                payloadBuilder.putTimerFamilySpecs(
-                        TIMER_ID,
-                        RunnerApi.TimerFamilySpec.newBuilder()
-                                // this field is not used, always set it as event time
-                                .setTimeDomain(RunnerApi.TimeDomain.Enum.EVENT_TIME)
-                                .setTimerFamilyCoderId(WRAPPER_TIMER_CODER_ID)
-                                .build());
-            }
-
-            final String transformName = TRANSFORM_ID_PREFIX + i;
-
-            final RunnerApi.PTransform.Builder transformBuilder =
-                    RunnerApi.PTransform.newBuilder()
-                            .setUniqueName(transformName)
-                            .setSpec(
-                                    RunnerApi.FunctionSpec.newBuilder()
-                                            .setUrn(
-                                                    BeamUrns.getUrn(
-                                                            RunnerApi.StandardPTransforms.Primitives
-                                                                    .PAR_DO))
-                                            .setPayload(payloadBuilder.build().toByteString())
-                                            .build());
-
-            // prepare inputs
-            if (i == 0) {
-                transformBuilder.putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID);
-            } else {
-                transformBuilder.putInputs(MAIN_INPUT_NAME, COLLECTION_PREFIX + (i - 1));
-            }
-
-            // prepare side outputs
-            if (i == userDefinedDataStreamFunctions.size() - 1
-                    && sideOutputCoderDescriptors != null) {
+            // Prepare side outputs
+            if (i == userDefinedDataStreamFunctions.size() - 1) {
                 for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
                         sideOutputCoderDescriptors.entrySet()) {
-                    String reviseCollectionId = COLLECTION_PREFIX + "revise-" + entry.getKey();
-                    String reviseCoderId = CODER_PREFIX + "revise-" + entry.getKey();
-                    transformBuilder.putOutputs(entry.getKey(), reviseCollectionId);
-                    componentsBuilder
-                            .putPcollections(
-                                    reviseCollectionId,
-                                    RunnerApi.PCollection.newBuilder()
-                                            .setWindowingStrategyId(WINDOW_STRATEGY)
-                                            .setCoderId(reviseCoderId)
-                                            .build())
-                            .putCoders(reviseCoderId, createCoderProto(inputCoderDescriptor));
+                    final String reviseCollectionId =
+                            COLLECTION_PREFIX + "revise-" + entry.getKey();
+                    final String reviseCoderId = CODER_PREFIX + "revise-" + entry.getKey();
+                    outputCollectionMap.put(entry.getKey(), reviseCollectionId);
+                    addCollectionToComponents(componentsBuilder, reviseCollectionId, reviseCoderId);
                 }
             }
-            // prepare outputs
-            transformBuilder.putOutputs(MAIN_OUTPUT_NAME, COLLECTION_PREFIX + i);
-            componentsBuilder
-                    .putPcollections(
-                            COLLECTION_PREFIX + i,
-                            RunnerApi.PCollection.newBuilder()
-                                    .setWindowingStrategyId(WINDOW_STRATEGY)
-                                    .setCoderId(CODER_PREFIX + i)
-                                    .build())
-                    .putCoders(CODER_PREFIX + i, createCoderProto(inputCoderDescriptor));
+            // Prepare main outputs
+            final String outputCollectionId = COLLECTION_PREFIX + i;
+            final String outputCoderId = CODER_PREFIX + i;
+            outputCollectionMap.put(MAIN_OUTPUT_NAME, outputCollectionId);
+            addCollectionToComponents(componentsBuilder, outputCollectionId, outputCoderId);
 
-            componentsBuilder.putTransforms(transformName, transformBuilder.build());
+            final String transformId = TRANSFORM_ID_PREFIX + i;
+            final FlinkFnApi.UserDefinedDataStreamFunction functionProto =
+                    userDefinedDataStreamFunctions.get(i);
+            if (i == 0) {
+                addTransformToComponents(
+                        componentsBuilder,
+                        transformId,
+                        createUdfPayload(functionProto, headOperatorFunctionUrn, true),
+                        INPUT_COLLECTION_ID,
+                        outputCollectionMap);
+            } else {
+                addTransformToComponents(
+                        componentsBuilder,
+                        transformId,
+                        createUdfPayload(functionProto, STATELESS_FUNCTION_URN, false),
+                        COLLECTION_PREFIX + (i - 1),
+                        outputCollectionMap);
+            }
         }
 
         // Add REVISE_OUTPUT transformation for side outputs
-        if (sideOutputCoderDescriptors != null) {
-            for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
-                    sideOutputCoderDescriptors.entrySet()) {
-                String reviseTransformId = TRANSFORM_ID_PREFIX + "revise-" + entry.getKey();
-                String reviseCollectionId = COLLECTION_PREFIX + "revise-" + entry.getKey();
-                String outputCollectionId = entry.getKey();
-                componentsBuilder.putTransforms(
-                        reviseTransformId,
-                        buildReviseTransform(
-                                reviseTransformId, reviseCollectionId, outputCollectionId));
-            }
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            addTransformToComponents(
+                    componentsBuilder,
+                    TRANSFORM_ID_PREFIX + "revise-" + entry.getKey(),
+                    createRevisePayload(),
+                    COLLECTION_PREFIX + "revise-" + entry.getKey(),
+                    Collections.singletonMap(MAIN_OUTPUT_NAME, entry.getKey()));
         }
+
         // Add REVISE_OUTPUT transformation for main output
-        String reviseTransformId = TRANSFORM_ID_PREFIX + "revise";
-        componentsBuilder.putTransforms(
-                reviseTransformId,
-                buildReviseTransform(
-                        reviseTransformId,
-                        COLLECTION_PREFIX + (userDefinedDataStreamFunctions.size() - 1),
-                        OUTPUT_COLLECTION_ID));
+        addTransformToComponents(
+                componentsBuilder,
+                TRANSFORM_ID_PREFIX + "revise",
+                createRevisePayload(),
+                COLLECTION_PREFIX + (userDefinedDataStreamFunctions.size() - 1),
+                Collections.singletonMap(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID));
     }
 
-    private RunnerApi.PTransform buildReviseTransform(
-            String name, String inputCollection, String outputCollection) {
+    private RunnerApi.ParDoPayload createRevisePayload() {
         final FlinkFnApi.UserDefinedDataStreamFunction proto =
                 createReviseOutputDataStreamFunctionProto();
         final RunnerApi.ParDoPayload.Builder payloadBuilder =
@@ -230,20 +180,70 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());
+        return payloadBuilder.build();
+    }
+
+    private RunnerApi.ParDoPayload createUdfPayload(
+            FlinkFnApi.UserDefinedDataStreamFunction proto, String urn, boolean createTimer) {
+        // Use ParDoPayload as a wrapper of the actual payload as timer is only supported in
+        // ParDo
+        final RunnerApi.ParDoPayload.Builder payloadBuilder =
+                RunnerApi.ParDoPayload.newBuilder()
+                        .setDoFn(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(urn)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        proto.toByteArray()))
+                                        .build());
+
+        // Timer is only available in the head operator
+        if (createTimer && timerCoderDescriptor != null) {
+            payloadBuilder.putTimerFamilySpecs(
+                    TIMER_ID,
+                    RunnerApi.TimerFamilySpec.newBuilder()
+                            // this field is not used, always set it as event time
+                            .setTimeDomain(RunnerApi.TimeDomain.Enum.EVENT_TIME)
+                            .setTimerFamilyCoderId(WRAPPER_TIMER_CODER_ID)
+                            .build());
+        }
+
+        return payloadBuilder.build();
+    }
+
+    private void addTransformToComponents(
+            RunnerApi.Components.Builder componentsBuilder,
+            String transformId,
+            RunnerApi.ParDoPayload payload,
+            String inputCollectionId,
+            Map<String, String> outputCollectionMap) {
         final RunnerApi.PTransform.Builder transformBuilder =
                 RunnerApi.PTransform.newBuilder()
-                        .setUniqueName(name)
+                        .setUniqueName(transformId)
                         .setSpec(
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(
                                                 BeamUrns.getUrn(
                                                         RunnerApi.StandardPTransforms.Primitives
                                                                 .PAR_DO))
-                                        .setPayload(payloadBuilder.build().toByteString())
+                                        .setPayload(payload.toByteString())
                                         .build());
-        transformBuilder.putInputs(MAIN_INPUT_NAME, inputCollection);
-        transformBuilder.putOutputs(MAIN_OUTPUT_NAME, outputCollection);
-        return transformBuilder.build();
+        transformBuilder.putInputs(MAIN_INPUT_NAME, inputCollectionId);
+        transformBuilder.putAllOutputs(outputCollectionMap);
+        componentsBuilder.putTransforms(transformId, transformBuilder.build());
+    }
+
+    private void addCollectionToComponents(
+            RunnerApi.Components.Builder componentsBuilder, String collectionId, String coderId) {
+        componentsBuilder
+                .putPcollections(
+                        collectionId,
+                        RunnerApi.PCollection.newBuilder()
+                                .setWindowingStrategyId(WINDOW_STRATEGY)
+                                .setCoderId(coderId)
+                                .build())
+                .putCoders(coderId, createCoderProto(inputCoderDescriptor));
     }
 
     @Override

@@ -132,8 +132,8 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
             Row runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
             runnerOutputCollector.collect(runnerOutput);
         } else {
-            Row runnerOutput = getSideOutputTypeSerializer(tag).deserialize(baisWrapper);
-            runnerOutputCollector.collect(runnerOutput, getOutputTagById(tag));
+            Row runnerOutput = getSideOutputTypeSerializerById(tag).deserialize(baisWrapper);
+            runnerOutputCollector.collect(getOutputTagById(tag), runnerOutput);
         }
     }
 

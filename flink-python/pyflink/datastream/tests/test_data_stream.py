@@ -780,6 +780,31 @@ class DataStreamTests(object):
         side_expected = ['0', '1', '2']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
+    def test_chaining_side_output_operator(self):
+        tag = OutputTag("side", Types.INT())
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('a', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                yield value[0]
+                yield tag, value[1]
+
+        ds2 = ds.map(lambda e: (e[0], e[1]+1)) \
+            .process(MyProcessFunction(), output_type=Types.STRING())
+        main_sink = DataStreamTestSinkFunction()
+        ds2.add_sink(main_sink)
+        side_sink = DataStreamTestSinkFunction()
+        ds2.get_side_output(tag).add_sink(side_sink)
+
+        self.env.execute("test_chaining_process_side_output")
+        main_expected = ['a', 'a', 'b']
+        self.assert_equals_sorted(main_expected, main_sink.get_results())
+        side_expected = ['1', '2', '3']
+        self.assert_equals_sorted(side_expected, side_sink.get_results())
+
     def test_process_multiple_side_output(self):
         tag1 = OutputTag("side1", Types.INT())
         tag2 = OutputTag("side2", Types.STRING())

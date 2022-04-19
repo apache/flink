@@ -81,6 +81,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -206,7 +207,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.managedMemoryFraction = managedMemoryFraction;
         this.inputCoderDescriptor = Preconditions.checkNotNull(inputCoderDescriptor);
         this.outputCoderDescriptor = Preconditions.checkNotNull(outputCoderDescriptor);
-        this.sideOutputCoderDescriptors = sideOutputCoderDescriptors;
+        this.sideOutputCoderDescriptors =
+                sideOutputCoderDescriptors == null ? new HashMap<>() : sideOutputCoderDescriptors;
     }
 
     // ------------------------------------------------------------------------
@@ -450,19 +452,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .putCoders(OUTPUT_CODER_ID, createCoderProto(outputCoderDescriptor))
                         .putCoders(WINDOW_CODER_ID, getWindowCoderProto());
 
-        if (sideOutputCoderDescriptors != null) {
-            for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
-                    sideOutputCoderDescriptors.entrySet()) {
-                String collectionId = entry.getKey();
-                String collectionCoderId = SIDE_OUTPUT_CODER_PREFIX + collectionId;
-                componentsBuilder.putPcollections(
-                        collectionId,
-                        RunnerApi.PCollection.newBuilder()
-                                .setWindowingStrategyId(WINDOW_STRATEGY)
-                                .setCoderId(collectionCoderId)
-                                .build());
-                componentsBuilder.putCoders(collectionCoderId, createCoderProto(entry.getValue()));
-            }
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            String collectionId = entry.getKey();
+            String collectionCoderId = SIDE_OUTPUT_CODER_PREFIX + collectionId;
+            componentsBuilder.putPcollections(
+                    collectionId,
+                    RunnerApi.PCollection.newBuilder()
+                            .setWindowingStrategyId(WINDOW_STRATEGY)
+                            .setCoderId(collectionCoderId)
+                            .build());
+            componentsBuilder.putCoders(collectionCoderId, createCoderProto(entry.getValue()));
         }
 
         getOptionalTimerCoderProto()
@@ -501,14 +501,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 PipelineNode.pCollection(
                         OUTPUT_COLLECTION_ID,
                         components.getPcollectionsOrThrow(OUTPUT_COLLECTION_ID)));
-        if (sideOutputCoderDescriptors != null) {
-            for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
-                    sideOutputCoderDescriptors.entrySet()) {
-                String collectionId = entry.getKey();
-                outputs.add(
-                        PipelineNode.pCollection(
-                                collectionId, components.getPcollectionsOrThrow(collectionId)));
-            }
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            String collectionId = entry.getKey();
+            outputs.add(
+                    PipelineNode.pCollection(
+                            collectionId, components.getPcollectionsOrThrow(collectionId)));
         }
         return ImmutableExecutableStage.of(
                 components,
@@ -548,18 +546,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
-        if (sideOutputCoderDescriptors != null) {
-            for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
-                    sideOutputCoderDescriptors.entrySet()) {
-                settings.add(
-                        RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
-                                .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
-                                .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
-                                                .ByteString.copyFrom(baos.toByteArray()))
-                                .setInputOrOutputId(entry.getKey())
-                                .build());
-            }
+        for (Map.Entry<String, FlinkFnApi.CoderInfoDescriptor> entry :
+                sideOutputCoderDescriptors.entrySet()) {
+            settings.add(
+                    RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+                            .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+                            .setPayload(
+                                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
+                                            .ByteString.copyFrom(baos.toByteArray()))
+                            .setInputOrOutputId(entry.getKey())
+                            .build());
         }
         return settings;
     }

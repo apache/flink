@@ -33,8 +33,11 @@ public final class RunnerOutputCollector<OUT> implements Collector<Row> {
 
     private final TimestampedCollector<OUT> collector;
 
+    private final StreamRecord<?> reuse;
+
     public RunnerOutputCollector(TimestampedCollector<OUT> collector) {
         this.collector = collector;
+        this.reuse = new StreamRecord<>(null);
     }
 
     @SuppressWarnings("unchecked")
@@ -50,12 +53,16 @@ public final class RunnerOutputCollector<OUT> implements Collector<Row> {
     }
 
     @SuppressWarnings("unchecked")
-    public <X> void collect(Row runnerOutput, OutputTag<X> outputTag) {
+    public <X> void collect(OutputTag<X> outputTag, Row runnerOutput) {
         long ts = (long) runnerOutput.getField(0);
+        StreamRecord<X> typedReuse = (StreamRecord<X>) reuse;
+        typedReuse.replace((X) runnerOutput.getField(1));
         if (ts != Long.MIN_VALUE) {
-            collector.collect(outputTag, new StreamRecord<>((X) (runnerOutput.getField(1)), ts));
+            reuse.setTimestamp(ts);
+            collector.collect(outputTag, typedReuse);
         } else {
-            collector.collect(outputTag, new StreamRecord<>((X) (runnerOutput.getField(1))));
+            reuse.eraseTimestamp();
+            collector.collect(outputTag, typedReuse);
         }
     }
 

@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from pyflink.common.typeinfo import TypeInformation, Types, RowTypeInfo
 from pyflink.java_gateway import get_gateway
@@ -39,7 +39,7 @@ class OutputTag(object):
 
     """
 
-    def __init__(self, tag_id: str, type_info: Optional[Union[TypeInformation, List]] = None):
+    def __init__(self, tag_id: str, type_info: Optional[Union[TypeInformation, list]] = None):
         if not tag_id:
             raise ValueError("OutputTag tag_id cannot be None or empty string")
         self.tag_id = tag_id

@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -74,7 +75,7 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         super(config);
         this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
         this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
-        sideOutputTags = new HashMap<>();
+        this.sideOutputTags = new HashMap<>();
     }
 
     @Override
@@ -126,6 +127,14 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         sideOutputTags.put(outputTag.getId(), outputTag);
     }
 
+    public void addSideOutputTags(Collection<OutputTag<?>> outputTags) {
+        outputTags.forEach(this::addSideOutputTag);
+    }
+
+    public Collection<OutputTag<?>> getSideOutputTags() {
+        return sideOutputTags.values();
+    }
+
     protected Map<String, FlinkFnApi.CoderInfoDescriptor> createSideOutputCoderDescriptors() {
         Map<String, FlinkFnApi.CoderInfoDescriptor> descriptorMap = new HashMap<>();
         for (Map.Entry<String, OutputTag<?>> entry : sideOutputTags.entrySet()) {
@@ -144,13 +153,13 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         return sideOutputTags.get(id);
     }
 
-    protected TypeInformation<Row> getSideOutputTypeInfo(OutputTag<?> outputTag) {
-        return Types.ROW(Types.LONG, outputTag.getTypeInfo());
-    }
-
-    protected TypeSerializer<Row> getSideOutputTypeSerializer(String id) {
+    protected TypeSerializer<Row> getSideOutputTypeSerializerById(String id) {
         Preconditions.checkArgument(sideOutputSerializers.containsKey(id));
         return sideOutputSerializers.get(id);
+    }
+
+    private TypeInformation<Row> getSideOutputTypeInfo(OutputTag<?> outputTag) {
+        return Types.ROW(Types.LONG, outputTag.getTypeInfo());
     }
 
     // ----------------------------------------------------------------------
