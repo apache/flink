@@ -53,6 +53,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1133,6 +1134,18 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType element() {
         return toApiSpecificExpression(unresolvedCall(ARRAY_ELEMENT, toExpr()));
+    }
+
+    /**
+     * Returns whether the given element exists in an array.
+     *
+     * <p>Checking for null elements in the array is supported. If the array itself is null, the
+     * function will return null. The given element is cast implicitly to the array's element type
+     * if necessary.
+     */
+    public OutType arrayContains(InType needle) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
     }
 
     // Time definition
