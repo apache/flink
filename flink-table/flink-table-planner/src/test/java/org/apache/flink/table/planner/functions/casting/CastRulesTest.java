@@ -669,6 +669,10 @@ class CastRulesTest {
                                 BYTES(), new byte[] {70, 108, 105, 110, 107}, fromString("Flink"))
                         .fromCaseLegacy(
                                 BYTES(), new byte[] {70, 108, 105, 110, 107}, fromString("Flink"))
+                        .fromCasePrinting(
+                                BYTES(),
+                                new byte[] {70, 108, 105, 110, 107},
+                                fromString("x'466c696e6b'"))
                         .fromCase(BOOLEAN(), true, StringData.fromString("TRUE"))
                         .fromCase(BOOLEAN(), false, StringData.fromString("FALSE"))
                         .fromCase(
@@ -1576,6 +1580,19 @@ class CastRulesTest {
                     srcDataType,
                     CastRule.Context.create(
                             false,
+                            false,
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader()),
+                    src,
+                    target);
+        }
+
+        private CastTestSpecBuilder fromCasePrinting(
+                DataType srcDataType, Object src, Object target) {
+            return fromCase(
+                    srcDataType,
+                    CastRule.Context.create(
+                            true,
                             false,
                             DateTimeUtils.UTC_ZONE.toZoneId(),
                             Thread.currentThread().getContextClassLoader()),
