@@ -68,12 +68,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for all the supported Flink DDL data types. */
-public class FlinkDDLDataTypeTest {
+class FlinkDDLDataTypeTest {
     private static final Fixture FIXTURE = new Fixture(TestFactory.INSTANCE.getTypeFactory());
     private static final String DDL_FORMAT =
             "create table t1 (\n" + "  f0 %s\n" + ") with (\n" + "  'k1' = 'v1'\n" + ")";
 
-    public static Stream<Arguments> testData() {
+    static Stream<Arguments> testData() {
         return Stream.of(
                 createArgumentsTestItem("CHAR", nullable(FIXTURE.char1Type), "CHAR"),
                 createArgumentsTestItem("CHAR NOT NULL", FIXTURE.char1Type, "CHAR NOT NULL"),

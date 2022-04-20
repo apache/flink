@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
 @Execution(CONCURRENT)
-public class FlinkSqlParserImplTest extends SqlParserTest {
+class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Override
     protected SqlParserImplFactory parserImplFactory() {
@@ -48,17 +48,17 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowCatalogs() {
+    void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
     }
 
     @Test
-    public void testShowCurrentCatalog() {
+    void testShowCurrentCatalog() {
         sql("show current catalog").ok("SHOW CURRENT CATALOG");
     }
 
     @Test
-    public void testDescribeCatalog() {
+    void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
 
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
@@ -70,15 +70,15 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      */
     @Disabled
     @Test
-    public void testDescribeSchema() {}
+    void testDescribeSchema() {}
 
     @Test
-    public void testUseCatalog() {
+    void testUseCatalog() {
         sql("use catalog a").ok("USE CATALOG `A`");
     }
 
     @Test
-    public void testCreateCatalog() {
+    void testCreateCatalog() {
         sql("create catalog c1\n"
                         + " WITH (\n"
                         + "  'key1'='value1',\n"
@@ -93,28 +93,28 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDropCatalog() {
+    void testDropCatalog() {
         sql("drop catalog c1").ok("DROP CATALOG `C1`");
     }
 
     @Test
-    public void testShowDataBases() {
+    void testShowDataBases() {
         sql("show databases").ok("SHOW DATABASES");
     }
 
     @Test
-    public void testShowCurrentDatabase() {
+    void testShowCurrentDatabase() {
         sql("show current database").ok("SHOW CURRENT DATABASE");
     }
 
     @Test
-    public void testUseDataBase() {
+    void testUseDataBase() {
         sql("use default_db").ok("USE `DEFAULT_DB`");
         sql("use defaultCatalog.default_db").ok("USE `DEFAULTCATALOG`.`DEFAULT_DB`");
     }
 
     @Test
-    public void testCreateDatabase() {
+    void testCreateDatabase() {
         sql("create database db1").ok("CREATE DATABASE `DB1`");
         sql("create database if not exists db1").ok("CREATE DATABASE IF NOT EXISTS `DB1`");
         sql("create database catalog1.db1").ok("CREATE DATABASE `CATALOG1`.`DB1`");
@@ -134,7 +134,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDropDatabase() {
+    void testDropDatabase() {
         sql("drop database db1").ok("DROP DATABASE `DB1` RESTRICT");
         sql("drop database catalog1.db1").ok("DROP DATABASE `CATALOG1`.`DB1` RESTRICT");
         sql("drop database db1 RESTRICT").ok("DROP DATABASE `DB1` RESTRICT");
@@ -142,7 +142,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterDatabase() {
+    void testAlterDatabase() {
         final String sql = "alter database db1 set ('key1' = 'value1','key2.a' = 'value2.a')";
         final String expected =
                 "ALTER DATABASE `DB1` SET (\n"
@@ -153,7 +153,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDescribeDatabase() {
+    void testDescribeDatabase() {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database catalog1.db1").ok("DESCRIBE DATABASE `CATALOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
@@ -164,7 +164,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterFunction() {
+    void testAlterFunction() {
         sql("alter function function1 as 'org.apache.fink.function.function1'")
                 .ok("ALTER FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
 
@@ -185,13 +185,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowFunctions() {
+    void testShowFunctions() {
         sql("show functions").ok("SHOW FUNCTIONS");
         sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test
-    public void testShowTables() {
+    void testShowTables() {
         sql("show tables").ok("SHOW TABLES");
         sql("show tables not like '%'").ok("SHOW TABLES NOT LIKE '%'");
 
@@ -228,20 +228,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowCreateTable() {
+    void testShowCreateTable() {
         sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
         sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
     }
 
     @Test
-    public void testShowCreateView() {
+    void testShowCreateView() {
         sql("show create view v1").ok("SHOW CREATE VIEW `V1`");
         sql("show create view db1.v1").ok("SHOW CREATE VIEW `DB1`.`V1`");
         sql("show create view catalog1.db1.v1").ok("SHOW CREATE VIEW `CATALOG1`.`DB1`.`V1`");
     }
 
     @Test
-    public void testDescribeTable() {
+    void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
@@ -252,7 +252,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowColumns() {
+    void testShowColumns() {
         sql("show columns from tbl").ok("SHOW COLUMNS FROM `TBL`");
         sql("show columns in tbl").ok("SHOW COLUMNS IN `TBL`");
 
@@ -292,10 +292,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
      */
     @Disabled
     @Test
-    public void testDescribeStatement() {}
+    void testDescribeStatement() {}
 
     @Test
-    public void testAlterTable() {
+    void testAlterTable() {
         sql("alter table t1 rename to t2").ok("ALTER TABLE `T1` RENAME TO `T2`");
         sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
         final String sql0 = "alter table t1 set ('key1'='value1')";
@@ -314,7 +314,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterTableReset() {
+    void testAlterTableReset() {
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
         sql("alter table t1 reset ('key1', 'key2')")
@@ -324,7 +324,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterTableCompact() {
+    void testAlterTableCompact() {
         sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
 
         sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");
@@ -339,7 +339,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTable() {
+    void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
@@ -382,7 +382,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableIfNotExists() {
+    void testCreateTableIfNotExists() {
         final String sql =
                 "CREATE TABLE IF NOT EXISTS tbl1 (\n"
                         + "  a bigint,\n"
@@ -417,7 +417,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithComment() {
+    void testCreateTableWithComment() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint comment 'test column comment AAA.',\n"
@@ -462,7 +462,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithCommentOnComputedColumn() {
+    void testCreateTableWithCommentOnComputedColumn() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint comment 'test column comment AAA.',\n"
@@ -499,7 +499,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testTableConstraints() {
+    void testTableConstraints() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
@@ -532,7 +532,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testTableConstraintsValidated() {
+    void testTableConstraintsValidated() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
@@ -565,7 +565,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testTableConstraintsWithEnforcement() {
+    void testTableConstraintsWithEnforcement() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint primary key enforced comment 'test column comment AAA.',\n"
@@ -596,7 +596,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDuplicatePk() {
+    void testDuplicatePk() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a bigint comment 'test column comment AAA.',\n"
@@ -614,7 +614,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithWatermark() {
+    void testCreateTableWithWatermark() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  ts timestamp(3),\n"
@@ -638,7 +638,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithWatermarkOnComputedColumn() {
+    void testCreateTableWithWatermarkOnComputedColumn() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  log_ts varchar,\n"
@@ -662,7 +662,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithWatermarkOnNestedField() {
+    void testCreateTableWithWatermarkOnNestedField() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  f1 row<q1 bigint, q2 row<t1 timestamp, t2 varchar>, q3 boolean>,\n"
@@ -684,7 +684,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithMultipleWatermark() {
+    void testCreateTableWithMultipleWatermark() {
         String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  f0 bigint,\n"
@@ -701,7 +701,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithQueryWatermarkExpression() {
+    void testCreateTableWithQueryWatermarkExpression() {
         String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  f0 bigint,\n"
@@ -717,7 +717,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithComplexType() {
+    void testCreateTableWithComplexType() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a ARRAY<bigint>, \n"
@@ -744,7 +744,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithNestedComplexType() {
+    void testCreateTableWithNestedComplexType() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
                         + "  a ARRAY<ARRAY<bigint>>, \n"
@@ -771,7 +771,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithUserDefinedType() {
+    void testCreateTableWithUserDefinedType() {
         final String sql =
                 "create table t(\n"
                         + "  a catalog1.db1.MyType1,\n"
@@ -792,7 +792,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInvalidComputedColumn() {
+    void testInvalidComputedColumn() {
         final String sql0 =
                 "CREATE TABLE t1 (\n"
                         + "  a bigint, \n"
@@ -826,7 +826,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testColumnSqlString() {
+    void testColumnSqlString() {
         final String sql =
                 "CREATE TABLE sls_stream (\n"
                         + "  a bigint, \n"
@@ -848,7 +848,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithMinusInOptionKey() {
+    void testCreateTableWithMinusInOptionKey() {
         final String sql =
                 "create table source_table(\n"
                         + "  a int,\n"
@@ -876,7 +876,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithOptionKeyAsIdentifier() {
+    void testCreateTableWithOptionKeyAsIdentifier() {
         final String sql =
                 "create table source_table(\n"
                         + "  a int,\n"
@@ -889,7 +889,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithLikeClause() {
+    void testCreateTableWithLikeClause() {
         final String sql =
                 "create table source_table(\n"
                         + "  a int,\n"
@@ -920,7 +920,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithLikeClauseWithoutColumns() {
+    void testCreateTableWithLikeClauseWithoutColumns() {
         final String sql =
                 ""
                         + "create TEMPORARY table source_table (\n"
@@ -949,7 +949,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTemporaryTable() {
+    void testCreateTemporaryTable() {
         final String sql =
                 "create temporary table source_table(\n"
                         + "  a int,\n"
@@ -972,7 +972,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithNoColumns() {
+    void testCreateTableWithNoColumns() {
         final String sql =
                 "create table source_table with (\n" + "  'x' = 'y',\n" + "  'abc' = 'def'\n" + ")";
         final String expected =
@@ -984,7 +984,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithOnlyWaterMark() {
+    void testCreateTableWithOnlyWaterMark() {
         final String sql =
                 "create table source_table (\n"
                         + "  watermark FOR ts AS ts - interval '3' second\n"
@@ -1003,35 +1003,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDropTable() {
+    void testDropTable() {
         final String sql = "DROP table catalog1.db1.tbl1";
         final String expected = "DROP TABLE `CATALOG1`.`DB1`.`TBL1`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testDropIfExists() {
+    void testDropIfExists() {
         final String sql = "DROP table IF EXISTS catalog1.db1.tbl1";
         final String expected = "DROP TABLE IF EXISTS `CATALOG1`.`DB1`.`TBL1`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testTemporaryDropTable() {
+    void testTemporaryDropTable() {
         final String sql = "DROP temporary table catalog1.db1.tbl1";
         final String expected = "DROP TEMPORARY TABLE `CATALOG1`.`DB1`.`TBL1`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testDropTemporaryIfExists() {
+    void testDropTemporaryIfExists() {
         final String sql = "DROP temporary table IF EXISTS catalog1.db1.tbl1";
         final String expected = "DROP TEMPORARY TABLE IF EXISTS `CATALOG1`.`DB1`.`TBL1`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testInsertPartitionSpecs() {
+    void testInsertPartitionSpecs() {
         final String sql1 = "insert into emps partition (x='ab', y='bc') (x,y) select * from emps";
         final String expected =
                 "INSERT INTO `EMPS` "
@@ -1071,7 +1071,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInsertCaseSensitivePartitionSpecs() {
+    void testInsertCaseSensitivePartitionSpecs() {
         final String expected =
                 "INSERT INTO `emps` "
                         + "PARTITION (`x` = 'ab', `y` = 'bc')\n"
@@ -1084,7 +1084,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInsertExtendedColumnAsStaticPartition1() {
+    void testInsertExtendedColumnAsStaticPartition1() {
         final String expected =
                 "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) "
                         + "PARTITION (`Z` = 'ab')\n"
@@ -1095,7 +1095,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInsertExtendedColumnAsStaticPartition2() {
+    void testInsertExtendedColumnAsStaticPartition2() {
         assertThatThrownBy(
                         () ->
                                 sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
@@ -1107,7 +1107,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInsertOverwrite() {
+    void testInsertOverwrite() {
         // non-partitioned
         final String sql = "INSERT OVERWRITE myDB.myTbl SELECT * FROM src";
         final String expected = "INSERT OVERWRITE `MYDB`.`MYTBL`\n" + "(SELECT *\n" + "FROM `SRC`)";
@@ -1125,20 +1125,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testInvalidUpsertOverwrite() {
+    void testInvalidUpsertOverwrite() {
         sql("UPSERT ^OVERWRITE^ myDB.myTbl SELECT * FROM src")
                 .fails("OVERWRITE expression is only used with INSERT statement.");
     }
 
     @Test
-    public void testCreateView() {
+    void testCreateView() {
         final String sql = "create view v as select col1 from tbl";
         final String expected = "CREATE VIEW `V`\n" + "AS\n" + "SELECT `COL1`\n" + "FROM `TBL`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testCreateViewWithInvalidFieldList() {
+    void testCreateViewWithInvalidFieldList() {
         final String expected =
                 "(?s).*Encountered \"\\)\" at line 1, column 15.\n"
                         + "Was expecting one of:\n"
@@ -1151,7 +1151,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateViewWithComment() {
+    void testCreateViewWithComment() {
         final String sql = "create view v COMMENT 'this is a view' as select col1 from tbl";
         final String expected =
                 "CREATE VIEW `V`\n"
@@ -1163,7 +1163,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateViewWithFieldNames() {
+    void testCreateViewWithFieldNames() {
         final String sql = "create view v(col1, col2) as select col3, col4 from tbl";
         final String expected =
                 "CREATE VIEW `V` (`COL1`, `COL2`)\n"
@@ -1174,7 +1174,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateViewWithInvalidName() {
+    void testCreateViewWithInvalidName() {
         final String sql = "create view v(^*^) COMMENT 'this is a view' as select col1 from tbl";
         final String expected = "(?s).*Encountered \"\\*\" at line 1, column 15.*";
 
@@ -1182,7 +1182,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTemporaryView() {
+    void testCreateTemporaryView() {
         final String sql = "create temporary view v as select col1 from tbl";
         final String expected =
                 "CREATE TEMPORARY VIEW `V`\n" + "AS\n" + "SELECT `COL1`\n" + "FROM `TBL`";
@@ -1190,7 +1190,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTemporaryViewIfNotExists() {
+    void testCreateTemporaryViewIfNotExists() {
         final String sql = "create temporary view if not exists v as select col1 from tbl";
         final String expected =
                 "CREATE TEMPORARY VIEW IF NOT EXISTS `V`\n"
@@ -1201,7 +1201,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateViewIfNotExists() {
+    void testCreateViewIfNotExists() {
         final String sql = "create view if not exists v as select col1 from tbl";
         final String expected =
                 "CREATE VIEW IF NOT EXISTS `V`\n" + "AS\n" + "SELECT `COL1`\n" + "FROM `TBL`";
@@ -1209,35 +1209,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDropView() {
+    void testDropView() {
         final String sql = "DROP VIEW IF EXISTS view_name";
         final String expected = "DROP VIEW IF EXISTS `VIEW_NAME`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testDropTemporaryView() {
+    void testDropTemporaryView() {
         final String sql = "DROP TEMPORARY VIEW IF EXISTS view_name";
         final String expected = "DROP TEMPORARY VIEW IF EXISTS `VIEW_NAME`";
         sql(sql).ok(expected);
     }
 
     @Test
-    public void testAlterView() {
+    void testAlterView() {
         sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
         sql("ALTER VIEW v1 AS SELECT c1, c2 FROM tbl")
                 .ok("ALTER VIEW `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
     }
 
     @Test
-    public void testShowViews() {
+    void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
     }
 
     // Override the test because our ROW field type default is nullable,
     // which is different with Calcite.
     @Test
-    public void testCastAsRowType() {
+    void testCastAsRowType() {
         final String expr = "cast(a as row(f0 int, f1 varchar))";
         final String expected = "CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))";
         expr(expr).ok(expected);
@@ -1264,19 +1264,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCreateTableWithNakedTableName() {
+    void testCreateTableWithNakedTableName() {
         String sql = "CREATE TABLE tbl1";
         sql(sql).node(new ValidationMatcher());
     }
 
     @Test
-    public void testCreateViewWithEmptyFields() {
+    void testCreateViewWithEmptyFields() {
         String sql = "CREATE VIEW v1 AS SELECT 1";
         sql(sql).ok("CREATE VIEW `V1`\n" + "AS\n" + "SELECT 1");
     }
 
     @Test
-    public void testCreateFunction() {
+    void testCreateFunction() {
         sql("create function catalog1.db1.function1 as 'org.apache.fink.function.function1'")
                 .ok(
                         "CREATE FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
@@ -1317,7 +1317,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testDropTemporaryFunction() {
+    void testDropTemporaryFunction() {
         sql("drop temporary function catalog1.db1.function1")
                 .ok("DROP TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1`");
 
@@ -1332,7 +1332,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testLoadModule() {
+    void testLoadModule() {
         sql("load module core").ok("LOAD MODULE `CORE`");
 
         sql("load module dummy with ('k1' = 'v1', 'k2' = 'v2')")
@@ -1348,7 +1348,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testUnloadModule() {
+    void testUnloadModule() {
         sql("unload module core").ok("UNLOAD MODULE `CORE`");
 
         sql("unload module ^'core'^")
@@ -1356,7 +1356,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testUseModules() {
+    void testUseModules() {
         sql("use modules core").ok("USE MODULES `CORE`");
 
         sql("use modules x, y, z").ok("USE MODULES `X`, `Y`, `Z`");
@@ -1368,24 +1368,24 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowModules() {
+    void testShowModules() {
         sql("show modules").ok("SHOW MODULES");
 
         sql("show full modules").ok("SHOW FULL MODULES");
     }
 
     @Test
-    public void testBeginStatementSet() {
+    void testBeginStatementSet() {
         sql("begin statement set").ok("BEGIN STATEMENT SET");
     }
 
     @Test
-    public void testEnd() {
+    void testEnd() {
         sql("end").ok("END");
     }
 
     @Test
-    public void testExecuteStatementSet() {
+    void testExecuteStatementSet() {
         sql("execute statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "EXECUTE STATEMENT SET BEGIN\n"
@@ -1401,7 +1401,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplainStatementSet() {
+    void testExplainStatementSet() {
         sql("explain statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "EXPLAIN STATEMENT SET BEGIN\n"
@@ -1417,42 +1417,42 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplain() {
+    void testExplain() {
         String sql = "explain select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExecuteSelect() {
+    void testExecuteSelect() {
         String sql = "execute select * from emps";
         String expected = "EXECUTE SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainPlanFor() {
+    void testExplainPlanFor() {
         String sql = "explain plan for select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainChangelogMode() {
+    void testExplainChangelogMode() {
         String sql = "explain changelog_mode select * from emps";
         String expected = "EXPLAIN CHANGELOG_MODE SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainEstimatedCost() {
+    void testExplainEstimatedCost() {
         String sql = "explain estimated_cost select * from emps";
         String expected = "EXPLAIN ESTIMATED_COST SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainUnion() {
+    void testExplainUnion() {
         String sql = "explain estimated_cost select * from emps union all select * from emps";
         String expected =
                 "EXPLAIN ESTIMATED_COST (SELECT *\n"
@@ -1464,44 +1464,44 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplainJsonFormat() {
+    void testExplainJsonFormat() {
         // Unsupported feature. Escape the test.
     }
 
     @Test
-    public void testExplainWithImpl() {
+    void testExplainWithImpl() {
         // Unsupported feature. Escape the test.
     }
 
     @Test
-    public void testExplainWithoutImpl() {
+    void testExplainWithoutImpl() {
         // Unsupported feature. Escape the test.
     }
 
     @Test
-    public void testExplainWithType() {
+    void testExplainWithType() {
         // Unsupported feature. Escape the test.
     }
 
     @Test
-    public void testExplainAsXml() {
+    void testExplainAsXml() {
         // Unsupported feature. Escape the test.
     }
 
     @Test
-    public void testSqlOptions() {
+    void testSqlOptions() {
         // SET/RESET are overridden for Flink SQL
     }
 
     @Test
-    public void testExplainAsJson() {
+    void testExplainAsJson() {
         String sql = "explain json_execution_plan select * from emps";
         String expected = "EXPLAIN JSON_EXECUTION_PLAN SELECT *\n" + "FROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainAllDetails() {
+    void testExplainAllDetails() {
         String sql = "explain changelog_mode,json_execution_plan,estimated_cost select * from emps";
         String expected =
                 "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, ESTIMATED_COST SELECT *\n"
@@ -1510,26 +1510,26 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplainInsert() {
+    void testExplainInsert() {
         String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
         this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
     }
 
     @Test
-    public void testExecuteInsert() {
+    void testExecuteInsert() {
         String expected = "EXECUTE INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
         this.sql("execute insert into emps1 select * from emps2").ok(expected);
     }
 
     @Test
-    public void testExecutePlan() {
+    void testExecutePlan() {
         sql("execute plan './test.json'").ok("EXECUTE PLAN './test.json'");
         sql("execute plan '/some/absolute/dir/plan.json'")
                 .ok("EXECUTE PLAN '/some/absolute/dir/plan.json'");
     }
 
     @Test
-    public void testCompilePlan() {
+    void testCompilePlan() {
         sql("compile plan './test.json' for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN './test.json' FOR INSERT INTO `T1`\n"
@@ -1570,7 +1570,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testCompileAndExecutePlan() {
+    void testCompileAndExecutePlan() {
         sql("compile and execute plan './test.json' for insert into t1 select * from t2")
                 .ok(
                         "COMPILE AND EXECUTE PLAN './test.json' FOR INSERT INTO `T1`\n"
@@ -1593,33 +1593,33 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplainUpsert() {
+    void testExplainUpsert() {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
         this.sql(sql).ok(expected);
     }
 
     @Test
-    public void testExplainPlanForWithExplainDetails() {
+    void testExplainPlanForWithExplainDetails() {
         String sql = "explain plan for ^json_execution_plan^ upsert into emps1 values (1, 2)";
         this.sql(sql).fails("Non-query expression encountered in illegal context");
     }
 
     @Test
-    public void testExplainDuplicateExplainDetails() {
+    void testExplainDuplicateExplainDetails() {
         String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
         this.sql(sql).fails("Duplicate EXPLAIN DETAIL is not allowed.");
     }
 
     @Test
-    public void testAddJar() {
+    void testAddJar() {
         sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
         sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
         sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
     }
 
     @Test
-    public void testRemoveJar() {
+    void testRemoveJar() {
         sql("remove Jar './test.sql'").ok("REMOVE JAR './test.sql'");
         sql("remove JAR 'file:///path/to/\nwhatever'")
                 .ok("REMOVE JAR 'file:///path/to/\nwhatever'");
@@ -1627,12 +1627,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowJars() {
+    void testShowJars() {
         sql("show jars").ok("SHOW JARS");
     }
 
     @Test
-    public void testSetReset() {
+    void testSetReset() {
         sql("SET").ok("SET");
         sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
         sql("RESET").ok("RESET");
@@ -1640,7 +1640,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testTryCast() {
+    void testTryCast() {
         // Simple types
         expr("try_cast(a as timestamp)").ok("TRY_CAST(`A` AS TIMESTAMP)");
         expr("try_cast('abc' as timestamp)").ok("TRY_CAST('abc' AS TIMESTAMP)");

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link FlinkHiveSqlParserImpl}. */
-public class FlinkHiveSqlParserImplTest extends SqlParserTest {
+class FlinkHiveSqlParserImplTest extends SqlParserTest {
 
     @Override
     protected SqlParserImplFactory parserImplFactory() {

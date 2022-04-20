@@ -45,7 +45,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.empty;
 
 /** Tests for parsing and validating {@link SqlTableLike} clause. */
-public class CreateTableLikeTest {
+class CreateTableLikeTest {
 
     @Test
     void testNoOptions() throws Exception {

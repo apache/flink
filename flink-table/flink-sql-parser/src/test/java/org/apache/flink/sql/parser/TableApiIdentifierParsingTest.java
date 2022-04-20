@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for parsing a Table API specific SqlIdentifier. */
-public class TableApiIdentifierParsingTest {
+class TableApiIdentifierParsingTest {
 
     private static final String ANTHROPOS_IN_GREEK_IN_UNICODE =
             "#03B1#03BD#03B8#03C1#03C9#03C0#03BF#03C2";
