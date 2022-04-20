@@ -27,7 +27,6 @@ under the License.
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-kafka</artifactId>

@@ -25,7 +25,6 @@ under the License.
 		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
 		<version>1.16-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-examples-streaming-state-machine_${scala.binary.version}</artifactId>
