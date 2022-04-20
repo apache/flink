@@ -178,50 +178,50 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testDDLWithMultipleColumnsFromSameMetadataKey(): Unit = {
-    assertThatThrownBy(() =>
-      util.tableEnv.executeSql(
-        """
-          |CREATE TABLE source (
-          |  a INT METADATA,
-          |  b INT METADATA FROM 'a'
-          |) WITH (
-          |  'connector' = 'COLLECTION'
-          |)
-          |""".stripMargin)).satisfies(
+    assertThatThrownBy(() => util.tableEnv.executeSql("""
+                                                        |CREATE TABLE source (
+                                                        |  a INT METADATA,
+                                                        |  b INT METADATA FROM 'a'
+                                                        |) WITH (
+                                                        |  'connector' = 'COLLECTION'
+                                                        |)
+                                                        |""".stripMargin)).satisfies(
       FlinkAssertions.anyCauseMatches(
         classOf[ValidationException],
         "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
           "Please specify one of the columns as the metadata column and use the computed column" +
-          " syntax to specify the others."))
+          " syntax to specify the others."
+      ))
   }
 
   @Test
   def testDDLWithMultipleColumnsFromSameMetadataKey2(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE source (
-        |  a INT METADATA
-        |) WITH (
-        |  'connector' = 'COLLECTION'
-        |)
-        |""".stripMargin)
-    assertThatThrownBy(() =>
-      util.tableEnv.executeSql(
-        """
-          |CREATE TABLE like_source (
-          |  b INT METADATA FROM 'a'
-          |)
-          |WITH (
-          |  'connector' = 'COLLECTION'
-          |) LIKE source (
-          |  INCLUDING METADATA
-          |)
-          |""".stripMargin
-      )).satisfies(anyCauseMatches(
-      "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
-        "Please specify one of the columns as the metadata column and use the computed column" +
-        " syntax to specify the others."
-    ))
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE source (
+                               |  a INT METADATA
+                               |) WITH (
+                               |  'connector' = 'COLLECTION'
+                               |)
+                               |""".stripMargin)
+    assertThatThrownBy(
+      () =>
+        util.tableEnv.executeSql(
+          """
+            |CREATE TABLE like_source (
+            |  b INT METADATA FROM 'a'
+            |)
+            |WITH (
+            |  'connector' = 'COLLECTION'
+            |) LIKE source (
+            |  INCLUDING METADATA
+            |)
+            |""".stripMargin
+        )).satisfies(
+      anyCauseMatches(
+        "The column `a` and `b` in the table are both from the same metadata key 'a'. " +
+          "Please specify one of the columns as the metadata column and use the computed column" +
+          " syntax to specify the others."
+      ))
   }
 
   @Test

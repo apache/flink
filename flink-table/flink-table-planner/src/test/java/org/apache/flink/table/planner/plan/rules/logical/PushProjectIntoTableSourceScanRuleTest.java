@@ -347,12 +347,9 @@ public class PushProjectIntoTableSourceScanRuleTest
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();
 
-        assertThat(
-                DataType.getFieldNames(appliedProjectionDataType.get()),
-                equalTo(Collections.emptyList()));
-        assertThat(
-                DataType.getFieldNames(appliedMetadataDataType.get()),
-                equalTo(Collections.singletonList("metadata")));
+        assertThat(DataType.getFieldNames(appliedProjectionDataType.get())).isEmpty();
+        assertThat(DataType.getFieldNames(appliedMetadataDataType.get()))
+                .containsExactly("metadata");
     }
 
     @Test
@@ -373,12 +370,9 @@ public class PushProjectIntoTableSourceScanRuleTest
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();
 
-        assertThat(
-                DataType.getFieldNames(appliedProjectionDataType.get()),
-                equalTo(Collections.singletonList("f1")));
-        assertThat(
-                DataType.getFieldNames(appliedMetadataDataType.get()),
-                equalTo(Arrays.asList("f1", "metadata")));
+        assertThat(DataType.getFieldNames(appliedProjectionDataType.get())).containsExactly("f1");
+        assertThat(DataType.getFieldNames(appliedMetadataDataType.get()))
+                .isEqualTo(Arrays.asList("f1", "metadata"));
     }
 
     // ---------------------------------------------------------------------------------------------
