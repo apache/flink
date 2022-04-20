@@ -23,54 +23,55 @@ import org.apache.flink.table.types.TypeInfoDataTypeConverterTest.TestSpec
 import org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.{Arguments, MethodSource}
+
+import java.util.stream
 
 /** Scala tests for [[TypeInfoDataTypeConverter]]. */
-@RunWith(classOf[Parameterized])
-class TypeInfoDataTypeConverterScalaTest(testSpec: TypeInfoDataTypeConverterTest.TestSpec) {
+class TypeInfoDataTypeConverterScalaTest {
 
-  @Test
-  def testScalaConversion(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testScalaConversion(testSpec: TestSpec): Unit = {
     val dataType = TypeInfoDataTypeConverter.toDataType(testSpec.typeFactory, testSpec.typeInfo)
-    assertThat(dataType, equalTo(testSpec.expectedDataType))
+    assertThat(dataType).isEqualTo(testSpec.expectedDataType)
   }
+
 }
 
 object TypeInfoDataTypeConverterScalaTest {
-
-  @Parameters
-  def testData: Array[TestSpec] = Array(
-    TestSpec
-      .forType(createTypeInformation[ScalaCaseClass])
-      .expectDataType(
-        DataTypes
-          .STRUCTURED(
-            classOf[ScalaCaseClass],
-            DataTypes.FIELD(
-              "primitiveIntField",
-              DataTypes.INT().notNull().bridgedTo(java.lang.Integer.TYPE)),
-            DataTypes.FIELD("doubleField", DataTypes.DOUBLE().notNull()),
-            DataTypes.FIELD("stringField", DataTypes.STRING().nullable())
-          )
-          .notNull()),
-    TestSpec
-      .forType(createTypeInformation[(java.lang.Double, java.lang.Float)])
-      .expectDataType(
-        DataTypes
-          .STRUCTURED(
-            classOf[(_, _)],
-            DataTypes.FIELD("_1", DataTypes.DOUBLE().notNull()),
-            DataTypes.FIELD("_2", DataTypes.FLOAT().notNull()))
-          .notNull()),
-    TestSpec
-      .forType(createTypeInformation[Unit])
-      .lookupExpects(classOf[Unit])
-      .expectDataType(dummyRaw(classOf[Unit]))
+  def testData(): stream.Stream[Arguments] = java.util.stream.Stream.of(
+    Arguments.of(
+      TestSpec
+        .forType(createTypeInformation[ScalaCaseClass])
+        .expectDataType(
+          DataTypes
+            .STRUCTURED(
+              classOf[ScalaCaseClass],
+              DataTypes.FIELD(
+                "primitiveIntField",
+                DataTypes.INT().notNull().bridgedTo(java.lang.Integer.TYPE)),
+              DataTypes.FIELD("doubleField", DataTypes.DOUBLE().notNull()),
+              DataTypes.FIELD("stringField", DataTypes.STRING().nullable())
+            )
+            .notNull())),
+    Arguments.of(
+      TestSpec
+        .forType(createTypeInformation[(java.lang.Double, java.lang.Float)])
+        .expectDataType(
+          DataTypes
+            .STRUCTURED(
+              classOf[(_, _)],
+              DataTypes.FIELD("_1", DataTypes.DOUBLE().notNull()),
+              DataTypes.FIELD("_2", DataTypes.FLOAT().notNull()))
+            .notNull())),
+    Arguments.of(
+      TestSpec
+        .forType(createTypeInformation[Unit])
+        .lookupExpects(classOf[Unit])
+        .expectDataType(dummyRaw(classOf[Unit])))
   )
 
   // ----------------------------------------------------------------------------------------------
