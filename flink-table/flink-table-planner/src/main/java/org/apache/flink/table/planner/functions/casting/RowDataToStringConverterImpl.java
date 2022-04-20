@@ -55,7 +55,7 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
     public RowDataToStringConverterImpl(
             DataType dataType, ZoneId zoneId, ClassLoader classLoader, boolean legacyBehaviour) {
         this.dataType = dataType;
-        this.castRuleContext = CastRule.Context.create(legacyBehaviour, zoneId, classLoader);
+        this.castRuleContext = CastRule.Context.create(true, legacyBehaviour, zoneId, classLoader);
     }
 
     @SuppressWarnings("unchecked")

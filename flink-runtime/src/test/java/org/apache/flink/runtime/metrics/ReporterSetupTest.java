@@ -29,10 +29,13 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,17 +50,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link ReporterSetup}. */
-public class ReporterSetupTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ReporterSetupTest {
+
+    @RegisterExtension
+    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            MetricReporterFactory.class,
+                            TestReporter1.class.getName(),
+                            TestReporter2.class.getName(),
+                            TestReporter11.class.getName(),
+                            TestReporter12.class.getName(),
+                            TestReporter13.class.getName())
+                    .build();
 
     /** TestReporter1 class only for type differentiation. */
-    static class TestReporter1 extends TestReporter {}
+    public static class TestReporter1 extends TestReporter {}
 
     /** TestReporter2 class only for type differentiation. */
-    static class TestReporter2 extends TestReporter {}
+    public static class TestReporter2 extends TestReporter {}
 
     /** Verifies that a reporter can be configured with all it's arguments being forwarded. */
     @Test
-    public void testReporterArgumentForwarding() {
+    void testReporterArgumentForwarding() {
         final Configuration config = new Configuration();
 
         configureReporter1(config);
@@ -74,7 +90,7 @@ public class ReporterSetupTest extends TestLogger {
      * Verifies that multiple reporters can be configured with all their arguments being forwarded.
      */
     @Test
-    public void testSeveralReportersWithArgumentForwarding() {
+    void testSeveralReportersWithArgumentForwarding() {
         final Configuration config = new Configuration();
 
         configureReporter1(config);
@@ -102,7 +118,7 @@ public class ReporterSetupTest extends TestLogger {
      * reporters.
      */
     @Test
-    public void testActivateOneReporterAmongTwoDeclared() {
+    void testActivateOneReporterAmongTwoDeclared() {
         final Configuration config = new Configuration();
 
         configureReporter1(config);
@@ -119,13 +135,13 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     @Test
-    public void testReporterSetupSupplier() throws Exception {
+    void testReporterSetupSupplier() throws Exception {
         final Configuration config = new Configuration();
 
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter1.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -139,23 +155,23 @@ public class ReporterSetupTest extends TestLogger {
 
     /** Verifies that multiple reporters are instantiated correctly. */
     @Test
-    public void testMultipleReporterInstantiation() throws Exception {
+    void testMultipleReporterInstantiation() throws Exception {
         Configuration config = new Configuration();
 
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter11.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter12.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter13.class.getName());
 
         List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -168,7 +184,7 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter11 extends TestReporter {
+    public static class TestReporter11 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -178,7 +194,7 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter12 extends TestReporter {
+    public static class TestReporter12 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -188,7 +204,7 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter13 extends TestReporter {
+    public static class TestReporter13 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -201,7 +217,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter1.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
@@ -213,14 +229,15 @@ public class ReporterSetupTest extends TestLogger {
         Assert.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
         Assert.assertEquals(
                 ReporterSetupTest.TestReporter1.class.getName(),
-                setup.getConfiguration().getString("class", null));
+                setup.getConfiguration()
+                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
     }
 
     private static void configureReporter2(Configuration config) {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter2."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter2.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
@@ -231,11 +248,13 @@ public class ReporterSetupTest extends TestLogger {
         Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
         Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
         Assert.assertEquals(
-                TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
+                TestReporter2.class.getName(),
+                setup.getConfiguration()
+                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
     }
 
     @Test
-    public void testVariableExclusionParsing() throws Exception {
+    void testVariableExclusionParsing() throws Exception {
         final String excludedVariable1 = "foo";
         final String excludedVariable2 = "foo";
         final Configuration config = new Configuration();
@@ -265,7 +284,7 @@ public class ReporterSetupTest extends TestLogger {
 
     /** Verifies that a factory configuration is correctly parsed. */
     @Test
-    public void testFactoryParsing() throws Exception {
+    void testFactoryParsing() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -287,7 +306,7 @@ public class ReporterSetupTest extends TestLogger {
      * are configured.
      */
     @Test
-    public void testFactoryPrioritization() throws Exception {
+    void testFactoryPrioritization() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -313,7 +332,7 @@ public class ReporterSetupTest extends TestLogger {
 
     /** Verifies that an error thrown by a factory does not affect the setup of other reporters. */
     @Test
-    public void testFactoryFailureIsolation() throws Exception {
+    void testFactoryFailureIsolation() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -333,7 +352,7 @@ public class ReporterSetupTest extends TestLogger {
 
     /** Verifies that factory/reflection approaches can be mixed freely. */
     @Test
-    public void testMixedSetupsFactoryParsing() throws Exception {
+    void testMixedSetupsFactoryParsing() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -362,7 +381,7 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     @Test
-    public void testFactoryArgumentForwarding() throws Exception {
+    void testFactoryArgumentForwarding() throws Exception {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -382,7 +401,7 @@ public class ReporterSetupTest extends TestLogger {
      * InstantiateViaFactory}.
      */
     @Test
-    public void testFactoryAnnotation() {
+    void testFactoryAnnotation() {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -406,7 +425,7 @@ public class ReporterSetupTest extends TestLogger {
      * org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection}.
      */
     @Test
-    public void testReflectionInterception() {
+    void testReflectionInterception() {
         final Configuration config = new Configuration();
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
@@ -434,7 +453,7 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     @Test
-    public void testAdditionalVariablesParsing() {
+    void testAdditionalVariablesParsing() {
         final String tag1 = "foo";
         final String tagValue1 = "bar";
         final String tag2 = "fizz";
