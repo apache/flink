@@ -94,11 +94,6 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     @Override
     protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
         final S3AFileSystem s3Afs = (S3AFileSystem) fs;
-        return new HadoopS3AccessHelper(
-                s3Afs,
-                s3Afs.getConf(),
-                s3Afs.createStoreContext().getInstrumentation(),
-                s3Afs.getAuditSpanSource(),
-                s3Afs.getActiveAuditSpan());
+        return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
     }
 }
