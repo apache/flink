@@ -24,8 +24,6 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -42,6 +40,24 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.NULL;
+import static org.apache.flink.table.api.DataTypes.RAW;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -76,12 +92,11 @@ class AvroSchemaConverterTest {
 
         Schema newSchema =
                 AvroSchemaConverter.convertToSchema(
-                        TableSchema.builder()
-                                .field("category_id", DataTypes.BIGINT().notNull())
-                                .field("name", DataTypes.STRING().nullable())
-                                .field("description", DataTypes.STRING().nullable())
-                                .build()
-                                .toRowDataType()
+                        ROW(
+                                        FIELD("category_id", BIGINT().notNull()),
+                                        FIELD("name", STRING().nullable()),
+                                        FIELD("description", STRING().nullable()))
+                                .notNull()
                                 .getLogicalType());
 
         byte[] serializedRecord =
@@ -111,11 +126,9 @@ class AvroSchemaConverterTest {
     void testInvalidRawTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.RAW(Void.class, VoidSerializer.INSTANCE))
-                                .build()
-                                .toRowDataType()
+                        ROW(
+                                        FIELD("a", STRING()),
+                                        FIELD("b", RAW(Void.class, VoidSerializer.INSTANCE)))
                                 .getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
@@ -126,31 +139,18 @@ class AvroSchemaConverterTest {
     @Test
     void testInvalidTimestampTypeAvroSchemaConversion() {
         RowType rowType =
-                (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.TIMESTAMP(9))
-                                .build()
-                                .toRowDataType()
-                                .getLogicalType();
+                (RowType) ROW(FIELD("a", STRING()), FIELD("b", TIMESTAMP(8))).getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(
-                        "Avro does not support TIMESTAMP type with precision: 9, "
-                                + "it only supports precision less than 3.");
+                        "Avro does not support TIMESTAMP type with precision: 8, "
+                                + "it only supports precision less than or equal to 6.");
     }
 
     @Test
     void testInvalidTimeTypeAvroSchemaConversion() {
-        RowType rowType =
-                (RowType)
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING())
-                                .field("b", DataTypes.TIME(6))
-                                .build()
-                                .toRowDataType()
-                                .getLogicalType();
+        RowType rowType = (RowType) ROW(FIELD("a", STRING()), FIELD("b", TIME(6))).getLogicalType();
 
         assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -162,23 +162,13 @@ class AvroSchemaConverterTest {
     void testRowTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
-                        TableSchema.builder()
-                                .field(
-                                        "row1",
-                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
-                                .field(
-                                        "row2",
-                                        DataTypes.ROW(DataTypes.FIELD("b", DataTypes.STRING())))
-                                .field(
-                                        "row3",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD(
-                                                        "row3",
-                                                        DataTypes.ROW(
-                                                                DataTypes.FIELD(
-                                                                        "c", DataTypes.STRING())))))
-                                .build()
-                                .toRowDataType()
+                        ROW(
+                                        FIELD("row1", ROW(FIELD("a", STRING()))),
+                                        FIELD("row2", ROW(FIELD("b", STRING()))),
+                                        FIELD(
+                                                "row3",
+                                                ROW(FIELD("row3", ROW(FIELD("c", STRING()))))))
+                                .notNull()
                                 .getLogicalType();
         Schema schema = AvroSchemaConverter.convertToSchema(rowType);
         assertThat(schema.toString(true))
@@ -238,33 +228,27 @@ class AvroSchemaConverterTest {
     @Test
     void testDataTypeToSchemaToDataTypeNullable() {
         DataType dataType =
-                DataTypes.ROW(
-                        DataTypes.FIELD("f_null", DataTypes.NULL()),
-                        DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN()),
+                ROW(
+                        FIELD("f_null", NULL()),
+                        FIELD("f_boolean", BOOLEAN()),
                         // tinyint and smallint all convert to int
-                        DataTypes.FIELD("f_int", DataTypes.INT()),
-                        DataTypes.FIELD("f_bigint", DataTypes.BIGINT()),
-                        DataTypes.FIELD("f_float", DataTypes.FLOAT()),
-                        DataTypes.FIELD("f_double", DataTypes.DOUBLE()),
+                        FIELD("f_int", INT()),
+                        FIELD("f_bigint", BIGINT()),
+                        FIELD("f_float", FLOAT()),
+                        FIELD("f_double", DOUBLE()),
                         // char converts to string
-                        DataTypes.FIELD("f_string", DataTypes.STRING()),
+                        FIELD("f_string", STRING()),
                         // binary converts to bytes
-                        DataTypes.FIELD("f_varbinary", DataTypes.BYTES()),
-                        DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3)),
-                        DataTypes.FIELD("f_date", DataTypes.DATE()),
-                        DataTypes.FIELD("f_time", DataTypes.TIME(3)),
-                        DataTypes.FIELD("f_decimal", DataTypes.DECIMAL(10, 0)),
-                        DataTypes.FIELD(
-                                "f_row",
-                                DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
-                                        DataTypes.FIELD("f1", DataTypes.TIMESTAMP(3)))),
+                        FIELD("f_varbinary", BYTES()),
+                        FIELD("f_timestamp", TIMESTAMP(3)),
+                        FIELD("f_date", DATE()),
+                        FIELD("f_time", TIME(3)),
+                        FIELD("f_decimal", DECIMAL(10, 0)),
+                        FIELD("f_row", ROW(FIELD("f0", INT()), FIELD("f1", TIMESTAMP(3)))),
                         // multiset converts to map
                         // map key is always not null
-                        DataTypes.FIELD(
-                                "f_map",
-                                DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.INT())),
-                        DataTypes.FIELD("f_array", DataTypes.ARRAY(DataTypes.INT())));
+                        FIELD("f_map", MAP(STRING().notNull(), INT())),
+                        FIELD("f_array", ARRAY(INT())));
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
         DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
         assertThat(converted).isEqualTo(dataType);
@@ -274,41 +258,31 @@ class AvroSchemaConverterTest {
     @Test
     void testDataTypeToSchemaToDataTypeNonNullable() {
         DataType dataType =
-                DataTypes.ROW(
-                                DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN().notNull()),
+                ROW(
+                                FIELD("f_boolean", BOOLEAN().notNull()),
                                 // tinyint and smallint all convert to int
-                                DataTypes.FIELD("f_int", DataTypes.INT().notNull()),
-                                DataTypes.FIELD("f_bigint", DataTypes.BIGINT().notNull()),
-                                DataTypes.FIELD("f_float", DataTypes.FLOAT().notNull()),
-                                DataTypes.FIELD("f_double", DataTypes.DOUBLE().notNull()),
+                                FIELD("f_int", INT().notNull()),
+                                FIELD("f_bigint", BIGINT().notNull()),
+                                FIELD("f_float", FLOAT().notNull()),
+                                FIELD("f_double", DOUBLE().notNull()),
                                 // char converts to string
-                                DataTypes.FIELD("f_string", DataTypes.STRING().notNull()),
+                                FIELD("f_string", STRING().notNull()),
                                 // binary converts to bytes
-                                DataTypes.FIELD("f_varbinary", DataTypes.BYTES().notNull()),
-                                DataTypes.FIELD("f_timestamp", DataTypes.TIMESTAMP(3).notNull()),
-                                DataTypes.FIELD("f_date", DataTypes.DATE().notNull()),
-                                DataTypes.FIELD("f_time", DataTypes.TIME(3).notNull()),
-                                DataTypes.FIELD("f_decimal", DataTypes.DECIMAL(10, 0).notNull()),
-                                DataTypes.FIELD(
+                                FIELD("f_varbinary", BYTES().notNull()),
+                                FIELD("f_timestamp", TIMESTAMP(3).notNull()),
+                                FIELD("f_date", DATE().notNull()),
+                                FIELD("f_time", TIME(3).notNull()),
+                                FIELD("f_decimal", DECIMAL(10, 0).notNull()),
+                                FIELD(
                                         "f_row",
-                                        DataTypes.ROW(
-                                                        DataTypes.FIELD(
-                                                                "f0", DataTypes.INT().notNull()),
-                                                        DataTypes.FIELD(
-                                                                "f1",
-                                                                DataTypes.TIMESTAMP(3).notNull()))
+                                        ROW(
+                                                        FIELD("f0", INT().notNull()),
+                                                        FIELD("f1", TIMESTAMP(3).notNull()))
                                                 .notNull()),
                                 // multiset converts to map
                                 // map key is always not null
-                                DataTypes.FIELD(
-                                        "f_map",
-                                        DataTypes.MAP(
-                                                        DataTypes.STRING().notNull(),
-                                                        DataTypes.INT().notNull())
-                                                .notNull()),
-                                DataTypes.FIELD(
-                                        "f_array",
-                                        DataTypes.ARRAY(DataTypes.INT().notNull()).notNull()))
+                                FIELD("f_map", MAP(STRING().notNull(), INT().notNull()).notNull()),
+                                FIELD("f_array", ARRAY(INT().notNull()).notNull()))
                         .notNull();
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
         DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
@@ -582,58 +556,45 @@ class AvroSchemaConverterTest {
 
     private void validateUserSchema(DataType actual) {
         final DataType address =
-                DataTypes.ROW(
-                        DataTypes.FIELD("num", DataTypes.INT().notNull()),
-                        DataTypes.FIELD("street", DataTypes.STRING().notNull()),
-                        DataTypes.FIELD("city", DataTypes.STRING().notNull()),
-                        DataTypes.FIELD("state", DataTypes.STRING().notNull()),
-                        DataTypes.FIELD("zip", DataTypes.STRING().notNull()));
+                ROW(
+                        FIELD("num", INT().notNull()),
+                        FIELD("street", STRING().notNull()),
+                        FIELD("city", STRING().notNull()),
+                        FIELD("state", STRING().notNull()),
+                        FIELD("zip", STRING().notNull()));
 
         final DataType user =
-                DataTypes.ROW(
-                                DataTypes.FIELD("name", DataTypes.STRING().notNull()),
-                                DataTypes.FIELD("favorite_number", DataTypes.INT()),
-                                DataTypes.FIELD("favorite_color", DataTypes.STRING()),
-                                DataTypes.FIELD("type_long_test", DataTypes.BIGINT()),
-                                DataTypes.FIELD("type_double_test", DataTypes.DOUBLE().notNull()),
-                                DataTypes.FIELD("type_null_test", DataTypes.NULL()),
-                                DataTypes.FIELD("type_bool_test", DataTypes.BOOLEAN().notNull()),
-                                DataTypes.FIELD(
-                                        "type_array_string",
-                                        DataTypes.ARRAY(DataTypes.STRING().notNull()).notNull()),
-                                DataTypes.FIELD(
-                                        "type_array_boolean",
-                                        DataTypes.ARRAY(DataTypes.BOOLEAN().notNull()).notNull()),
-                                DataTypes.FIELD(
-                                        "type_nullable_array",
-                                        DataTypes.ARRAY(DataTypes.STRING().notNull())),
-                                DataTypes.FIELD("type_enum", DataTypes.STRING().notNull()),
-                                DataTypes.FIELD(
+                ROW(
+                                FIELD("name", STRING().notNull()),
+                                FIELD("favorite_number", INT()),
+                                FIELD("favorite_color", STRING()),
+                                FIELD("type_long_test", BIGINT()),
+                                FIELD("type_double_test", DOUBLE().notNull()),
+                                FIELD("type_null_test", NULL()),
+                                FIELD("type_bool_test", BOOLEAN().notNull()),
+                                FIELD("type_array_string", ARRAY(STRING().notNull()).notNull()),
+                                FIELD("type_array_boolean", ARRAY(BOOLEAN().notNull()).notNull()),
+                                FIELD("type_nullable_array", ARRAY(STRING().notNull())),
+                                FIELD("type_enum", STRING().notNull()),
+                                FIELD(
                                         "type_map",
-                                        DataTypes.MAP(
-                                                        DataTypes.STRING().notNull(),
-                                                        DataTypes.BIGINT().notNull())
-                                                .notNull()),
-                                DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
-                                DataTypes.FIELD(
+                                        MAP(STRING().notNull(), BIGINT().notNull()).notNull()),
+                                FIELD("type_fixed", VARBINARY(16)),
+                                FIELD(
                                         "type_union",
                                         new AtomicDataType(
                                                 new TypeInformationRawType<>(
                                                         false, Types.GENERIC(Object.class)),
                                                 Object.class)),
-                                DataTypes.FIELD("type_nested", address),
-                                DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
-                                DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
-                                DataTypes.FIELD("type_time_millis", DataTypes.TIME(3).notNull()),
-                                DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
-                                DataTypes.FIELD(
-                                        "type_timestamp_millis", DataTypes.TIMESTAMP(3).notNull()),
-                                DataTypes.FIELD(
-                                        "type_timestamp_micros", DataTypes.TIMESTAMP(6).notNull()),
-                                DataTypes.FIELD(
-                                        "type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
-                                DataTypes.FIELD(
-                                        "type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
+                                FIELD("type_nested", address),
+                                FIELD("type_bytes", BYTES().notNull()),
+                                FIELD("type_date", DATE().notNull()),
+                                FIELD("type_time_millis", TIME(3).notNull()),
+                                FIELD("type_time_micros", TIME(6).notNull()),
+                                FIELD("type_timestamp_millis", TIMESTAMP(3).notNull()),
+                                FIELD("type_timestamp_micros", TIMESTAMP(6).notNull()),
+                                FIELD("type_decimal_bytes", DECIMAL(4, 2).notNull()),
+                                FIELD("type_decimal_fixed", DECIMAL(4, 2).notNull()))
                         .notNull();
 
         assertThat(actual).isEqualTo(user);

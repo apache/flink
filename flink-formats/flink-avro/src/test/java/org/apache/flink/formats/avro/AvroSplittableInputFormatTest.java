@@ -42,7 +42,6 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -115,10 +114,10 @@ class AvroSplittableInputFormatTest {
         user1.setTypeNested(addr);
         user1.setTypeBytes(ByteBuffer.allocate(10));
         user1.setTypeDate(LocalDate.parse("2014-03-01"));
-        user1.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-        user1.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
-        user1.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
-        user1.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+        user1.setTypeTimeMillis(LocalTime.parse("12:34:56.123"));
+        user1.setTypeTimeMicros(LocalTime.parse("12:34:56.123456"));
+        user1.setTypeTimestampMillis(Instant.parse("2014-03-01T12:34:56.123Z"));
+        user1.setTypeTimestampMicros(Instant.parse("2014-03-01T12:34:56.123456Z"));
         // 20.00
         user1.setTypeDecimalBytes(
                 ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
@@ -153,12 +152,10 @@ class AvroSplittableInputFormatTest {
                                         .build())
                         .setTypeBytes(ByteBuffer.allocate(10))
                         .setTypeDate(LocalDate.parse("2014-03-01"))
-                        .setTypeTimeMillis(LocalTime.parse("12:12:12"))
-                        .setTypeTimeMicros(
-                                LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
-                        .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
-                        .setTypeTimestampMicros(
-                                Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeTimeMillis(LocalTime.parse("12:34:56.123"))
+                        .setTypeTimeMicros(LocalTime.parse("12:34:56.123456"))
+                        .setTypeTimestampMillis(Instant.parse("2014-03-01T12:34:56.123Z"))
+                        .setTypeTimestampMicros(Instant.parse("2014-03-01T12:34:56.123456Z"))
                         // 20.00
                         .setTypeDecimalBytes(
                                 ByteBuffer.wrap(
@@ -194,10 +191,10 @@ class AvroSplittableInputFormatTest {
             user.setTypeNested(address);
             user.setTypeBytes(ByteBuffer.allocate(10));
             user.setTypeDate(LocalDate.parse("2014-03-01"));
-            user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-            user.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
-            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
-            user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+            user.setTypeTimeMillis(LocalTime.parse("12:34:56.123"));
+            user.setTypeTimeMicros(LocalTime.parse("12:34:56.123456"));
+            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:34:56.123Z"));
+            user.setTypeTimestampMicros(Instant.parse("2014-03-01T12:34:56.123456Z"));
             // 20.00
             user.setTypeDecimalBytes(
                     ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
@@ -234,7 +231,7 @@ class AvroSplittableInputFormatTest {
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
+        assertThat(elementsPerSplit).containsExactly(1528, 1146, 1146, 1180);
         assertThat(elements).isEqualTo(NUM_RECORDS);
         format.close();
     }
@@ -280,7 +277,7 @@ class AvroSplittableInputFormatTest {
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
+        assertThat(elementsPerSplit).containsExactly(1528, 1146, 1146, 1180);
         assertThat(elements).isEqualTo(NUM_RECORDS);
         format.close();
     }
@@ -326,7 +323,7 @@ class AvroSplittableInputFormatTest {
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
+        assertThat(elementsPerSplit).containsExactly(1528, 1146, 1146, 1180);
         assertThat(elements).isEqualTo(NUM_RECORDS);
         format.close();
     }

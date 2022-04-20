@@ -30,7 +30,6 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -58,10 +57,10 @@ public class TestDataGenerator {
                 generateRandomAddress(rnd),
                 generateRandomBytes(rnd),
                 LocalDate.parse("2014-03-01"),
-                LocalTime.parse("12:12:12"),
-                LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS),
-                Instant.parse("2014-03-01T12:12:12.321Z"),
-                Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS),
+                LocalTime.parse("12:34:56.123"),
+                LocalTime.parse("12:34:56.123456"),
+                Instant.parse("2014-03-01T12:34:56.123Z"),
+                Instant.parse("2014-03-01T12:34:56.123456Z"),
                 ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()),
                 new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
     }

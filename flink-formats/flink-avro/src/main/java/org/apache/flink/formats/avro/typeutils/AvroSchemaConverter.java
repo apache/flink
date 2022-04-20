@@ -354,12 +354,14 @@ public class AvroSchemaConverter {
                 org.apache.avro.LogicalType avroLogicalType;
                 if (precision <= 3) {
                     avroLogicalType = LogicalTypes.timestampMillis();
+                } else if (precision <= 6) {
+                    avroLogicalType = LogicalTypes.timestampMicros();
                 } else {
                     throw new IllegalArgumentException(
                             "Avro does not support TIMESTAMP type "
                                     + "with precision: "
                                     + precision
-                                    + ", it only supports precision less than 3.");
+                                    + ", it only supports precision less than or equal to 6.");
                 }
                 Schema timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
                 return nullable ? nullableSchema(timestamp) : timestamp;

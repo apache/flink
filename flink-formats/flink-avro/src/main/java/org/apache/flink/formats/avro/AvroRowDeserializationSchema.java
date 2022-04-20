@@ -365,7 +365,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
             timestamp.setNanos(nanos);
             return timestamp;
         } else if (jodaConverter != null) {
-            millis = jodaConverter.convertTimestamp(object);
+            if (isMicros) {
+                millis = jodaConverter.convertTimestampMicros(object);
+            } else {
+                millis = jodaConverter.convertTimestampMillis(object);
+            }
         } else {
             throw new IllegalArgumentException(
                     "Unexpected object type for DATE logical type. Received: " + object);

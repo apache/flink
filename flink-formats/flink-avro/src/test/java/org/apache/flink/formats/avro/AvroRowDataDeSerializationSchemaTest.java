@@ -44,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -177,10 +178,12 @@ class AvroRowDataDeSerializationSchemaTest {
     @Test
     void testSpecificType() throws Exception {
         LogicalTimeRecord record = new LogicalTimeRecord();
-        Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
-        record.setTypeTimestampMillis(timestamp);
+        Instant timestampMillis = Instant.parse("2010-06-30T12:34:56.123456Z");
+        record.setTypeTimestampMillis(timestampMillis);
+        Instant timestampMicros = Instant.parse("2010-06-30T12:34:56.123456Z");
+        record.setTypeTimestampMicros(timestampMicros);
         record.setTypeDate(LocalDate.parse("2014-03-01"));
-        record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+        record.setTypeTimeMillis(LocalTime.parse("12:34:56.123"));
         SpecificDatumWriter<LogicalTimeRecord> datumWriter =
                 new SpecificDatumWriter<>(LogicalTimeRecord.class);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -192,6 +195,7 @@ class AvroRowDataDeSerializationSchemaTest {
         DataType dataType =
                 ROW(
                                 FIELD("type_timestamp_millis", TIMESTAMP(3).notNull()),
+                                FIELD("type_timestamp_micros", TIMESTAMP(6).notNull()),
                                 FIELD("type_date", DATE().notNull()),
                                 FIELD("type_time_millis", TIME(3).notNull()))
                         .notNull();
@@ -203,18 +207,23 @@ class AvroRowDataDeSerializationSchemaTest {
         byte[] output = serializationSchema.serialize(rowData);
         RowData rowData2 = deserializationSchema.deserialize(output);
         assertThat(rowData2).isEqualTo(rowData);
-        assertThat(rowData.getTimestamp(0, 3).toInstant()).isEqualTo(timestamp);
+        assertThat(rowData.getTimestamp(0, 3).toInstant())
+                .isEqualTo(
+                        timestampMillis.with(
+                                ChronoField.NANO_OF_SECOND,
+                                (timestampMillis.getNano() / 1_000_000) * 1_000_000));
+        assertThat(rowData.getTimestamp(1, 6).toInstant()).isEqualTo(timestampMicros);
 
         assertThat(
                         DataFormatConverters.LocalDateConverter.INSTANCE
-                                .toExternal(rowData.getInt(1))
+                                .toExternal(rowData.getInt(2))
                                 .toString())
                 .isEqualTo("2014-03-01");
         assertThat(
                         DataFormatConverters.LocalTimeConverter.INSTANCE
-                                .toExternal(rowData.getInt(2))
+                                .toExternal(rowData.getInt(3))
                                 .toString())
-                .isEqualTo("12:12:12");
+                .isEqualTo("12:34:56.123");
     }
 
     @Test

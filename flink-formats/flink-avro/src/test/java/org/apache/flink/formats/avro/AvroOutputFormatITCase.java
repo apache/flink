@@ -39,7 +39,6 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -109,16 +108,17 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
         DatumReader<User> userDatumReader1 = new SpecificDatumReader<>(User.class);
         for (File avroOutput : output1) {
 
-            DataFileReader<User> dataFileReader1 =
-                    new DataFileReader<>(avroOutput, userDatumReader1);
-            while (dataFileReader1.hasNext()) {
-                User user = dataFileReader1.next();
-                result1.add(
-                        user.getName()
-                                + "|"
-                                + user.getFavoriteNumber()
-                                + "|"
-                                + user.getFavoriteColor());
+            try (DataFileReader<User> dataFileReader1 =
+                    new DataFileReader<>(avroOutput, userDatumReader1)) {
+                while (dataFileReader1.hasNext()) {
+                    User user = dataFileReader1.next();
+                    result1.add(
+                            user.getName()
+                                    + "|"
+                                    + user.getFavoriteNumber()
+                                    + "|"
+                                    + user.getFavoriteColor());
+                }
             }
         }
         assertThat(result1).contains(userData.split("\n"));
@@ -135,16 +135,17 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
         DatumReader<ReflectiveUser> userDatumReader2 =
                 new ReflectDatumReader<>(ReflectiveUser.class);
         for (File avroOutput : Objects.requireNonNull(output2)) {
-            DataFileReader<ReflectiveUser> dataFileReader2 =
-                    new DataFileReader<>(avroOutput, userDatumReader2);
-            while (dataFileReader2.hasNext()) {
-                ReflectiveUser user = dataFileReader2.next();
-                result2.add(
-                        user.getName()
-                                + "|"
-                                + user.getFavoriteNumber()
-                                + "|"
-                                + user.getFavoriteColor());
+            try (DataFileReader<ReflectiveUser> dataFileReader2 =
+                    new DataFileReader<>(avroOutput, userDatumReader2)) {
+                while (dataFileReader2.hasNext()) {
+                    ReflectiveUser user = dataFileReader2.next();
+                    result2.add(
+                            user.getName()
+                                    + "|"
+                                    + user.getFavoriteNumber()
+                                    + "|"
+                                    + user.getFavoriteColor());
+                }
             }
         }
         assertThat(result2).contains(userData.split("\n"));
@@ -166,10 +167,10 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             user.setTypeMap(Collections.emptyMap());
             user.setTypeBytes(ByteBuffer.allocate(10));
             user.setTypeDate(LocalDate.parse("2014-03-01"));
-            user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-            user.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
-            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
-            user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+            user.setTypeTimeMillis(LocalTime.parse("12:34:56.123"));
+            user.setTypeTimeMicros(LocalTime.parse("12:34:56.123456"));
+            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:34:56.123Z"));
+            user.setTypeTimestampMicros(Instant.parse("2014-03-01T12:34:56.123456Z"));
             // 20.00
             user.setTypeDecimalBytes(
                     ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));

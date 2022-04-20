@@ -27,6 +27,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -35,6 +36,8 @@ import org.apache.avro.util.Utf8;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -150,15 +153,32 @@ public class RowDataToAvroConverters {
                         };
                 break;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                converter =
-                        new RowDataToAvroConverter() {
-                            private static final long serialVersionUID = 1L;
+                int precision = LogicalTypeChecks.getPrecision(type);
+                if (precision <= 3) {
+                    converter =
+                            new RowDataToAvroConverter() {
+                                private static final long serialVersionUID = 1L;
 
-                            @Override
-                            public Object convert(Schema schema, Object object) {
-                                return ((TimestampData) object).toInstant().toEpochMilli();
-                            }
-                        };
+                                @Override
+                                public Object convert(Schema schema, Object object) {
+                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                }
+                            };
+                } else if (precision <= 6) {
+                    converter =
+                            new RowDataToAvroConverter() {
+                                private static final long serialVersionUID = 1L;
+
+                                @Override
+                                public Object convert(Schema schema, Object object) {
+                                    Instant instant = ((TimestampData) object).toInstant();
+                                    return instant.getEpochSecond() * 1_000_000
+                                            + instant.get(ChronoField.MICRO_OF_SECOND);
+                                }
+                            };
+                } else {
+                    throw new UnsupportedOperationException("Unsupported type: " + type);
+                }
                 break;
             case DECIMAL:
                 converter =
@@ -207,7 +227,7 @@ public class RowDataToAvroConverters {
                         actualSchema = types.get(1);
                     } else {
                         throw new IllegalArgumentException(
-                                "The Avro schema is not a nullable type: " + schema.toString());
+                                "The Avro schema is not a nullable type: " + schema);
                     }
                 } else {
                     actualSchema = schema;

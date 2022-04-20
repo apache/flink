@@ -61,9 +61,12 @@ class JodaConverter {
         return value.get(DateTimeFieldType.millisOfDay());
     }
 
-    public long convertTimestamp(Object object) {
-        final DateTime value = (DateTime) object;
-        return value.toDate().getTime();
+    public long convertTimestampMillis(Object object) {
+        return ((DateTime) object).getMillis();
+    }
+
+    public long convertTimestampMicros(Object object) {
+        return ((DateTime) object).getMillis() * 1_000;
     }
 
     private JodaConverter() {}

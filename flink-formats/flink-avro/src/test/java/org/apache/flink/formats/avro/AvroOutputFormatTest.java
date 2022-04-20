@@ -44,7 +44,6 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -178,10 +177,10 @@ class AvroOutputFormatTest {
             user.setTypeMap(Collections.emptyMap());
             user.setTypeBytes(ByteBuffer.allocate(10));
             user.setTypeDate(LocalDate.parse("2014-03-01"));
-            user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-            user.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
-            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
-            user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+            user.setTypeTimeMillis(LocalTime.parse("12:34:56.123"));
+            user.setTypeTimeMicros(LocalTime.parse("12:34:56.123456"));
+            user.setTypeTimestampMillis(Instant.parse("2014-03-01T12:34:56.123Z"));
+            user.setTypeTimestampMicros(Instant.parse("2014-03-01T12:34:56.123456Z"));
 
             // 20.00
             user.setTypeDecimalBytes(
@@ -210,16 +209,16 @@ class AvroOutputFormatTest {
         output(outputFormat, schema);
 
         GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
-        DataFileReader<GenericRecord> dataFileReader =
-                new DataFileReader<>(new File(outputPath.getPath()), reader);
+        try (DataFileReader<GenericRecord> dataFileReader =
+                new DataFileReader<>(new File(outputPath.getPath()), reader)) {
 
-        while (dataFileReader.hasNext()) {
-            GenericRecord record = dataFileReader.next();
-            assertThat(record.get("user_name").toString()).isEqualTo("testUser");
-            assertThat(record.get("favorite_number")).isEqualTo(1);
-            assertThat(record.get("favorite_color").toString()).isEqualTo("blue");
+            while (dataFileReader.hasNext()) {
+                GenericRecord record = dataFileReader.next();
+                assertThat(record.get("user_name").toString()).isEqualTo("testUser");
+                assertThat(record.get("favorite_number")).isEqualTo(1);
+                assertThat(record.get("favorite_color").toString()).isEqualTo("blue");
+            }
         }
-
         // cleanup
         FileSystem fs = FileSystem.getLocalFileSystem();
         fs.delete(outputPath, false);

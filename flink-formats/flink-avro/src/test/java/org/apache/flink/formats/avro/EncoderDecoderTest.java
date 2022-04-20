@@ -40,7 +40,6 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -168,7 +167,7 @@ class EncoderDecoderTest {
                         -1L,
                         (byte) -65,
                         "Serve me the sky with a big slice of lemon",
-                        (short) Byte.MIN_VALUE,
+                        Byte.MIN_VALUE,
                         0.0000001));
     }
 
@@ -295,10 +294,10 @@ class EncoderDecoderTest {
                         addr,
                         ByteBuffer.wrap(b),
                         LocalDate.parse("2014-03-01"),
-                        LocalTime.parse("12:12:12"),
-                        LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS),
-                        Instant.parse("2014-03-01T12:12:12.321Z"),
-                        Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS),
+                        LocalTime.parse("12:34:56.123"),
+                        LocalTime.parse("12:34:56.123456"),
+                        Instant.parse("2014-03-01T12:34:56.123Z"),
+                        Instant.parse("2014-03-01T12:34:56.123456Z"),
                         ByteBuffer.wrap(
                                 BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00
                         new Fixed2(
