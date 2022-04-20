@@ -347,7 +347,7 @@ class FlinkDDLDataTypeTest {
         return of(testItem);
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testDataTypeParsing(TestItem testItem) {
         if (testItem.expectedType != null) {
