@@ -336,14 +336,14 @@ state.checkpoint-storage: jobmanager
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setStateBackend(new HashMapStateBackend());
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend());
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStateBackend(new HashMapStateBackend)
-env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend)
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
 ```
 {{< /tab >}}
 {{< /tabs>}}
