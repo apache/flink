@@ -17,6 +17,8 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -46,6 +48,8 @@ public class ChangelogPeriodicMaterializationITCase
     @Test
     public void testNonMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
         StreamExecutionEnvironment env =
@@ -64,13 +68,14 @@ public class ChangelogPeriodicMaterializationITCase
                                             .get()
                                             .compareAndSet(
                                                     true,
-                                                    !getAllStateHandleId(checkpointFolder)
+                                                    !getAllStateHandleId(
+                                                                    jobID.get(), miniCluster.get())
                                                             .isEmpty());
                                     throwArtificialFailure();
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
         Preconditions.checkState(!hasMaterialization.get().get());
     }
 
@@ -78,6 +83,8 @@ public class ChangelogPeriodicMaterializationITCase
     @Test
     public void testMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicInteger> currentCheckpointNum =
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
@@ -101,7 +108,8 @@ public class ChangelogPeriodicMaterializationITCase
                                                     return true;
                                                 }
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 if (!allMaterializationId.isEmpty()) {
                                                     currentMaterializationId
                                                             .get()
@@ -126,7 +134,8 @@ public class ChangelogPeriodicMaterializationITCase
                                                     return true;
                                                 }
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 return allMaterializationId.isEmpty()
                                                         || currentMaterializationId
                                                                 .get()
@@ -136,12 +145,14 @@ public class ChangelogPeriodicMaterializationITCase
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
     }
 
     @Test
     public void testFailedMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
@@ -175,7 +186,8 @@ public class ChangelogPeriodicMaterializationITCase
                                     waitWhile(
                                             () -> {
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 if (!allMaterializationId.isEmpty()) {
                                                     currentMaterializationId
                                                             .get()
@@ -188,7 +200,8 @@ public class ChangelogPeriodicMaterializationITCase
                                     waitWhile(
                                             () -> {
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 return allMaterializationId.isEmpty()
                                                         || currentMaterializationId
                                                                 .get()
@@ -197,6 +210,6 @@ public class ChangelogPeriodicMaterializationITCase
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
     }
 }

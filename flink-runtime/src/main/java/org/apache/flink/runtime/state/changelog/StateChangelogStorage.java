@@ -29,15 +29,11 @@ import org.apache.flink.runtime.state.KeyGroupRange;
  * obtain an instance.
  */
 @Internal
-public interface StateChangelogStorage<Handle extends ChangelogStateHandle> extends AutoCloseable {
+public interface StateChangelogStorage<Handle extends ChangelogStateHandle>
+        extends StateChangelogStorageView<Handle> {
 
     StateChangelogWriter<Handle> createWriter(
             String operatorID, KeyGroupRange keyGroupRange, MailboxExecutor mailboxExecutor);
-
-    StateChangelogHandleReader<Handle> createReader();
-
-    @Override
-    default void close() throws Exception {}
 
     default AvailabilityProvider getAvailabilityProvider() {
         return () -> AvailabilityProvider.AVAILABLE;

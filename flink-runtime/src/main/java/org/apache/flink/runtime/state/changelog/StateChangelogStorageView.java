@@ -19,24 +19,17 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
-
-import java.io.IOException;
 
 /**
- * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
- * create {@link StateChangelogStorage}.
+ * A storage view for changelog. Could produce {@link StateChangelogHandleReader} for read. Please
+ * use {@link StateChangelogStorageLoader} to obtain an instance.
  */
 @Internal
-public interface StateChangelogStorageFactory {
-    /** Get the identifier for user to use this changelog storage factory. */
-    String getIdentifier();
+public interface StateChangelogStorageView<Handle extends ChangelogStateHandle>
+        extends AutoCloseable {
 
-    /** Create the storage based on a configuration. */
-    StateChangelogStorage<?> createStorage(
-            Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException;
+    StateChangelogHandleReader<Handle> createReader();
 
-    /** Create the storage for recovery. */
-    StateChangelogStorageView<?> createStorageView() throws IOException;
+    @Override
+    default void close() throws Exception {}
 }

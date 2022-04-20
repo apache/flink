@@ -117,6 +117,8 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte INCREMENTAL_KEY_GROUPS_HANDLE_V2 = 11;
     // KEY_GROUPS_HANDLE_V2 is introduced to add new field of stateHandleId.
     private static final byte KEY_GROUPS_HANDLE_V2 = 12;
+    // CHANGELOG_FILE_INCREMENT_HANDLE_V2 is introduced to add new field of storageIdentifier.
+    private static final byte CHANGELOG_FILE_INCREMENT_HANDLE_V2 = 13;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -379,7 +381,7 @@ public abstract class MetadataV2V3SerializerBase {
             writeStateHandleId(handle, dos);
         } else if (stateHandle instanceof ChangelogStateHandleStreamImpl) {
             ChangelogStateHandleStreamImpl handle = (ChangelogStateHandleStreamImpl) stateHandle;
-            dos.writeByte(CHANGELOG_FILE_INCREMENT_HANDLE);
+            dos.writeByte(CHANGELOG_FILE_INCREMENT_HANDLE_V2);
             dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeInt(handle.getHandlesAndOffsets().size());
@@ -391,7 +393,7 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeLong(handle.getStateSize());
             dos.writeLong(handle.getCheckpointedSize());
             writeStateHandleId(handle, dos);
-
+            dos.writeUTF(handle.getStorageIdentifier());
         } else {
             throw new IllegalStateException(
                     "Unknown KeyedStateHandle type: " + stateHandle.getClass());
@@ -492,7 +494,8 @@ public abstract class MetadataV2V3SerializerBase {
                     keyGroupRange,
                     stateHandleId);
 
-        } else if (CHANGELOG_FILE_INCREMENT_HANDLE == type) {
+        } else if (CHANGELOG_FILE_INCREMENT_HANDLE == type
+                || CHANGELOG_FILE_INCREMENT_HANDLE_V2 == type) {
             int start = dis.readInt();
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange = KeyGroupRange.of(start, start + numKeyGroups - 1);
@@ -507,8 +510,15 @@ public abstract class MetadataV2V3SerializerBase {
             long size = dis.readLong();
             long checkpointedSize = dis.readLong();
             StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
+            String storageIdentifier =
+                    CHANGELOG_FILE_INCREMENT_HANDLE_V2 == type ? dis.readUTF() : "filesystem";
             return ChangelogStateHandleStreamImpl.restore(
-                    streamHandleAndOffset, keyGroupRange, size, checkpointedSize, stateHandleId);
+                    streamHandleAndOffset,
+                    keyGroupRange,
+                    size,
+                    checkpointedSize,
+                    storageIdentifier,
+                    stateHandleId);
         } else {
             throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
         }
