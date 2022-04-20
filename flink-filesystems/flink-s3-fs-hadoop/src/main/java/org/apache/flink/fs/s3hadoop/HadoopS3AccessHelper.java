@@ -34,6 +34,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
+import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
+import org.apache.hadoop.fs.store.audit.AuditSpan;
+import org.apache.hadoop.fs.store.audit.AuditSpanSource;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -51,9 +54,19 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     private final InternalWriteOperationHelper s3accessHelper;
 
-    public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
+    public HadoopS3AccessHelper(
+            S3AFileSystem s3a,
+            Configuration conf,
+            S3AStatisticsContext statisticsContext,
+            AuditSpanSource auditSpanSource,
+            AuditSpan auditSpan) {
         this.s3accessHelper =
-                new InternalWriteOperationHelper(checkNotNull(s3a), checkNotNull(conf));
+                new InternalWriteOperationHelper(
+                        checkNotNull(s3a),
+                        checkNotNull(conf),
+                        statisticsContext,
+                        auditSpanSource,
+                        auditSpan);
         this.s3a = s3a;
     }
 
@@ -144,8 +157,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
      */
     private static final class InternalWriteOperationHelper extends WriteOperationHelper {
 
-        InternalWriteOperationHelper(S3AFileSystem owner, Configuration conf) {
-            super(owner, conf);
+        InternalWriteOperationHelper(
+                S3AFileSystem owner,
+                Configuration conf,
+                S3AStatisticsContext statisticsContext,
+                AuditSpanSource auditSpanSource,
+                AuditSpan auditSpan) {
+            super(owner, conf, statisticsContext, auditSpanSource, auditSpan);
         }
     }
 }
