@@ -127,7 +127,10 @@ MODULES_TESTS="\
 flink-tests,\
 flink-architecture-tests"
 
-MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
+MODULES_FINEGRAINED_RESOURCE_MANAGEMENT="\
+flink-runtime,\
+flink-tests,\
+"
 
 function get_compile_modules_for_stage() {
     local stage=$1
