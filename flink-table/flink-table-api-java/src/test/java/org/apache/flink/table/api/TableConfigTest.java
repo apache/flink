@@ -20,7 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -37,7 +37,7 @@ public class TableConfigTest {
     private static final Configuration configuration = new Configuration();
 
     @Test
-    public void testSetAndGetSqlDialect() {
+    void testSetAndGetSqlDialect() {
         configuration.setString("table.sql-dialect", "HIVE");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         CONFIG_BY_METHOD.setSqlDialect(SqlDialect.HIVE);
@@ -47,7 +47,7 @@ public class TableConfigTest {
     }
 
     @Test
-    public void testSetAndGetMaxGeneratedCodeLength() {
+    void testSetAndGetMaxGeneratedCodeLength() {
         configuration.setString("table.generated-code.max-length", "5000");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         CONFIG_BY_METHOD.setMaxGeneratedCodeLength(5000);
@@ -58,7 +58,7 @@ public class TableConfigTest {
     }
 
     @Test
-    public void testSetAndGetLocalTimeZone() {
+    void testSetAndGetLocalTimeZone() {
         configuration.setString("table.local-time-zone", "Asia/Shanghai");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         CONFIG_BY_METHOD.setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
@@ -92,7 +92,7 @@ public class TableConfigTest {
     }
 
     @Test
-    public void testGetInvalidLocalTimeZone() {
+    void testGetInvalidLocalTimeZone() {
         configuration.setString("table.local-time-zone", "UTC+8");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         assertThatThrownBy(CONFIG_BY_CONFIGURATION::getLocalTimeZone)
@@ -103,7 +103,7 @@ public class TableConfigTest {
     }
 
     @Test
-    public void testGetInvalidAbbreviationLocalTimeZone() {
+    void testGetInvalidAbbreviationLocalTimeZone() {
         configuration.setString("table.local-time-zone", "PST");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         assertThatThrownBy(CONFIG_BY_CONFIGURATION::getLocalTimeZone)
@@ -114,7 +114,7 @@ public class TableConfigTest {
     }
 
     @Test
-    public void testSetAndGetIdleStateRetention() {
+    void testSetAndGetIdleStateRetention() {
         configuration.setString("table.exec.state.ttl", "1 h");
         CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
         CONFIG_BY_METHOD.setIdleStateRetention(Duration.ofHours(1));

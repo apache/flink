@@ -29,8 +29,8 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FunctionCatalog}. */
-public class FunctionCatalogTest {
+class FunctionCatalogTest {
 
     private static final ScalarFunction FUNCTION_1 = new TestFunction1();
 
@@ -77,8 +77,8 @@ public class FunctionCatalogTest {
 
     private Catalog catalog;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         catalog = new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE);
 
         moduleManager = new ModuleManager();
@@ -93,7 +93,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testGetBuiltInFunctions() {
+    void testGetBuiltInFunctions() {
         Set<String> actual = new HashSet<>();
         Collections.addAll(actual, functionCatalog.getFunctions());
 
@@ -103,7 +103,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testPreciseFunctionReference() throws Exception {
+    void testPreciseFunctionReference() throws Exception {
         // test no function is found
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER)).isEmpty();
 
@@ -129,7 +129,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testAmbiguousFunctionReference() throws Exception {
+    void testAmbiguousFunctionReference() throws Exception {
         // test no function is found
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER)).isEmpty();
 
@@ -169,7 +169,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testTemporarySystemFunction() {
+    void testTemporarySystemFunction() {
         // register first time
         functionCatalog.registerTemporarySystemFunction(NAME, FUNCTION_1, false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
@@ -220,7 +220,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testUninstantiatedTemporarySystemFunction() {
+    void testUninstantiatedTemporarySystemFunction() {
         // register first time
         functionCatalog.registerTemporarySystemFunction(
                 NAME, FUNCTION_1.getClass().getName(), FunctionLanguage.JAVA, false);
@@ -285,7 +285,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testCatalogFunction() {
+    void testCatalogFunction() {
         // register first time
         functionCatalog.registerCatalogFunction(
                 PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_1.getClass(), false);
@@ -353,7 +353,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testTemporaryCatalogFunction() {
+    void testTemporaryCatalogFunction() {
         // register permanent function
         functionCatalog.registerCatalogFunction(
                 PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_2.getClass(), false);
@@ -462,7 +462,7 @@ public class FunctionCatalogTest {
     }
 
     @Test
-    public void testUninstantiatedTemporaryCatalogFunction() {
+    void testUninstantiatedTemporaryCatalogFunction() {
         // register permanent function
         functionCatalog.registerCatalogFunction(
                 PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_2.getClass(), false);

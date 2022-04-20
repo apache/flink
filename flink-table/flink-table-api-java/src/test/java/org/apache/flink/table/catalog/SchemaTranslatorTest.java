@@ -29,7 +29,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -50,10 +50,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SchemaTranslator}. */
-public class SchemaTranslatorTest {
+class SchemaTranslatorTest {
 
     @Test
-    public void testInputFromRow() {
+    void testInputFromRow() {
         final TypeInformation<?> inputTypeInfo =
                 Types.ROW(Types.ROW(Types.INT, Types.BOOLEAN), Types.ENUM(DayOfWeek.class));
 
@@ -83,7 +83,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToRowDataType() {
+    void testOutputToRowDataType() {
         final ResolvedSchema inputSchema =
                 ResolvedSchema.of(
                         Column.physical("c", INT()),
@@ -111,7 +111,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testInputFromAtomic() {
+    void testInputFromAtomic() {
         final TypeInformation<?> inputTypeInfo = Types.GENERIC(Row.class);
 
         final ConsumingResult result =
@@ -132,7 +132,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToAtomicDataType() {
+    void testOutputToAtomicDataType() {
         final ResolvedSchema inputSchema = ResolvedSchema.of(Column.physical("a", INT()));
 
         final ProducingResult result =
@@ -146,7 +146,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testInputFromRowWithNonPhysicalDeclaredSchema() {
+    void testInputFromRowWithNonPhysicalDeclaredSchema() {
         final TypeInformation<?> inputTypeInfo = Types.ROW(Types.INT, Types.LONG);
 
         final ConsumingResult result =
@@ -178,7 +178,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testInputFromRowWithPhysicalDeclaredSchema() {
+    void testInputFromRowWithPhysicalDeclaredSchema() {
         final TypeInformation<?> inputTypeInfo =
                 Types.ROW(Types.INT, Types.LONG, Types.GENERIC(BigDecimal.class), Types.BOOLEAN);
 
@@ -223,7 +223,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testInputFromAtomicWithPhysicalDeclaredSchema() {
+    void testInputFromAtomicWithPhysicalDeclaredSchema() {
         final TypeInformation<?> inputTypeInfo = Types.GENERIC(Row.class);
 
         final ConsumingResult result =
@@ -253,7 +253,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testInvalidDeclaredSchemaColumn() {
+    void testInvalidDeclaredSchemaColumn() {
         final TypeInformation<?> inputTypeInfo = Types.ROW(Types.INT, Types.LONG);
 
         assertThatThrownBy(
@@ -269,7 +269,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToNoSchema() {
+    void testOutputToNoSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
                         Column.physical("id", BIGINT()),
@@ -292,7 +292,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToEmptySchema() {
+    void testOutputToEmptySchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
                         Column.physical("id", BIGINT()),
@@ -316,7 +316,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToPartialSchema() {
+    void testOutputToPartialSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
                         Column.physical("id", BIGINT().notNull()),
@@ -344,7 +344,7 @@ public class SchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToDeclaredSchema() {
+    void testOutputToDeclaredSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
                         Column.physical("id", BIGINT()),

@@ -35,9 +35,9 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,7 +73,7 @@ public abstract class CatalogTest {
 
     protected static Catalog catalog;
 
-    @After
+    @AfterEach
     public void cleanup() throws Exception {
         if (catalog.tableExists(path1)) {
             catalog.dropTable(path1, true);
@@ -98,7 +98,7 @@ public abstract class CatalogTest {
         }
     }
 
-    @AfterClass
+    @AfterAll
     public static void closeup() {
         if (catalog != null) {
             catalog.close();

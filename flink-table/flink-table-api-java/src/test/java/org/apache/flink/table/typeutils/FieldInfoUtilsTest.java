@@ -25,46 +25,53 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.expressions.Expression;
 
-import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for {@link FieldInfoUtils}. */
-@RunWith(Enclosed.class)
-public class FieldInfoUtilsTest {
+class FieldInfoUtilsTest {
 
     /** Test for ByNameMode. */
-    @RunWith(Parameterized.class)
-    public static final class TestByNameMode {
+    @Nested
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+    class TestByNameMode {
 
-        @Parameterized.Parameters(name = "{0}")
-        public static Collection<TypeInformation> parameters() throws Exception {
-            return Arrays.asList(
-                    new RowTypeInfo(
-                            new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
-                            new String[] {"f0", "f1", "f2"}),
-                    new PojoTypeInfo(
-                            MyPojo.class,
-                            Arrays.asList(
-                                    new PojoField(MyPojo.class.getDeclaredField("f0"), Types.INT),
-                                    new PojoField(MyPojo.class.getDeclaredField("f1"), Types.LONG),
-                                    new PojoField(
-                                            MyPojo.class.getDeclaredField("f2"),
-                                            Types.SQL_TIMESTAMP))));
+        Stream<Arguments> parameters() throws Exception {
+            return Stream.of(
+                    Arguments.of(
+                            new RowTypeInfo(
+                                    new TypeInformation[] {
+                                        Types.INT, Types.LONG, Types.SQL_TIMESTAMP
+                                    },
+                                    new String[] {"f0", "f1", "f2"})),
+                    Arguments.of(
+                            new PojoTypeInfo(
+                                    MyPojo.class,
+                                    Arrays.asList(
+                                            new PojoField(
+                                                    MyPojo.class.getDeclaredField("f0"), Types.INT),
+                                            new PojoField(
+                                                    MyPojo.class.getDeclaredField("f1"),
+                                                    Types.LONG),
+                                            new PojoField(
+                                                    MyPojo.class.getDeclaredField("f2"),
+                                                    Types.SQL_TIMESTAMP)))));
         }
 
-        @Parameterized.Parameter public TypeInformation typeInfo;
-
-        @Test
-        public void testByNameModeReorder() {
+        @ParameterizedTest(name = "{0}")
+        @MethodSource("parameters")
+        void testByNameModeReorder(TypeInformation typeInfo) {
             FieldInfoUtils.TypeInfoSchema schema =
                     FieldInfoUtils.getFieldsInfo(
                             typeInfo, new Expression[] {$("f2"), $("f1"), $("f0")});
@@ -72,8 +79,9 @@ public class FieldInfoUtilsTest {
             assertThat(schema.getFieldNames()).isEqualTo(new String[] {"f2", "f1", "f0"});
         }
 
-        @Test
-        public void testByNameModeReorderAndRename() {
+        @ParameterizedTest(name = "{0}")
+        @MethodSource("parameters")
+        void testByNameModeReorderAndRename(TypeInformation typeInfo) {
             FieldInfoUtils.TypeInfoSchema schema =
                     FieldInfoUtils.getFieldsInfo(
                             typeInfo,
@@ -83,20 +91,21 @@ public class FieldInfoUtilsTest {
 
             assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
         }
+    }
 
-        /** Test Pojo class. */
-        public static class MyPojo {
-            public int f0;
-            public long f1;
-            public Timestamp f2;
+    /** Test Pojo class. */
+    public static class MyPojo {
+        public int f0;
+        public long f1;
+        public Timestamp f2;
 
-            public MyPojo() {}
-        }
+        public MyPojo() {}
     }
 
     /** Test for ByPositionMode. */
-    public static final class TestByPositionMode {
-        private static final RowTypeInfo rowTypeInfo =
+    @Nested
+    public final class TestByPositionMode {
+        private final RowTypeInfo rowTypeInfo =
                 new RowTypeInfo(
                         new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
                         new String[] {"f0", "f1", "f2"});
