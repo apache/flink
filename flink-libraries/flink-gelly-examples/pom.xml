@@ -128,7 +128,7 @@
 					<scala>
 						<scalafmt>
 							<version>${spotless.scalafmt.version}</version>
-							<file>../../.scalafmt.conf</file>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
 						</scalafmt>
 						<licenseHeader>
 							<content>${spotless.license.header}</content>
