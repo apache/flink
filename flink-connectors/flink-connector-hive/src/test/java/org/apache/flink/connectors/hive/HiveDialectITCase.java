@@ -851,6 +851,18 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testLoad() throws Exception {
+        tableEnv.executeSql("CREATE TABLE tab1 (col1 int, col2 int) STORED AS ORC");
+        tableEnv.executeSql("insert into tab1 values (1, 1), (1, 2), (2, 1), (2, 2)").await();
+        tableEnv.executeSql("create table tab2 (col1 int, col2 int) STORED AS ORC");
+        tableEnv.executeSql(
+                String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE tab2", warehouse + "/tab1"));
+        List<Row> result =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from tab2").collect());
+        System.out.println(result);
+    }
+
+    @Test
     public void testAddDropPartitions() throws Exception {
         tableEnv.executeSql(
                 "create table tbl (x int,y binary) partitioned by (dt date,country string)");

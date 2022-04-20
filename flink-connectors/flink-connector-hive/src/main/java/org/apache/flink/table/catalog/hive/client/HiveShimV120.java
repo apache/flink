@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.Date;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
@@ -32,6 +33,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
@@ -42,6 +44,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -263,6 +266,49 @@ public class HiveShimV120 extends HiveShimV111 {
                     null, funcName, funcClass, Array.newInstance(funcResourceClz, 0));
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new FlinkHiveException("Failed to register temp function", e);
+        }
+    }
+
+    @Override
+    public void loadDynamicPartitions(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            int numDp,
+            boolean listBucketingEnabled,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadDynamicPartitionsMethods =
+                    hiveClass.getDeclaredMethod(
+                            "loadDynamicPartitions",
+                            Path.class,
+                            String.class,
+                            Map.class,
+                            boolean.class,
+                            int.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            long.class);
+            boolean holdDDLTime = false;
+            boolean isAcid = false;
+            long txnIdInLoadDynamicPartitions = 0L;
+            loadDynamicPartitionsMethods.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    partSpec,
+                    replace,
+                    numDp,
+                    holdDDLTime,
+                    listBucketingEnabled,
+                    isAcid,
+                    txnIdInLoadDynamicPartitions);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load dynamic partition", e);
         }
     }
 }

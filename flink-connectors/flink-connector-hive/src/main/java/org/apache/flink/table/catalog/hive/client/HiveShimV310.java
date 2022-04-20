@@ -26,10 +26,13 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.AcidUtils;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.io.Writable;
 
 import java.lang.reflect.Constructor;
@@ -41,9 +44,11 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -316,6 +321,201 @@ public class HiveShimV310 extends HiveShimV239 {
                     });
         } catch (Exception e) {
             throw new CatalogException("Failed to create Hive table with constraints", e);
+        }
+    }
+
+    @Override
+    public void loadTable(
+            Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Class clazzLoadFileType =
+                    getClass()
+                            .getClassLoader()
+                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+            Method loadTableMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadTable",
+                            Path.class,
+                            String.class,
+                            clazzLoadFileType,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            long.class,
+                            int.class,
+                            boolean.class);
+            Object loadFileType;
+            if (replace) {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("REPLACE_ALL"))
+                                .findFirst()
+                                .get();
+            } else {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
+                                .findFirst()
+                                .get();
+            }
+            boolean isSkewedStoreAsSubdir = false;
+            boolean isAcid = false;
+            boolean hasFollowingStatsTask = false;
+            long writeIdInLoadTableOrPartition = 0L;
+            int stmtIdInLoadTableOrPartition = 0;
+            loadTableMethod.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    loadFileType,
+                    isSrcLocal,
+                    isSkewedStoreAsSubdir,
+                    isAcid,
+                    hasFollowingStatsTask,
+                    writeIdInLoadTableOrPartition,
+                    stmtIdInLoadTableOrPartition,
+                    replace);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load table", e);
+        }
+    }
+
+    @Override
+    public void loadPartition(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Class clazzLoadFileType =
+                    getClass()
+                            .getClassLoader()
+                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+            Method loadPartitionMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadPartition",
+                            Path.class,
+                            org.apache.hadoop.hive.ql.metadata.Table.class,
+                            Map.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            long.class,
+                            int.class,
+                            boolean.class);
+            boolean isAcid = false;
+            boolean inheritTableSpecs = true;
+            boolean hasFollowingStatsTask = false;
+            org.apache.hadoop.hive.ql.metadata.Table table = hive.getTable(tableName);
+            Object loadFileType;
+            if (replace) {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("REPLACE_ALL"))
+                                .findFirst()
+                                .get();
+            } else {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
+                                .findFirst()
+                                .get();
+            }
+            long writeIdInLoadTableOrPartition = 0L;
+            int stmtIdInLoadTableOrPartition = 0;
+            loadPartitionMethod.invoke(
+                    hive,
+                    loadPath,
+                    table,
+                    partSpec,
+                    loadFileType,
+                    inheritTableSpecs,
+                    isSkewedStoreAsSubdir,
+                    isSrcLocal,
+                    isAcid,
+                    hasFollowingStatsTask,
+                    writeIdInLoadTableOrPartition,
+                    stmtIdInLoadTableOrPartition,
+                    replace);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load partition", e);
+        }
+    }
+
+    @Override
+    public void loadDynamicPartitions(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            int numDp,
+            boolean listBucketingEnabled,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class clazzLoadFileType =
+                    getClass()
+                            .getClassLoader()
+                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+            Object loadFileType;
+            if (replace) {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("REPLACE_ALL"))
+                                .findFirst()
+                                .get();
+            } else {
+                loadFileType =
+                        Arrays.stream(clazzLoadFileType.getEnumConstants())
+                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
+                                .findFirst()
+                                .get();
+            }
+            Class hiveClass = Hive.class;
+            Method loadDynamicPartitionsMethods =
+                    hiveClass.getDeclaredMethod(
+                            "loadDynamicPartitions",
+                            Path.class,
+                            String.class,
+                            Map.class,
+                            clazzLoadFileType,
+                            int.class,
+                            int.class,
+                            boolean.class,
+                            long.class,
+                            int.class,
+                            boolean.class,
+                            AcidUtils.Operation.class,
+                            boolean.class);
+            boolean isAcid = false;
+            boolean hasFollowingStatsTask = false;
+            int listBucketingLevel = 0;
+            long writeIdInLoadTableOrPartition = 0L;
+            int stmtIdInLoadTableOrPartition = 0;
+            loadDynamicPartitionsMethods.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    partSpec,
+                    loadFileType,
+                    numDp,
+                    listBucketingLevel,
+                    isAcid,
+                    writeIdInLoadTableOrPartition,
+                    stmtIdInLoadTableOrPartition,
+                    hasFollowingStatsTask,
+                    AcidUtils.Operation.NOT_ACID,
+                    replace);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load dynamic partition", e);
         }
     }
 

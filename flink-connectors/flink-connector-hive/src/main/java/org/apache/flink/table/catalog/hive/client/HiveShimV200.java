@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -26,12 +27,15 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Properties;
 
 /** Shim for Hive version 2.0.0. */
@@ -67,5 +71,108 @@ public class HiveShimV200 extends HiveShimV122 {
             Configuration conf, String schema, LogicalType[] fieldTypes) {
         return new OrcBulkWriterFactory<>(
                 new RowDataVectorizer(schema, fieldTypes), new Properties(), conf);
+    }
+
+    @Override
+    public void loadTable(
+            Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadTableMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadTable",
+                            Path.class,
+                            String.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class);
+            boolean isSkewedStoreAsSubdir = false;
+            boolean isAcid = false;
+            loadTableMethod.invoke(
+                    hive, loadPath, tableName, replace, isSrcLocal, isSkewedStoreAsSubdir, isAcid);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load table", e);
+        }
+    }
+
+    @Override
+    public void loadPartition(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            boolean isSkewedStoreAsSubdir,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadPartitionMethod =
+                    hiveClass.getDeclaredMethod(
+                            "loadPartition",
+                            Path.class,
+                            String.class,
+                            Map.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class,
+                            boolean.class);
+            boolean isAcid = false;
+            boolean inheritTableSpecs = true;
+            loadPartitionMethod.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    partSpec,
+                    replace,
+                    inheritTableSpecs,
+                    isSkewedStoreAsSubdir,
+                    isSrcLocal,
+                    isAcid);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load partition", e);
+        }
+    }
+
+    @Override
+    public void loadDynamicPartitions(
+            Hive hive,
+            Path loadPath,
+            String tableName,
+            Map<String, String> partSpec,
+            int numDp,
+            boolean listBucketingEnabled,
+            boolean replace,
+            boolean isSrcLocal) {
+        try {
+            Class hiveClass = Hive.class;
+            Method loadDynamicPartitionsMethods =
+                    hiveClass.getDeclaredMethod(
+                            "loadDynamicPartitions",
+                            Path.class,
+                            String.class,
+                            Map.class,
+                            boolean.class,
+                            int.class,
+                            boolean.class,
+                            boolean.class,
+                            long.class);
+            boolean holdDDLTime = false;
+            boolean isAcid = false;
+            long txnIdInLoadDynamicPartitions = 0L;
+            loadDynamicPartitionsMethods.invoke(
+                    hive,
+                    loadPath,
+                    tableName,
+                    partSpec,
+                    replace,
+                    numDp,
+                    listBucketingEnabled,
+                    isAcid,
+                    txnIdInLoadDynamicPartitions);
+        } catch (Exception e) {
+            throw new FlinkHiveException("Failed to load dynamic partition", e);
+        }
     }
 }

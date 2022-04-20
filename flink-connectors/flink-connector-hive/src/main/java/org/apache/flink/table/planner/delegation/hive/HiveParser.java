@@ -45,9 +45,11 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
+import org.apache.flink.table.planner.delegation.hive.operation.HiveLoadOperation;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
@@ -336,6 +338,20 @@ public class HiveParser extends ParserImpl {
             // parse statement to get AST
             HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
             if (DDL_NODES.contains(node.getType())) {
+            final HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
+            Operation operation;
+            if (node.getType() == HiveASTParser.TOK_LOAD) {
+                HiveParserLoadSemanticAnalyzer loadSemanticAnalyzer =
+                        new HiveParserLoadSemanticAnalyzer(
+                                hiveConf, frameworkConfig, plannerContext.getCluster());
+                HiveLoadOperation loadOperation = loadSemanticAnalyzer.convertToOperation(node);
+                hiveCatalog.loadTable(
+                        loadOperation.getPath(),
+                        loadOperation.getTablePath(),
+                        loadOperation.isOverwrite(),
+                        loadOperation.isSrcLocal());
+                return Collections.singletonList(new NopOperation());
+            } else if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
