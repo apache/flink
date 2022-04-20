@@ -305,17 +305,14 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testDuplicateMetadataFromSameKey(): Unit = {
-    val result = tEnv.sqlQuery(
-      "SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
+    val result = tEnv
+      .sqlQuery("SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
       .toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,1,Hallo",
-      "1,1,Hallo Welt wie",
-      "2,2,Hallo Welt")
+    val expected = Seq("1,1,Hallo", "1,1,Hallo Welt wie", "2,2,Hallo Welt")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
