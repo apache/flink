@@ -355,7 +355,7 @@ class FlinkDDLDataTypeTest {
         }
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testThrowsError(TestItem testItem) {
         if (testItem.expectedError != null) {
