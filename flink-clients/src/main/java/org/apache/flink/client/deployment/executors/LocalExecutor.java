@@ -52,12 +52,6 @@ public class LocalExecutor implements PipelineExecutor {
         return new LocalExecutor(configuration, MiniCluster::new);
     }
 
-    public static LocalExecutor createWithFactory(
-            Configuration configuration,
-            Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {
-        return new LocalExecutor(configuration, miniClusterFactory);
-    }
-
     private LocalExecutor(
             Configuration configuration,
             Function<MiniClusterConfiguration, MiniCluster> miniClusterFactory) {

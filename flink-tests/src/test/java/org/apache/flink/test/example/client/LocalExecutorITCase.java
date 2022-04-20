@@ -54,13 +54,7 @@ public class LocalExecutorITCase extends TestLogger {
 
     @Before
     public void before() {
-        executor =
-                LocalExecutor.createWithFactory(
-                        new Configuration(),
-                        config -> {
-                            miniCluster = new MiniCluster(config);
-                            return miniCluster;
-                        });
+        executor = LocalExecutor.create(new Configuration());
     }
 
     @Test(timeout = 60_000)
