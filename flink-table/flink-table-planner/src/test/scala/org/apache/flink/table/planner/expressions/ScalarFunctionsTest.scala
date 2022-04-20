@@ -1517,10 +1517,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       random4.nextInt(44).toString)
 
     val random5 = new java.util.Random(1)
-    testAllApis(
-      rand(1).plus(1),
-      "RAND(1) + 1",
-      (random5.nextDouble() + 1).toString)
+    testAllApis(rand(1).plus(1), "RAND(1) + 1", (random5.nextDouble() + 1).toString)
 
     val random6 = new java.util.Random(1)
     val random7 = new java.util.Random(2)
@@ -1530,10 +1527,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       (random6.nextDouble() + random7.nextDouble()).toString)
 
     // the f21 is null
-    testAllApis(
-      rand('f21.cast(DataTypes.INT())).plus(1),
-      "rand(cast(null as int)) + 1",
-      "NULL")
+    testAllApis(rand('f21.cast(DataTypes.INT())).plus(1), "rand(cast(null as int)) + 1", "NULL")
   }
 
   @Test

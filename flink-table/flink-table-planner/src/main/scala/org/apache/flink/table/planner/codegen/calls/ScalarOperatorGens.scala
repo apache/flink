@@ -1720,9 +1720,8 @@ object ScalarOperatorGens {
       resultType: LogicalType): String => String = {
 
     // no casting necessary
-    if (isInteroperable(operandType, resultType)) {
-      operandTerm => s"$operandTerm"
-    } else {
+    if (isInteroperable(operandType, resultType)) { operandTerm => s"$operandTerm" }
+    else {
       // All numeric rules are assumed to be instance of AbstractExpressionCodeGeneratorCastRule
       val rule = CastRuleProvider.resolve(operandType, resultType)
       rule match {
