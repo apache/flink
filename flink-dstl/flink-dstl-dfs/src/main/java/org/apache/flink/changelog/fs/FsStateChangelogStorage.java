@@ -26,8 +26,6 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 
 import org.slf4j.Logger;
@@ -46,7 +44,7 @@ import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.fromConfi
 /** Filesystem-based implementation of {@link StateChangelogStorage}. */
 @Experimental
 @ThreadSafe
-public class FsStateChangelogStorage
+public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
         implements StateChangelogStorage<ChangelogStateHandleStreamImpl> {
     private static final Logger LOG = LoggerFactory.getLogger(FsStateChangelogStorage.class);
 
@@ -98,11 +96,6 @@ public class FsStateChangelogStorage
         LOG.info("createWriter for operator {}/{}: {}", operatorID, keyGroupRange, logId);
         return new FsStateChangelogWriter(
                 logId, keyGroupRange, uploader, preEmptivePersistThresholdInBytes, mailboxExecutor);
-    }
-
-    @Override
-    public StateChangelogHandleReader<ChangelogStateHandleStreamImpl> createReader() {
-        return new StateChangelogHandleStreamHandleReader(new StateChangeFormat());
     }
 
     @Override

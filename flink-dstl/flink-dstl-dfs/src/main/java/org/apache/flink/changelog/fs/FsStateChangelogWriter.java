@@ -306,7 +306,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             tuples.add(Tuple2.of(uploadResult.getStreamStateHandle(), uploadResult.getOffset()));
             size += uploadResult.getSize();
         }
-        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size, incrementalSize);
+        return new ChangelogStateHandleStreamImpl(
+                tuples,
+                keyGroupRange,
+                size,
+                incrementalSize,
+                FsStateChangelogStorageFactory.IDENTIFIER);
     }
 
     @VisibleForTesting

@@ -24,33 +24,43 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Test;
 
 /**
- * This verifies that rescale works correctly for Changelog state backend with materialized state /
- * non-materialized state.
+ * This verifies that switching state backend works correctly for Changelog state backend with
+ * materialized state / non-materialized state.
  */
-public class ChangelogPeriodicMaterializationRescaleITCase
+public class ChangelogPeriodicMaterializationSwitchStateBackendITCase
         extends ChangelogPeriodicMaterializationSwitchEnvTestBase {
 
-    public ChangelogPeriodicMaterializationRescaleITCase(
+    public ChangelogPeriodicMaterializationSwitchStateBackendITCase(
             AbstractStateBackend delegatedStateBackend) {
         super(delegatedStateBackend);
     }
 
     @Test
-    public void testRescaleOut() throws Exception {
-        testSwitchEnv(getEnv(NUM_SLOTS / 2), getEnv(NUM_SLOTS));
+    public void testSwitchFromEnablingToDisabling() throws Exception {
+        testSwitchEnv(getEnv(true), getEnv(false));
     }
 
     @Test
-    public void testRescaleIn() throws Exception {
-        testSwitchEnv(getEnv(NUM_SLOTS), getEnv(NUM_SLOTS / 2));
+    public void testSwitchFromEnablingToDisablingWithRescalingOut() throws Exception {
+        testSwitchEnv(getEnv(true, NUM_SLOTS / 2), getEnv(false, NUM_SLOTS));
     }
 
-    private StreamExecutionEnvironment getEnv(int parallelism) {
-        StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 50, 0, 20, 0);
+    @Test
+    public void testSwitchFromEnablingToDisablingWithRescalingIn() throws Exception {
+        testSwitchEnv(getEnv(true, NUM_SLOTS), getEnv(false, NUM_SLOTS / 2));
+    }
+
+    private StreamExecutionEnvironment getEnv(boolean enableChangelog) {
+        return getEnv(enableChangelog, NUM_SLOTS);
+    }
+
+    private StreamExecutionEnvironment getEnv(boolean enableChangelog, int parallelism) {
+        StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 100, 0, 500, 0);
+        env.enableChangelogStateBackend(enableChangelog);
+        env.setParallelism(parallelism);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        env.setParallelism(parallelism);
         return env;
     }
 }
