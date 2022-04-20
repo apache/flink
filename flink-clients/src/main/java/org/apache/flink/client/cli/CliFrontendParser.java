@@ -149,7 +149,7 @@ public class CliFrontendParser {
 
     static final Option SAVEPOINT_FORMAT_OPTION =
             new Option(
-                    "t",
+                    "type",
                     "type",
                     true,
                     "Describes the binary format in which a savepoint should be taken. Supported"
