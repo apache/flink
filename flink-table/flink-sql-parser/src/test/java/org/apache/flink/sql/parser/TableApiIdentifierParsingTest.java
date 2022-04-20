@@ -60,7 +60,7 @@ public class TableApiIdentifierParsingTest {
                 of("db.ανθρωπος", asList("db", ANTHROPOS_IN_GREEK)));
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "Parsing: {0}. Expected identifier: {1}")
     @MethodSource("parameters")
     void testTableApiIdentifierParsing(
             String stringIdentifier, List<String> expectedParsedIdentifier) throws ParseException {
