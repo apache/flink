@@ -971,3 +971,9 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 2019-08-19 14:22:21,723 INFO  org.apache.flink.walkthrough.common.sink.AlertSink            - Alert{id=3}
 2019-08-19 14:22:26,896 INFO  org.apache.flink.walkthrough.common.sink.AlertSink            - Alert{id=3}
 ```
+
+### 在IDE中运行
+
+在IDE中运行上面的程序可能抛出 java.lang.NoClassDefFoundError 异常。这可能是由于类加载路径中缺少Flink的依赖包。
+
+对于 IntelliJ IDEA，解决办法是：点击菜单栏中的 Run -> Edit Configurations > Modify options > 然后选择 include dependencies with "Provided" scope。此配置将使IDE运行上面的程序时加载所有需要的类。
