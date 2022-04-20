@@ -60,6 +60,13 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- test dependencies required for javadoc-plugin, reference: FLINK-27167-->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- Tested Flink modules -->
 
 		<dependency>
