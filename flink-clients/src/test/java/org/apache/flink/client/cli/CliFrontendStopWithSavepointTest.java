@@ -121,7 +121,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 
     @Test
     public void testStopWithExplicitSavepointTypeShortOption() throws Exception {
-        testStopWithExplicitSavepointType("-t", SavepointFormatType.NATIVE);
+        testStopWithExplicitSavepointType("-type", SavepointFormatType.NATIVE);
     }
 
     @Test
