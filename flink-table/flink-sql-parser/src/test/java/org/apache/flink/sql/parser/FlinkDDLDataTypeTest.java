@@ -363,7 +363,7 @@ class FlinkDDLDataTypeTest {
         }
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testDataTypeUnparsing(TestItem testItem) {
         if (testItem.expectedUnparsed != null) {
