@@ -51,7 +51,6 @@ under the License.
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
-		<module>flink-elasticsearch6-test</module>
 		<module>flink-quickstart-test</module>
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
@@ -69,7 +68,6 @@ under the License.
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
 		<module>flink-streaming-kinesis-test</module>
-		<module>flink-elasticsearch7-test</module>
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
