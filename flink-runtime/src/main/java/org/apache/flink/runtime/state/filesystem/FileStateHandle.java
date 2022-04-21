@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
@@ -43,6 +44,8 @@ public class FileStateHandle implements StreamStateHandle {
     /** The size of the state in the file. */
     private final long stateSize;
 
+    private final PhysicalStateHandleID physicalID;
+
     /**
      * Creates a new file state for the given file path.
      *
@@ -52,6 +55,7 @@ public class FileStateHandle implements StreamStateHandle {
         checkArgument(stateSize >= -1);
         this.filePath = checkNotNull(filePath);
         this.stateSize = stateSize;
+        this.physicalID = new PhysicalStateHandleID(filePath.toUri().toString());
     }
 
     /**
@@ -71,6 +75,11 @@ public class FileStateHandle implements StreamStateHandle {
     @Override
     public Optional<byte[]> asBytesIfInMemory() {
         return Optional.empty();
+    }
+
+    @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        return physicalID;
     }
 
     /**

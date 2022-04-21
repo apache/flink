@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 
 import org.junit.Test;
 
@@ -101,7 +101,7 @@ public class CheckpointMessagesTest {
         assertNotNull(copy.toString());
     }
 
-    private static class MyHandle implements StreamStateHandle {
+    private static class MyHandle implements TestStreamStateHandle {
 
         private static final long serialVersionUID = 8128146204128728332L;
 
