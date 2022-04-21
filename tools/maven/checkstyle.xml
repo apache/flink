@@ -55,17 +55,9 @@ This file is based on the checkstyle file of Apache Beam.
 		<property name="severity" value="error"/>
 	</module>
 
-	<!-- Prevent *Tests.java as tools may not pick them up -->
-	<!--<module name="RegexpOnFilename">-->
-	<!--<property name="fileNamePattern" value=".*Tests\.java$" />-->
-	<!--</module>-->
-
 	<module name="SuppressionFilter">
 		<property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml"/>
 	</module>
-
-	<!-- Check that every module has a package-info.java -->
-	<!--<module name="JavadocPackage"/>-->
 
 	<!--
 
@@ -248,9 +240,6 @@ This file is based on the checkstyle file of Apache Beam.
 			IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
 			code and some useful code. So we need to fall back to Regexp.
 		-->
-		<!--<module name="RegexpSinglelineJava">-->
-		<!--<property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>-->
-		<!--</module>-->
 
 		<!--
 			 Require static importing from Preconditions.
@@ -389,44 +378,11 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="severity" value="error"/>
 		</module>
 
-		<!-- Type parameters must be either one of the four blessed letters
-		T, K, V, W, X or else be capital-case terminated with a T,
-		such as MyGenericParameterT -->
-		<!--<module name="ClassTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
-		<!--<module name="MethodTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
-		<!--<module name="InterfaceTypeParameterName">-->
-		<!--<property name="format" value="^(((T|K|V|W|X)[0-9]*)|([A-Z][a-z][a-zA-Z]*T))$"/>-->
-		<!--<property name="severity" value="error"/>-->
-		<!--</module>-->
-
 		<!--
 
 		LENGTH and CODING CHECKS
 
 		-->
-
-		<!--<module name="LineLength">-->
-		<!--&lt;!&ndash; Checks if a line is too long. &ndash;&gt;-->
-		<!--<property name="max" value="100"/>-->
-		<!--<property name="severity" value="error"/>-->
-
-		<!--&lt;!&ndash;-->
-		<!--The default ignore pattern exempts the following elements:-->
-		<!-- - import statements-->
-		<!-- - long URLs inside comments-->
-		<!--&ndash;&gt;-->
-
-		<!--<property name="ignorePattern"-->
-		<!--value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>-->
-		<!--</module>-->
 
 		<!-- Checks for braces around if and else blocks -->
 		<module name="NeedBraces">
@@ -538,16 +494,6 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="allowLineBreaks" value="true"/>
 			<property name="severity" value="error"/>
 		</module>
-
-		<!--<module name="OperatorWrap">-->
-		<!--&lt;!&ndash; Checks that operators like + and ? appear at newlines rather than-->
-		<!--at the end of the previous line.-->
-		<!--&ndash;&gt;-->
-		<!--<property name="option" value="NL"/>-->
-		<!--<property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,-->
-		<!--GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,-->
-		<!--NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>-->
-		<!--</module>-->
 
 		<module name="OperatorWrap">
 			<!-- Checks that assignment operators are at the end of the line. -->
