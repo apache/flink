@@ -535,6 +535,7 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
+    boolean ifExists = false;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -574,13 +575,18 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()));
         }
     |
-        <DROP> <CONSTRAINT>
-        constraintName = SimpleIdentifier() {
-            return new SqlAlterTableDropConstraint(
-                tableIdentifier,
-                constraintName,
-                startPos.plus(getPos()));
-        }
+        <DROP>
+        (
+            <CONSTRAINT> constraintName = SimpleIdentifier() {
+                return new SqlAlterTableDropConstraint(
+                            tableIdentifier,
+                            constraintName,
+                            startPos.plus(getPos()));
+            }
+        |
+            [ <IF> <EXISTS> { ifExists = true; } ]
+            { return SqlDropPartitions(startPos, tableIdentifier, ifExists); }
+        )
     |
         [
             <PARTITION>
@@ -593,6 +599,38 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
         }
     )
+}
+
+/**
+* ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...]
+*/
+SqlAlterTable SqlDropPartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifExists) :
+{
+    List<SqlNodeList> partSpecs = new ArrayList();
+    SqlNodeList partSpec;
+}
+{
+    <PARTITION>
+    {
+        partSpec = new SqlNodeList(getPos());
+        PartitionSpecCommaList(partSpec);
+        partSpecs.add(partSpec);
+    }
+    (
+        <COMMA>
+        <PARTITION>
+        {
+            partSpec = new SqlNodeList(getPos());
+            PartitionSpecCommaList(partSpec);
+            partSpecs.add(partSpec);
+        }
+    )*
+    { return new SqlDropPartitions(
+                startPos.plus(getPos()),
+                tableIdentifier,
+                ifExists,
+                partSpecs);
+    }
 }
 
 /** Parse a table option key list. */
