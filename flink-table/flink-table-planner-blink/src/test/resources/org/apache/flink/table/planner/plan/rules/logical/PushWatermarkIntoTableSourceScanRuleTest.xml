@@ -194,4 +194,25 @@ FlinkLogicalCalc(select=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testWatermarkWithPythonFunctionInComputedColumn">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
+   +- LogicalProject(a=[$0], b=[parse_ts($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+FlinkLogicalCalc(select=[a, b])
++- FlinkLogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
+   +- FlinkLogicalCalc(select=[a, parse_ts(a) AS b])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a])
+]]>
+		</Resource>
+	</TestCase>
 </Root>
