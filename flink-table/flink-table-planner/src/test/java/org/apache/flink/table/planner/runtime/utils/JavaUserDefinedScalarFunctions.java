@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.types.Row;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.TimeZone;
 
@@ -291,6 +292,25 @@ public class JavaUserDefinedScalarFunctions {
         @Override
         public PythonFunctionKind getPythonFunctionKind() {
             return PythonFunctionKind.PANDAS;
+        }
+    }
+
+    public static class PythonTimestampScalarFunction extends ScalarFunction
+            implements PythonFunction {
+
+        @DataTypeHint("TIMESTAMP(3)")
+        public LocalDateTime eval(Integer i) {
+            return LocalDateTime.now();
+        }
+
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
+
+        @Override
+        public PythonEnv getPythonEnv() {
+            return null;
         }
     }
 }
