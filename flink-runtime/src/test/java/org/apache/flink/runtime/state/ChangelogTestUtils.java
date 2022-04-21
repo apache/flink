@@ -112,7 +112,7 @@ public class ChangelogTestUtils {
     }
 
     public static class ChangelogStateHandleWrapper extends InMemoryChangelogStateHandle
-            implements StreamStateHandle {
+            implements TestStreamStateHandle {
         private static final long serialVersionUID = 1L;
         private volatile boolean isDiscarded;
 

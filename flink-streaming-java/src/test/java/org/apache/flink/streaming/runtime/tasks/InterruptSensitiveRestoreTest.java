@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -299,7 +300,7 @@ public class InterruptSensitiveRestoreTest {
     // ------------------------------------------------------------------------
 
     @SuppressWarnings("serial")
-    private static class InterruptLockingStateHandle implements StreamStateHandle {
+    private static class InterruptLockingStateHandle implements TestStreamStateHandle {
 
         private static final long serialVersionUID = 1L;
 

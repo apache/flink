@@ -78,6 +78,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
@@ -2398,6 +2399,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public FSDataInputStream openInputStream() throws IOException {
             throw new IOException("Cannot open input streams in testing implementation.");
+        }
+
+        @Override
+        public PhysicalStateHandleID getStreamStateHandleID() {
+            throw new RuntimeException("Cannot return ID in testing implementation.");
         }
 
         @Override

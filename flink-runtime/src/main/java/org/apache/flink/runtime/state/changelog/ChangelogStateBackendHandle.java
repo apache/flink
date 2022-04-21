@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -277,6 +278,11 @@ public interface ChangelogStateBackendHandle
 
             @Override
             public Optional<byte[]> asBytesIfInMemory() {
+                throw new UnsupportedOperationException("Should not call here.");
+            }
+
+            @Override
+            public PhysicalStateHandleID getStreamStateHandleID() {
                 throw new UnsupportedOperationException("Should not call here.");
             }
 

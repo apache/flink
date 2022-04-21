@@ -177,7 +177,7 @@ public class SharedStateRegistryTest {
         assertFalse(nonMaterializedState2.isDiscarded());
     }
 
-    private static class TestSharedState implements StreamStateHandle {
+    private static class TestSharedState implements TestStreamStateHandle {
         private static final long serialVersionUID = 4468635881465159780L;
 
         private SharedStateRegistryKey key;

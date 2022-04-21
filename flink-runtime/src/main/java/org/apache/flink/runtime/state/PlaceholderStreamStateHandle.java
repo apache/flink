@@ -52,6 +52,12 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     }
 
     @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        throw new UnsupportedOperationException(
+                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+    }
+
+    @Override
     public void discardState() throws Exception {
         // nothing to do.
     }
