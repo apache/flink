@@ -157,10 +157,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-compress</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-math3</artifactId>
 				</exclusion>
 				<exclusion>
