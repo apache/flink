@@ -76,6 +76,7 @@ import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -1422,6 +1423,38 @@ public class SqlToOperationConverterTest {
         staticPartitions = Collections.emptyMap();
         checkAlterTableCompact(
                 parse("alter table tb1 compact", SqlDialect.DEFAULT), staticPartitions);
+    }
+
+    @Test
+    public void testAlterTableAddPartitions() throws Exception {
+        prepareTable(false, true, true);
+
+        // test add single partition
+        Operation operation =
+                parse("alter table tb1 add partition (b = '1', c = '2')", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2)");
+
+        // test add single partition with property
+        operation =
+                parse(
+                        "alter table tb1 add partition (b = '1', c = '2') with ('k' = 'v')",
+                        SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo("ALTER TABLE cat1.db1.tb1 ADD PARTITION (b=1, c=2) WITH (k: [v])");
+
+        // test add multiple partition simultaneously
+        operation =
+                parse(
+                        "alter table tb1 add if not exists partition (b = '1', c = '2') with ('k' = 'v') "
+                                + "partition (b = '2')",
+                        SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(AddPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 ADD IF NOT EXISTS PARTITION (b=1, c=2) WITH (k: [v]) PARTITION (b=2)");
     }
 
     @Test
