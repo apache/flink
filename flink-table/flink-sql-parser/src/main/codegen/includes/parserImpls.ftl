@@ -736,6 +736,28 @@ SqlAlterTable SqlAlterTable() :
                             ifExists);
             }
         )
+        <ADD>
+        (
+            constraint = TableConstraint() {
+                return new SqlAlterTableAddConstraint(
+                            tableIdentifier,
+                            constraint,
+                            startPos.plus(getPos()));
+            }
+        |
+            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+            {
+                return SqlAddPartitions(startPos, tableIdentifier, ifNotExists);
+            }
+        )
+    |
+        <DROP> <CONSTRAINT>
+        constraintName = SimpleIdentifier() {
+            return new SqlAlterTableDropConstraint(
+                tableIdentifier,
+                constraintName,
+                startPos.plus(getPos()));
+        }
     |
         [
             <PARTITION>
@@ -748,6 +770,40 @@ SqlAlterTable SqlAlterTable() :
             return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
         }
     )
+}
+
+/**
+* ALTER TABLE table_name ADD [IF NOT EXISTS] PARTITION partition_spec [PARTITION partition_spec][...];
+*/
+SqlAlterTable SqlAddPartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifNotExists) :
+{
+    List<SqlNodeList> partSpecs = new ArrayList();
+    List<SqlNodeList> partProps = new ArrayList();
+    SqlNodeList partSpec;
+    SqlNodeList partProp;
+}
+{
+    (
+        <PARTITION>
+        {
+            partSpec = new SqlNodeList(getPos());
+            partProp = null;
+            PartitionSpecCommaList(partSpec);
+        }
+        [ <WITH> { partProp = TableProperties(); } ]
+        {
+            partSpecs.add(partSpec);
+            partProps.add(partProp);
+        }
+    )+
+    {
+        return new SqlAddPartitions(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    ifNotExists,
+                    partSpecs,
+                    partProps);
+    }
 }
 
 /** Parse a table option key list. */
