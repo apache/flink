@@ -17,8 +17,6 @@
 
 package org.apache.flink.tools.ci.licensecheck;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * -DaltDeploymentRepository=snapshot-repo::default::file:/tmp/flink-deployment -DskipTests
  * -Drat.skip and add a test checking that directory.
  */
-class JarFileCheckerTest extends TestLogger {
+class JarFileCheckerTest {
 
     private static final List<String> VALID_NOTICE_PATH = Arrays.asList("META-INF", "NOTICE");
     private static final List<String> VALID_LICENSE_PATH = Arrays.asList("META-INF", "LICENSE");
