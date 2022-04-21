@@ -397,14 +397,15 @@ class WindowTests(PyFlinkStreamingTestCase):
             .window(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
             .allowed_lateness(0) \
             .side_output_late_data(tag) \
-            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()]))
+            .process(CountWindowProcessFunction(),
+                     Types.TUPLE([Types.STRING(), Types.LONG(), Types.LONG(), Types.INT()]))
         main_sink = DataStreamTestSinkFunction()
         ds2.add_sink(main_sink)
         side_sink = DataStreamTestSinkFunction()
         ds2.get_side_output(tag).add_sink(side_sink)
 
         self.env.execute('test_side_output_late_data')
-        main_expected = ['(a,1)', '(a,2)']
+        main_expected = ['(a,0,5,1)', '(a,5,10,2)']
         self.assert_equals_sorted(main_expected, main_sink.get_results())
         side_expected = ['+I[a, 4]']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
