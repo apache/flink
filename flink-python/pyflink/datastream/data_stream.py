@@ -760,6 +760,7 @@ class DataStream(object):
         :param limit: The limit for the collected elements.
         """
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.preprocessSideOutput(self._j_data_stream.getExecutionEnvironment())
         JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
         self._apply_chaining_optimization()
         if job_execution_name is None and limit is None:

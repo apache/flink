@@ -957,6 +957,7 @@ class StreamExecutionEnvironment(object):
         gateway = get_gateway()
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
 
+        JPythonConfigUtil.preprocessSideOutput(self._j_stream_execution_environment)
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
 
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(

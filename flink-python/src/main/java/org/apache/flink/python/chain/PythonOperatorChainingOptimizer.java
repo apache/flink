@@ -50,9 +50,7 @@ import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTra
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
@@ -68,6 +66,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+
+import static org.apache.flink.python.util.PythonConfigUtil.getOperatorFactory;
 
 /**
  * A util class which attempts to chain all available Python functions.
@@ -100,15 +100,12 @@ public class PythonOperatorChainingOptimizer {
      */
     @SuppressWarnings("unchecked")
     public static void apply(StreamExecutionEnvironment env) throws Exception {
-        final Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        final List<Transformation<?>> transformations =
-                (List<Transformation<?>>) transformationsField.get(env);
-
-        preprocessSideOutput(transformations);
-
         if (env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED)) {
+            final Field transformationsField =
+                    StreamExecutionEnvironment.class.getDeclaredField("transformations");
+            transformationsField.setAccessible(true);
+            final List<Transformation<?>> transformations =
+                    (List<Transformation<?>>) transformationsField.get(env);
             transformationsField.set(env, optimize(transformations));
         }
     }
@@ -121,15 +118,12 @@ public class PythonOperatorChainingOptimizer {
     @SuppressWarnings("unchecked")
     public static Transformation<?> apply(
             StreamExecutionEnvironment env, Transformation<?> transformation) throws Exception {
-        final Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        final List<Transformation<?>> transformations =
-                (List<Transformation<?>>) transformationsField.get(env);
-
-        preprocessSideOutput(transformations);
-
         if (env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED)) {
+            final Field transformationsField =
+                    StreamExecutionEnvironment.class.getDeclaredField("transformations");
+            transformationsField.setAccessible(true);
+            final List<Transformation<?>> transformations =
+                    (List<Transformation<?>>) transformationsField.get(env);
             final Tuple2<List<Transformation<?>>, Transformation<?>> resultTuple =
                     optimize(transformations, transformation);
             transformationsField.set(env, resultTuple.f0);
@@ -225,41 +219,6 @@ public class PythonOperatorChainingOptimizer {
             }
         }
         return outputMap;
-    }
-
-    /**
-     * Preprocess {@link SideOutputTransformation}s, if the branching operator is a python operator,
-     * {@link OutputTag}s related to {@link SideOutputTransformation}s will be added to the python
-     * operator.
-     */
-    private static void preprocessSideOutput(List<Transformation<?>> transformations) {
-        final Set<Transformation<?>> visitedTransforms = Sets.newIdentityHashSet();
-        final Queue<Transformation<?>> queue = Queues.newArrayDeque(transformations);
-
-        while (!queue.isEmpty()) {
-            Transformation<?> transform = queue.poll();
-            visitedTransforms.add(transform);
-
-            if (transform instanceof SideOutputTransformation) {
-                final SideOutputTransformation<?> sideTransform =
-                        (SideOutputTransformation<?>) transform;
-                final Transformation<?> upTransform =
-                        Iterables.getOnlyElement(sideTransform.getInputs());
-                if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
-                    final AbstractDataStreamPythonFunctionOperator<?> upOperator =
-                            (AbstractDataStreamPythonFunctionOperator<?>)
-                                    ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
-                                            .getOperator();
-                    upOperator.addSideOutputTag(sideTransform.getOutputTag());
-                }
-            }
-
-            for (Transformation<?> upTransform : transform.getInputs()) {
-                if (!visitedTransforms.contains(upTransform)) {
-                    queue.add(upTransform);
-                }
-            }
-        }
     }
 
     private static ChainInfo chainWithInputIfPossible(
@@ -497,18 +456,6 @@ public class PythonOperatorChainingOptimizer {
     }
 
     // ----------------------- Utility Methods -----------------------
-
-    private static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
-        if (transform instanceof OneInputTransformation) {
-            return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof TwoInputTransformation) {
-            return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof AbstractMultipleInputTransformation) {
-            return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
-        } else {
-            return null;
-        }
-    }
 
     private static void replaceInput(
             Transformation<?> transformation,

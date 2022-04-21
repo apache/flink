@@ -33,9 +33,12 @@ import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOpe
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.util.OutputTag;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
@@ -108,6 +111,53 @@ public class PythonConfigUtil {
                 PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
         final PythonConfig pythonConfig = new PythonConfig(config, pythonDependencyConfig);
         return pythonConfig.toConfiguration();
+    }
+
+    /**
+     * Preprocess {@link SideOutputTransformation}s, if the branching operator is a python operator,
+     * {@link OutputTag}s related to {@link SideOutputTransformation}s will be added to the python
+     * operator.
+     */
+    public static void preprocessSideOutput(StreamExecutionEnvironment env) {
+        final Set<Transformation<?>> visitedTransforms = Sets.newIdentityHashSet();
+        final Queue<Transformation<?>> queue = Queues.newArrayDeque(env.getTransformations());
+
+        while (!queue.isEmpty()) {
+            Transformation<?> transform = queue.poll();
+            visitedTransforms.add(transform);
+
+            if (transform instanceof SideOutputTransformation) {
+                final SideOutputTransformation<?> sideTransform =
+                        (SideOutputTransformation<?>) transform;
+                final Transformation<?> upTransform =
+                        Iterables.getOnlyElement(sideTransform.getInputs());
+                if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
+                    final AbstractDataStreamPythonFunctionOperator<?> upOperator =
+                            (AbstractDataStreamPythonFunctionOperator<?>)
+                                    ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
+                                            .getOperator();
+                    upOperator.addSideOutputTag(sideTransform.getOutputTag());
+                }
+            }
+
+            for (Transformation<?> upTransform : transform.getInputs()) {
+                if (!visitedTransforms.contains(upTransform)) {
+                    queue.add(upTransform);
+                }
+            }
+        }
+    }
+
+    public static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
+        } else if (transform instanceof TwoInputTransformation) {
+            return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
+        } else if (transform instanceof AbstractMultipleInputTransformation) {
+            return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
+        } else {
+            return null;
+        }
     }
 
     /**
