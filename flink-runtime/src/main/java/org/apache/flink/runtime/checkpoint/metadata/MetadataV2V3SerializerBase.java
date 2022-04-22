@@ -119,6 +119,8 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte KEY_GROUPS_HANDLE_V2 = 12;
     // CHANGELOG_FILE_INCREMENT_HANDLE_V2 is introduced to add new field of storageIdentifier.
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE_V2 = 13;
+    // CHANGELOG_HANDLE_V2 is introduced to add new field of checkpointId.
+    private static final byte CHANGELOG_HANDLE_V2 = 14;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -346,7 +348,7 @@ public abstract class MetadataV2V3SerializerBase {
         } else if (stateHandle instanceof ChangelogStateBackendHandle) {
             ChangelogStateBackendHandle handle = (ChangelogStateBackendHandle) stateHandle;
 
-            dos.writeByte(CHANGELOG_HANDLE);
+            dos.writeByte(CHANGELOG_HANDLE_V2);
             dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
 
@@ -363,6 +365,7 @@ public abstract class MetadataV2V3SerializerBase {
             }
 
             dos.writeLong(handle.getMaterializationID());
+            dos.writeLong(handle.getCheckpointId());
             writeStateHandleId(handle, dos);
 
         } else if (stateHandle instanceof InMemoryChangelogStateHandle) {
@@ -441,7 +444,7 @@ public abstract class MetadataV2V3SerializerBase {
         } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type
                 || INCREMENTAL_KEY_GROUPS_HANDLE_V2 == type) {
             return deserializeIncrementalStateHandle(dis, context, type);
-        } else if (CHANGELOG_HANDLE == type) {
+        } else if (CHANGELOG_HANDLE == type || CHANGELOG_HANDLE_V2 == type) {
 
             int startKeyGroup = dis.readInt();
             int numKeyGroups = dis.readInt();
@@ -467,9 +470,16 @@ public abstract class MetadataV2V3SerializerBase {
             }
 
             long materializationID = dis.readLong();
+            long checkpointId = CHANGELOG_HANDLE_V2 == type ? dis.readLong() : materializationID;
             StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
             return ChangelogStateBackendHandleImpl.restore(
-                    base, delta, keyGroupRange, materializationID, checkpointedSize, stateHandleId);
+                    base,
+                    delta,
+                    keyGroupRange,
+                    checkpointId,
+                    materializationID,
+                    checkpointedSize,
+                    stateHandleId);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();

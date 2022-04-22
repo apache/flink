@@ -190,6 +190,19 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         return checkpointId;
     }
 
+    @Override
+    public CheckpointBoundKeyedStateHandle rebound(long checkpointId) {
+        return new IncrementalRemoteKeyedStateHandle(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                sharedState,
+                privateState,
+                metaStateHandle,
+                persistedSizeOfThisCheckpoint,
+                stateHandleId);
+    }
+
     public Map<StateHandleID, StreamStateHandle> getSharedState() {
         return sharedState;
     }

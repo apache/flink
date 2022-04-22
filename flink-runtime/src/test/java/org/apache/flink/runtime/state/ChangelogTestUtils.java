@@ -48,6 +48,7 @@ public class ChangelogTestUtils {
                 Collections.emptyList(),
                 new KeyGroupRange(0, 1),
                 1L,
+                1L,
                 0L);
     }
 

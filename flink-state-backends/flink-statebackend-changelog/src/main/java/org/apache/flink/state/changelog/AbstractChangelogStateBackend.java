@@ -214,6 +214,7 @@ public abstract class AbstractChangelogStateBackend
                     emptyList(),
                     keyedStateHandle.getKeyGroupRange(),
                     getMaterializationID(keyedStateHandle),
+                    getMaterializationID(keyedStateHandle),
                     0L);
         } else {
             throw new IllegalStateException(

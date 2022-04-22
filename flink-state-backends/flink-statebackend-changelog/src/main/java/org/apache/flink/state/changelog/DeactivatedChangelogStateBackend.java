@@ -30,6 +30,7 @@ import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation
 import org.apache.flink.state.changelog.restore.ChangelogMigrationRestoreTarget;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * This state backend use delegatedStateBackend and State changes to restore to the
@@ -53,6 +54,15 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
             Collection<ChangelogStateBackendHandle> stateBackendHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
+        // ChangelogKeyedStateBackend will use materialization id as the checkpoint id of delegated
+        // state backend.
+        // While switching Changelog from enabled to disabled,
+        // the materialization id will be passed into the delegated keyed state backend whose
+        // KeyedStateHandle implements CheckpointBoundKeyedStateHandle.
+        // It will cause unforeseen exception because we couldn't know what the delegated keyed
+        // state backend will do with checkpoint id.
+        // So we need to rebound the checkpoint id to the real checkpoint id here.
+        stateBackendHandles = reboundCheckpoint(stateBackendHandles);
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
         return ChangelogBackendRestoreOperation.restore(
                 env.getUserCodeClassLoader().asClassLoader(),
@@ -60,5 +70,15 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
                 baseBackendBuilder,
                 (baseBackend, baseState) ->
                         new ChangelogMigrationRestoreTarget<>(baseBackend, changelogStateFactory));
+    }
+
+    private Collection<ChangelogStateBackendHandle> reboundCheckpoint(
+            Collection<ChangelogStateBackendHandle> stateBackendHandles) {
+        return stateBackendHandles.stream()
+                .map(
+                        changelogStateBackendHandle ->
+                                changelogStateBackendHandle.rebound(
+                                        changelogStateBackendHandle.getCheckpointId()))
+                .collect(Collectors.toList());
     }
 }

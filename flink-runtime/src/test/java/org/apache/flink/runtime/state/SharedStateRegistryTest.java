@@ -122,6 +122,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState1),
                         Collections.singletonList(nonMaterializedState1),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId1,
                         materializationId,
                         nonMaterializedState1.getStateSize());
         changelogStateBackendHandle1.registerSharedStates(sharedStateRegistry, checkpointId1);
@@ -136,6 +137,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState2),
                         Collections.singletonList(nonMaterializedState2),
                         materializedStateBase1.getKeyGroupRange(),
+                        checkpointId2,
                         materializationId,
                         nonMaterializedState2.getStateSize());
         changelogStateBackendHandle2.registerSharedStates(sharedStateRegistry, checkpointId2);
@@ -160,6 +162,7 @@ public class SharedStateRegistryTest {
                         Collections.singletonList(materializedState3),
                         Collections.singletonList(nonMaterializedState2),
                         materializedState3.getKeyGroupRange(),
+                        checkpointId3,
                         materializationId2,
                         0L);
         changelogStateBackendHandle3.registerSharedStates(sharedStateRegistry, checkpointId3);
