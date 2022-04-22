@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -40,9 +41,11 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.assertj.core.api.Assertions;
 import org.junit.AfterClass;
@@ -99,6 +102,9 @@ public class MiniDispatcherTest extends TestLogger {
     private TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactory;
     private TestingCleanupRunnerFactory testingCleanupRunnerFactory;
 
+    private CompletableFuture<Void> localCleanupResultFuture;
+    private CompletableFuture<Void> globalCleanupResultFuture;
+
     @BeforeClass
     public static void setupClass() throws IOException {
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
@@ -123,6 +129,10 @@ public class MiniDispatcherTest extends TestLogger {
 
         testingJobManagerRunnerFactory = new TestingJobMasterServiceLeadershipRunnerFactory();
         testingCleanupRunnerFactory = new TestingCleanupRunnerFactory();
+
+        // the default setting shouldn't block the cleanup
+        localCleanupResultFuture = FutureUtils.completedVoidFuture();
+        globalCleanupResultFuture = FutureUtils.completedVoidFuture();
     }
 
     @AfterClass
@@ -182,6 +192,7 @@ public class MiniDispatcherTest extends TestLogger {
      */
     @Test
     public void testTerminationAfterJobCompletion() throws Exception {
+        globalCleanupResultFuture = new CompletableFuture<>();
         final MiniDispatcher miniDispatcher =
                 createMiniDispatcher(ClusterEntrypoint.ExecutionMode.DETACHED);
 
@@ -194,9 +205,24 @@ public class MiniDispatcherTest extends TestLogger {
 
             testingJobManagerRunner.completeResultFuture(executionGraphInfo);
 
-            // wait until we terminate
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            !highAvailabilityServices
+                                    .getJobResultStore()
+                                    .getDirtyResults()
+                                    .isEmpty());
+
+            assertFalse(
+                    "The shutdownFuture should not be completed before the cleanup is triggered.",
+                    miniDispatcher.getShutDownFuture().isDone());
+
+            globalCleanupResultFuture.complete(null);
+
             miniDispatcher.getShutDownFuture().get();
         } finally {
+            // we have to complete the future to make the job and, as a consequence, the
+            // MiniDispatcher terminate
+            globalCleanupResultFuture.complete(null);
             RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
         }
     }
@@ -310,6 +336,8 @@ public class MiniDispatcherTest extends TestLogger {
             @Nullable JobGraph recoveredJobGraph,
             @Nullable JobResult recoveredDirtyJob)
             throws Exception {
+        final JobManagerRunnerRegistry jobManagerRunnerRegistry =
+                new DefaultJobManagerRunnerRegistry(2);
         return new MiniDispatcher(
                 rpcService,
                 DispatcherId.generate(),
@@ -333,6 +361,17 @@ public class MiniDispatcherTest extends TestLogger {
                 recoveredJobGraph,
                 recoveredDirtyJob,
                 (dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap(),
+                jobManagerRunnerRegistry,
+                TestingResourceCleanerFactory.builder()
+                        // JobManagerRunnerRegistry needs to be added explicitly
+                        // because cleaning it will trigger the closeAsync latch
+                        // provided by TestingJobManagerRunner
+                        .withLocallyCleanableResource(jobManagerRunnerRegistry)
+                        .withGloballyCleanableResource(
+                                (jobId, ignoredExecutor) -> globalCleanupResultFuture)
+                        .withLocallyCleanableResource(
+                                (jobId, ignoredExecutor) -> localCleanupResultFuture)
+                        .build(),
                 executionMode);
     }
 }
