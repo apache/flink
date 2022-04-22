@@ -385,11 +385,15 @@ public class ChangelogKeyedStateBackend<K>
                         .thenApply(
                                 delta ->
                                         buildSnapshotResult(
-                                                delta, changelogStateBackendStateCopy)));
+                                                checkpointId,
+                                                delta,
+                                                changelogStateBackendStateCopy)));
     }
 
     private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
-            ChangelogStateHandle delta, ChangelogSnapshotState changelogStateBackendStateCopy) {
+            long checkpointId,
+            ChangelogStateHandle delta,
+            ChangelogSnapshotState changelogStateBackendStateCopy) {
 
         // collections don't change once started and handles are immutable
         List<ChangelogStateHandle> prevDeltaCopy =
@@ -409,6 +413,7 @@ public class ChangelogKeyedStateBackend<K>
                             changelogStateBackendStateCopy.getMaterializedSnapshot(),
                             prevDeltaCopy,
                             getKeyGroupRange(),
+                            checkpointId,
                             changelogStateBackendStateCopy.materializationID,
                             persistedSizeOfThisCheckpoint));
         }

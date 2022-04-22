@@ -30,33 +30,47 @@ public class ChangelogStateBackendHandleTest {
 
     @Test
     public void testPublicConstructor() {
+        long checkpointId = 2L;
         long materializationID = 1L;
         long size = 2L;
         validateHandle(
+                checkpointId,
                 materializationID,
                 size,
                 new ChangelogStateBackendHandleImpl(
-                        emptyList(), emptyList(), KeyGroupRange.of(1, 2), materializationID, size));
+                        emptyList(),
+                        emptyList(),
+                        KeyGroupRange.of(1, 2),
+                        checkpointId,
+                        materializationID,
+                        size));
     }
 
     @Test
     public void testRestore() {
+        long checkpointId = 2L;
         long materializationID = 1L;
         long size = 2L;
         validateHandle(
+                checkpointId,
                 materializationID,
                 size,
                 ChangelogStateBackendHandleImpl.restore(
                         emptyList(),
                         emptyList(),
                         KeyGroupRange.of(1, 2),
+                        checkpointId,
                         materializationID,
                         size,
                         randomStateHandleId()));
     }
 
     private void validateHandle(
-            long materializationID, long size, ChangelogStateBackendHandleImpl handle) {
+            long checkpointId,
+            long materializationID,
+            long size,
+            ChangelogStateBackendHandleImpl handle) {
+        assertEquals(checkpointId, handle.getCheckpointId());
         assertEquals(materializationID, handle.getMaterializationID());
         assertEquals(size, handle.getCheckpointedSize());
     }

@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -45,12 +46,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * can be no state or multiple states (e.g. after rescaling).
  */
 @Internal
-public interface ChangelogStateBackendHandle extends KeyedStateHandle {
+public interface ChangelogStateBackendHandle
+        extends KeyedStateHandle, CheckpointBoundKeyedStateHandle {
     List<KeyedStateHandle> getMaterializedStateHandles();
 
     List<ChangelogStateHandle> getNonMaterializedStateHandles();
 
     long getMaterializationID();
+
+    @Override
+    ChangelogStateBackendHandle rebound(long checkpointId);
 
     class ChangelogStateBackendHandleImpl implements ChangelogStateBackendHandle {
         private static final long serialVersionUID = 1L;
@@ -60,6 +65,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         private final KeyGroupRange keyGroupRange;
 
         private final long materializationID;
+        private final long checkpointId;
         private final long persistedSizeOfThisCheckpoint;
         private final StateHandleID stateHandleID;
 
@@ -67,12 +73,14 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                 List<KeyedStateHandle> materialized,
                 List<ChangelogStateHandle> nonMaterialized,
                 KeyGroupRange keyGroupRange,
+                long checkpointId,
                 long materializationID,
                 long persistedSizeOfThisCheckpoint) {
             this(
                     materialized,
                     nonMaterialized,
                     keyGroupRange,
+                    checkpointId,
                     materializationID,
                     persistedSizeOfThisCheckpoint,
                     StateHandleID.randomStateHandleId());
@@ -82,6 +90,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                 List<KeyedStateHandle> materialized,
                 List<ChangelogStateHandle> nonMaterialized,
                 KeyGroupRange keyGroupRange,
+                long checkpointId,
                 long materializationID,
                 long persistedSizeOfThisCheckpoint,
                 StateHandleID stateHandleId) {
@@ -90,6 +99,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
             this.keyGroupRange = keyGroupRange;
             this.persistedSizeOfThisCheckpoint = persistedSizeOfThisCheckpoint;
             checkArgument(keyGroupRange.getNumberOfKeyGroups() > 0);
+            this.checkpointId = checkpointId;
             this.materializationID = materializationID;
             this.stateHandleID = stateHandleId;
         }
@@ -98,6 +108,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                 List<KeyedStateHandle> materialized,
                 List<ChangelogStateHandle> nonMaterialized,
                 KeyGroupRange keyGroupRange,
+                long checkpointId,
                 long materializationID,
                 long persistedSizeOfThisCheckpoint,
                 StateHandleID stateHandleId) {
@@ -105,6 +116,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                     materialized,
                     nonMaterialized,
                     keyGroupRange,
+                    checkpointId,
                     materializationID,
                     persistedSizeOfThisCheckpoint,
                     stateHandleId);
@@ -163,6 +175,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                     basePart,
                     deltaPart,
                     intersection,
+                    checkpointId,
                     materializationID,
                     persistedSizeOfThisCheckpoint);
         }
@@ -203,6 +216,35 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
             return String.format(
                     "keyGroupRange=%s, basePartSize=%d, deltaPartSize=%d",
                     keyGroupRange, materialized.size(), nonMaterialized.size());
+        }
+
+        @Override
+        public long getCheckpointId() {
+            return checkpointId;
+        }
+
+        @Override
+        public ChangelogStateBackendHandleImpl rebound(long checkpointId) {
+            List<KeyedStateHandle> reboundedMaterialized =
+                    materialized.stream()
+                            .map(
+                                    keyedStateHandle ->
+                                            keyedStateHandle
+                                                            instanceof
+                                                            CheckpointBoundKeyedStateHandle
+                                                    ? ((CheckpointBoundKeyedStateHandle)
+                                                                    keyedStateHandle)
+                                                            .rebound(checkpointId)
+                                                    : keyedStateHandle)
+                            .collect(Collectors.toList());
+            return new ChangelogStateBackendHandleImpl(
+                    reboundedMaterialized,
+                    nonMaterialized,
+                    keyGroupRange,
+                    checkpointId,
+                    materializationID,
+                    persistedSizeOfThisCheckpoint,
+                    stateHandleID);
         }
 
         /**
