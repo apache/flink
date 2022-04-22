@@ -286,6 +286,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
     }
 
+    @Test
+    public void testShowPartitions() {
+        sql("show partitions tbl").ok("SHOW PARTITIONS `TBL`");
+        sql("show partitions tbl partition (p=1)").ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
+    }
+
     /**
      * Here we override the super method to avoid test error from `describe statement` supported in
      * original calcite.

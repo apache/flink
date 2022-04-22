@@ -60,6 +60,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
@@ -437,6 +438,22 @@ public class SqlToOperationConverterTest {
 
         final String sql2 = "SHOW USER FUNCTIONS";
         assertShowFunctions(sql2, sql2, FunctionScope.USER);
+    }
+
+    @Test
+    public void testShowPartitions() {
+        Operation operation = parse("show partitions tbl", SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(ShowPartitionsOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW PARTITIONS builtin.default.tbl");
+
+        operation =
+                parse(
+                        "show partitions tbl partition (dt='2020-04-30 01:02:03')",
+                        SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(ShowPartitionsOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "SHOW PARTITIONS builtin.default.tbl PARTITION (dt=2020-04-30 01:02:03)");
     }
 
     @Test
