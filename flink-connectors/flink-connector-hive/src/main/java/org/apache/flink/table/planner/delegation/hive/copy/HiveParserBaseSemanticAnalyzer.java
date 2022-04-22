@@ -2153,7 +2153,7 @@ public class HiveParserBaseSemanticAnalyzer {
                     int numStaPart = parts.size() - numDynParts;
                     if (numStaPart == 0
                             && conf.getVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE)
-                                    .equalsIgnoreCase("nonstrict")) {
+                                    .equalsIgnoreCase("strict")) {
                         throw new SemanticException(
                                 ErrorMsg.DYNAMIC_PARTITION_STRICT_MODE.getMsg());
                     }

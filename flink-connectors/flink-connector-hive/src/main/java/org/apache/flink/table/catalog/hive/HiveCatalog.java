@@ -159,13 +159,9 @@ public class HiveCatalog extends AbstractCatalog {
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
     private static final String FLINK_PYTHON_FUNCTION_PREFIX = "flink:python:";
 
-    public static final String TEMP_TABLE_FOR_LOAD_DATA_NAME_SUFFIX =
-            "__temp_table_for_load_data__";
-
     private final HiveConf hiveConf;
     private final String hiveVersion;
     private final HiveShim hiveShim;
-    private final Map<String, Table> temporaryTables = new HashMap<>();
 
     @VisibleForTesting HiveMetastoreClientWrapper client;
 
@@ -681,10 +677,6 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
-    public void putTemporaryTable(Table temporaryTable) {
-        this.temporaryTables.put(temporaryTable.getTableName(), temporaryTable);
-    }
-
     @Override
     public List<String> listViews(String databaseName)
             throws DatabaseNotExistException, CatalogException {
@@ -721,15 +713,7 @@ public class HiveCatalog extends AbstractCatalog {
     @VisibleForTesting
     public Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
         try {
-            Table table = null;
-            // if the table is for temporary table
-            if (isTemporaryTable(tablePath.getObjectName())) {
-                table = temporaryTables.get(tablePath.getObjectName());
-            }
-            if (table == null) {
-                // fall back to retrieve table from metastore
-                table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
-            }
+            Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
             boolean isHiveTable;
             if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
                 isHiveTable =
@@ -1702,9 +1686,6 @@ public class HiveCatalog extends AbstractCatalog {
     @Override
     public CatalogColumnStatistics getTableColumnStatistics(ObjectPath tablePath)
             throws TableNotExistException, CatalogException {
-        if (isTemporaryTable(tablePath.getObjectName())) {
-            return CatalogColumnStatistics.UNKNOWN;
-        }
         Table hiveTable = getHiveTable(tablePath);
         try {
             if (!isTablePartitioned(hiveTable)) {
@@ -1828,36 +1809,6 @@ public class HiveCatalog extends AbstractCatalog {
                 hiveTable.getSd().isStoredAsSubDirectories(),
                 isOverwrite,
                 isSrcLocal);
-    }
-
-    @Internal
-    public void loadDynamicPartitions(
-            Path loadPath,
-            ObjectPath tablePath,
-            Map<String, String> partSpec,
-            boolean isOverwrite,
-            int numDp) {
-        Map<String, String> orderedPartitionSpec = new LinkedHashMap<>();
-        Table hiveTable;
-        try {
-            hiveTable = getHiveTable(tablePath);
-        } catch (TableNotExistException e) {
-            throw new FlinkHiveException(
-                    "Fail to get Hive table when try to load dynamic partitions", e);
-        }
-        hiveTable
-                .getPartitionKeys()
-                .forEach(
-                        column ->
-                                orderedPartitionSpec.put(
-                                        column.getName(), partSpec.get(column.getName())));
-        client.loadDynamicPartition(
-                loadPath,
-                tablePath.getFullName(),
-                orderedPartitionSpec,
-                isOverwrite,
-                numDp,
-                hiveTable.getSd().isStoredAsSubDirectories());
     }
 
     private static void disallowChangeCatalogTableType(
@@ -1987,9 +1938,5 @@ public class HiveCatalog extends AbstractCatalog {
         HIVE_TABLE,
         FLINK_MANAGED_TABLE,
         FLINK_NON_MANAGED_TABLE
-    }
-
-    private boolean isTemporaryTable(String tableName) {
-        return tableName.endsWith(TEMP_TABLE_FOR_LOAD_DATA_NAME_SUFFIX);
     }
 }

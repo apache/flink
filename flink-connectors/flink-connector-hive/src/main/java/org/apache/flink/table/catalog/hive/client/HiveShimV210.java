@@ -33,7 +33,6 @@ import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.thrift.TApplicationException;
 import org.apache.thrift.TException;
@@ -284,47 +283,6 @@ public class HiveShimV210 extends HiveShimV201 {
                     hasFollowingStatsTask);
         } catch (Exception e) {
             throw new FlinkHiveException("Failed to load partition", e);
-        }
-    }
-
-    @Override
-    public void loadDynamicPartitions(
-            Hive hive,
-            Path loadPath,
-            String tableName,
-            Map<String, String> partSpec,
-            boolean replace,
-            int numDp,
-            boolean listBucketingEnabled) {
-        try {
-            Class hiveClass = Hive.class;
-            Method loadDynamicPartitionsMethods =
-                    hiveClass.getDeclaredMethod(
-                            "loadDynamicPartitions",
-                            Path.class,
-                            String.class,
-                            Map.class,
-                            boolean.class,
-                            int.class,
-                            boolean.class,
-                            boolean.class,
-                            long.class,
-                            boolean.class,
-                            AcidUtils.Operation.class);
-            loadDynamicPartitionsMethods.invoke(
-                    hive,
-                    loadPath,
-                    tableName,
-                    partSpec,
-                    replace,
-                    numDp,
-                    listBucketingEnabled,
-                    isAcid,
-                    txnIdInLoadDynamicPartitions,
-                    hasFollowingStatsTask,
-                    AcidUtils.Operation.NOT_ACID);
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to load dynamic partition", e);
         }
     }
 }

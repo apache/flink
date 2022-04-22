@@ -254,13 +254,4 @@ public interface HiveShim extends Serializable {
             boolean isSrcLocal);
 
     void loadTable(Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal);
-
-    void loadDynamicPartitions(
-            Hive hive,
-            Path loadPath,
-            String tableName,
-            Map<String, String> partSpec,
-            boolean replace,
-            int numDp,
-            boolean listBucketingEnabled);
 }

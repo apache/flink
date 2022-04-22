@@ -510,43 +510,6 @@ public class HiveShimV100 implements HiveShim {
         }
     }
 
-    @Override
-    public void loadDynamicPartitions(
-            Hive hive,
-            Path loadPath,
-            String tableName,
-            Map<String, String> partSpec,
-            boolean replace,
-            int numDp,
-            boolean listBucketingEnabled) {
-        try {
-            Class hiveClass = Hive.class;
-            Method loadDynamicPartitionsMethods =
-                    hiveClass.getDeclaredMethod(
-                            "loadDynamicPartitions",
-                            Path.class,
-                            String.class,
-                            Map.class,
-                            boolean.class,
-                            int.class,
-                            boolean.class,
-                            boolean.class,
-                            boolean.class);
-            loadDynamicPartitionsMethods.invoke(
-                    hive,
-                    loadPath,
-                    tableName,
-                    partSpec,
-                    replace,
-                    numDp,
-                    holdDDLTime,
-                    listBucketingEnabled,
-                    isAcid);
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to load dynamic partition", e);
-        }
-    }
-
     boolean isBuiltInFunctionInfo(FunctionInfo info) {
         return info.isNative();
     }

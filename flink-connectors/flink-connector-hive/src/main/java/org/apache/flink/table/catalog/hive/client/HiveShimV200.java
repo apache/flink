@@ -130,41 +130,4 @@ public class HiveShimV200 extends HiveShimV122 {
             throw new FlinkHiveException("Failed to load partition", e);
         }
     }
-
-    @Override
-    public void loadDynamicPartitions(
-            Hive hive,
-            Path loadPath,
-            String tableName,
-            Map<String, String> partSpec,
-            boolean replace,
-            int numDp,
-            boolean listBucketingEnabled) {
-        try {
-            Class hiveClass = Hive.class;
-            Method loadDynamicPartitionsMethods =
-                    hiveClass.getDeclaredMethod(
-                            "loadDynamicPartitions",
-                            Path.class,
-                            String.class,
-                            Map.class,
-                            boolean.class,
-                            int.class,
-                            boolean.class,
-                            boolean.class,
-                            long.class);
-            loadDynamicPartitionsMethods.invoke(
-                    hive,
-                    loadPath,
-                    tableName,
-                    partSpec,
-                    replace,
-                    numDp,
-                    listBucketingEnabled,
-                    isAcid,
-                    txnIdInLoadDynamicPartitions);
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to load dynamic partition", e);
-        }
-    }
 }

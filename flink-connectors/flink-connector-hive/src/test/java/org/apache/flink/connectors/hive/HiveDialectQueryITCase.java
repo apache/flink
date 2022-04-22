@@ -66,6 +66,7 @@ public class HiveDialectQueryITCase {
 
     private static HiveCatalog hiveCatalog;
     private static TableEnvironment tableEnv;
+    private static String warehouse;
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -74,6 +75,7 @@ public class HiveDialectQueryITCase {
         hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
         hiveCatalog.open();
         tableEnv = getTableEnvWithHiveCatalog();
+        warehouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
@@ -670,6 +672,50 @@ public class HiveDialectQueryITCase {
             assertThat(result.toString()).isEqualTo("[+I[1, 2, 1], +I[2, 3, 1], +I[3, 2, 1]]");
         } finally {
             tableEnv.executeSql("drop table over_test");
+        }
+    }
+
+    @Test
+    public void testLoadData() throws Exception {
+        tableEnv.executeSql("create table tab1 (col1 int, col2 int) stored as orc");
+        tableEnv.executeSql("create table tab2 (col1 int, col2 int) STORED AS ORC");
+        tableEnv.executeSql(
+                "create table p_table(col1 int, col2 int) partitioned by (dateint int) row format delimited fields terminated by ','");
+        try {
+            // test load data into table
+            tableEnv.executeSql("insert into tab1 values (1, 1), (1, 2), (2, 1), (2, 2)").await();
+            tableEnv.executeSql(
+                    String.format(
+                            "load data local inpath '%s' INTO TABLE tab2", warehouse + "/tab1"));
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tab2").collect());
+            assertEquals("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]", result.toString());
+
+            // test load data overwrite
+            tableEnv.executeSql(
+                    String.format(
+                            "load data local inpath '%s' overwrite into table tab2",
+                            warehouse + "/tab1"));
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tab2").collect());
+            assertEquals("[+I[1, 1], +I[1, 2], +I[2, 1], +I[2, 2]]", result.toString());
+
+            // test load data with partitioned table
+            tableEnv.executeSql(
+                            String.format(
+                                    "load data inpath '%s' into table p_table partition (dateint=2022) ",
+                                    getClass().getResource("/csv/test.csv")))
+                    .await();
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from p_table").collect());
+            assertEquals("[+I[1, 1, 2022], +I[2, 2, 2022], +I[3, 3, 2022]]", result.toString());
+        } finally {
+            tableEnv.executeSql("drop table tab1");
+            tableEnv.executeSql("drop table tab2");
+            tableEnv.executeSql("drop table p_table");
         }
     }
 

@@ -31,7 +31,6 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.io.Writable;
 
@@ -67,15 +66,14 @@ public class HiveShimV310 extends HiveShimV239 {
     private static Field hiveDateLocalDate;
     private static Constructor dateWritableConstructor;
 
+    private static volatile boolean hiveClassesInited;
+
     // LoadFileType class
     private static volatile boolean loadFileClassInited;
-
-    private static volatile boolean hiveClassesInited;
     private static Class clazzLoadFileType;
 
     protected long writeIdInLoadTableOrPartition = 0L;
     protected int stmtIdInLoadTableOrPartition = 0;
-    protected int listBucketingLevel = 0;
 
     private static void initDateTimeClasses() {
         if (!hiveClassesInited) {
@@ -430,52 +428,6 @@ public class HiveShimV310 extends HiveShimV239 {
                     replace);
         } catch (Exception e) {
             throw new FlinkHiveException("Failed to load partition", e);
-        }
-    }
-
-    @Override
-    public void loadDynamicPartitions(
-            Hive hive,
-            Path loadPath,
-            String tableName,
-            Map<String, String> partSpec,
-            boolean replace,
-            int numDp,
-            boolean listBucketingEnabled) {
-        try {
-            initLoadFileTypeClass();
-            Class hiveClass = Hive.class;
-            Method loadDynamicPartitionsMethods =
-                    hiveClass.getDeclaredMethod(
-                            "loadDynamicPartitions",
-                            Path.class,
-                            String.class,
-                            Map.class,
-                            clazzLoadFileType,
-                            int.class,
-                            int.class,
-                            boolean.class,
-                            long.class,
-                            int.class,
-                            boolean.class,
-                            AcidUtils.Operation.class,
-                            boolean.class);
-            loadDynamicPartitionsMethods.invoke(
-                    hive,
-                    loadPath,
-                    tableName,
-                    partSpec,
-                    getLoadFileType(clazzLoadFileType, replace),
-                    numDp,
-                    listBucketingLevel,
-                    isAcid,
-                    writeIdInLoadTableOrPartition,
-                    stmtIdInLoadTableOrPartition,
-                    hasFollowingStatsTask,
-                    AcidUtils.Operation.NOT_ACID,
-                    replace);
-        } catch (Exception e) {
-            throw new FlinkHiveException("Failed to load dynamic partition", e);
         }
     }
 
