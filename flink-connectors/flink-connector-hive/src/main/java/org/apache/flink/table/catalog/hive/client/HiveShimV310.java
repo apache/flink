@@ -67,7 +67,15 @@ public class HiveShimV310 extends HiveShimV239 {
     private static Field hiveDateLocalDate;
     private static Constructor dateWritableConstructor;
 
-    private static boolean hiveClassesInited;
+    // LoadFileType class
+    private static volatile boolean loadFileClassInited;
+
+    private static volatile boolean hiveClassesInited;
+    private static Class clazzLoadFileType;
+
+    protected long writeIdInLoadTableOrPartition = 0L;
+    protected int stmtIdInLoadTableOrPartition = 0;
+    protected int listBucketingLevel = 0;
 
     private static void initDateTimeClasses() {
         if (!hiveClassesInited) {
@@ -102,6 +110,23 @@ public class HiveShimV310 extends HiveShimV239 {
                                 "Failed to get Hive timestamp class and constructor", e);
                     }
                     hiveClassesInited = true;
+                }
+            }
+        }
+    }
+
+    private static void initLoadFileTypeClass() {
+        if (!loadFileClassInited) {
+            synchronized (HiveShimV310.class) {
+                if (!loadFileClassInited) {
+                    try {
+                        clazzLoadFileType =
+                                Class.forName(
+                                        "org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+                    } catch (ClassNotFoundException e) {
+                        throw new FlinkHiveException("Failed to get Hive LoadFileType class", e);
+                    }
+                    loadFileClassInited = true;
                 }
             }
         }
@@ -329,10 +354,7 @@ public class HiveShimV310 extends HiveShimV239 {
             Hive hive, Path loadPath, String tableName, boolean replace, boolean isSrcLocal) {
         try {
             Class hiveClass = Hive.class;
-            Class clazzLoadFileType =
-                    getClass()
-                            .getClassLoader()
-                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
+            initLoadFileTypeClass();
             Method loadTableMethod =
                     hiveClass.getDeclaredMethod(
                             "loadTable",
@@ -346,30 +368,11 @@ public class HiveShimV310 extends HiveShimV239 {
                             long.class,
                             int.class,
                             boolean.class);
-            Object loadFileType;
-            if (replace) {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("REPLACE_ALL"))
-                                .findFirst()
-                                .get();
-            } else {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
-                                .findFirst()
-                                .get();
-            }
-            boolean isSkewedStoreAsSubdir = false;
-            boolean isAcid = false;
-            boolean hasFollowingStatsTask = false;
-            long writeIdInLoadTableOrPartition = 0L;
-            int stmtIdInLoadTableOrPartition = 0;
             loadTableMethod.invoke(
                     hive,
                     loadPath,
                     tableName,
-                    loadFileType,
+                    getLoadFileType(clazzLoadFileType, replace),
                     isSrcLocal,
                     isSkewedStoreAsSubdir,
                     isAcid,
@@ -392,11 +395,8 @@ public class HiveShimV310 extends HiveShimV239 {
             boolean replace,
             boolean isSrcLocal) {
         try {
+            initLoadFileTypeClass();
             Class hiveClass = Hive.class;
-            Class clazzLoadFileType =
-                    getClass()
-                            .getClassLoader()
-                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
             Method loadPartitionMethod =
                     hiveClass.getDeclaredMethod(
                             "loadPartition",
@@ -411,24 +411,7 @@ public class HiveShimV310 extends HiveShimV239 {
                             long.class,
                             int.class,
                             boolean.class);
-            boolean isAcid = false;
-            boolean inheritTableSpecs = true;
-            boolean hasFollowingStatsTask = false;
             org.apache.hadoop.hive.ql.metadata.Table table = hive.getTable(tableName);
-            Object loadFileType;
-            if (replace) {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("REPLACE_ALL"))
-                                .findFirst()
-                                .get();
-            } else {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
-                                .findFirst()
-                                .get();
-            }
             long writeIdInLoadTableOrPartition = 0L;
             int stmtIdInLoadTableOrPartition = 0;
             loadPartitionMethod.invoke(
@@ -436,7 +419,7 @@ public class HiveShimV310 extends HiveShimV239 {
                     loadPath,
                     table,
                     partSpec,
-                    loadFileType,
+                    getLoadFileType(clazzLoadFileType, replace),
                     inheritTableSpecs,
                     isSkewedStoreAsSubdir,
                     isSrcLocal,
@@ -456,29 +439,11 @@ public class HiveShimV310 extends HiveShimV239 {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean listBucketingEnabled,
             boolean replace,
-            boolean isSrcLocal) {
+            int numDp,
+            boolean listBucketingEnabled) {
         try {
-            Class clazzLoadFileType =
-                    getClass()
-                            .getClassLoader()
-                            .loadClass("org.apache.hadoop.hive.ql.plan.LoadTableDesc$LoadFileType");
-            Object loadFileType;
-            if (replace) {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("REPLACE_ALL"))
-                                .findFirst()
-                                .get();
-            } else {
-                loadFileType =
-                        Arrays.stream(clazzLoadFileType.getEnumConstants())
-                                .filter(s -> s.toString().equals("KEEP_EXISTING"))
-                                .findFirst()
-                                .get();
-            }
+            initLoadFileTypeClass();
             Class hiveClass = Hive.class;
             Method loadDynamicPartitionsMethods =
                     hiveClass.getDeclaredMethod(
@@ -495,17 +460,12 @@ public class HiveShimV310 extends HiveShimV239 {
                             boolean.class,
                             AcidUtils.Operation.class,
                             boolean.class);
-            boolean isAcid = false;
-            boolean hasFollowingStatsTask = false;
-            int listBucketingLevel = 0;
-            long writeIdInLoadTableOrPartition = 0L;
-            int stmtIdInLoadTableOrPartition = 0;
             loadDynamicPartitionsMethods.invoke(
                     hive,
                     loadPath,
                     tableName,
                     partSpec,
-                    loadFileType,
+                    getLoadFileType(clazzLoadFileType, replace),
                     numDp,
                     listBucketingLevel,
                     isAcid,
@@ -577,5 +537,23 @@ public class HiveShimV310 extends HiveShimV239 {
                         "getDefaultCatalog",
                         new Class[] {Configuration.class},
                         new Object[] {conf});
+    }
+
+    Object getLoadFileType(Class clazzLoadFileType, boolean replace) {
+        Object loadFileType;
+        if (replace) {
+            loadFileType =
+                    Arrays.stream(clazzLoadFileType.getEnumConstants())
+                            .filter(s -> s.toString().equals("REPLACE_ALL"))
+                            .findFirst()
+                            .get();
+        } else {
+            loadFileType =
+                    Arrays.stream(clazzLoadFileType.getEnumConstants())
+                            .filter(s -> s.toString().equals("KEEP_EXISTING"))
+                            .findFirst()
+                            .get();
+        }
+        return loadFileType;
     }
 }

@@ -50,6 +50,8 @@ import java.util.Optional;
 /** Shim for Hive version 2.1.0. */
 public class HiveShimV210 extends HiveShimV201 {
 
+    protected boolean hasFollowingStatsTask = false;
+
     @Override
     public void alterPartition(
             IMetaStoreClient client, String databaseName, String tableName, Partition partition)
@@ -232,9 +234,6 @@ public class HiveShimV210 extends HiveShimV201 {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean isSkewedStoreAsSubdir = false;
-            boolean isAcid = false;
-            boolean hasFollowingStatsTask = false;
             loadTableMethod.invoke(
                     hive,
                     loadPath,
@@ -272,9 +271,6 @@ public class HiveShimV210 extends HiveShimV201 {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean isAcid = false;
-            boolean inheritTableSpecs = true;
-            boolean hasFollowingStatsTask = false;
             loadPartitionMethod.invoke(
                     hive,
                     loadPath,
@@ -297,10 +293,9 @@ public class HiveShimV210 extends HiveShimV201 {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean listBucketingEnabled,
             boolean replace,
-            boolean isSrcLocal) {
+            int numDp,
+            boolean listBucketingEnabled) {
         try {
             Class hiveClass = Hive.class;
             Method loadDynamicPartitionsMethods =
@@ -316,10 +311,6 @@ public class HiveShimV210 extends HiveShimV201 {
                             long.class,
                             boolean.class,
                             AcidUtils.Operation.class);
-            boolean holdDDLTime = false;
-            boolean isAcid = false;
-            long txnIdInLoadDynamicPartitions = 0L;
-            boolean hasFollowingStatsTask = false;
             loadDynamicPartitionsMethods.invoke(
                     hive,
                     loadPath,

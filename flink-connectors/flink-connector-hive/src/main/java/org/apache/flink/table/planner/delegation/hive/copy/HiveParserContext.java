@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ public class HiveParserContext {
     // referenced by the query. This is used to rewrite the view AST
     // with column masking and row filtering policies.
     private final Map<String, TokenRewriteStream> viewsTokenRewriteStreams;
+    private Table tempTable;
 
     /**
      * These ops require special handling in various places (note that Insert into Acid table is in
@@ -81,8 +83,13 @@ public class HiveParserContext {
      * conf, will determine the temporary directory locations.
      */
     public HiveParserContext(Configuration conf) {
+        this(conf, null);
+    }
+
+    public HiveParserContext(Configuration conf, Table tempTable) {
         this.conf = conf;
-        viewsTokenRewriteStreams = new HashMap<>();
+        this.viewsTokenRewriteStreams = new HashMap<>();
+        this.tempTable = tempTable;
     }
 
     // Find whether we should execute the current query due to explain.
@@ -118,5 +125,13 @@ public class HiveParserContext {
 
     public Configuration getConf() {
         return conf;
+    }
+
+    public Table getTempTable() {
+        return tempTable;
+    }
+
+    public void setTempTable(Table tempTable) {
+        this.tempTable = tempTable;
     }
 }

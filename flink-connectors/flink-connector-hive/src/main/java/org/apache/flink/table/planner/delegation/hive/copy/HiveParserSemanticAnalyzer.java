@@ -1541,12 +1541,16 @@ public class HiveParserSemanticAnalyzer {
             }
 
             if (tab == null) {
-                HiveParserASTNode src = qb.getParseInfo().getSrcForAlias(alias);
-                if (null != src) {
-                    throw new SemanticException(
-                            HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE, src));
-                } else {
-                    throw new SemanticException(ErrorMsg.INVALID_TABLE.getMsg(alias));
+                // try to get table from memory
+                tab = tabNameToTabObject.get(tabName);
+                if (tab == null) {
+                    HiveParserASTNode src = qb.getParseInfo().getSrcForAlias(alias);
+                    if (null != src) {
+                        throw new SemanticException(
+                                HiveParserErrorMsg.getMsg(ErrorMsg.INVALID_TABLE, src));
+                    } else {
+                        throw new SemanticException(ErrorMsg.INVALID_TABLE.getMsg(alias));
+                    }
                 }
             }
             if (tab.isView()) {
@@ -2224,6 +2228,9 @@ public class HiveParserSemanticAnalyzer {
 
         // init
         this.qb = new HiveParserQB(null, null, false);
+        if (ctx.getTempTable() != null) {
+            tabNameToTabObject.put(ctx.getTempTable().getTableName(), ctx.getTempTable());
+        }
     }
 
     private Table getTableObjectByName(String tableName) throws HiveException {

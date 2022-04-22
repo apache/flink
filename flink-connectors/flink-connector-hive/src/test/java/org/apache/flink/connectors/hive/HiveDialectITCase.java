@@ -859,7 +859,84 @@ public class HiveDialectITCase {
                 String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE tab2", warehouse + "/tab1"));
         List<Row> result =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("select * from tab2").collect());
+
+        tableEnv.executeSql(
+                "CREATE TABLE parquet_mixed_fileformat ("
+                        + "    id int,"
+                        + "    str string,"
+                        + "    part string"
+                        + ") PARTITIONED BY (dateint int)"
+                        + " ROW FORMAT DELIMITED"
+                        + "FIELDS TERMINATED BY '|'");
+
         System.out.println(result);
+    }
+
+    @Test
+    public void testLoadPartition() {
+        tableEnv.executeSql(
+                "CREATE TABLE parquet_mixed_fileformat ("
+                        + "    id int,"
+                        + "    str string,"
+                        + "    part string"
+                        + ") PARTITIONED BY (dateint int)"
+                        + " ROW FORMAT DELIMITED "
+                        + "FIELDS TERMINATED BY '|'");
+
+        tableEnv.executeSql(
+                "LOAD DATA LOCAL INPATH './data/parquet_partitioned.txt' OVERWRITE INTO TABLE parquet_mixed_fileformat PARTITION (dateint=20140330)");
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from parquet_mixed_fileformat").collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void testRewriteLoad() throws Exception {
+        tableEnv.executeSql(
+                "CREATE TABLE parquet_mixed_fileformat ("
+                        + "    id int,"
+                        + "    str string,"
+                        + "    part string"
+                        + ") PARTITIONED BY (dateint int)"
+                        + " ROW FORMAT DELIMITED "
+                        + "FIELDS TERMINATED BY '|'");
+        tableEnv.executeSql(
+                        "LOAD DATA LOCAL INPATH './data' OVERWRITE INTO TABLE parquet_mixed_fileformat")
+                .await();
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from parquet_mixed_fileformat").collect());
+        System.out.println(result);
+
+        tableEnv.executeSql(
+                        "LOAD DATA LOCAL INPATH './data' OVERWRITE INTO TABLE parquet_mixed_fileformat")
+                .await();
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from parquet_mixed_fileformat").collect());
+        System.out.println(result);
+    }
+
+    @Test
+    public void loadDynamicPartitions() {
+        tableEnv.executeSql(
+                "CREATE TABLE parquet_mixed_fileformat ("
+                        + "    id int,"
+                        + "    str string"
+                        + ") PARTITIONED BY (dateint int, part string)"
+                        + " ROW FORMAT DELIMITED "
+                        + "FIELDS TERMINATED BY '|'");
+
+        tableEnv.executeSql(
+                "LOAD DATA LOCAL INPATH './data/dy_part' OVERWRITE INTO TABLE parquet_mixed_fileformat PARTITION (dateint=20140330, part)");
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select * from parquet_mixed_fileformat").collect());
+        System.out.println(results);
     }
 
     @Test

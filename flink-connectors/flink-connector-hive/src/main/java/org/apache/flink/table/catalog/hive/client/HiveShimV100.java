@@ -96,6 +96,11 @@ import java.util.stream.Collectors;
 /** Shim for Hive version 1.0.0. */
 public class HiveShimV100 implements HiveShim {
 
+    protected boolean holdDDLTime = false;
+    protected boolean isAcid = false;
+    protected boolean inheritTableSpecs = true;
+    protected boolean isSkewedStoreAsSubdir = false;
+
     private static final Method registerTemporaryFunction =
             HiveReflectionUtils.tryGetMethod(
                     FunctionRegistry.class,
@@ -460,9 +465,6 @@ public class HiveShimV100 implements HiveShim {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean holdDDLTime = false;
-            boolean isAcid = false;
-            boolean inheritTableSpecs = true;
             loadPartitionMethod.invoke(
                     hive,
                     loadPath,
@@ -494,9 +496,6 @@ public class HiveShimV100 implements HiveShim {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean holdDDLTime = false;
-            boolean isSkewedStoreAsSubdir = false;
-            boolean isAcid = false;
             loadTableMethod.invoke(
                     hive,
                     loadPath,
@@ -517,10 +516,9 @@ public class HiveShimV100 implements HiveShim {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean listBucketingEnabled,
             boolean replace,
-            boolean isSrcLocal) {
+            int numDp,
+            boolean listBucketingEnabled) {
         try {
             Class hiveClass = Hive.class;
             Method loadDynamicPartitionsMethods =
@@ -534,16 +532,14 @@ public class HiveShimV100 implements HiveShim {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean holdDDLTime = false;
-            boolean isAcid = false;
             loadDynamicPartitionsMethods.invoke(
                     hive,
                     loadPath,
                     tableName,
                     partSpec,
                     replace,
+                    numDp,
                     holdDDLTime,
-                    isSrcLocal,
                     listBucketingEnabled,
                     isAcid);
         } catch (Exception e) {

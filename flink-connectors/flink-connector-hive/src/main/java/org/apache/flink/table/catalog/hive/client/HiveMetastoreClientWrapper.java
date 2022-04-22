@@ -88,6 +88,10 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
                         ? createMetastoreClient()
                         : HiveMetaStoreClient.newSynchronizedClient(createMetastoreClient());
         try {
+            // Hive#loadDynamicPartitions will call InPlaceUpdate#canRenderInPlace which will also
+            // call method InPlaceUpdate#isUnixTerminal, but this method may cause JVM crash.
+            // so, set it false to skip calling this method.
+            hiveConf.set("hive.tez.exec.inplace.progress", "false");
             this.hive = Hive.get(hiveConf);
         } catch (HiveException e) {
             throw new FlinkHiveException(e);
@@ -368,9 +372,9 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             String tableName,
             Map<String, String> partSpec,
             boolean replace,
-            int numDP)
-            throws HiveException {
-        hive.loadDynamicPartitions(
-                loadPath, tableName, partSpec, replace, numDP, false, false, 0L, false, null);
+            int numDP,
+            boolean listBucketingEnabled) {
+        hiveShim.loadDynamicPartitions(
+                hive, loadPath, tableName, partSpec, replace, numDP, listBucketingEnabled);
     }
 }

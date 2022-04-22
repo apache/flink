@@ -58,6 +58,8 @@ public class HiveShimV120 extends HiveShimV111 {
 
     private static boolean inited = false;
 
+    protected long txnIdInLoadDynamicPartitions = 0L;
+
     private static void init() {
         if (!inited) {
             synchronized (HiveShimV120.class) {
@@ -275,10 +277,9 @@ public class HiveShimV120 extends HiveShimV111 {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean listBucketingEnabled,
             boolean replace,
-            boolean isSrcLocal) {
+            int numDp,
+            boolean listBucketingEnabled) {
         try {
             Class hiveClass = Hive.class;
             Method loadDynamicPartitionsMethods =
@@ -293,9 +294,6 @@ public class HiveShimV120 extends HiveShimV111 {
                             boolean.class,
                             boolean.class,
                             long.class);
-            boolean holdDDLTime = false;
-            boolean isAcid = false;
-            long txnIdInLoadDynamicPartitions = 0L;
             loadDynamicPartitionsMethods.invoke(
                     hive,
                     loadPath,

@@ -87,8 +87,6 @@ public class HiveShimV200 extends HiveShimV122 {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean isSkewedStoreAsSubdir = false;
-            boolean isAcid = false;
             loadTableMethod.invoke(
                     hive, loadPath, tableName, replace, isSrcLocal, isSkewedStoreAsSubdir, isAcid);
         } catch (Exception e) {
@@ -118,8 +116,6 @@ public class HiveShimV200 extends HiveShimV122 {
                             boolean.class,
                             boolean.class,
                             boolean.class);
-            boolean isAcid = false;
-            boolean inheritTableSpecs = true;
             loadPartitionMethod.invoke(
                     hive,
                     loadPath,
@@ -141,10 +137,9 @@ public class HiveShimV200 extends HiveShimV122 {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean listBucketingEnabled,
             boolean replace,
-            boolean isSrcLocal) {
+            int numDp,
+            boolean listBucketingEnabled) {
         try {
             Class hiveClass = Hive.class;
             Method loadDynamicPartitionsMethods =
@@ -158,9 +153,6 @@ public class HiveShimV200 extends HiveShimV122 {
                             boolean.class,
                             boolean.class,
                             long.class);
-            boolean holdDDLTime = false;
-            boolean isAcid = false;
-            long txnIdInLoadDynamicPartitions = 0L;
             loadDynamicPartitionsMethods.invoke(
                     hive,
                     loadPath,

@@ -260,8 +260,7 @@ public interface HiveShim extends Serializable {
             Path loadPath,
             String tableName,
             Map<String, String> partSpec,
-            int numDp,
-            boolean isSkewedStoreAsSubdir,
             boolean replace,
-            boolean isSrcLocal);
+            int numDp,
+            boolean listBucketingEnabled);
 }
