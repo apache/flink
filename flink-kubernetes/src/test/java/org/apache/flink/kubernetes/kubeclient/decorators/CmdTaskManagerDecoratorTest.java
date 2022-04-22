@@ -30,12 +30,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the{@link CmdTaskManagerDecorator}. */
 public class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
@@ -58,19 +53,17 @@ public class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     @Test
     public void testContainerIsDecorated() {
         final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-        assertThat(
-                resultFlinkPod.getPodWithoutMainContainer(),
-                is(equalTo(baseFlinkPod.getPodWithoutMainContainer())));
-        assertThat(
-                resultFlinkPod.getMainContainer(), not(equalTo(baseFlinkPod.getMainContainer())));
+        assertThat(resultFlinkPod.getPodWithoutMainContainer())
+                .isEqualTo(baseFlinkPod.getPodWithoutMainContainer());
+        assertThat(resultFlinkPod.getMainContainer()).isNotEqualTo(baseFlinkPod.getMainContainer());
     }
 
     @Test
     public void testTaskManagerStartCommandsAndArgs() {
         final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod);
         final String entryCommand = flinkConfig.get(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH);
-        assertThat(
-                resultFlinkPod.getMainContainer().getCommand(), containsInAnyOrder(entryCommand));
+        assertThat(resultFlinkPod.getMainContainer().getCommand())
+                .containsExactlyInAnyOrder(entryCommand);
         List<String> flinkCommands =
                 KubernetesUtils.getStartCommandWithBashWrapper(
                         Constants.KUBERNETES_TASK_MANAGER_SCRIPT_PATH
@@ -78,18 +71,18 @@ public class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                                 + DYNAMIC_PROPERTIES
                                 + " "
                                 + mainClassArgs);
-        assertThat(resultFlinkPod.getMainContainer().getArgs(), contains(flinkCommands.toArray()));
+        assertThat(resultFlinkPod.getMainContainer().getArgs())
+                .containsExactlyElementsOf(flinkCommands);
     }
 
     @Test
     public void testTaskManagerJvmMemOptsEnv() {
         final FlinkPod resultFlinkPod = cmdTaskManagerDecorator.decorateFlinkPod(baseFlinkPod);
-        assertThat(
-                resultFlinkPod.getMainContainer().getEnv(),
-                contains(
+        assertThat(resultFlinkPod.getMainContainer().getEnv())
+                .containsExactly(
                         new EnvVarBuilder()
                                 .withName(Constants.ENV_TM_JVM_MEM_OPTS)
                                 .withValue(JVM_MEM_OPTS_ENV)
-                                .build()));
+                                .build());
     }
 }

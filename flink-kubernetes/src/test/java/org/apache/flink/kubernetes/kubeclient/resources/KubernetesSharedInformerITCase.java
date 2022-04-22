@@ -44,11 +44,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** IT Tests for the {@link KubernetesSharedInformer}. */
 public class KubernetesSharedInformerITCase extends TestLogger {
@@ -91,7 +88,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 for (TestingCallbackHandler handler : callbackHandlers) {
                     handler.addFuture.get();
                     handler.addOrUpdateFuture.get();
-                    assertFalse(handler.assertFuture.isCompletedExceptionally());
+                    assertThat(handler.assertFuture).isNotCompletedExceptionally();
                 }
                 watchers.forEach(Watch::close);
                 callbackHandlers.clear();
@@ -129,11 +126,9 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             for (int i = 1; i <= maxUpdateVal; i++) {
                 updateConfigMap(configMapName, ImmutableMap.of("val", String.valueOf(i)));
             }
-            try {
-                handler.expectedFuture.get(120, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                fail("expected value: " + maxUpdateVal + ", actual: " + handler.val);
-            }
+            assertThatCode(() -> handler.expectedFuture.get(120, TimeUnit.SECONDS))
+                    .withFailMessage("expected value: " + maxUpdateVal + ", actual: " + handler.val)
+                    .isNotInstanceOf(TimeoutException.class);
             try {
                 handler.assertFuture.get(2 * block, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
@@ -219,14 +214,14 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             check(
                     assertFuture,
                     () -> {
-                        assertThat(kubernetesConfigMap.getName(), is(resourceName));
-                        assertFalse(addFuture.isDone());
-                        assertFalse(addOrUpdateFuture.isDone());
+                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
+                        assertThat(addFuture).isNotDone();
+                        assertThat(addOrUpdateFuture).isNotDone();
                     });
             addFuture.complete(null);
             final String foo = kubernetesConfigMap.getData().get("foo");
             if (foo != null) {
-                check(assertFuture, () -> assertThat(foo, is("bar")));
+                check(assertFuture, () -> assertThat(foo).isEqualTo("bar"));
                 addOrUpdateFuture.complete(null);
             }
         }
@@ -238,12 +233,12 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             check(
                     assertFuture,
                     () -> {
-                        assertThat(kubernetesConfigMap.getName(), is(resourceName));
-                        assertThat(foo, is("bar"));
-                        assertTrue(addFuture.isDone());
+                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
+                        assertThat(foo).isEqualTo("bar");
+                        assertThat(addFuture).isDone();
                     });
             if (addOrUpdateFuture.isDone()) {
-                check(assertFuture, () -> assertTrue(isDeleting(kubernetesConfigMap)));
+                check(assertFuture, () -> assertThat(isDeleting(kubernetesConfigMap)).isTrue());
             } else {
                 addOrUpdateFuture.complete(null);
             }
@@ -251,7 +246,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
 
         @Override
         public void onDeleted(List<KubernetesConfigMap> resources) {
-            check(assertFuture, () -> assertFalse(deleteFuture.isDone()));
+            check(assertFuture, () -> assertThat(deleteFuture).isNotDone());
             deleteFuture.complete(null);
         }
     }
@@ -287,7 +282,9 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 return;
             }
             final long newVal = Long.parseLong(valData);
-            check(assertFuture, () -> assertTrue(newVal > val || isDeleting(kubernetesConfigMap)));
+            check(
+                    assertFuture,
+                    () -> assertThat(newVal > val || isDeleting(kubernetesConfigMap)).isTrue());
             val = newVal;
             block();
             if (expected == val) {

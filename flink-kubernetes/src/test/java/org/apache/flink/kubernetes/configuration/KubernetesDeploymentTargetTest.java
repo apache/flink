@@ -23,9 +23,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KubernetesDeploymentTarget}. */
 public class KubernetesDeploymentTargetTest {
@@ -50,14 +48,15 @@ public class KubernetesDeploymentTargetTest {
 
     @Test
     public void testThatAValidOptionIsValid() {
-        assertTrue(
-                KubernetesDeploymentTarget.isValidKubernetesTarget(
-                        KubernetesDeploymentTarget.APPLICATION.getName()));
+        assertThat(
+                        KubernetesDeploymentTarget.isValidKubernetesTarget(
+                                KubernetesDeploymentTarget.APPLICATION.getName()))
+                .isTrue();
     }
 
     @Test
     public void testThatAnInvalidOptionIsInvalid() {
-        assertFalse(KubernetesDeploymentTarget.isValidKubernetesTarget("invalid-target"));
+        assertThat(KubernetesDeploymentTarget.isValidKubernetesTarget("invalid-target")).isFalse();
     }
 
     private void testCorrectInstantiationFromConfigurationHelper(
@@ -67,7 +66,7 @@ public class KubernetesDeploymentTargetTest {
         final KubernetesDeploymentTarget actualDeploymentTarget =
                 KubernetesDeploymentTarget.fromConfig(configuration);
 
-        assertSame(actualDeploymentTarget, expectedDeploymentTarget);
+        assertThat(expectedDeploymentTarget).isSameAs(actualDeploymentTarget);
     }
 
     private Configuration getConfigurationWithTarget(final String target) {

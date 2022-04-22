@@ -25,8 +25,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import org.junit.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KubernetesPod}. */
 public class KubernetesPodTest extends TestLogger {
@@ -40,6 +39,6 @@ public class KubernetesPodTest extends TestLogger {
                         .withMessage("Pod Node didn't have enough resource")
                         .withReason("OutOfMemory")
                         .build());
-        assertThat(new KubernetesPod(pod).isTerminated(), is(true));
+        assertThat(new KubernetesPod(pod).isTerminated()).isTrue();
     }
 }

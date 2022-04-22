@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -43,10 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
 public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
@@ -118,23 +114,23 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
     @Test
     public void testApiVersion() {
-        assertEquals(Constants.API_VERSION, this.resultPod.getApiVersion());
+        assertThat(this.resultPod.getApiVersion()).isEqualTo(Constants.API_VERSION);
     }
 
     @Test
     public void testMainContainerName() {
-        assertEquals(Constants.MAIN_CONTAINER_NAME, this.resultMainContainer.getName());
+        assertThat(this.resultMainContainer.getName()).isEqualTo(Constants.MAIN_CONTAINER_NAME);
     }
 
     @Test
     public void testMainContainerImage() {
-        assertEquals(CONTAINER_IMAGE, this.resultMainContainer.getImage());
+        assertThat(this.resultMainContainer.getImage()).isEqualTo(CONTAINER_IMAGE);
     }
 
     @Test
     public void testMainContainerImagePullPolicy() {
-        assertEquals(
-                CONTAINER_IMAGE_PULL_POLICY.name(), this.resultMainContainer.getImagePullPolicy());
+        assertThat(this.resultMainContainer.getImagePullPolicy())
+                .isEqualTo(CONTAINER_IMAGE_PULL_POLICY.name());
     }
 
     @Test
@@ -142,16 +138,17 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertEquals(Double.toString(TASK_MANAGER_CPU), requests.get("cpu").getAmount());
-        assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), requests.get("memory").getAmount());
+        assertThat(requests.get("cpu").getAmount()).isEqualTo(Double.toString(TASK_MANAGER_CPU));
+        assertThat(requests.get("memory").getAmount())
+                .isEqualTo(String.valueOf(TOTAL_PROCESS_MEMORY));
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
-        assertEquals(
-                Double.toString(TASK_MANAGER_CPU * TASK_MANAGER_CPU_LIMIT_FACTOR),
-                limits.get("cpu").getAmount());
-        assertEquals(
-                Integer.toString((int) (TOTAL_PROCESS_MEMORY * TASK_MANAGER_MEMORY_LIMIT_FACTOR)),
-                limits.get("memory").getAmount());
+        assertThat(limits.get("cpu").getAmount())
+                .isEqualTo(Double.toString(TASK_MANAGER_CPU * TASK_MANAGER_CPU_LIMIT_FACTOR));
+        assertThat(limits.get("memory").getAmount())
+                .isEqualTo(
+                        Integer.toString(
+                                (int) (TOTAL_PROCESS_MEMORY * TASK_MANAGER_MEMORY_LIMIT_FACTOR)));
     }
 
     @Test
@@ -159,10 +156,12 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertEquals(Long.toString(RESOURCE_AMOUNT), requests.get(RESOURCE_CONFIG_KEY).getAmount());
+        assertThat(requests.get(RESOURCE_CONFIG_KEY).getAmount())
+                .isEqualTo(Long.toString(RESOURCE_AMOUNT));
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
-        assertEquals(Long.toString(RESOURCE_AMOUNT), limits.get(RESOURCE_CONFIG_KEY).getAmount());
+        assertThat(limits.get(RESOURCE_CONFIG_KEY).getAmount())
+                .isEqualTo(Long.toString(RESOURCE_AMOUNT));
     }
 
     @Test
@@ -174,7 +173,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
                                 .withContainerPort(RPC_PORT)
                                 .build());
 
-        assertEquals(expectedContainerPorts, this.resultMainContainer.getPorts());
+        assertThat(this.resultMainContainer.getPorts()).isEqualTo(expectedContainerPorts);
     }
 
     @Test
@@ -184,12 +183,12 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final Map<String, String> resultEnvVars =
                 this.resultMainContainer.getEnv().stream()
                         .collect(Collectors.toMap(EnvVar::getName, EnvVar::getValue));
-        expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k), is(v)));
+        expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k)).isEqualTo(v));
     }
 
     @Test
     public void testPodName() {
-        assertEquals(POD_NAME, this.resultPod.getMetadata().getName());
+        assertThat(this.resultPod.getMetadata().getName()).isEqualTo(POD_NAME);
     }
 
     @Test
@@ -198,26 +197,27 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
         expectedLabels.putAll(userLabels);
 
-        assertEquals(expectedLabels, this.resultPod.getMetadata().getLabels());
+        assertThat(this.resultPod.getMetadata().getLabels()).isEqualTo(expectedLabels);
     }
 
     @Test
     public void testPodAnnotations() {
         final Map<String, String> resultAnnotations =
                 kubernetesTaskManagerParameters.getAnnotations();
-        assertThat(resultAnnotations, is(equalTo(ANNOTATIONS)));
+        assertThat(resultAnnotations).isEqualTo(ANNOTATIONS);
     }
 
     @Test
     public void testPodServiceAccountName() {
-        assertThat(this.resultPod.getSpec().getServiceAccountName(), is(SERVICE_ACCOUNT_NAME));
+        assertThat(this.resultPod.getSpec().getServiceAccountName())
+                .isEqualTo(SERVICE_ACCOUNT_NAME);
     }
 
     @Test
     public void testRestartPolicy() {
         final String resultRestartPolicy = this.resultPod.getSpec().getRestartPolicy();
 
-        assertThat(resultRestartPolicy, is(Constants.RESTART_POLICY_OF_NEVER));
+        assertThat(resultRestartPolicy).isEqualTo(Constants.RESTART_POLICY_OF_NEVER);
     }
 
     @Test
@@ -227,31 +227,27 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
                         .map(LocalObjectReference::getName)
                         .collect(Collectors.toList());
 
-        assertEquals(IMAGE_PULL_SECRETS, resultSecrets);
+        assertThat(resultSecrets).isEqualTo(IMAGE_PULL_SECRETS);
     }
 
     @Test
     public void testNodeSelector() {
-        assertThat(this.resultPod.getSpec().getNodeSelector(), is(equalTo(nodeSelector)));
+        assertThat(this.resultPod.getSpec().getNodeSelector()).isEqualTo(nodeSelector);
     }
 
     @Test
     public void testPodTolerations() {
-        assertThat(
-                this.resultPod.getSpec().getTolerations(),
-                Matchers.containsInAnyOrder(TOLERATION.toArray()));
+        assertThat(this.resultPod.getSpec().getTolerations())
+                .containsExactlyInAnyOrderElementsOf(TOLERATION);
     }
 
     @Test
     public void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
         final List<EnvVar> envVars = this.resultMainContainer.getEnv();
-        assertThat(
-                envVars.stream()
-                        .anyMatch(
-                                envVar ->
-                                        envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
-                                                && envVar.getValue()
-                                                        .equals(USER_DEFINED_FLINK_LOG_DIR)),
-                is(true));
+        assertThat(envVars)
+                .anyMatch(
+                        envVar ->
+                                envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
+                                        && envVar.getValue().equals(USER_DEFINED_FLINK_LOG_DIR));
     }
 }

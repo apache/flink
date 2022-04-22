@@ -24,8 +24,9 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Assume;
 import org.junit.rules.ExternalResource;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link ExternalResource} which has a configured real Kubernetes cluster and client. We assume
@@ -44,9 +45,9 @@ public class KubernetesResource extends ExternalResource {
 
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
-        Assume.assumeTrue(
-                "ITCASE_KUBECONFIG environment is not set.",
-                !StringUtils.isNullOrWhitespaceOnly(kubeConfigEnv));
+        assertThat(StringUtils.isNullOrWhitespaceOnly(kubeConfigEnv))
+                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
+                .isFalse();
         kubeConfigFile = kubeConfigEnv;
     }
 

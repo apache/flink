@@ -30,12 +30,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link CmdJobManagerDecorator}. */
 public class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
@@ -53,11 +48,9 @@ public class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     public void testContainerIsDecorated() {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
-        assertThat(
-                resultFlinkPod.getPodWithoutMainContainer(),
-                is(equalTo(baseFlinkPod.getPodWithoutMainContainer())));
-        assertThat(
-                resultFlinkPod.getMainContainer(), not(equalTo(baseFlinkPod.getMainContainer())));
+        assertThat(resultFlinkPod.getPodWithoutMainContainer())
+                .isEqualTo(baseFlinkPod.getPodWithoutMainContainer());
+        assertThat(resultFlinkPod.getMainContainer()).isNotEqualTo(baseFlinkPod.getMainContainer());
     }
 
     @Test
@@ -79,11 +72,12 @@ public class CmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         flinkConfig.set(DeploymentOptions.TARGET, target);
         final FlinkPod resultFlinkPod = cmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod);
         final String entryCommand = flinkConfig.get(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH);
-        assertThat(
-                resultFlinkPod.getMainContainer().getCommand(), containsInAnyOrder(entryCommand));
+        assertThat(resultFlinkPod.getMainContainer().getCommand())
+                .containsExactlyInAnyOrder(entryCommand);
         List<String> flinkCommands =
                 KubernetesUtils.getStartCommandWithBashWrapper(
                         Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH + " " + target);
-        assertThat(resultFlinkPod.getMainContainer().getArgs(), contains(flinkCommands.toArray()));
+        assertThat(resultFlinkPod.getMainContainer().getArgs())
+                .containsExactlyElementsOf(flinkCommands);
     }
 }

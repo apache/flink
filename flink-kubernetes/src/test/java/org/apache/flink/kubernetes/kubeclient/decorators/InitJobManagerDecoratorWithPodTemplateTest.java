@@ -30,10 +30,8 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link InitJobManagerDecorator} with pod template. */
 public class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
@@ -72,9 +70,8 @@ public class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPod
         // Add port from pod template
         expectedContainerPorts.add("testing-port");
         assertThat(
-                this.resultPod.getMainContainer().getPorts().stream()
-                        .map(ContainerPort::getName)
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(expectedContainerPorts.toArray()));
+                        this.resultPod.getMainContainer().getPorts().stream()
+                                .map(ContainerPort::getName))
+                .containsExactlyInAnyOrderElementsOf(expectedContainerPorts);
     }
 }

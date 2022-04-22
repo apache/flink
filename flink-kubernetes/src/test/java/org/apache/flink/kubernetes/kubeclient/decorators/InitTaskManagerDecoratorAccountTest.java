@@ -25,8 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InitTaskManagerDecorator} decorating service account. */
 public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTestBase {
@@ -61,8 +60,7 @@ public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTe
 
     @Test
     public void testPodServiceAccountName() {
-        assertThat(
-                this.resultPod.getSpec().getServiceAccountName(),
-                is(TASK_MANAGER_SERVICE_ACCOUNT_NAME));
+        assertThat(this.resultPod.getSpec().getServiceAccountName())
+                .isEqualTo(TASK_MANAGER_SERVICE_ACCOUNT_NAME);
     }
 }

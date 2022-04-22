@@ -32,17 +32,13 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.Map;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KubernetesSessionCli}. */
 public class KubernetesSessionCliTest {
@@ -57,8 +53,8 @@ public class KubernetesSessionCliTest {
         final String[] args = {};
         final Configuration configuration = cli.getEffectiveConfiguration(args);
 
-        assertEquals(
-                KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+        assertThat(KubernetesSessionClusterExecutor.NAME)
+                .isEqualTo(configuration.get(DeploymentOptions.TARGET));
     }
 
     @Test
@@ -77,16 +73,15 @@ public class KubernetesSessionCliTest {
         final Configuration executorConfig = cli.getEffectiveConfiguration(args);
         final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 
-        Assert.assertNotNull(clientFactory);
+        assertThat(clientFactory).isNotNull();
 
         final Map<String, String> executorConfigMap = executorConfig.toMap();
-        assertEquals(4, executorConfigMap.size());
-        assertEquals("5 min", executorConfigMap.get("akka.ask.timeout"));
-        assertEquals("-DappName=foobar", executorConfigMap.get("env.java.opts"));
-        assertEquals(
-                tmp.getRoot().getAbsolutePath(),
-                executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
-        assertTrue(executorConfigMap.containsKey(DeploymentOptions.TARGET.key()));
+        assertThat(executorConfigMap).hasSize(4);
+        assertThat(executorConfigMap.get("akka.ask.timeout")).isEqualTo("5 min");
+        assertThat(executorConfigMap.get("env.java.opts")).isEqualTo("-DappName=foobar");
+        assertThat(tmp.getRoot().getAbsolutePath())
+                .isEqualTo(executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
+        assertThat(executorConfigMap).containsKey(DeploymentOptions.TARGET.key());
     }
 
     @Test
@@ -107,7 +102,7 @@ public class KubernetesSessionCliTest {
 
         // each task manager has 3 slots but the parallelism is 7. Thus the slots should be
         // increased.
-        assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
+        assertThat(clusterSpecification.getSlotsPerTaskManager()).isEqualTo(3);
     }
 
     @Test
@@ -125,7 +120,7 @@ public class KubernetesSessionCliTest {
         final Configuration executorConfig = cli.getEffectiveConfiguration(args);
         final ClusterClientFactory clientFactory = getClusterClientFactory(executorConfig);
 
-        assertEquals(clusterId, clientFactory.getClusterId(executorConfig));
+        assertThat(clientFactory.getClusterId(executorConfig)).isEqualTo(clusterId);
     }
 
     /**
@@ -161,9 +156,9 @@ public class KubernetesSessionCliTest {
         ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
-        assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(jobManagerMemory);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(taskManagerMemory);
+        assertThat(clusterSpecification.getSlotsPerTaskManager()).isEqualTo(slotsPerTaskManager);
     }
 
     /**
@@ -190,9 +185,9 @@ public class KubernetesSessionCliTest {
         ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
-        assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(jobManagerMemory);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(taskManagerMemory);
+        assertThat(clusterSpecification.getSlotsPerTaskManager()).isEqualTo(slotsPerTaskManager);
     }
 
     /** Tests the specifying heap memory with unit (MB) for job manager and task manager. */
@@ -213,8 +208,8 @@ public class KubernetesSessionCliTest {
         final ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(1024);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(2048);
     }
 
     /** Tests the specifying heap memory with arbitrary unit for job manager and task manager. */
@@ -235,8 +230,8 @@ public class KubernetesSessionCliTest {
         final ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(3072));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(1024);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(3072);
     }
 
     /** Tests the specifying heap memory with old config key for job manager and task manager. */
@@ -255,8 +250,8 @@ public class KubernetesSessionCliTest {
         final ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(2048);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(4096);
     }
 
     /**
@@ -273,8 +268,8 @@ public class KubernetesSessionCliTest {
         final ClusterSpecification clusterSpecification =
                 clientFactory.getClusterSpecification(executorConfig);
 
-        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
+        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(1024);
+        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(1024);
     }
 
     private ClusterClientFactory<String> getClusterClientFactory(

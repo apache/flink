@@ -40,8 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link
@@ -103,16 +102,14 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
             // Check the new leader is confirmed
             final LeaderInformation confirmedLeaderInformation =
                     electionEventHandler.getConfirmedLeaderInformation();
-            assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
+            assertThat(confirmedLeaderInformation.getLeaderAddress()).isEqualTo(LEADER_ADDRESS);
 
             // Check the leader retrieval driver should be notified the leader address
             retrievalEventHandler.waitForNewLeader();
-            assertThat(
-                    retrievalEventHandler.getLeaderSessionID(),
-                    is(confirmedLeaderInformation.getLeaderSessionID()));
-            assertThat(
-                    retrievalEventHandler.getAddress(),
-                    is(confirmedLeaderInformation.getLeaderAddress()));
+            assertThat(retrievalEventHandler.getLeaderSessionID())
+                    .isEqualByComparingTo(confirmedLeaderInformation.getLeaderSessionID());
+            assertThat(retrievalEventHandler.getAddress())
+                    .isEqualTo(confirmedLeaderInformation.getLeaderAddress());
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {

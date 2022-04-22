@@ -40,9 +40,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test fixture for Kubernetes tests that sets up a mock {@link FlinkKubeClient}. */
 class KubernetesTestFixture {
@@ -112,7 +110,7 @@ class KubernetesTestFixture {
     KubernetesConfigMap getLeaderConfigMap() {
         final Optional<KubernetesConfigMap> configMapOpt =
                 flinkKubeClient.getConfigMap(leaderConfigmapName);
-        assertThat(configMapOpt.isPresent(), is(true));
+        assertThat(configMapOpt).isPresent();
         return configMapOpt.get();
     }
 
@@ -124,13 +122,13 @@ class KubernetesTestFixture {
 
     FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> getLeaderElectionConfigMapCallback()
             throws Exception {
-        assertThat(configMapCallbackFutures.size(), is(greaterThanOrEqualTo(1)));
+        assertThat(configMapCallbackFutures).hasSizeGreaterThanOrEqualTo(1);
         return configMapCallbackFutures.get(0).get(TIMEOUT, TimeUnit.MILLISECONDS);
     }
 
     FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap> getLeaderRetrievalConfigMapCallback()
             throws Exception {
-        assertThat(configMapCallbackFutures.size(), is(2));
+        assertThat(configMapCallbackFutures).hasSize(2);
         return configMapCallbackFutures.get(1).get(TIMEOUT, TimeUnit.MILLISECONDS);
     }
 

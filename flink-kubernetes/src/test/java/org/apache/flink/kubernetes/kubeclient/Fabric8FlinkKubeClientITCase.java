@@ -40,9 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for {@link org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient} with real K8s
@@ -130,7 +128,7 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
                                                                 return Optional.of(configMap);
                                                             })
                                                     .join();
-                                    assertThat(updated, is(true));
+                                    assertThat(updated).isTrue();
                                     try {
                                         // Simulate the update interval
                                         Thread.sleep((long) (updateIntervalMs * Math.random()));
@@ -145,7 +143,7 @@ public class Fabric8FlinkKubeClientITCase extends TestLogger {
         // All the value should be increased exactly to the target
         final Optional<KubernetesConfigMap> configMapOpt =
                 flinkKubeClient.getConfigMap(TEST_CONFIG_MAP_NAME);
-        assertThat(configMapOpt.isPresent(), is(true));
-        assertThat(configMapOpt.get().getData().values(), everyItem(is(String.valueOf(target))));
+        assertThat(configMapOpt).isPresent();
+        assertThat(configMapOpt.get().getData().values()).containsOnly(String.valueOf(target));
     }
 }

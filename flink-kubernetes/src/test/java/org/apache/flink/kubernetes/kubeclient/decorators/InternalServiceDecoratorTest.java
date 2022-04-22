@@ -35,8 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InternalServiceDecorator}. */
 public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
@@ -55,25 +54,23 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     public void testBuildAccompanyingKubernetesResources() throws IOException {
         final List<HasMetadata> resources =
                 this.internalServiceDecorator.buildAccompanyingKubernetesResources();
-        assertEquals(1, resources.size());
+        assertThat(resources).hasSize(1);
 
-        assertEquals(
-                InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
-                this.flinkConfig.getString(JobManagerOptions.ADDRESS));
+        assertThat(InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE))
+                .isEqualTo(this.flinkConfig.getString(JobManagerOptions.ADDRESS));
 
         final Service internalService = (Service) resources.get(0);
 
-        assertEquals(Constants.API_VERSION, internalService.getApiVersion());
+        assertThat(internalService.getApiVersion()).isEqualTo(Constants.API_VERSION);
 
-        assertEquals(
-                InternalServiceDecorator.getInternalServiceName(CLUSTER_ID),
-                internalService.getMetadata().getName());
+        assertThat(internalService.getMetadata().getName())
+                .isEqualTo(InternalServiceDecorator.getInternalServiceName(CLUSTER_ID));
 
         final Map<String, String> expectedLabels = getCommonLabels();
-        assertEquals(expectedLabels, internalService.getMetadata().getLabels());
+        assertThat(internalService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
-        assertNull(internalService.getSpec().getType());
-        assertEquals("None", internalService.getSpec().getClusterIP());
+        assertThat(internalService.getSpec().getType()).isNull();
+        assertThat(internalService.getSpec().getClusterIP()).isEqualTo("None");
 
         List<ServicePort> expectedServicePorts =
                 Arrays.asList(
@@ -85,10 +82,10 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withName(Constants.BLOB_SERVER_PORT_NAME)
                                 .withPort(BLOB_SERVER_PORT)
                                 .build());
-        assertEquals(expectedServicePorts, internalService.getSpec().getPorts());
+        assertThat(internalService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertEquals(expectedLabels, internalService.getSpec().getSelector());
+        assertThat(internalService.getSpec().getSelector()).isEqualTo(expectedLabels);
     }
 
     @Test
@@ -98,6 +95,6 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
         final List<HasMetadata> resources =
                 this.internalServiceDecorator.buildAccompanyingKubernetesResources();
-        assertEquals(0, resources.size());
+        assertThat(resources).isEmpty();
     }
 }

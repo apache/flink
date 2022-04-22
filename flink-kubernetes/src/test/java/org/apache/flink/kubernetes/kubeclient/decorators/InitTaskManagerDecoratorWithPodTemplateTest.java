@@ -33,10 +33,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalToIgnoringCase;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link InitTaskManagerDecorator} with pod template. */
 public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
@@ -74,21 +71,21 @@ public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPo
         // Add port from pod template
         expectedContainerPorts.add("testing-port");
         assertThat(
-                this.resultPod.getMainContainer().getPorts().stream()
-                        .map(ContainerPort::getName)
-                        .collect(Collectors.toList()),
-                containsInAnyOrder(expectedContainerPorts.toArray()));
+                        this.resultPod.getMainContainer().getPorts().stream()
+                                .map(ContainerPort::getName)
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrderElementsOf(expectedContainerPorts);
     }
 
     @Test
     public void testTaskManagerPodRestartPolicyOverwritten() {
-        assertThat(
-                resultPod.getPodWithoutMainContainer().getSpec().getRestartPolicy(),
-                is(equalToIgnoringCase(Constants.RESTART_POLICY_OF_NEVER)));
+        assertThat(resultPod.getPodWithoutMainContainer().getSpec().getRestartPolicy())
+                .isEqualToIgnoringCase(Constants.RESTART_POLICY_OF_NEVER);
     }
 
     @Test
     public void testTaskManagerPodNameOverwritten() {
-        assertThat(resultPod.getPodWithoutMainContainer().getMetadata().getName(), is(POD_NAME));
+        assertThat(resultPod.getPodWithoutMainContainer().getMetadata().getName())
+                .isEqualTo(POD_NAME);
     }
 }

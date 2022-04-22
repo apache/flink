@@ -37,13 +37,9 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 /** General tests for the {@link KubernetesJobManagerParameters}. */
 public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
@@ -76,12 +72,12 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         final Map<String, String> resultEnvironments =
                 kubernetesJobManagerParameters.getEnvironments();
 
-        assertEquals(expectedEnvironments, resultEnvironments);
+        assertThat(resultEnvironments).isEqualTo(expectedEnvironments);
     }
 
     @Test
     public void testGetEmptyAnnotations() {
-        assertTrue(kubernetesJobManagerParameters.getAnnotations().isEmpty());
+        assertThat(kubernetesJobManagerParameters.getAnnotations().isEmpty()).isTrue();
     }
 
     @Test
@@ -95,7 +91,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         final Map<String, String> resultAnnotations =
                 kubernetesJobManagerParameters.getAnnotations();
 
-        assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
+        assertThat(resultAnnotations).isEqualTo(expectedAnnotations);
     }
 
     @Test
@@ -109,28 +105,28 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         final Map<String, String> resultAnnotations =
                 kubernetesJobManagerParameters.getRestServiceAnnotations();
 
-        assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
+        assertThat(resultAnnotations).isEqualTo(expectedAnnotations);
     }
 
     @Test
     public void testGetJobManagerMemoryMB() {
-        assertEquals(JOB_MANAGER_MEMORY, kubernetesJobManagerParameters.getJobManagerMemoryMB());
+        assertThat(kubernetesJobManagerParameters.getJobManagerMemoryMB())
+                .isEqualTo(JOB_MANAGER_MEMORY);
     }
 
     @Test
     public void testGetJobManagerCPU() {
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
-        assertEquals(JOB_MANAGER_CPU, kubernetesJobManagerParameters.getJobManagerCPU(), 0.00001);
+        assertThat(kubernetesJobManagerParameters.getJobManagerCPU())
+                .isEqualTo(JOB_MANAGER_CPU, within(0.00001));
     }
 
     @Test
     public void testGetJobManagerCPULimitFactor() {
         flinkConfig.set(
                 KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, JOB_MANAGER_CPU_LIMIT_FACTOR);
-        assertEquals(
-                JOB_MANAGER_CPU_LIMIT_FACTOR,
-                kubernetesJobManagerParameters.getJobManagerCPULimitFactor(),
-                0.00001);
+        assertThat(kubernetesJobManagerParameters.getJobManagerCPULimitFactor())
+                .isEqualTo(JOB_MANAGER_CPU_LIMIT_FACTOR, within(0.00001));
     }
 
     @Test
@@ -138,82 +134,81 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         flinkConfig.set(
                 KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR,
                 JOB_MANAGER_MEMORY_LIMIT_FACTOR);
-        assertEquals(
-                JOB_MANAGER_MEMORY_LIMIT_FACTOR,
-                kubernetesJobManagerParameters.getJobManagerMemoryLimitFactor(),
-                0.00001);
+        assertThat(kubernetesJobManagerParameters.getJobManagerMemoryLimitFactor())
+                .isEqualTo(JOB_MANAGER_MEMORY_LIMIT_FACTOR, within(0.00001));
     }
 
     @Test
     public void testGetRestPort() {
         flinkConfig.set(RestOptions.PORT, 12345);
-        assertEquals(12345, kubernetesJobManagerParameters.getRestPort());
+        assertThat(kubernetesJobManagerParameters.getRestPort()).isEqualTo(12345);
     }
 
     @Test
     public void testGetRpcPort() {
         flinkConfig.set(JobManagerOptions.PORT, 1234);
-        assertEquals(1234, kubernetesJobManagerParameters.getRPCPort());
+        assertThat(kubernetesJobManagerParameters.getRPCPort()).isEqualTo(1234);
     }
 
     @Test
     public void testGetBlobServerPort() {
         flinkConfig.set(BlobServerOptions.PORT, "2345");
-        assertEquals(2345, kubernetesJobManagerParameters.getBlobServerPort());
+        assertThat(kubernetesJobManagerParameters.getBlobServerPort()).isEqualTo(2345);
     }
 
     @Test
     public void testGetBlobServerPortException1() {
         flinkConfig.set(BlobServerOptions.PORT, "1000-2000");
-
-        try {
-            kubernetesJobManagerParameters.getBlobServerPort();
-            fail("Should fail with an exception.");
-        } catch (FlinkRuntimeException e) {
-            assertThat(
-                    e.getMessage(),
-                    containsString(
-                            BlobServerOptions.PORT.key()
-                                    + " should be specified to a fixed port. Do not support a range of ports."));
-        }
+        String errMsg =
+                BlobServerOptions.PORT.key()
+                        + " should be specified to a fixed port. Do not support a range of ports.";
+        assertThatThrownBy(
+                        () -> kubernetesJobManagerParameters.getBlobServerPort(),
+                        "Should fail with an exception.")
+                .satisfies(
+                        cause ->
+                                assertThat(cause)
+                                        .isInstanceOf(FlinkRuntimeException.class)
+                                        .hasMessageMatching(errMsg));
     }
 
     @Test
     public void testGetBlobServerPortException2() {
         flinkConfig.set(BlobServerOptions.PORT, "0");
-
-        try {
-            kubernetesJobManagerParameters.getBlobServerPort();
-            fail("Should fail with an exception.");
-        } catch (IllegalArgumentException e) {
-            assertThat(
-                    e.getMessage(),
-                    containsString(BlobServerOptions.PORT.key() + " should not be 0."));
-        }
+        assertThatThrownBy(
+                        () -> kubernetesJobManagerParameters.getBlobServerPort(),
+                        "Should fail with an exception.")
+                .satisfies(
+                        cause ->
+                                assertThat(cause)
+                                        .isInstanceOf(IllegalArgumentException.class)
+                                        .hasMessageMatching(
+                                                BlobServerOptions.PORT.key()
+                                                        + " should not be 0."));
     }
 
     @Test
     public void testGetServiceAccount() {
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, "flink");
-        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("flink"));
+        assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("flink");
     }
 
     @Test
     public void testGetServiceAccountFallback() {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
-        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("flink-fallback"));
+        assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("flink-fallback");
     }
 
     @Test
     public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
-        assertThat(kubernetesJobManagerParameters.getServiceAccount(), is("default"));
+        assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("default");
     }
 
     @Test
     public void testGetEntrypointMainClass() {
         final String entrypointClass = "org.flink.kubernetes.Entrypoint";
         flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entrypointClass);
-        assertEquals(entrypointClass, kubernetesJobManagerParameters.getEntrypointClass());
+        assertThat(kubernetesJobManagerParameters.getEntrypointClass()).isEqualTo(entrypointClass);
     }
 
     @Test
@@ -221,9 +216,8 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
                 KubernetesConfigOptions.ServiceExposedType.NodePort);
-        assertEquals(
-                KubernetesConfigOptions.ServiceExposedType.NodePort,
-                kubernetesJobManagerParameters.getRestServiceExposedType());
+        assertThat(kubernetesJobManagerParameters.getRestServiceExposedType())
+                .isEqualByComparingTo(KubernetesConfigOptions.ServiceExposedType.NodePort);
     }
 
     @Test
@@ -237,7 +231,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertThat(kubernetesJobManagerParameters.getLabels(), is(equalTo(expectedLabels)));
+        assertThat(kubernetesJobManagerParameters.getLabels()).isEqualTo(expectedLabels);
     }
 
     @Test(expected = IllegalConfigurationException.class)
@@ -258,6 +252,6 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
                 HighAvailabilityOptions.HA_MODE,
                 KubernetesHaServicesFactory.class.getCanonicalName());
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
-        assertThat(kubernetesJobManagerParameters.getReplicas(), is(2));
+        assertThat(kubernetesJobManagerParameters.getReplicas()).isEqualTo(2);
     }
 }

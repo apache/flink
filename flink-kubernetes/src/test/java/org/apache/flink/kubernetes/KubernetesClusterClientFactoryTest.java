@@ -27,7 +27,7 @@ import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link KubernetesClusterClientFactory} discovery. */
 public class KubernetesClusterClientFactoryTest {
@@ -45,6 +45,6 @@ public class KubernetesClusterClientFactoryTest {
         final ClusterClientFactory<String> factory =
                 serviceLoader.getClusterClientFactory(configuration);
 
-        assertTrue(factory instanceof KubernetesClusterClientFactory);
+        assertThat(factory instanceof KubernetesClusterClientFactory).isTrue();
     }
 }

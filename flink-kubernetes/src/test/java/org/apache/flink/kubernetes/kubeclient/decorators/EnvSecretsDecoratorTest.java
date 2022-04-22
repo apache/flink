@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link EnvSecretsDecorator}. */
 public class EnvSecretsDecoratorTest extends KubernetesJobManagerTestBase {
@@ -56,7 +56,6 @@ public class EnvSecretsDecoratorTest extends KubernetesJobManagerTestBase {
         final FlinkPod resultFlinkPod = envSecretsDecorator.decorateFlinkPod(baseFlinkPod);
         List<EnvVar> envVarList = resultFlinkPod.getMainContainer().getEnv();
 
-        assertEquals(1, envVarList.size());
-        assertEquals(ENV_NAME, envVarList.get(0).getName());
+        assertThat(envVarList).extracting(EnvVar::getName).containsExactly(ENV_NAME);
     }
 }

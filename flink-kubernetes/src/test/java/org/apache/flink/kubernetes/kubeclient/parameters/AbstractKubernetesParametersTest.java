@@ -38,9 +38,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** General tests for the {@link AbstractKubernetesParameters}. */
 public class AbstractKubernetesParametersTest extends TestLogger {
@@ -54,10 +54,8 @@ public class AbstractKubernetesParametersTest extends TestLogger {
     @Test
     public void testClusterIdMustNotBeBlank() {
         flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, "  ");
-        assertThrows(
-                "must not be blank",
-                IllegalArgumentException.class,
-                testingKubernetesParameters::getClusterId);
+        assertThatThrownBy(testingKubernetesParameters::getClusterId)
+                .satisfies(anyCauseMatches(IllegalArgumentException.class, "must not be blank"));
     }
 
     @Test
@@ -66,25 +64,26 @@ public class AbstractKubernetesParametersTest extends TestLogger {
                 StringUtils.generateRandomAlphanumericString(
                         new Random(), Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID + 1);
         flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, stringWithIllegalLength);
-        assertThrows(
-                "must be no more than "
-                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
-                        + " characters",
-                IllegalArgumentException.class,
-                testingKubernetesParameters::getClusterId);
+        assertThatThrownBy(testingKubernetesParameters::getClusterId)
+                .satisfies(
+                        anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "must be no more than "
+                                        + Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID
+                                        + " characters"));
     }
 
     @Test
     public void getConfigDirectory() {
         final String confDir = "/path/of/flink-conf";
         flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, confDir);
-        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDir));
+        assertThat(testingKubernetesParameters.getConfigDirectory()).isEqualTo(confDir);
     }
 
     @Test
     public void getConfigDirectoryFallbackToPodConfDir() {
         final String confDirInPod = flinkConfig.get(KubernetesConfigOptions.FLINK_CONF_DIR);
-        assertThat(testingKubernetesParameters.getConfigDirectory(), is(confDirInPod));
+        assertThat(testingKubernetesParameters.getConfigDirectory()).isEqualTo(confDirInPod);
     }
 
     @Test
@@ -94,7 +93,7 @@ public class AbstractKubernetesParametersTest extends TestLogger {
                 () -> {
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(false));
+                    assertThat(optional).isNotPresent();
                 });
     }
 
@@ -107,8 +106,8 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopConfDir));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopConfDir);
                 });
     }
 
@@ -122,8 +121,8 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopHome + "/etc/hadoop"));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopHome + "/etc/hadoop");
                 });
     }
 
@@ -137,8 +136,8 @@ public class AbstractKubernetesParametersTest extends TestLogger {
 
                     final Optional<String> optional =
                             testingKubernetesParameters.getLocalHadoopConfigurationDirectory();
-                    assertThat(optional.isPresent(), is(true));
-                    assertThat(optional.get(), is(hadoopHome + "/conf"));
+                    assertThat(optional).isPresent();
+                    assertThat(optional.get()).isEqualTo(hadoopHome + "/conf");
                 });
     }
 

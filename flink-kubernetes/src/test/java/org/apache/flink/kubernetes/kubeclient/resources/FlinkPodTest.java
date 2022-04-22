@@ -25,9 +25,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import org.junit.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkPod}. */
 public class FlinkPodTest extends KubernetesTestBase {
@@ -40,15 +38,14 @@ public class FlinkPodTest extends KubernetesTestBase {
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
         final FlinkPod copiedFlinkPod = flinkPod.copy();
-        assertThat(flinkPod == copiedFlinkPod, is(false));
+        assertThat(flinkPod == copiedFlinkPod).isFalse();
         assertThat(
-                flinkPod.getPodWithoutMainContainer()
-                        == copiedFlinkPod.getPodWithoutMainContainer(),
-                is(false));
-        assertThat(
-                flinkPod.getPodWithoutMainContainer(),
-                is(equalTo(copiedFlinkPod.getPodWithoutMainContainer())));
-        assertThat(flinkPod.getMainContainer() == copiedFlinkPod.getMainContainer(), is(false));
-        assertThat(flinkPod.getMainContainer(), is(equalTo(copiedFlinkPod.getMainContainer())));
+                        flinkPod.getPodWithoutMainContainer()
+                                == copiedFlinkPod.getPodWithoutMainContainer())
+                .isFalse();
+        assertThat(flinkPod.getPodWithoutMainContainer())
+                .isEqualTo(copiedFlinkPod.getPodWithoutMainContainer());
+        assertThat(flinkPod.getMainContainer() == copiedFlinkPod.getMainContainer()).isFalse();
+        assertThat(flinkPod.getMainContainer()).isEqualTo(copiedFlinkPod.getMainContainer());
     }
 }

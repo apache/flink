@@ -33,9 +33,7 @@ import org.junit.Test;
 
 import java.util.UUID;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesStateHandleStore}. We expect only the leader could update the
@@ -105,12 +103,11 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
             }
 
             // Only the leader could add successfully
-            assertThat(expectedState, is(notNullValue()));
-            assertThat(stateHandleStores[0].getAllAndLock().size(), is(1));
-            assertThat(
-                    stateHandleStores[0].getAllAndLock().get(0).f0.retrieveState().getValue(),
-                    is(expectedState));
-            assertThat(stateHandleStores[0].getAllAndLock().get(0).f1, is(KEY));
+            assertThat(expectedState).isNotNull();
+            assertThat(stateHandleStores[0].getAllAndLock()).hasSize(1);
+            assertThat(stateHandleStores[0].getAllAndLock().get(0).f0.retrieveState().getValue())
+                    .isEqualTo(expectedState);
+            assertThat(stateHandleStores[0].getAllAndLock().get(0).f1).isEqualTo(KEY);
         } finally {
             TestingLongStateHandleHelper.clearGlobalState();
             // Cleanup the resources
