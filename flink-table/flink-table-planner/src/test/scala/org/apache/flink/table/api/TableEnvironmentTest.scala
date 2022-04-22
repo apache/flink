@@ -43,9 +43,11 @@ import _root_.scala.collection.JavaConverters._
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.{Rule, Test}
+import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
+
+import java.util.Collections
 
 class TableEnvironmentTest {
 
@@ -57,6 +59,12 @@ class TableEnvironmentTest {
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+  val catalog = new GenericInMemoryCatalog("part_test_cat")
+
+  @Before
+  def setup(): Unit = {
+    tableEnv.registerCatalog("part_test_cat", catalog)
+  }
 
   @Test
   def testScanNonExistTable(): Unit = {
@@ -743,7 +751,9 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("catalog name", DataTypes.STRING())),
       tableResult.getResolvedSchema)
     checkData(
-      util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
+      util.Arrays
+        .asList(Row.of("default_catalog"), Row.of("my_catalog"), Row.of("part_test_cat"))
+        .iterator(),
       tableResult.collect())
   }
 
@@ -1930,6 +1940,56 @@ class TableEnvironmentTest {
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
           "table environment. Subsequent changes are not supported. " +
           "Please instantiate a new TableEnvironment if necessary.")
+  }
+
+  @Test
+  def testAddPartitions(): Unit = {
+    tableEnv.useCatalog("part_test_cat")
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // test add partition
+    var tableResult = tableEnv.executeSql(
+      "alter table tbl add partition " +
+        "(b=1000,c='2020-05-01') partition (b=2000,c='2020-01-01') with ('k'='v')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+
+    val tablePath = new ObjectPath("default", "tbl")
+    val actual = catalog.listPartitions(tablePath)
+    // assert partition spec
+    assertEquals(List(spec1, spec2).asJava, actual)
+
+    val part1 = catalog.getPartition(tablePath, spec1)
+    val part2 = catalog.getPartition(tablePath, spec2)
+    // assert partition properties
+    assertEquals(Collections.emptyMap(), part1.getProperties)
+    assertEquals(Collections.singletonMap("k", "v"), part2.getProperties)
+
+    // add existed partition with if not exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl add if not exists partition (b=1000,c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    // add existed partition without if not exists
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl add partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining(
+        "Could not execute ALTER TABLE part_test_cat.default.tbl ADD PARTITION (b=1000, c=2020-05-01)")
+
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
