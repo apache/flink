@@ -295,11 +295,12 @@ public class JavaUserDefinedScalarFunctions {
         }
     }
 
+    /** A Python UDF that returns current timestamp with any input. */
     public static class PythonTimestampScalarFunction extends ScalarFunction
             implements PythonFunction {
 
         @DataTypeHint("TIMESTAMP(3)")
-        public LocalDateTime eval(Integer i) {
+        public LocalDateTime eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... o) {
             return LocalDateTime.now();
         }
 
