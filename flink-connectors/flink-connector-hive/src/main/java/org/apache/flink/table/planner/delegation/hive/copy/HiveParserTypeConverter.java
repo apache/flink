@@ -148,7 +148,7 @@ public class HiveParserTypeConverter {
                 convertedType = dtFactory.createSqlType(SqlTypeName.TIMESTAMP, 9);
                 break;
             case BINARY:
-                convertedType = dtFactory.createSqlType(SqlTypeName.BINARY);
+                convertedType = dtFactory.createSqlType(SqlTypeName.VARBINARY);
                 break;
             case DECIMAL:
                 DecimalTypeInfo dtInf = (DecimalTypeInfo) type;
@@ -295,6 +295,7 @@ public class HiveParserTypeConverter {
             case INTERVAL_SECOND:
                 return hiveShim.getIntervalDayTimeTypeInfo();
             case BINARY:
+            case VARBINARY:
                 return TypeInfoFactory.binaryTypeInfo;
             case DECIMAL:
                 return TypeInfoFactory.getDecimalTypeInfo(rType.getPrecision(), rType.getScale());

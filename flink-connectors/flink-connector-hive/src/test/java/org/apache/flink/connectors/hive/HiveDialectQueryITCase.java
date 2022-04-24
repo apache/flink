@@ -82,6 +82,8 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql("CREATE TABLE src (key STRING, value STRING)");
         tableEnv.executeSql(
                 "CREATE TABLE srcpart (key STRING, `value` STRING) PARTITIONED BY (ds STRING, hr STRING)");
+        tableEnv.executeSql("create table binary_t (a int, ab array<binary>)");
+
         tableEnv.executeSql(
                 "CREATE TABLE nested (\n"
                         + "  a int,\n"
@@ -156,7 +158,8 @@ public class HiveDialectQueryITCase {
                                         + "(partition by dep order by salary desc) as rnk from employee) a where rnk=1",
                                 "select salary,sum(cnt) over (order by salary)/sum(cnt) over "
                                         + "(order by salary ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) from"
-                                        + " (select salary,count(*) as cnt from employee group by salary) a"));
+                                        + " (select salary,count(*) as cnt from employee group by salary) a",
+                                "select a, one from binary_t lateral view explode(ab) abs as one where a > 0"));
         if (HiveVersionTestUtil.HIVE_230_OR_LATER) {
             toRun.add(
                     "select weekofyear(current_timestamp()), dayofweek(current_timestamp()) from src limit 1");
