@@ -29,7 +29,6 @@ from py4j.java_gateway import JavaObject
 
 from pyflink.common import JobExecutionResult
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
-from pyflink.table.sources import CsvTableSource
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.table.table_environment import TableEnvironment
@@ -110,21 +109,6 @@ class PyFlinkTestCase(unittest.TestCase):
         for i in range(0, actual.size()):
             py_list.append(actual.get(i))
         return py_list
-
-    @classmethod
-    def prepare_csv_source(cls, path, data, data_types, fields):
-        if os.path.isfile(path):
-            os.remove(path)
-        csv_data = ""
-        for item in data:
-            if isinstance(item, list) or isinstance(item, tuple):
-                csv_data += ",".join([str(element) for element in item]) + "\n"
-            else:
-                csv_data += str(item) + "\n"
-        with open(path, 'w') as f:
-            f.write(csv_data)
-            f.close()
-        return CsvTableSource(path, fields, data_types)
 
 
 class PyFlinkStreamTableTestCase(PyFlinkTestCase):
