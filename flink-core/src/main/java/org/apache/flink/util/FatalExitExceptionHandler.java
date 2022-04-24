@@ -49,8 +49,8 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
     }
 
     /**
-     * private constructor to prevent instantiation, please use {@link FatalExitExceptionHandler#INSTANCE} to get the instance.
+     * private constructor to prevent instantiation, please use {@link
+     * FatalExitExceptionHandler#INSTANCE} to get the instance.
      */
-    private FatalExitExceptionHandler() {
-    }
+    private FatalExitExceptionHandler() {}
 }
