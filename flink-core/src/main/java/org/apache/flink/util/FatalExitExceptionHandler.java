@@ -47,4 +47,10 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
             FlinkSecurityManager.forceProcessExit(EXIT_CODE);
         }
     }
+
+    /**
+     * private constructor to prevent instantiation, please use {@link FatalExitExceptionHandler#INSTANCE} to get the instance.
+     */
+    private FatalExitExceptionHandler() {
+    }
 }

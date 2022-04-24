@@ -284,10 +284,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         synchronized (lock) {
             initializeServices(configuration, pluginManager);
 
-            // write host information into configuration
-            configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
-            configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
-
             final DispatcherResourceManagerComponentFactory
                     dispatcherResourceManagerComponentFactory =
                             createDispatcherResourceManagerComponentFactory(configuration);
