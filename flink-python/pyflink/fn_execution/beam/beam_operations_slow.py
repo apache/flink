@@ -25,6 +25,7 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
+from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 from pyflink.fn_execution.table.operations import (
     BundleOperation,
     BaseOperation as TableOperation,
@@ -85,9 +86,12 @@ class FunctionOperation(Operation):
             self._profiler = Profiler()
         else:
             self._profiler = None
-        job_parameters = {
-            p.key: p.value for p in spec.serialized_fn.runtime_context.job_parameters
-        }
+        if isinstance(spec.serialized_fn, UserDefinedDataStreamFunction):
+            job_parameters = {
+                p.key: p.value for p in spec.serialized_fn.runtime_context.job_parameters
+            }
+        else:
+            job_parameters = {}
         if job_parameters.get("SIDE_OUTPUT_ENABLED") is not None:
             self._side_output_enabled = True
         else:
