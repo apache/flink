@@ -37,7 +37,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,10 +48,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link KubernetesResourceManagerDriver}. */
-public class KubernetesResourceManagerDriverTest
+class KubernetesResourceManagerDriverTest
         extends ResourceManagerDriverTestBase<KubernetesWorkerNode> {
 
     private static final String CLUSTER_ID = "testing-flink-cluster";
@@ -59,8 +60,8 @@ public class KubernetesResourceManagerDriverTest
             KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
                     new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID, "localhost:9000");
 
-    @Test
-    public void testOnPodAdded() throws Exception {
+    @org.junit.jupiter.api.Test
+    void testOnPodAdded() throws Exception {
         new Context() {
             {
                 final CompletableFuture<KubernetesPod> createPodFuture = new CompletableFuture<>();
@@ -112,7 +113,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testOnPodModified() throws Exception {
+    void testOnPodModified() throws Exception {
         new Context() {
             {
                 testOnPodTerminated((pod) -> getPodCallbackHandler().onModified(pod));
@@ -121,7 +122,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testOnPodDeleted() throws Exception {
+    void testOnPodDeleted() throws Exception {
         new Context() {
             {
                 testOnPodTerminated((pod) -> getPodCallbackHandler().onDeleted(pod));
@@ -130,7 +131,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testOnError() throws Exception {
+    void testOnError() throws Exception {
         new Context() {
             {
                 testOnPodTerminated((pod) -> getPodCallbackHandler().onError(pod));
@@ -139,7 +140,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testFatalHandleError() throws Exception {
+    void testFatalHandleError() throws Exception {
         new Context() {
             {
                 final CompletableFuture<Throwable> onErrorFuture = new CompletableFuture<>();
@@ -157,7 +158,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testRecoverPreviousAttemptWorkersPodTerminated() throws Exception {
+    void testRecoverPreviousAttemptWorkersPodTerminated() throws Exception {
         new Context() {
             {
                 final KubernetesPod previousAttemptPod =
@@ -192,8 +193,7 @@ public class KubernetesResourceManagerDriverTest
     }
 
     @Test
-    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
-            throws Exception {
+    void testNewWatchCreationWhenKubernetesTooOldResourceVersionException() throws Exception {
         new Context() {
             {
                 runTest(
@@ -211,21 +211,25 @@ public class KubernetesResourceManagerDriverTest
         };
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testThrowExceptionWhenWatchPodsFailInInitializing() throws Exception {
         new Context() {
             {
-                flinkKubeClientBuilder.setWatchPodsAndDoCallbackFunction(
-                        (ignore1, ignore2) -> {
-                            throw new ExpectedTestException();
-                        });
-                runTest(() -> {});
+                assertThatThrownBy(
+                                () -> {
+                                    flinkKubeClientBuilder.setWatchPodsAndDoCallbackFunction(
+                                            (ignore1, ignore2) -> {
+                                                throw new ExpectedTestException();
+                                            });
+                                    runTest(() -> {});
+                                })
+                        .isInstanceOf(ExpectedTestException.class);
             }
         };
     }
 
     @Test
-    public void testThrowExceptionWhenWatchPodsFailInHandlingError() throws Exception {
+    void testThrowExceptionWhenWatchPodsFailInHandlingError() throws Exception {
         new Context() {
             {
                 final CompletableFuture<Throwable> onErrorFuture = new CompletableFuture<>();

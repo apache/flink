@@ -18,21 +18,21 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,9 +48,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** IT Tests for the {@link KubernetesSharedInformer}. */
-public class KubernetesSharedInformerITCase extends TestLogger {
+public class KubernetesSharedInformerITCase {
 
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private final ImmutableMap<String, String> labels =
             ImmutableMap.of("app", "shared-informer-test-cluster");
@@ -58,20 +59,21 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     private FlinkKubeClient client;
     private ExecutorService watchCallbackExecutorService;
 
-    @Before
-    public void setUp() throws Exception {
-        client = kubernetesResource.getFlinkKubeClient();
+    @BeforeEach
+    private void setUp() throws Exception {
+        client = kubernetesExtension.getFlinkKubeClient();
         watchCallbackExecutorService =
                 Executors.newCachedThreadPool(new ExecutorThreadFactory("Watch-Callback"));
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, watchCallbackExecutorService);
         client.deleteConfigMapsByLabels(labels).get();
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120000)
     public void testWatch() throws Exception {
 
         try (KubernetesConfigMapSharedWatcher watcher =
@@ -112,7 +114,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     }
 
     @Test
-    public void testWatchWithBlockHandler() throws Exception {
+    void testWatchWithBlockHandler() throws Exception {
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
 
@@ -127,8 +129,8 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 updateConfigMap(configMapName, ImmutableMap.of("val", String.valueOf(i)));
             }
             assertThatCode(() -> handler.expectedFuture.get(120, TimeUnit.SECONDS))
-                    .withFailMessage("expected value: " + maxUpdateVal + ", actual: " + handler.val)
-                    .isNotInstanceOf(TimeoutException.class);
+                    .as("expected value: " + maxUpdateVal + ", actual: " + handler.val)
+                    .doesNotThrowAnyException();
             try {
                 handler.assertFuture.get(2 * block, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {

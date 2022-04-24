@@ -21,15 +21,15 @@ package org.apache.flink.kubernetes.kubeclient.services;
 import org.apache.flink.kubernetes.KubernetesClientTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ServiceType}. */
-public class ServiceTypeTest extends KubernetesClientTestBase {
+class ServiceTypeTest extends KubernetesClientTestBase {
 
     @Test
-    public void testServiceClassify() {
+    void testServiceClassify() {
         assertThat(ServiceType.classify(buildExternalServiceWithClusterIP()))
                 .isEqualByComparingTo(KubernetesConfigOptions.ServiceExposedType.ClusterIP);
         assertThat(ServiceType.classify(buildExternalServiceWithHeadlessClusterIP()))

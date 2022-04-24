@@ -18,20 +18,18 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.util.TestLogger;
-
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodStatusBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KubernetesPod}. */
-public class KubernetesPodTest extends TestLogger {
+class KubernetesPodTest {
 
     @Test
-    public void testIsTerminatedShouldReturnTrueWhenPodFailed() {
+    void testIsTerminatedShouldReturnTrueWhenPodFailed() {
         final Pod pod = new PodBuilder().build();
         pod.setStatus(
                 new PodStatusBuilder()

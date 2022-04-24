@@ -26,7 +26,7 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerPar
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +34,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link InitJobManagerDecorator} with pod template. */
-public class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
+class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
 
     @Override
     protected void setupFlinkConfig() {
@@ -62,7 +62,7 @@ public class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPod
     }
 
     @Test
-    public void testJobManagerManagerMainContainerPortsMerging() {
+    void testJobManagerManagerMainContainerPortsMerging() {
         final List<String> expectedContainerPorts = new ArrayList<>();
         expectedContainerPorts.add(Constants.REST_PORT_NAME);
         expectedContainerPorts.add(Constants.JOB_MANAGER_RPC_PORT_NAME);

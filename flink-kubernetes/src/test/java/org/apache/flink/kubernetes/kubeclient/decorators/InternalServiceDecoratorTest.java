@@ -28,7 +28,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -38,7 +38,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InternalServiceDecorator}. */
-public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
+class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
     private InternalServiceDecorator internalServiceDecorator;
 
@@ -51,7 +51,7 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testBuildAccompanyingKubernetesResources() throws IOException {
+    void testBuildAccompanyingKubernetesResources() throws IOException {
         final List<HasMetadata> resources =
                 this.internalServiceDecorator.buildAccompanyingKubernetesResources();
         assertThat(resources).hasSize(1);
@@ -89,7 +89,7 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testDisableInternalService() throws IOException {
+    void testDisableInternalService() throws IOException {
         this.flinkConfig.setString(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
 

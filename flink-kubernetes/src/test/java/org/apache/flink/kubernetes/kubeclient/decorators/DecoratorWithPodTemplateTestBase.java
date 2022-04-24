@@ -35,7 +35,7 @@ import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -114,7 +114,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     protected abstract FlinkPod getResultPod(FlinkPod podTemplate) throws Exception;
 
     @Test
-    public void testPodLabelsMerging() {
+    void testPodLabelsMerging() {
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.putAll(userLabels);
         // The label from pod template
@@ -125,7 +125,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testPodAnnotationsMerging() {
+    void testPodAnnotationsMerging() {
         final Map<String, String> expectedAnnotations = new HashMap<>(ANNOTATIONS);
         // The annotations from pod template
         expectedAnnotations.put(
@@ -135,7 +135,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testImagePullSecretsMerging() {
+    void testImagePullSecretsMerging() {
         final List<String> expectedPullSecrets = new ArrayList<>(IMAGE_PULL_SECRETS);
         // The image pull secret from pod template
         expectedPullSecrets.add("image-pull-secret-of-pod-template");
@@ -148,7 +148,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testNodeSelectorMerging() {
+    void testNodeSelectorMerging() {
         final Map<String, String> expectedNodeSelectors = new HashMap<>(nodeSelector);
         // The node selector from pod template
         expectedNodeSelectors.put(
@@ -158,7 +158,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testPodTolerationsMerging() {
+    void testPodTolerationsMerging() {
         final List<Toleration> expectedTolerations =
                 Arrays.asList(
                         new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
@@ -169,7 +169,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testMainContainerEnvMerging() {
+    void testMainContainerEnvMerging() {
         final List<EnvVar> envVars = this.resultPod.getMainContainer().getEnv();
         final Map<String, String> actualEnvs = new HashMap<>();
         envVars.forEach(env -> actualEnvs.put(env.getName(), env.getValue()));
@@ -182,7 +182,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testMainContainerResourceRequirementsMerging() {
+    void testMainContainerResourceRequirementsMerging() {
         final ResourceRequirements resourceRequirements =
                 this.resultPod.getMainContainer().getResources();
 
@@ -198,7 +198,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testServiceAccountOverwritten() {
+    void testServiceAccountOverwritten() {
         assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccountName())
                 .isEqualTo(TESTING_SERVICE_ACCOUNT);
         assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getServiceAccount())
@@ -206,12 +206,12 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     }
 
     @Test
-    public void testMainContainerImageOverwritten() {
+    void testMainContainerImageOverwritten() {
         assertThat(this.resultPod.getMainContainer().getImage()).isEqualTo(IMAGE);
     }
 
     @Test
-    public void testMainContainerImagePullPolicyOverwritten() {
+    void testMainContainerImagePullPolicyOverwritten() {
         assertThat(this.resultPod.getMainContainer().getImagePullPolicy())
                 .isEqualTo(IMAGE_PULL_POLICY);
     }

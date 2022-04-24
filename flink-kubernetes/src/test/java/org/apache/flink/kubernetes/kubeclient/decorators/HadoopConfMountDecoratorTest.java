@@ -30,7 +30,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KeyToPath;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link HadoopConfMountDecorator}. */
-public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
+class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
     private static final String EXISTING_HADOOP_CONF_CONFIG_MAP = "hadoop-conf";
 
@@ -56,7 +56,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testExistingHadoopConfigMap() throws IOException {
+    void testExistingHadoopConfigMap() throws IOException {
         flinkConfig.set(
                 KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
         assertThat(hadoopConfMountDecorator.buildAccompanyingKubernetesResources()).isEmpty();
@@ -73,7 +73,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testExistingConfigMapPrecedeOverHadoopConfEnv() throws IOException {
+    void testExistingConfigMapPrecedeOverHadoopConfEnv() throws IOException {
         // set existing ConfigMap
         flinkConfig.set(
                 KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
@@ -104,7 +104,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testHadoopConfDirectoryUnset() throws IOException {
+    void testHadoopConfDirectoryUnset() throws IOException {
         assertThat(hadoopConfMountDecorator.buildAccompanyingKubernetesResources()).isEmpty();
 
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
@@ -114,7 +114,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testEmptyHadoopConfDirectory() throws IOException {
+    void testEmptyHadoopConfDirectory() throws IOException {
         setHadoopConfDirEnv();
 
         assertThat(hadoopConfMountDecorator.buildAccompanyingKubernetesResources()).isEmpty();
@@ -126,7 +126,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testHadoopConfConfigMap() throws IOException {
+    void testHadoopConfConfigMap() throws IOException {
         setHadoopConfDirEnv();
         generateHadoopConfFileItems();
 
@@ -147,7 +147,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testPodWithHadoopConfVolume() throws IOException {
+    void testPodWithHadoopConfVolume() throws IOException {
         setHadoopConfDirEnv();
         generateHadoopConfFileItems();
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);
@@ -177,7 +177,7 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testMainContainerWithHadoopConfVolumeMount() throws IOException {
+    void testMainContainerWithHadoopConfVolumeMount() throws IOException {
         setHadoopConfDirEnv();
         generateHadoopConfFileItems();
         final FlinkPod resultFlinkPod = hadoopConfMountDecorator.decorateFlinkPod(baseFlinkPod);

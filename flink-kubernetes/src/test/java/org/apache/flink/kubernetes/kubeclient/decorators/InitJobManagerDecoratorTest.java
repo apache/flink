@@ -32,7 +32,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
-public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
+class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
 
     private static final String SERVICE_ACCOUNT_NAME = "service-test";
     private static final List<String> IMAGE_PULL_SECRETS = Arrays.asList("s1", "s2", "s3");
@@ -94,24 +94,24 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testApiVersion() {
+    void testApiVersion() {
         assertThat(this.resultPod.getApiVersion()).isEqualTo(Constants.API_VERSION);
     }
 
     @Test
-    public void testMainContainerName() {
+    void testMainContainerName() {
         assertThat(this.resultMainContainer.getName()).isEqualTo(Constants.MAIN_CONTAINER_NAME);
     }
 
     @Test
-    public void testMainContainerImage() {
+    void testMainContainerImage() {
         assertThat(this.resultMainContainer.getImage()).isEqualTo(CONTAINER_IMAGE);
         assertThat(this.resultMainContainer.getImagePullPolicy())
                 .isEqualTo(CONTAINER_IMAGE_PULL_POLICY.name());
     }
 
     @Test
-    public void testMainContainerResourceRequirements() {
+    void testMainContainerResourceRequirements() {
         final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
@@ -129,7 +129,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testMainContainerPorts() {
+    void testMainContainerPorts() {
         final List<ContainerPort> expectedContainerPorts =
                 Arrays.asList(
                         new ContainerPortBuilder()
@@ -149,7 +149,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testMainContainerEnv() {
+    void testMainContainerEnv() {
         final List<EnvVar> envVars = this.resultMainContainer.getEnv();
 
         final Map<String, String> envs = new HashMap<>();
@@ -171,7 +171,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testPodLabels() {
+    void testPodLabels() {
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
         expectedLabels.putAll(userLabels);
@@ -180,20 +180,20 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testPodAnnotations() {
+    void testPodAnnotations() {
         final Map<String, String> resultAnnotations =
                 kubernetesJobManagerParameters.getAnnotations();
         assertThat(resultAnnotations).isEqualTo(ANNOTATIONS);
     }
 
     @Test
-    public void testPodServiceAccountName() {
+    void testPodServiceAccountName() {
         assertThat(this.resultPod.getSpec().getServiceAccountName())
                 .isEqualTo(SERVICE_ACCOUNT_NAME);
     }
 
     @Test
-    public void testImagePullSecrets() {
+    void testImagePullSecrets() {
         final List<String> resultSecrets =
                 this.resultPod.getSpec().getImagePullSecrets().stream()
                         .map(LocalObjectReference::getName)
@@ -203,18 +203,18 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testNodeSelector() {
+    void testNodeSelector() {
         assertThat(this.resultPod.getSpec().getNodeSelector()).isEqualTo(nodeSelector);
     }
 
     @Test
-    public void testPodTolerations() {
+    void testPodTolerations() {
         assertThat(this.resultPod.getSpec().getTolerations())
                 .containsExactlyInAnyOrderElementsOf(TOLERATION);
     }
 
     @Test
-    public void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
+    void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
         final List<EnvVar> envVars = this.resultMainContainer.getEnv();
         assertThat(envVars)
                 .anyMatch(

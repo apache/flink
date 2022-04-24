@@ -35,7 +35,7 @@ import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NA
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link KubernetesTaskManagerFactory}. */
-public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
+class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestBase {
 
     private Pod resultPod;
 
@@ -69,14 +69,14 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
     }
 
     @Test
-    public void testPod() {
+    void testPod() {
         assertThat(this.resultPod.getMetadata().getName()).isEqualTo(POD_NAME);
         assertThat(this.resultPod.getMetadata().getLabels()).hasSize(5);
         assertThat(this.resultPod.getSpec().getVolumes()).hasSize(4);
     }
 
     @Test
-    public void testContainer() {
+    void testContainer() {
         final List<Container> resultContainers = this.resultPod.getSpec().getContainers();
         assertThat(resultContainers).hasSize(1);
 

@@ -23,7 +23,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletionException;
 
@@ -32,10 +32,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KubernetesCheckpointIDCounter} operations. */
-public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBase {
+class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBase {
 
     @Test
-    public void testGetAndIncrement() throws Exception {
+    void testGetAndIncrement() throws Exception {
         new Context() {
             {
                 runTest(
@@ -55,7 +55,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testShutdown() throws Exception {
+    void testShutdown() throws Exception {
         new Context() {
             {
                 runTest(
@@ -82,7 +82,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testShutdownForLocallyTerminatedJobStatus() throws Exception {
+    void testShutdownForLocallyTerminatedJobStatus() throws Exception {
         new Context() {
             {
                 runTest(
@@ -109,7 +109,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testIdempotentShutdown() throws Exception {
+    void testIdempotentShutdown() throws Exception {
         new Context() {
             {
                 runTest(
@@ -137,7 +137,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testShutdownFailureDueToMissingConfigMap() throws Exception {
+    void testShutdownFailureDueToMissingConfigMap() throws Exception {
         new Context() {
             {
                 runTest(
@@ -171,7 +171,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testGetAndIncrementWithNoLeadership() throws Exception {
+    void testGetAndIncrementWithNoLeadership() throws Exception {
         new Context() {
             {
                 runTest(
@@ -205,7 +205,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testSetAndGet() throws Exception {
+    void testSetAndGet() throws Exception {
         new Context() {
             {
                 runTest(
@@ -224,7 +224,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testGetWhenConfigMapNotExist() throws Exception {
+    void testGetWhenConfigMapNotExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -245,7 +245,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
     }
 
     @Test
-    public void testSetWithNoLeadershipShouldNotBeIssued() throws Exception {
+    void testSetWithNoLeadershipShouldNotBeIssued() throws Exception {
         new Context() {
             {
                 runTest(

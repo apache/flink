@@ -22,7 +22,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.utils.Constants;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
@@ -30,10 +30,10 @@ import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfC
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KubernetesLeaderRetrievalDriver}. */
-public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabilityTestBase {
+class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabilityTestBase {
 
     @Test
-    public void testErrorForwarding() throws Exception {
+    void testErrorForwarding() throws Exception {
         new Context() {
             {
                 runTest(
@@ -55,7 +55,7 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
     }
 
     @Test
-    public void testKubernetesLeaderRetrievalOnModified() throws Exception {
+    void testKubernetesLeaderRetrievalOnModified() throws Exception {
         new Context() {
             {
                 runTest(
@@ -81,7 +81,7 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
     }
 
     @Test
-    public void testKubernetesLeaderRetrievalOnModifiedWithEmpty() throws Exception {
+    void testKubernetesLeaderRetrievalOnModifiedWithEmpty() throws Exception {
         new Context() {
             {
                 runTest(

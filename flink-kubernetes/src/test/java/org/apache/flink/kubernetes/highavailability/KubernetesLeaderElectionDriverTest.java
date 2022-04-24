@@ -22,7 +22,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Map;
@@ -36,10 +36,10 @@ import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KubernetesLeaderElectionDriver}. */
-public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestBase {
+class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestBase {
 
     @Test
-    public void testIsLeader() throws Exception {
+    void testIsLeader() throws Exception {
         new Context() {
             {
                 runTest(
@@ -58,7 +58,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testNotLeader() throws Exception {
+    void testNotLeader() throws Exception {
         new Context() {
             {
                 runTest(
@@ -82,7 +82,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testHasLeadershipWhenConfigMapNotExist() throws Exception {
+    void testHasLeadershipWhenConfigMapNotExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -100,7 +100,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testWriteLeaderInformation() throws Exception {
+    void testWriteLeaderInformation() throws Exception {
         new Context() {
             {
                 runTest(
@@ -123,7 +123,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testWriteLeaderInformationWhenConfigMapNotExist() throws Exception {
+    void testWriteLeaderInformationWhenConfigMapNotExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -145,7 +145,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testLeaderConfigMapModifiedExternallyShouldBeCorrected() throws Exception {
+    void testLeaderConfigMapModifiedExternallyShouldBeCorrected() throws Exception {
         new Context() {
             {
                 runTest(
@@ -184,7 +184,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testLeaderConfigMapDeletedExternally() throws Exception {
+    void testLeaderConfigMapDeletedExternally() throws Exception {
         new Context() {
             {
                 runTest(
@@ -208,7 +208,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testErrorForwarding() throws Exception {
+    void testErrorForwarding() throws Exception {
         new Context() {
             {
                 runTest(
@@ -232,7 +232,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
     }
 
     @Test
-    public void testHighAvailabilityLabelsCorrectlySet() throws Exception {
+    void testHighAvailabilityLabelsCorrectlySet() throws Exception {
         new Context() {
             {
                 runTest(

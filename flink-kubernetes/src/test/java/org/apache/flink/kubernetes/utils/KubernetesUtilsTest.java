@@ -30,7 +30,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
@@ -38,12 +38,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KubernetesUtils}. */
-public class KubernetesUtilsTest extends KubernetesTestBase {
+class KubernetesUtilsTest extends KubernetesTestBase {
 
     private static final FlinkPod EMPTY_POD = new FlinkPod.Builder().build();
 
     @Test
-    public void testParsePortRange() {
+    void testParsePortRange() {
         final Configuration cfg = new Configuration();
         cfg.set(BlobServerOptions.PORT, "50100-50200");
         assertThatThrownBy(
@@ -57,7 +57,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testParsePortNull() {
+    void testParsePortNull() {
         final Configuration cfg = new Configuration();
         ConfigOption<String> testingPort =
                 ConfigOptions.key("test.port").stringType().noDefaultValue();
@@ -73,17 +73,17 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testCheckWithDynamicPort() {
+    void testCheckWithDynamicPort() {
         testCheckAndUpdatePortConfigOption("0", "6123", "6123");
     }
 
     @Test
-    public void testCheckWithFixedPort() {
+    void testCheckWithFixedPort() {
         testCheckAndUpdatePortConfigOption("6123", "16123", "6123");
     }
 
     @Test
-    public void testLoadPodFromTemplateWithNonExistPathShouldFail() {
+    void testLoadPodFromTemplateWithNonExistPathShouldFail() {
         final String nonExistFile = "/path/of/non-exist.yaml";
         final String msg = String.format("Pod template file %s does not exist.", nonExistFile);
         assertThatThrownBy(
@@ -97,7 +97,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateWithNoMainContainerShouldReturnEmptyMainContainer() {
+    void testLoadPodFromTemplateWithNoMainContainerShouldReturnEmptyMainContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -108,7 +108,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckMetaData() {
+    void testLoadPodFromTemplateAndCheckMetaData() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -121,7 +121,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckInitContainer() {
+    void testLoadPodFromTemplateAndCheckInitContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -133,7 +133,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckMainContainer() {
+    void testLoadPodFromTemplateAndCheckMainContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -146,7 +146,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckSideCarContainer() {
+    void testLoadPodFromTemplateAndCheckSideCarContainer() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -158,7 +158,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testLoadPodFromTemplateAndCheckVolumes() {
+    void testLoadPodFromTemplateAndCheckVolumes() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,
@@ -169,7 +169,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testResolveUserDefinedValueWithNotDefinedInPodTemplate() {
+    void testResolveUserDefinedValueWithNotDefinedInPodTemplate() {
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(
                         flinkConfig,
@@ -181,7 +181,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionExplicitlySet() {
+    void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionExplicitlySet() {
         final String imageInPodTemplate = "image-in-pod-template:v1";
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(
@@ -194,7 +194,7 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionNotSet() {
+    void testResolveUserDefinedValueWithDefinedInPodTemplateAndConfigOptionNotSet() {
         final String imageInPodTemplate = "image-in-pod-template:v1";
         final String resolvedImage =
                 KubernetesUtils.resolveUserDefinedValue(

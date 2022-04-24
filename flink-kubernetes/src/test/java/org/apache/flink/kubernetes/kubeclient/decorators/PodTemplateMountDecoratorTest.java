@@ -33,7 +33,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** General tests for the {@link PodTemplateMountDecorator}. */
-public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase {
+class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase {
 
     private static final String POD_TEMPLATE_FILE_NAME = "testing-pod-template.yaml";
     private static final String POD_TEMPLATE_DATA = "taskmanager pod template data";
@@ -71,8 +71,7 @@ public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase 
     }
 
     @Test
-    public void testBuildAccompanyingKubernetesResourcesAddsPodTemplateAsConfigMap()
-            throws IOException {
+    void testBuildAccompanyingKubernetesResourcesAddsPodTemplateAsConfigMap() throws IOException {
         KubernetesTestUtils.createTemporyFile(
                 POD_TEMPLATE_DATA, flinkConfDir, POD_TEMPLATE_FILE_NAME);
 
@@ -88,7 +87,7 @@ public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase 
     }
 
     @Test
-    public void testDecoratorShouldFailWhenPodTemplateFileNotExist() {
+    void testDecoratorShouldFailWhenPodTemplateFileNotExist() {
         final String msg =
                 String.format(
                         "Pod template file %s does not exist.",
@@ -100,7 +99,7 @@ public class PodTemplateMountDecoratorTest extends KubernetesJobManagerTestBase 
     }
 
     @Test
-    public void testDecoratedFlinkPodWithTaskManagerPodTemplate() throws Exception {
+    void testDecoratedFlinkPodWithTaskManagerPodTemplate() throws Exception {
         KubernetesTestUtils.createTemporyFile(
                 POD_TEMPLATE_DATA, flinkConfDir, POD_TEMPLATE_FILE_NAME);
 

@@ -31,8 +31,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link KubernetesStateHandleStore} operations. */
-public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase {
+class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase {
 
     private static final String PREFIX = "test-prefix-";
 
@@ -60,7 +60,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
 
     private TestingLongStateHandleHelper.LongStateHandle state;
 
-    @Before
+    @BeforeEach
     public void setup() {
         super.setup();
         state = new TestingLongStateHandleHelper.LongStateHandle(12345L);
@@ -68,7 +68,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAdd() throws Exception {
+    void testAdd() throws Exception {
         new Context() {
             {
                 runTest(
@@ -93,7 +93,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAddAndLockWithExistingKey() throws Exception {
+    void testAddAndLockWithExistingKey() throws Exception {
         new Context() {
             {
                 runTest(
@@ -142,7 +142,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAddAndLockWithDeletingEntry() throws Exception {
+    void testAddAndLockWithDeletingEntry() throws Exception {
         new Context() {
             {
                 runTest(
@@ -184,7 +184,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAddWithPossiblyInconsistentStateHandling() throws Exception {
+    void testAddWithPossiblyInconsistentStateHandling() throws Exception {
         new Context() {
             {
                 runTest(
@@ -224,7 +224,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testAddFailedWhenConfigMapNotExistAndDiscardState() throws Exception {
+    void testAddFailedWhenConfigMapNotExistAndDiscardState() throws Exception {
         new Context() {
             {
                 runTest(
@@ -258,7 +258,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplace() throws Exception {
+    void testReplace() throws Exception {
         new Context() {
             {
                 runTest(
@@ -290,7 +290,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceWithKeyNotExist() throws Exception {
+    void testReplaceWithKeyNotExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -332,7 +332,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceWithDeletingKey() throws Exception {
+    void testReplaceWithDeletingKey() throws Exception {
         new Context() {
             {
                 runTest(
@@ -376,7 +376,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceWithDeletingKeyWithFailingDiscard() throws Exception {
+    void testReplaceWithDeletingKeyWithFailingDiscard() throws Exception {
         new Context() {
             {
                 runTest(
@@ -437,7 +437,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceWithNoLeadershipAndDiscardState() throws Exception {
+    void testReplaceWithNoLeadershipAndDiscardState() throws Exception {
         new Context() {
             {
                 runTest(
@@ -486,7 +486,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceFailedAndDiscardState() throws Exception {
+    void testReplaceFailedAndDiscardState() throws Exception {
         final FlinkRuntimeException updateException = new FlinkRuntimeException("Failed to update");
         new Context() {
             {
@@ -556,7 +556,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReplaceFailedWithPossiblyInconsistentState() throws Exception {
+    void testReplaceFailedWithPossiblyInconsistentState() throws Exception {
         final PossibleInconsistentStateException updateException =
                 new PossibleInconsistentStateException();
         new Context() {
@@ -627,7 +627,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testGetAndExist() throws Exception {
+    void testGetAndExist() throws Exception {
         new Context() {
             {
                 runTest(
@@ -653,7 +653,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testExistsWithDeletingEntry() throws Exception {
+    void testExistsWithDeletingEntry() throws Exception {
         new Context() {
             {
                 runTest(
@@ -683,7 +683,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testGetNonExistingKey() throws Exception {
+    void testGetNonExistingKey() throws Exception {
         new Context() {
             {
                 runTest(
@@ -718,7 +718,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testGetAll() throws Exception {
+    void testGetAll() throws Exception {
         new Context() {
             {
                 runTest(
@@ -762,7 +762,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testGetAllHandles() throws Exception {
+    void testGetAllHandles() throws Exception {
         new Context() {
             {
                 runTest(
@@ -792,7 +792,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testRemove() throws Exception {
+    void testRemove() throws Exception {
         new Context() {
             {
                 runTest(
@@ -822,7 +822,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testRemoveOfNonExistingState() throws Exception {
+    void testRemoveOfNonExistingState() throws Exception {
         new Context() {
             {
                 runTest(
@@ -850,7 +850,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testRemoveFailedShouldNotDiscardState() throws Exception {
+    void testRemoveFailedShouldNotDiscardState() throws Exception {
         new Context() {
             {
                 runTest(
@@ -886,7 +886,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testRemoveAllHandlesAndDiscardState() throws Exception {
+    void testRemoveAllHandlesAndDiscardState() throws Exception {
         new Context() {
             {
                 runTest(
@@ -917,7 +917,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testRemoveAllHandles() throws Exception {
+    void testRemoveAllHandles() throws Exception {
         new Context() {
             {
                 runTest(
@@ -955,7 +955,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReleaseAndTryRemoveIsIdempotent() throws Exception {
+    void testReleaseAndTryRemoveIsIdempotent() throws Exception {
         new Context() {
             {
                 runTest(
@@ -1018,7 +1018,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
-    public void testReleaseAndTryRemoveAllIsIdempotent() throws Exception {
+    void testReleaseAndTryRemoveAllIsIdempotent() throws Exception {
         new Context() {
             {
                 runTest(

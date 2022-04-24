@@ -23,12 +23,12 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link MountSecretsDecorator}. */
-public class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
+class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
 
     private static final String SECRET_NAME = "test";
     private static final String SECRET_MOUNT_PATH = "/opt/flink/secret";
@@ -52,7 +52,7 @@ public class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testWhetherPodOrContainerIsDecorated() {
+    void testWhetherPodOrContainerIsDecorated() {
         final FlinkPod resultFlinkPod = mountSecretsDecorator.decorateFlinkPod(baseFlinkPod);
 
         assertThat(

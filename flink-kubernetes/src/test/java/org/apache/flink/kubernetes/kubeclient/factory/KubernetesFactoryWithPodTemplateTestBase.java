@@ -37,7 +37,7 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Toleration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,7 +84,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     protected abstract Pod getResultPod(FlinkPod podTemplate) throws Exception;
 
     @Test
-    public void testInitContainerFromPodTemplate() {
+    void testInitContainerFromPodTemplate() {
         assertThat(resultPod.getSpec().getInitContainers())
                 .containsExactly(
                         // The expected init container is defined in the
@@ -93,7 +93,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testSideCarContainerFromPodTemplate() {
+    void testSideCarContainerFromPodTemplate() {
         final Container sideCarContainer =
                 KubernetesPodTemplateTestUtils.getContainerWithName(
                         resultPod.getSpec(),
@@ -104,7 +104,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testVolumesFromPodTemplate() {
+    void testVolumesFromPodTemplate() {
         assertThat(resultPod.getSpec().getVolumes())
                 .contains(
                         // The expected volume is defined in the
@@ -113,7 +113,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testMainContainerVolumeMountsFromPodTemplate() {
+    void testMainContainerVolumeMountsFromPodTemplate() {
         final Container mainContainer =
                 KubernetesPodTemplateTestUtils.getContainerWithName(
                         resultPod.getSpec(), Constants.MAIN_CONTAINER_NAME);
@@ -125,7 +125,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testAnnotationsFromPodTemplate() {
+    void testAnnotationsFromPodTemplate() {
         assertThat(resultPod.getMetadata().getAnnotations())
                 .containsEntry(
                         // The expected annotation is defined in the
@@ -134,7 +134,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testLabelsFromPodTemplate() {
+    void testLabelsFromPodTemplate() {
         assertThat(resultPod.getMetadata().getLabels())
                 .containsEntry(
                         // The expected label is defined in the
@@ -143,7 +143,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testImagePullSecretsFromPodTemplate() {
+    void testImagePullSecretsFromPodTemplate() {
         assertThat(
                         resultPod.getSpec().getImagePullSecrets().stream()
                                 .map(LocalObjectReference::getName))
@@ -154,7 +154,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testNodeSelectorsFromPodTemplate() {
+    void testNodeSelectorsFromPodTemplate() {
         assertThat(resultPod.getSpec().getNodeSelector())
                 .containsEntry(
                         // The expected node selector is defined in the
@@ -163,7 +163,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testTolerationsFromPodTemplate() {
+    void testTolerationsFromPodTemplate() {
         assertThat(resultPod.getSpec().getTolerations().stream().map(Toleration::getKey))
                 .contains(
                         // The expected toleration is defined in the
@@ -172,7 +172,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
     }
 
     @Test
-    public void testEnvFromPodTemplate() {
+    void testEnvFromPodTemplate() {
         final Container mainContainer =
                 KubernetesPodTemplateTestUtils.getContainerWithName(
                         resultPod.getSpec(), Constants.MAIN_CONTAINER_NAME);

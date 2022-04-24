@@ -23,15 +23,15 @@ import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FlinkPod}. */
-public class FlinkPodTest extends KubernetesTestBase {
+class FlinkPodTest extends KubernetesTestBase {
 
     @Test
-    public void testCopyFlinkPod() {
+    void testCopyFlinkPod() {
         final FlinkPod flinkPod =
                 KubernetesUtils.loadPodFromTemplateFile(
                         flinkKubeClient,

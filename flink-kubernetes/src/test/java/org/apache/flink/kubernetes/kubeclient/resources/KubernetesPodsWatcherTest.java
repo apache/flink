@@ -20,14 +20,12 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
-import org.apache.flink.util.TestLogger;
 
 import io.fabric8.kubernetes.api.model.StatusBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,9 +34,10 @@ import java.util.function.Consumer;
 
 import static java.net.HttpURLConnection.HTTP_GONE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link KubernetesPodsWatcher}. */
-public class KubernetesPodsWatcherTest extends TestLogger {
+class KubernetesPodsWatcherTest {
 
     private final List<KubernetesPod> podAddedList = new ArrayList<>();
     private final List<KubernetesPod> podModifiedList = new ArrayList<>();
@@ -46,15 +45,15 @@ public class KubernetesPodsWatcherTest extends TestLogger {
     private final List<KubernetesPod> podErrorList = new ArrayList<>();
 
     @Test
-    public void testClosingWithNullException() {
+    void testClosingWithNullException() {
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(
-                        new TestingCallbackHandler(e -> Assert.fail("Should not reach here.")));
+                        new TestingCallbackHandler(e -> fail("Should not reach here.")));
         podsWatcher.onClose(null);
     }
 
     @Test
-    public void testClosingWithException() {
+    void testClosingWithException() {
         final AtomicBoolean called = new AtomicBoolean(false);
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(new TestingCallbackHandler(e -> called.set(true)));
@@ -63,7 +62,7 @@ public class KubernetesPodsWatcherTest extends TestLogger {
     }
 
     @Test
-    public void testCallbackHandler() {
+    void testCallbackHandler() {
         FlinkPod pod = new FlinkPod.Builder().build();
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(new TestingCallbackHandler(e -> {}));
@@ -79,7 +78,7 @@ public class KubernetesPodsWatcherTest extends TestLogger {
     }
 
     @Test
-    public void testClosingWithTooOldResourceVersion() {
+    void testClosingWithTooOldResourceVersion() {
         final String errMsg = "too old resource version";
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(

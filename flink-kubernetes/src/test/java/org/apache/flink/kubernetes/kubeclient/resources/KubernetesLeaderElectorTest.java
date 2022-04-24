@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
@@ -29,7 +29,7 @@ import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderE
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KubernetesLeaderElector}. */
-public class KubernetesLeaderElectorTest extends KubernetesTestBase {
+class KubernetesLeaderElectorTest extends KubernetesTestBase {
 
     private String lockIdentity;
     private KubernetesConfigMap leaderConfigMap;
@@ -42,18 +42,18 @@ public class KubernetesLeaderElectorTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testNoAnnotation() {
+    void testNoAnnotation() {
         assertThat(KubernetesLeaderElector.hasLeadership(leaderConfigMap, lockIdentity)).isFalse();
     }
 
     @Test
-    public void testAnnotationNotMatch() {
+    void testAnnotationNotMatch() {
         leaderConfigMap.getAnnotations().put(LEADER_ANNOTATION_KEY, "wrong lock");
         assertThat(KubernetesLeaderElector.hasLeadership(leaderConfigMap, lockIdentity)).isFalse();
     }
 
     @Test
-    public void testAnnotationMatched() {
+    void testAnnotationMatched() {
         leaderConfigMap
                 .getAnnotations()
                 .put(LEADER_ANNOTATION_KEY, "other information " + lockIdentity);

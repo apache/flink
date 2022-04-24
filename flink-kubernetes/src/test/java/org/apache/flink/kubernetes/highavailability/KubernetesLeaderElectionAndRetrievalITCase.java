@@ -19,7 +19,7 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
@@ -31,8 +31,8 @@ import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandl
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -53,16 +53,18 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     private static final String LEADER_ADDRESS =
             "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     @Test
-    public void testLeaderElectionAndRetrieval() throws Exception {
+    void testLeaderElectionAndRetrieval() throws Exception {
         final String configMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
         KubernetesLeaderElectionDriver leaderElectionDriver = null;
         KubernetesLeaderRetrievalDriver leaderRetrievalDriver = null;
 
-        final FlinkKubeClient flinkKubeClient = kubernetesResource.getFlinkKubeClient();
-        final Configuration configuration = kubernetesResource.getConfiguration();
+        final FlinkKubeClient flinkKubeClient = kubernetesExtension.getFlinkKubeClient();
+        final Configuration configuration = kubernetesExtension.getConfiguration();
 
         final String clusterId = configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
         final KubernetesConfigMapSharedWatcher configMapSharedWatcher =

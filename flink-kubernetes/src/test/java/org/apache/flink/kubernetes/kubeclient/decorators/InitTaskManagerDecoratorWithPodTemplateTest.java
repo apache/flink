@@ -26,7 +26,7 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerPa
 import org.apache.flink.kubernetes.utils.Constants;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link InitTaskManagerDecorator} with pod template. */
-public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
+class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {
 
     private static final String POD_NAME = "taskmanager-" + UUID.randomUUID().toString();
 
@@ -65,7 +65,7 @@ public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPo
     }
 
     @Test
-    public void testTaskManagerMainContainerPortsMerging() {
+    void testTaskManagerMainContainerPortsMerging() {
         final List<String> expectedContainerPorts = new ArrayList<>();
         expectedContainerPorts.add(Constants.TASK_MANAGER_RPC_PORT_NAME);
         // Add port from pod template
@@ -78,13 +78,13 @@ public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPo
     }
 
     @Test
-    public void testTaskManagerPodRestartPolicyOverwritten() {
+    void testTaskManagerPodRestartPolicyOverwritten() {
         assertThat(resultPod.getPodWithoutMainContainer().getSpec().getRestartPolicy())
                 .isEqualToIgnoringCase(Constants.RESTART_POLICY_OF_NEVER);
     }
 
     @Test
-    public void testTaskManagerPodNameOverwritten() {
+    void testTaskManagerPodNameOverwritten() {
         assertThat(resultPod.getPodWithoutMainContainer().getMetadata().getName())
                 .isEqualTo(POD_NAME);
     }

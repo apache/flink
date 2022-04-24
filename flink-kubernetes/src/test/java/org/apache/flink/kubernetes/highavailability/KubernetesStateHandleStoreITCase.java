@@ -19,17 +19,16 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingLeaderCallbackHandler;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 
@@ -42,18 +41,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  * org.apache.flink.runtime.jobmanager.JobGraphStore} and {@link
  * org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} implementation for Kubernetes.
  */
-public class KubernetesStateHandleStoreITCase extends TestLogger {
+public class KubernetesStateHandleStoreITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
     private static final String KEY = "state-handle-test";
 
     @Test
-    public void testMultipleKubernetesStateHandleStores() throws Exception {
-        final Configuration configuration = kubernetesResource.getConfiguration();
+    void testMultipleKubernetesStateHandleStores() throws Exception {
+        final Configuration configuration = kubernetesExtension.getConfiguration();
 
         final String leaderConfigMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
         final int leaderNum = 3;
@@ -119,7 +120,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
                     kubeClients[i].close();
                 }
             }
-            kubernetesResource.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
+            kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
         }
     }
 }

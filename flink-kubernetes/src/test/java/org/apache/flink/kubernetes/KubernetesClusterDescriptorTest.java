@@ -40,7 +40,7 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link KubernetesClusterDescriptor}. */
-public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
+class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     private static final String MOCK_SERVICE_HOST_NAME = "mock-host-name-of-service";
     private static final String MOCK_SERVICE_IP = "192.168.0.1";
 
@@ -73,7 +73,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeploySessionCluster() throws Exception {
+    void testDeploySessionCluster() throws Exception {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
         checkClusterClient(clusterClient);
@@ -82,7 +82,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
+    void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         flinkConfig.setString(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
@@ -109,7 +109,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testKillCluster() throws Exception {
+    void testKillCluster() throws Exception {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         deploySessionCluster();
 
@@ -124,7 +124,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationCluster() {
+    void testDeployApplicationCluster() {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
@@ -141,7 +141,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationClusterWithNonLocalSchema() {
+    void testDeployApplicationClusterWithNonLocalSchema() {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("file:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
@@ -156,7 +156,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationClusterWithClusterAlreadyExists() {
+    void testDeployApplicationClusterWithClusterAlreadyExists() {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
@@ -174,7 +174,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationClusterWithDeploymentTargetNotCorrectlySet() {
+    void testDeployApplicationClusterWithDeploymentTargetNotCorrectlySet() {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
@@ -189,7 +189,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationClusterWithMultipleJarsSet() {
+    void testDeployApplicationClusterWithMultipleJarsSet() {
         flinkConfig.set(
                 PipelineOptions.JARS,
                 Arrays.asList("local:///path/of/user.jar", "local:///user2.jar"));
@@ -204,7 +204,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testDeployApplicationClusterWithClusterIP() throws Exception {
+    void testDeployApplicationClusterWithClusterIP() throws Exception {
         flinkConfig.set(
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());

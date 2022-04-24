@@ -26,14 +26,16 @@ import io.fabric8.mockwebserver.ServerResponse;
 import io.fabric8.mockwebserver.dsl.MockServerExpectation;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.util.HashMap;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
 /** The mock server that host MixedDispatcher. */
-public class MixedKubernetesServer extends ExternalResource {
+public class MixedKubernetesServerExtension implements BeforeEachCallback, AfterEachCallback {
 
     private KubernetesMockServer mock;
     private NamespacedKubernetesClient client;
@@ -43,13 +45,14 @@ public class MixedKubernetesServer extends ExternalResource {
 
     private final MockWebServer mockWebServer;
 
-    public MixedKubernetesServer(boolean https, boolean crudMode) {
+    public MixedKubernetesServerExtension(boolean https, boolean crudMode) {
         this.https = https;
         this.crudMode = crudMode;
         mockWebServer = new MockWebServer();
     }
 
-    public void before() {
+    @Override
+    public void beforeEach(ExtensionContext extensionContext) throws Exception {
         final HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
         mock =
                 crudMode
@@ -64,7 +67,8 @@ public class MixedKubernetesServer extends ExternalResource {
         client = mock.createClient();
     }
 
-    public void after() {
+    @Override
+    public void afterEach(ExtensionContext extensionContext) throws Exception {
         mock.destroy();
         client.close();
     }

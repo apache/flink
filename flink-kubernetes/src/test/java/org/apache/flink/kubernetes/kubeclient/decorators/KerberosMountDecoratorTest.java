@@ -28,7 +28,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link KerberosMountDecoratorTest}. */
-public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
+class KerberosMountDecoratorTest extends KubernetesPodTestBase {
 
     private KerberosMountDecorator kerberosMountDecorator;
 
@@ -76,7 +76,7 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     }
 
     @Test
-    public void testWhetherPodOrContainerIsDecorated() {
+    void testWhetherPodOrContainerIsDecorated() {
         final FlinkPod resultFlinkPod = kerberosMountDecorator.decorateFlinkPod(baseFlinkPod);
         assertThat(resultFlinkPod.getPodWithoutMainContainer())
                 .isNotEqualTo(baseFlinkPod.getPodWithoutMainContainer());
@@ -84,7 +84,7 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     }
 
     @Test
-    public void testConfEditWhenBuildAccompanyingKubernetesResources() throws IOException {
+    void testConfEditWhenBuildAccompanyingKubernetesResources() throws IOException {
         kerberosMountDecorator.buildAccompanyingKubernetesResources();
 
         assertThat(
@@ -96,7 +96,7 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     }
 
     @Test
-    public void testDecoratedFlinkContainer() {
+    void testDecoratedFlinkContainer() {
         final Container resultMainContainer =
                 kerberosMountDecorator.decorateFlinkPod(baseFlinkPod).getMainContainer();
         assertThat(resultMainContainer.getVolumeMounts()).hasSize(2);
@@ -120,7 +120,7 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     }
 
     @Test
-    public void testDecoratedFlinkPodVolumes() {
+    void testDecoratedFlinkPodVolumes() {
         final FlinkPod resultFlinkPod = kerberosMountDecorator.decorateFlinkPod(baseFlinkPod);
         List<Volume> volumes = resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes();
         assertThat(volumes).hasSize(2);

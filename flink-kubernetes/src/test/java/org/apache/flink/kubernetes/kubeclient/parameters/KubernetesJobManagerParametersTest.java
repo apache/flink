@@ -32,7 +32,7 @@ import org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /** General tests for the {@link KubernetesJobManagerParameters}. */
-public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
+class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     private static final double JOB_MANAGER_CPU = 2.0;
     private static final double JOB_MANAGER_CPU_LIMIT_FACTOR = 2.5;
@@ -59,7 +59,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
             new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
 
     @Test
-    public void testGetEnvironments() {
+    void testGetEnvironments() {
         final Map<String, String> expectedEnvironments = new HashMap<>();
         expectedEnvironments.put("k1", "v1");
         expectedEnvironments.put("k2", "v2");
@@ -76,12 +76,12 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetEmptyAnnotations() {
+    void testGetEmptyAnnotations() {
         assertThat(kubernetesJobManagerParameters.getAnnotations().isEmpty()).isTrue();
     }
 
     @Test
-    public void testGetJobManagerAnnotations() {
+    void testGetJobManagerAnnotations() {
         final Map<String, String> expectedAnnotations = new HashMap<>();
         expectedAnnotations.put("a1", "v1");
         expectedAnnotations.put("a2", "v2");
@@ -95,7 +95,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetServiceAnnotations() {
+    void testGetServiceAnnotations() {
         final Map<String, String> expectedAnnotations = new HashMap<>();
         expectedAnnotations.put("a1", "v1");
         expectedAnnotations.put("a2", "v2");
@@ -109,20 +109,20 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetJobManagerMemoryMB() {
+    void testGetJobManagerMemoryMB() {
         assertThat(kubernetesJobManagerParameters.getJobManagerMemoryMB())
                 .isEqualTo(JOB_MANAGER_MEMORY);
     }
 
     @Test
-    public void testGetJobManagerCPU() {
+    void testGetJobManagerCPU() {
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_CPU, JOB_MANAGER_CPU);
         assertThat(kubernetesJobManagerParameters.getJobManagerCPU())
                 .isEqualTo(JOB_MANAGER_CPU, within(0.00001));
     }
 
     @Test
-    public void testGetJobManagerCPULimitFactor() {
+    void testGetJobManagerCPULimitFactor() {
         flinkConfig.set(
                 KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR, JOB_MANAGER_CPU_LIMIT_FACTOR);
         assertThat(kubernetesJobManagerParameters.getJobManagerCPULimitFactor())
@@ -130,7 +130,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetJobManagerMemoryLimitFactor() {
+    void testGetJobManagerMemoryLimitFactor() {
         flinkConfig.set(
                 KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR,
                 JOB_MANAGER_MEMORY_LIMIT_FACTOR);
@@ -139,25 +139,25 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetRestPort() {
+    void testGetRestPort() {
         flinkConfig.set(RestOptions.PORT, 12345);
         assertThat(kubernetesJobManagerParameters.getRestPort()).isEqualTo(12345);
     }
 
     @Test
-    public void testGetRpcPort() {
+    void testGetRpcPort() {
         flinkConfig.set(JobManagerOptions.PORT, 1234);
         assertThat(kubernetesJobManagerParameters.getRPCPort()).isEqualTo(1234);
     }
 
     @Test
-    public void testGetBlobServerPort() {
+    void testGetBlobServerPort() {
         flinkConfig.set(BlobServerOptions.PORT, "2345");
         assertThat(kubernetesJobManagerParameters.getBlobServerPort()).isEqualTo(2345);
     }
 
     @Test
-    public void testGetBlobServerPortException1() {
+    void testGetBlobServerPortException1() {
         flinkConfig.set(BlobServerOptions.PORT, "1000-2000");
         String errMsg =
                 BlobServerOptions.PORT.key()
@@ -173,7 +173,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetBlobServerPortException2() {
+    void testGetBlobServerPortException2() {
         flinkConfig.set(BlobServerOptions.PORT, "0");
         assertThatThrownBy(
                         () -> kubernetesJobManagerParameters.getBlobServerPort(),
@@ -188,31 +188,31 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testGetServiceAccount() {
+    void testGetServiceAccount() {
         flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, "flink");
         assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("flink");
     }
 
     @Test
-    public void testGetServiceAccountFallback() {
+    void testGetServiceAccountFallback() {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
         assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("flink-fallback");
     }
 
     @Test
-    public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
+    void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
         assertThat(kubernetesJobManagerParameters.getServiceAccount()).isEqualTo("default");
     }
 
     @Test
-    public void testGetEntrypointMainClass() {
+    void testGetEntrypointMainClass() {
         final String entrypointClass = "org.flink.kubernetes.Entrypoint";
         flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entrypointClass);
         assertThat(kubernetesJobManagerParameters.getEntrypointClass()).isEqualTo(entrypointClass);
     }
 
     @Test
-    public void testGetRestServiceExposedType() {
+    void testGetRestServiceExposedType() {
         flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
                 KubernetesConfigOptions.ServiceExposedType.NodePort);
@@ -221,7 +221,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
-    public void testPrioritizeBuiltInLabels() {
+    void testPrioritizeBuiltInLabels() {
         final Map<String, String> userLabels = new HashMap<>();
         userLabels.put(Constants.LABEL_TYPE_KEY, "user-label-type");
         userLabels.put(Constants.LABEL_APP_KEY, "user-label-app");
@@ -234,20 +234,22 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
         assertThat(kubernetesJobManagerParameters.getLabels()).isEqualTo(expectedLabels);
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testGetReplicasWithTwoShouldFailWhenHAIsNotEnabled() {
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 2);
-        kubernetesJobManagerParameters.getReplicas();
-    }
-
-    @Test(expected = IllegalConfigurationException.class)
-    public void testGetReplicasWithInvalidValue() {
-        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 0);
-        kubernetesJobManagerParameters.getReplicas();
+        assertThatThrownBy(() -> kubernetesJobManagerParameters.getReplicas())
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     @Test
-    public void testGetReplicas() {
+    public void testGetReplicasWithInvalidValue() {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, 0);
+        assertThatThrownBy(() -> kubernetesJobManagerParameters.getReplicas())
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    @Test
+    void testGetReplicas() {
         flinkConfig.set(
                 HighAvailabilityOptions.HA_MODE,
                 KubernetesHaServicesFactory.class.getCanonicalName());

@@ -27,7 +27,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,7 +38,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link ExternalServiceDecorator}. */
-public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
+class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
     private ExternalServiceDecorator externalServiceDecorator;
 
@@ -61,7 +61,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testBuildAccompanyingKubernetesResources() throws IOException {
+    void testBuildAccompanyingKubernetesResources() throws IOException {
         final List<HasMetadata> resources =
                 this.externalServiceDecorator.buildAccompanyingKubernetesResources();
         assertThat(resources).hasSize(1);
@@ -96,7 +96,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testSetServiceExposedType() throws IOException {
+    void testSetServiceExposedType() throws IOException {
         this.flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,
                 KubernetesConfigOptions.ServiceExposedType.NodePort);
@@ -115,7 +115,7 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
-    public void testSetServiceExposedTypeWithHeadless() throws IOException {
+    void testSetServiceExposedTypeWithHeadless() throws IOException {
 
         this.flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE,

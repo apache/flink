@@ -32,23 +32,24 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KubernetesSessionCli}. */
-public class KubernetesSessionCliTest {
+class KubernetesSessionCliTest {
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir public Path confDirPath;
 
     @Test
-    public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
+    void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
         final KubernetesSessionCli cli =
-                new KubernetesSessionCli(new Configuration(), tmp.getRoot().getAbsolutePath());
+                new KubernetesSessionCli(
+                        new Configuration(), confDirPath.toAbsolutePath().toString());
 
         final String[] args = {};
         final Configuration configuration = cli.getEffectiveConfiguration(args);
@@ -58,10 +59,11 @@ public class KubernetesSessionCliTest {
     }
 
     @Test
-    public void testDynamicProperties() throws Exception {
+    void testDynamicProperties() throws Exception {
 
         final KubernetesSessionCli cli =
-                new KubernetesSessionCli(new Configuration(), tmp.getRoot().getAbsolutePath());
+                new KubernetesSessionCli(
+                        new Configuration(), confDirPath.toAbsolutePath().toString());
         final String[] args =
                 new String[] {
                     "-e",
@@ -79,13 +81,13 @@ public class KubernetesSessionCliTest {
         assertThat(executorConfigMap).hasSize(4);
         assertThat(executorConfigMap.get("akka.ask.timeout")).isEqualTo("5 min");
         assertThat(executorConfigMap.get("env.java.opts")).isEqualTo("-DappName=foobar");
-        assertThat(tmp.getRoot().getAbsolutePath())
+        assertThat(confDirPath.toAbsolutePath().toString())
                 .isEqualTo(executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
         assertThat(executorConfigMap).containsKey(DeploymentOptions.TARGET.key());
     }
 
     @Test
-    public void testCorrectSettingOfMaxSlots() throws Exception {
+    void testCorrectSettingOfMaxSlots() throws Exception {
         final String[] params =
                 new String[] {
                     "-e",
@@ -106,7 +108,7 @@ public class KubernetesSessionCliTest {
     }
 
     @Test
-    public void testResumeFromKubernetesID() throws Exception {
+    void testResumeFromKubernetesID() throws Exception {
         final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
 
         final String clusterId = "my-test-CLUSTER_ID";
@@ -128,7 +130,7 @@ public class KubernetesSessionCliTest {
      * ClusterSpecification} is created.
      */
     @Test
-    public void testCommandLineClusterSpecification() throws Exception {
+    void testCommandLineClusterSpecification() throws Exception {
         final Configuration configuration = new Configuration();
         final int jobManagerMemory = 1337;
         final int taskManagerMemory = 7331;
@@ -149,7 +151,7 @@ public class KubernetesSessionCliTest {
         };
 
         final KubernetesSessionCli cli =
-                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
+                new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
 
         Configuration executorConfig = cli.getEffectiveConfiguration(args);
         ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -165,7 +167,7 @@ public class KubernetesSessionCliTest {
      * Tests that the configuration settings are used to create the {@link ClusterSpecification}.
      */
     @Test
-    public void testConfigurationClusterSpecification() throws Exception {
+    void testConfigurationClusterSpecification() throws Exception {
         final Configuration configuration = new Configuration();
         final int jobManagerMemory = 1337;
         configuration.set(
@@ -178,7 +180,7 @@ public class KubernetesSessionCliTest {
 
         final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
         final KubernetesSessionCli cli =
-                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
+                new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
 
         Configuration executorConfig = cli.getEffectiveConfiguration(args);
         ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -192,7 +194,7 @@ public class KubernetesSessionCliTest {
 
     /** Tests the specifying heap memory with unit (MB) for job manager and task manager. */
     @Test
-    public void testHeapMemoryPropertyWithUnitMB() throws Exception {
+    void testHeapMemoryPropertyWithUnitMB() throws Exception {
         final String[] args =
                 new String[] {
                     "-e",
@@ -214,7 +216,7 @@ public class KubernetesSessionCliTest {
 
     /** Tests the specifying heap memory with arbitrary unit for job manager and task manager. */
     @Test
-    public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
+    void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
         final String[] args =
                 new String[] {
                     "-e",
@@ -236,14 +238,14 @@ public class KubernetesSessionCliTest {
 
     /** Tests the specifying heap memory with old config key for job manager and task manager. */
     @Test
-    public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
+    void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
         configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
         configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
         final KubernetesSessionCli cli =
-                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
+                new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
 
         final Configuration executorConfig = cli.getEffectiveConfiguration(new String[] {});
         final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -258,7 +260,7 @@ public class KubernetesSessionCliTest {
      * Tests the specifying heap memory with config default value for job manager and task manager.
      */
     @Test
-    public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
+    void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
         final String[] args = new String[] {"-e", KubernetesSessionClusterExecutor.NAME};
 
         final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
@@ -286,6 +288,6 @@ public class KubernetesSessionCliTest {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
-        return new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
+        return new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
     }
 }

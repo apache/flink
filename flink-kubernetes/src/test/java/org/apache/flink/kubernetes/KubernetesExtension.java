@@ -24,6 +24,9 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.util.StringUtils;
 
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.ExternalResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * environment ITCASE_KUBECONFIG is set with a valid kube config file. In the E2E tests, we will use
  * a minikube for the testing.
  */
-public class KubernetesResource extends ExternalResource {
+public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback {
 
     private static final String CLUSTER_ID = "flink-itcase-cluster";
     private static final int KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES = 100;
@@ -52,7 +55,7 @@ public class KubernetesResource extends ExternalResource {
     }
 
     @Override
-    public void before() {
+    public void beforeAll(ExtensionContext extensionContext) throws Exception {
         checkEnv();
 
         configuration = new Configuration();
@@ -66,7 +69,7 @@ public class KubernetesResource extends ExternalResource {
     }
 
     @Override
-    public void after() {
+    public void afterAll(ExtensionContext extensionContext) throws Exception {
         flinkKubeClient.close();
     }
 
