@@ -812,6 +812,31 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testMacro() throws Exception {
+        tableEnv.executeSql("create temporary macro string_len (x string) length(x)");
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 1");
+        tableEnv.executeSql("create table macro_test (x string)");
+        tableEnv.executeSql("insert into table macro_test values ('bb'), ('a'), ('cc')").await();
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertEquals("[+I[2, 3], +I[1, 2], +I[2, 3]]", result.toString());
+
+        // drop macro
+        tableEnv.executeSql("drop temporary macro string_len_plus");
+        // create macro
+        tableEnv.executeSql("create temporary macro string_len_plus(x string) length(x) + 2");
+        result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select string_len(x), string_len_plus(x) from macro_test")
+                                .collect());
+        assertEquals("[+I[2, 4], +I[1, 3], +I[2, 4]]", result.toString());
+    }
+
+    @Test
     public void testUnsupportedOperation() {
         List<String> statements =
                 Arrays.asList(
