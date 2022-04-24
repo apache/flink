@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
+import org.apache.flink.sql.parser.ddl.SqlAlterPartitionRename;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableCompact;
@@ -164,6 +165,7 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.ddl.PartitionRenameOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.utils.Expander;
@@ -535,12 +537,76 @@ public class SqlToOperationConverter {
                     tableIdentifier,
                     optionalCatalogTable.get(),
                     (SqlAlterTableCompact) sqlAlterTable);
+        } else if (sqlAlterTable instanceof SqlAlterPartitionRename) {
+            return convertPartitionRename(
+                    tableIdentifier,
+                    optionalCatalogTable.get().getResolvedTable(),
+                    (SqlAlterPartitionRename) sqlAlterTable);
         } else {
             throw new ValidationException(
                     String.format(
                             "[%s] needs to implement",
                             sqlAlterTable.toSqlString(CalciteSqlDialect.DEFAULT)));
         }
+    }
+
+    private Operation convertPartitionRename(
+            ObjectIdentifier tableIdentifier,
+            ResolvedCatalogTable resolvedTable,
+            SqlAlterPartitionRename partitionRename) {
+        List<String> partitionKeys = resolvedTable.getPartitionKeys();
+        LinkedHashMap<String, String> oldPartKVs = partitionRename.getPartitionKVs();
+        LinkedHashMap<String, String> newPartKVs = partitionRename.getNewPartitionKVs();
+        // validate the partition spec
+        validatePartitionSpec(tableIdentifier, partitionKeys, oldPartKVs);
+        validatePartitionSpec(tableIdentifier, partitionKeys, newPartKVs);
+
+        CatalogPartitionSpec oldPartitionSpec = new CatalogPartitionSpec(oldPartKVs);
+        CatalogPartitionSpec newPartitionSpec = new CatalogPartitionSpec(newPartKVs);
+        CatalogPartition catalogPartition =
+                catalogManager
+                        .getPartition(tableIdentifier, oldPartitionSpec)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Partition %s of table %s doesn't exist.",
+                                                        oldPartitionSpec.getPartitionSpec(),
+                                                        tableIdentifier)));
+        return new PartitionRenameOperation(
+                tableIdentifier, oldPartitionSpec, newPartitionSpec, catalogPartition.copy());
+    }
+
+    /** Verify if the input partition spec matches the existing defined partition columns. */
+    private void validatePartitionSpec(
+            ObjectIdentifier tableIdentifier,
+            List<String> partitionKeys,
+            Map<String, String> partSpec) {
+        if (partitionKeys.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table %s is not partitioned, rename partition does not support non-partitioned table.",
+                            tableIdentifier));
+        }
+
+        if (partSpec == null || partSpec.isEmpty()) {
+            throw new ValidationException(
+                    "Partition spec is empty, rename partition requires specifying the partition spec.");
+        }
+
+        String exMsg =
+                String.format(
+                        "Available ordered partition columns: [%s]",
+                        partitionKeys.stream().collect(Collectors.joining("', '", "'", "'")));
+        partSpec.forEach(
+                (partitionKey, partitionValue) -> {
+                    if (!partitionKeys.contains(partitionKey)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Partition spec column '%s' is not defined as partition column in table %s. %s",
+                                        partitionKey, tableIdentifier, exMsg));
+                    }
+                });
     }
 
     private Operation convertAlterTableOptions(

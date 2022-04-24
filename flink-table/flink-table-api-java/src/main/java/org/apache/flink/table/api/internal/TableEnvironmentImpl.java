@@ -144,6 +144,7 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.ddl.PartitionRenameOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -986,6 +987,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     for (CatalogPartitionSpec spec : dropPartitionsOperation.getPartitionSpecs()) {
                         catalog.dropPartition(tablePath, spec, ifExists);
                     }
+                } else if (alterTableOperation instanceof PartitionRenameOperation) {
+                    PartitionRenameOperation partitionRenameOperation =
+                            (PartitionRenameOperation) alterTableOperation;
+                    ObjectPath tablePath =
+                            partitionRenameOperation.getTableIdentifier().toObjectPath();
+                    // drop old partition first, require old partition exist
+                    catalog.dropPartition(
+                            tablePath, partitionRenameOperation.getPartitionSpec(), false);
+                    // add new partition second, require new partition not exist
+                    catalog.createPartition(
+                            tablePath,
+                            partitionRenameOperation.getNewPartSpec(),
+                            partitionRenameOperation.getNewPartition(),
+                            false);
                 }
                 return TableResultImpl.TABLE_RESULT_OK;
             } catch (TableAlreadyExistException | TableNotExistException e) {

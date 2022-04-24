@@ -588,10 +588,24 @@ SqlAlterTable SqlAlterTable() :
                 PartitionSpecCommaList(partitionSpec);
             }
         ]
-        <COMPACT>
-        {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
-        }
+        (
+            <RENAME> <TO> <PARTITION> {
+                SqlNodeList newPartSpec = new SqlNodeList(getPos());
+                PartitionSpecCommaList(newPartSpec);
+                return new SqlAlterPartitionRename(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            partitionSpec,
+                            newPartSpec);
+            }
+        |
+            <COMPACT> {
+                return new SqlAlterTableCompact(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            partitionSpec);
+            }
+        )
     )
 }
 

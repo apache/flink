@@ -339,6 +339,21 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterPartitionRename() {
+        sql("alter table tbl partition (p=1) rename to partition (p=2)")
+                .ok(
+                        "ALTER TABLE `TBL` PARTITION (`P` = 1)\n"
+                                + "RENAME TO\n"
+                                + "PARTITION (`P` = 2)");
+
+        sql("alter table tbl rename to partition (p=2)")
+                .ok(
+                        "ALTER TABLE `TBL` PARTITION (`P` = 1)\n"
+                                + "RENAME TO\n"
+                                + "PARTITION (`P` = 2)");
+    }
+
+    @Test
     void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"

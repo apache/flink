@@ -38,6 +38,8 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartitionImpl;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -85,6 +87,7 @@ import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.PartitionRenameOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -114,6 +117,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1422,6 +1426,67 @@ public class SqlToOperationConverterTest {
         staticPartitions = Collections.emptyMap();
         checkAlterTableCompact(
                 parse("alter table tb1 compact", SqlDialect.DEFAULT), staticPartitions);
+    }
+
+    @Test
+    public void testAlterTableRenamePartition() throws Exception {
+        prepareTable(false, true, true);
+
+        // test rename partition that table is not a partitioned table
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table builtin.`default`.t1 partition (dt = 'a') rename to partition (dt = 'b')",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Table `builtin`.`default`.`t1` is not partitioned, rename partition does not support non-partitioned table.");
+
+        // test rename partition which partition spec is not partition key of table
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 partition (dt = 'a') rename to partition (dt = 'b')",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Partition spec column 'dt' is not defined as partition column in table `cat1`.`db1`.`tb1`. "
+                                + "Available ordered partition columns: ['b', 'c']");
+
+        // test rename partition which partition spec is exists
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter table tb1 partition (b = 0, c = 'flink') rename to partition (b = 1, c = 'spark')",
+                                        SqlDialect.DEFAULT))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Partition {b=0, c=flink} of table `cat1`.`db1`.`tb1` doesn't exist.");
+
+        Catalog catalog = catalogManager.getCatalog("cat1").get();
+        ObjectPath tablePath = new ObjectPath("db1", "tb1");
+        CatalogPartitionSpec partitionSpec =
+                new CatalogPartitionSpec(
+                        new LinkedHashMap<String, String>() {
+                            {
+                                put("b", "0");
+                                put("c", "flink");
+                            }
+                        });
+        catalog.createPartition(
+                tablePath,
+                partitionSpec,
+                new CatalogPartitionImpl(Collections.emptyMap(), null),
+                false);
+
+        // test rename partition
+        Operation operation =
+                parse(
+                        "alter table tb1 partition (b = 0, c = 'flink') rename to partition (b = 1, c = 'spark')",
+                        SqlDialect.DEFAULT);
+        assertThat(operation).isInstanceOf(PartitionRenameOperation.class);
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER TABLE cat1.db1.tb1 PARTITION (b=0, c=flink) RENAME TO PARTITION (b=1, c=spark)");
     }
 
     @Test
