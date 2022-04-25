@@ -29,6 +29,8 @@ import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
+
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -234,7 +236,10 @@ class PrometheusReporterTest {
 
     @Test
     void canStartTwoReportersWhenUsingPortRange() {
-        new PrometheusReporter(portRangeProvider.next()).close();
+        final Iterator<Integer> portRange =
+                Iterators.concat(
+                        Iterators.singletonIterator(reporter.getPort()), portRangeProvider.next());
+        new PrometheusReporter(portRange).close();
     }
 
     private String addMetricAndPollResponse(Metric metric, String metricName)
