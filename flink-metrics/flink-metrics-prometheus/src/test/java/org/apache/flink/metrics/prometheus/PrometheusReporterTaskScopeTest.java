@@ -111,33 +111,35 @@ class PrometheusReporterTaskScopeTest {
 
     @Test
     void metersCanBeAddedSeveralTimesIfTheyDifferInLabels() {
-        Meter meter = new TestMeter();
+        Meter meter1 = new TestMeter(1, 1.0);
+        Meter meter2 = new TestMeter(2, 2.0);
 
-        reporter.notifyOfAddedMetric(meter, METRIC_NAME, metricGroup1);
-        reporter.notifyOfAddedMetric(meter, METRIC_NAME, metricGroup2);
+        reporter.notifyOfAddedMetric(meter1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(meter2, METRIC_NAME, metricGroup2);
 
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
-                .isEqualTo(5.);
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
+                .isEqualTo(meter1.getRate());
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[1]))
-                .isEqualTo(5.);
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
+                .isEqualTo(meter2.getRate());
     }
 
     @Test
     void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-        Histogram histogram = new TestHistogram();
+        TestHistogram histogram1 = new TestHistogram();
+        histogram1.setCount(1);
+        TestHistogram histogram2 = new TestHistogram();
+        histogram2.setCount(2);
 
-        reporter.notifyOfAddedMetric(histogram, METRIC_NAME, metricGroup1);
-        reporter.notifyOfAddedMetric(histogram, METRIC_NAME, metricGroup2);
+        reporter.notifyOfAddedMetric(histogram1, METRIC_NAME, metricGroup1);
+        reporter.notifyOfAddedMetric(histogram2, METRIC_NAME, metricGroup2);
 
         final String exportedMetrics = pollMetrics(reporter.getPort()).getBody();
-        assertThat(exportedMetrics)
-                .contains("label2=\"value1_2\",quantile=\"0.5\",} 0.5"); // histogram
-        assertThat(exportedMetrics)
-                .contains("label2=\"value2_2\",quantile=\"0.5\",} 0.5"); // histogram
+        assertThat(exportedMetrics).contains("label2=\"value1_2\",} 1.0"); // histogram
+        assertThat(exportedMetrics).contains("label2=\"value2_2\",} 2.0"); // histogram
 
         final String[] labelNamesWithQuantile = addToArray(LABEL_NAMES, "quantile");
         for (Double quantile : PrometheusReporter.HistogramSummaryProxy.QUANTILES) {
