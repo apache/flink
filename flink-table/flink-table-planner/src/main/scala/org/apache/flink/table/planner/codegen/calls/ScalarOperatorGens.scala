@@ -935,6 +935,13 @@ object ScalarOperatorGens {
 
     // Fallback to old cast rules
     (operand.resultType.getTypeRoot, targetType.getTypeRoot) match {
+      case (INTEGER, DATE) =>
+        if (isLegacyCastBehaviourEnabled(ctx)) {
+          internalExprCasting(operand, targetType)
+        } else {
+          throw new CodeGenException(
+            s"Only legacy cast behaviour supports cast from '${operand.resultType}' to '$targetType'.")
+        }
 
       // identity casting
       case (_, _) if isInteroperable(operand.resultType, targetType) =>

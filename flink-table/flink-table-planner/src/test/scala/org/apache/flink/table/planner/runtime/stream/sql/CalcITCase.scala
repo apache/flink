@@ -23,6 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
@@ -50,6 +52,23 @@ class CalcITCase extends StreamingTestBase {
 
   @Rule
   def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
+  @Test
+  def testSelectWithLegacyCastIntToDate(): Unit = {
+    tEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+      LegacyCastBehaviour.ENABLED)
+
+    val result = tEnv.sqlQuery(
+      "SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1970-01-03")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 
   @Test
   def testCastNumericToBooleanInCondition(): Unit ={
