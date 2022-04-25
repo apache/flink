@@ -468,6 +468,10 @@ public class HiveParserSqlFunctionConverter {
             return operandTypes.contains(SqlTypeFamily.BOOLEAN)
                     && (operandTypes.contains(SqlTypeFamily.NUMERIC)
                             || operandTypes.contains(SqlTypeFamily.CHARACTER));
+        } else if (udfName.equals("/")) {
+            // if the operation is division "/", it should be handled by hive's corresponding udf.
+            // for in hive, divisor can be 0, but flink will throw exception directly.
+            return true;
         }
         return false;
     }
