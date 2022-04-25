@@ -41,14 +41,17 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new String[] {"Hello", "World"},
                                 new Row[] {
                                     Row.of(true, LocalDate.of(2022, 4, 20)),
-                                    Row.of(true, LocalDate.of(1990, 10, 14))
-                                })
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[] {1, null, 3})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull(),
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.INT()))
                         // ARRAY<INT>
                         .testResult(
                                 $("f0").arrayContains(2),
@@ -60,15 +63,15 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_CONTAINS(f0, 42)",
                                 false,
                                 DataTypes.BOOLEAN().nullable())
-                        .testResult(
-                                $("f0").arrayContains(null),
-                                "ARRAY_CONTAINS(f0, NULL)",
-                                false,
-                                DataTypes.BOOLEAN().nullable())
                         // ARRAY<INT> of null value
                         .testResult(
                                 $("f1").arrayContains(12),
                                 "ARRAY_CONTAINS(f1, 12)",
+                                null,
+                                DataTypes.BOOLEAN().nullable())
+                        .testResult(
+                                $("f1").arrayContains(null),
+                                "ARRAY_CONTAINS(f1, NULL)",
                                 null,
                                 DataTypes.BOOLEAN().nullable())
                         // ARRAY<STRING> NOT NULL
@@ -88,6 +91,17 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_CONTAINS(f3, (FALSE, DATE '1990-10-14'))",
                                 false,
                                 DataTypes.BOOLEAN())
+                        .testResult(
+                                $("f3").arrayContains(null),
+                                "ARRAY_CONTAINS(f3, null)",
+                                true,
+                                DataTypes.BOOLEAN())
+                        // ARRAY<INT> with null elements
+                        .testResult(
+                                $("f4").arrayContains(null),
+                                "ARRAY_CONTAINS(f4, NULL)",
+                                true,
+                                DataTypes.BOOLEAN().nullable())
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_CONTAINS(f0, TRUE)",

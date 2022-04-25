@@ -68,6 +68,7 @@ public class ArrayContainsFunction extends BuiltInScalarFunction {
             for (int pos = 0; pos < size; pos++) {
                 final Object element = elementGetter.getElementOrNull(haystack, pos);
                 // handle nullability before to avoid SQL three-value logic for equality
+                // because in SQL `NULL == NULL` would return `NULL` and not `TRUE`
                 if (needle == null && element == null) {
                     return true;
                 } else if (needle != null && element != null) {
