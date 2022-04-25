@@ -31,6 +31,13 @@ if ! curl --fail -OL $HUGO_REPO ; then
 fi
 tar -zxvf $HUGO_ARTIFACT
 git submodule update --init --recursive
+# Setup the external documentation modules
+cd docs
+source setup_docs.sh
+cd ..
+# Build the docs
+./hugo --source docs
+
 # generate docs into docs/target
 ./hugo -v --source docs --destination target
 if [ $? -ne 0 ]; then
