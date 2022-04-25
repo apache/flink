@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.utils.PythonUtil;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
-import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import java.util.List;
 import java.util.stream.Collectors;
