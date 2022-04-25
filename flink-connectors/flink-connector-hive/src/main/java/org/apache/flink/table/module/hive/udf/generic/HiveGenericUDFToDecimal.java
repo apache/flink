@@ -36,7 +36,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.SettableHiveDecim
  */
 public class HiveGenericUDFToDecimal extends GenericUDF {
 
-    public static final String NAME = "hive_flink_to_decimal";
+    public static final String NAME = "flink_hive_to_decimal";
 
     private transient PrimitiveObjectInspectorConverter.HiveDecimalConverter bdConverter;
 
@@ -44,7 +44,7 @@ public class HiveGenericUDFToDecimal extends GenericUDF {
     public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
         if (arguments.length != 2) {
             throw new UDFArgumentLengthException(
-                    "The function hive_flink_to_decimal requires exactly two arguments, got "
+                    "The function flink_hive_to_decimal requires exactly two arguments, got "
                             + arguments.length);
         }
         PrimitiveObjectInspector srcOI;
@@ -52,7 +52,7 @@ public class HiveGenericUDFToDecimal extends GenericUDF {
             srcOI = (PrimitiveObjectInspector) arguments[0];
         } catch (ClassCastException e) {
             throw new UDFArgumentException(
-                    "The function hive_flink_to_decimal takes only primitive types as first argument.");
+                    "The function flink_hive_to_decimal takes only primitive types as first argument.");
         }
 
         SettableHiveDecimalObjectInspector targetOI;
@@ -60,7 +60,7 @@ public class HiveGenericUDFToDecimal extends GenericUDF {
             targetOI = (SettableHiveDecimalObjectInspector) arguments[1];
         } catch (ClassCastException e) {
             throw new UDFArgumentException(
-                    "The function hive_flink_to_decimal takes only decimal types as second argument.");
+                    "The function flink_hive_to_decimal takes only decimal types as second argument.");
         }
 
         bdConverter = new PrimitiveObjectInspectorConverter.HiveDecimalConverter(srcOI, targetOI);
@@ -79,6 +79,6 @@ public class HiveGenericUDFToDecimal extends GenericUDF {
 
     @Override
     public String getDisplayString(String[] children) {
-        return HiveParserUtils.getStandardDisplayString("hive_flink_to_decimal", children);
+        return HiveParserUtils.getStandardDisplayString("flink_hive_to_decimal", children);
     }
 }
