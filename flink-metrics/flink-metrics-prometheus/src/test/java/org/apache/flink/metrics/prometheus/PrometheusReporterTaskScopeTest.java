@@ -20,7 +20,6 @@ package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
@@ -45,17 +44,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PrometheusReporterTaskScopeTest {
     private static final String[] LABEL_NAMES = {"label1", "label2"};
-    private static final String[][] LABEL_VALUES =
-            new String[][] {{"value1_1", "value1_2"}, {"value2_1", "value2_2"}};
+    private static final String[] LABEL_VALUES_1 = new String[] {"value1_1", "value1_2"};
+    private static final String[] LABEL_VALUES_2 = new String[] {"value2_1", "value2_2"};
     private static final String LOGICAL_SCOPE = "logical_scope";
     private static final String METRIC_NAME = "myMetric";
 
     private final MetricGroup metricGroup1 =
             TestUtils.createTestMetricGroup(
-                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES[0]));
+                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES_1));
     private final MetricGroup metricGroup2 =
             TestUtils.createTestMetricGroup(
-                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES[1]));
+                    LOGICAL_SCOPE, TestUtils.toMap(LABEL_NAMES, LABEL_VALUES_2));
 
     private PrometheusReporter reporter;
 
@@ -83,11 +82,11 @@ class PrometheusReporterTaskScopeTest {
 
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[1]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(2.);
     }
 
@@ -101,11 +100,11 @@ class PrometheusReporterTaskScopeTest {
 
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(3.);
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[1]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(4.);
     }
 
@@ -147,13 +146,13 @@ class PrometheusReporterTaskScopeTest {
                             CollectorRegistry.defaultRegistry.getSampleValue(
                                     getLogicalScope(METRIC_NAME),
                                     labelNamesWithQuantile,
-                                    addToArray(LABEL_VALUES[0], "" + quantile)))
+                                    addToArray(LABEL_VALUES_1, "" + quantile)))
                     .isEqualTo(quantile);
             assertThat(
                             CollectorRegistry.defaultRegistry.getSampleValue(
                                     getLogicalScope(METRIC_NAME),
                                     labelNamesWithQuantile,
-                                    addToArray(LABEL_VALUES[1], "" + quantile)))
+                                    addToArray(LABEL_VALUES_2, "" + quantile)))
                     .isEqualTo(quantile);
         }
     }
@@ -170,23 +169,23 @@ class PrometheusReporterTaskScopeTest {
 
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[1]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(2.);
 
         reporter.notifyOfRemovedMetric(counter2, METRIC_NAME, metricGroup2);
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
 
         reporter.notifyOfRemovedMetric(counter1, METRIC_NAME, metricGroup1);
         assertThat(
                         CollectorRegistry.defaultRegistry.getSampleValue(
-                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES[0]))
+                                getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isNull();
     }
 
