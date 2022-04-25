@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source.lib;
 
 import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -51,18 +52,18 @@ public class NumberSequenceSourceTest {
 
         final TestingReaderOutput<Long> out = new TestingReaderOutput<>();
 
-        SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> reader = createReader();
+        SourceReader<Long, NumberSequenceSplit<Long>> reader = createReader();
         reader.addSplits(
                 Arrays.asList(
-                        new NumberSequenceSource.NumberSequenceSplit("split-1", from, mid),
-                        new NumberSequenceSource.NumberSequenceSplit("split-2", mid + 1, to)));
+                        new NumberSequenceSplit<>("split-1", from, mid, MapFunction.identity()),
+                        new NumberSequenceSplit<>("split-2", mid + 1, to, MapFunction.identity())));
 
         long remainingInCycle = elementsPerCycle;
         while (reader.pollNext(out) != InputStatus.END_OF_INPUT) {
             if (--remainingInCycle <= 0) {
                 remainingInCycle = elementsPerCycle;
                 // checkpoint
-                List<NumberSequenceSource.NumberSequenceSplit> splits = reader.snapshotState(1L);
+                List<NumberSequenceSplit<Long>> splits = reader.snapshotState(1L);
 
                 // re-create and restore
                 reader = createReader();
@@ -99,7 +100,7 @@ public class NumberSequenceSourceTest {
                         from, to, sequence.size(), sequence));
     }
 
-    private static SourceReader<Long, NumberSequenceSource.NumberSequenceSplit> createReader() {
+    private static SourceReader<Long, NumberSequenceSplit<Long>> createReader() {
         // the arguments passed in the source constructor matter only to the enumerator
         return new NumberSequenceSource(0L, 0L).createReader(new DummyReaderContext());
     }

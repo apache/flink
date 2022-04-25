@@ -24,6 +24,7 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSplit;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
@@ -256,7 +257,7 @@ public class ChangelogRescalingITCase extends TestLogger {
         }
 
         @Override
-        public SourceReader<Long, NumberSequenceSplit> createReader(
+        public SourceReader<Long, NumberSequenceSplit<Long>> createReader(
                 SourceReaderContext readerContext) {
             return new ThrottlingIteratorSourceReader<>(
                     readerContext, new SourceRateLimiter(numbersPerSecond));

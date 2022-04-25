@@ -28,6 +28,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
@@ -40,6 +41,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -1101,6 +1103,35 @@ public class StreamExecutionEnvironment {
                 new NumberSequenceSource(from, to),
                 WatermarkStrategy.noWatermarks(),
                 "Sequence Source");
+    }
+
+    public <OUT> SingleOutputStreamOperator<OUT> fromFunction(
+            MapFunction<Long, OUT> generator, long count) {
+        final DataStreamSource<Long> sequence_source =
+                fromSource(
+                        new NumberSequenceSource(0, count),
+                        WatermarkStrategy.noWatermarks(),
+                        "Sequence Source");
+        SingleOutputStreamOperator<OUT> map = sequence_source.map(generator);
+        return map;
+    }
+
+    public <OUT> DataStreamSource<OUT> fromGenerator(
+            MapFunction<Long, OUT> generator, long count, TypeInformation<OUT> typeInfo) {
+        GeneratorSource<OUT> source = GeneratorSource.from(generator, count, typeInfo);
+        String sourceName = "Generator Source";
+
+        final TypeInformation<OUT> resolvedTypeInfo =
+                getTypeInfo(source, sourceName, Source.class, null);
+
+        // TODO: add watermark
+        // TODO: source name
+        return new DataStreamSource<>(
+                this,
+                checkNotNull(source, "source"),
+                checkNotNull(WatermarkStrategy.noWatermarks(), "timestampsAndWatermarks"),
+                checkNotNull(resolvedTypeInfo),
+                checkNotNull(sourceName));
     }
 
     /**

@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSplit;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceEnumerator;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
@@ -331,15 +332,16 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public SplitEnumerator<NumberSequenceSplit, Collection<NumberSequenceSplit>>
-                createEnumerator(final SplitEnumeratorContext<NumberSequenceSplit> enumContext) {
-            final List<NumberSequenceSplit> splits =
+        public SplitEnumerator<NumberSequenceSplit<Long>, Collection<NumberSequenceSplit<Long>>>
+                createEnumerator(
+                        final SplitEnumeratorContext<NumberSequenceSplit<Long>> enumContext) {
+            final List<NumberSequenceSplit<Long>> splits =
                     splitNumberRange(getFrom(), getTo(), numSplits);
             return new AssignAfterCheckpointEnumerator<>(enumContext, splits);
         }
 
         @Override
-        public SourceReader<Long, NumberSequenceSplit> createReader(
+        public SourceReader<Long, NumberSequenceSplit<Long>> createReader(
                 SourceReaderContext readerContext) {
             return new CheckpointListeningIteratorSourceReader<>(
                     readerContext, numAllowedMessageBeforeCheckpoint);

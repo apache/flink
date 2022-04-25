@@ -54,4 +54,8 @@ public interface MapFunction<T, O> extends Function, Serializable {
      *     operation to fail and may trigger recovery.
      */
     O map(T value) throws Exception;
+
+    static <T> MapFunction<T, T> identity() {
+        return t -> t;
+    }
 }

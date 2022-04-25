@@ -21,7 +21,6 @@ package org.apache.flink.api.connector.source.lib;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -43,49 +42,43 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.util.InstantiationUtil.serializeObject;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A data source that produces a sequence of numbers (longs). This source is useful for testing and
- * for cases that just need a stream of N events of any kind.
- *
- * <p>The source splits the sequence into as many parallel sub-sequences as there are parallel
- * source readers. Each sub-sequence will be produced in order. Consequently, if the parallelism is
- * limited to one, this will produce one sequence in order.
- *
- * <p>This source is always bounded. For very long sequences (for example over the entire domain of
- * long integer values), user may want to consider executing the application in a streaming manner,
- * because, despite the fact that the produced stream is bounded, the end bound is pretty far away.
- */
 @Public
-public class NumberSequenceSource
-        implements Source<Long, NumberSequenceSplit<Long>, Collection<NumberSequenceSplit<Long>>>,
-                ResultTypeQueryable<Long> {
+public class GeneratorSource<OUT>
+        implements Source<OUT, NumberSequenceSplit<OUT>, Collection<NumberSequenceSplit<OUT>>>,
+                ResultTypeQueryable<OUT> {
 
     private static final long serialVersionUID = 1L;
 
-    /** The starting number in the sequence, inclusive. */
-    private final long from;
-
     /** The end number in the sequence, inclusive. */
-    private final long to;
+    private final long count;
 
-    /**
-     * Creates a new {@code NumberSequenceSource} that produces parallel sequences covering the
-     * range {@code from} to {@code to} (both boundaries are inclusive).
-     */
-    public NumberSequenceSource(long from, long to) {
-        checkArgument(from <= to, "'from' must be <= 'to'");
-        this.from = from;
-        this.to = to;
+    private final TypeInformation<OUT> typeInfo;
+
+    public final MapFunction<Long, OUT> mapFunction;
+
+    public final Boundedness boundedness;
+
+    public long getCount() {
+        return count;
     }
 
-    public long getFrom() {
-        return from;
+    private GeneratorSource(
+            MapFunction<Long, OUT> mapFunction, long count, TypeInformation<OUT> typeInfo) {
+        this.mapFunction = checkNotNull(mapFunction);
+        checkArgument(count > 0, "count must be > 0");
+        this.count = count;
+        this.typeInfo = typeInfo;
+        boundedness =
+                count == Long.MAX_VALUE ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
-    public long getTo() {
-        return to;
+    public static <OUT> GeneratorSource<OUT> from(
+            MapFunction<Long, OUT> mapFunction, long count, TypeInformation<OUT> typeInfo) {
+        return new GeneratorSource<>(mapFunction, count, typeInfo);
     }
 
     // ------------------------------------------------------------------------
@@ -93,53 +86,54 @@ public class NumberSequenceSource
     // ------------------------------------------------------------------------
 
     @Override
-    public TypeInformation<Long> getProducedType() {
-        return Types.LONG;
+    public TypeInformation<OUT> getProducedType() {
+        return typeInfo;
     }
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.BOUNDED;
+        return boundedness;
     }
 
     @Override
-    public SourceReader<Long, NumberSequenceSplit<Long>> createReader(
+    public SourceReader<OUT, NumberSequenceSplit<OUT>> createReader(
             SourceReaderContext readerContext) {
         return new IteratorSourceReader<>(readerContext);
     }
 
     @Override
-    public SplitEnumerator<NumberSequenceSplit<Long>, Collection<NumberSequenceSplit<Long>>>
-            createEnumerator(final SplitEnumeratorContext<NumberSequenceSplit<Long>> enumContext) {
-
-        final List<NumberSequenceSplit<Long>> splits =
-                splitNumberRange(from, to, enumContext.currentParallelism());
+    public SplitEnumerator<NumberSequenceSplit<OUT>, Collection<NumberSequenceSplit<OUT>>>
+            createEnumerator(SplitEnumeratorContext<NumberSequenceSplit<OUT>> enumContext)
+                    throws Exception {
+        final List<NumberSequenceSplit<OUT>> splits =
+                splitNumberRange(count, enumContext.currentParallelism());
         return new IteratorSourceEnumerator<>(enumContext, splits);
     }
 
     @Override
-    public SplitEnumerator<NumberSequenceSplit<Long>, Collection<NumberSequenceSplit<Long>>>
+    public SplitEnumerator<NumberSequenceSplit<OUT>, Collection<NumberSequenceSplit<OUT>>>
             restoreEnumerator(
-                    final SplitEnumeratorContext<NumberSequenceSplit<Long>> enumContext,
-                    Collection<NumberSequenceSplit<Long>> checkpoint) {
+                    SplitEnumeratorContext<NumberSequenceSplit<OUT>> enumContext,
+                    Collection<NumberSequenceSplit<OUT>> checkpoint)
+                    throws Exception {
         return new IteratorSourceEnumerator<>(enumContext, checkpoint);
     }
 
     @Override
-    public SimpleVersionedSerializer<NumberSequenceSplit<Long>> getSplitSerializer() {
+    public SimpleVersionedSerializer<NumberSequenceSplit<OUT>> getSplitSerializer() {
         return new SplitSerializer();
     }
 
     @Override
-    public SimpleVersionedSerializer<Collection<NumberSequenceSplit<Long>>>
+    public SimpleVersionedSerializer<Collection<NumberSequenceSplit<OUT>>>
             getEnumeratorCheckpointSerializer() {
         return new CheckpointSerializer();
     }
 
-    protected List<NumberSequenceSplit<Long>> splitNumberRange(long from, long to, int numSplits) {
+    protected List<NumberSequenceSplit<OUT>> splitNumberRange(long to, int numSplits) {
         final NumberSequenceIterator[] subSequences =
-                new NumberSequenceIterator(from, to).split(numSplits);
-        final ArrayList<NumberSequenceSplit<Long>> splits = new ArrayList<>(subSequences.length);
+                new NumberSequenceIterator(0, to).split(numSplits);
+        final ArrayList<NumberSequenceSplit<OUT>> splits = new ArrayList<>(subSequences.length);
 
         int splitId = 1;
         for (NumberSequenceIterator seq : subSequences) {
@@ -149,7 +143,7 @@ public class NumberSequenceSource
                                 String.valueOf(splitId++),
                                 seq.getCurrent(),
                                 seq.getTo(),
-                                MapFunction.identity()));
+                                mapFunction));
             }
         }
 
@@ -160,8 +154,8 @@ public class NumberSequenceSource
     //  splits & checkpoint
     // ------------------------------------------------------------------------
 
-    private static final class SplitSerializer
-            implements SimpleVersionedSerializer<NumberSequenceSplit<Long>> {
+    private final class SplitSerializer
+            implements SimpleVersionedSerializer<NumberSequenceSplit<OUT>> {
 
         private static final int CURRENT_VERSION = 1;
 
@@ -171,7 +165,7 @@ public class NumberSequenceSource
         }
 
         @Override
-        public byte[] serialize(NumberSequenceSplit<Long> split) throws IOException {
+        public byte[] serialize(NumberSequenceSplit<OUT> split) throws IOException {
             checkArgument(
                     split.getClass() == NumberSequenceSplit.class, "cannot serialize subclasses");
 
@@ -184,7 +178,7 @@ public class NumberSequenceSource
         }
 
         @Override
-        public NumberSequenceSplit<Long> deserialize(int version, byte[] serialized)
+        public NumberSequenceSplit<OUT> deserialize(int version, byte[] serialized)
                 throws IOException {
             if (version != CURRENT_VERSION) {
                 throw new IOException("Unrecognized version: " + version);
@@ -192,22 +186,21 @@ public class NumberSequenceSource
             final DataInputDeserializer in = new DataInputDeserializer(serialized);
             return deserializeV1(in);
         }
-
-        static void serializeV1(DataOutputView out, NumberSequenceSplit<Long> split)
-                throws IOException {
-            out.writeUTF(split.splitId());
-            out.writeLong(split.from());
-            out.writeLong(split.to());
-        }
-
-        static NumberSequenceSplit<Long> deserializeV1(DataInputView in) throws IOException {
-            return new NumberSequenceSplit<>(
-                    in.readUTF(), in.readLong(), in.readLong(), MapFunction.identity());
-        }
     }
 
-    private static final class CheckpointSerializer
-            implements SimpleVersionedSerializer<Collection<NumberSequenceSplit<Long>>> {
+    void serializeV1(DataOutputView out, NumberSequenceSplit<OUT> split) throws IOException {
+        out.writeUTF(split.splitId());
+        out.writeLong(split.from());
+        out.writeLong(split.to());
+        out.write(serializeObject(split.mapFunction()));
+    }
+
+    NumberSequenceSplit<OUT> deserializeV1(DataInputView in) throws IOException {
+        return new NumberSequenceSplit<>(in.readUTF(), in.readLong(), in.readLong(), mapFunction);
+    }
+
+    private final class CheckpointSerializer
+            implements SimpleVersionedSerializer<Collection<NumberSequenceSplit<OUT>>> {
 
         private static final int CURRENT_VERSION = 1;
 
@@ -217,7 +210,8 @@ public class NumberSequenceSource
         }
 
         @Override
-        public byte[] serialize(Collection<NumberSequenceSplit<Long>> checkpoint)
+        // TODO: Adjust!
+        public byte[] serialize(Collection<NumberSequenceSplit<OUT>> checkpoint)
                 throws IOException {
             // Each split needs 2 longs (16 bytes) plus the UFT representation of the string (2 +
             // length)
@@ -226,23 +220,24 @@ public class NumberSequenceSource
             // plus four bytes for the length field
             final DataOutputSerializer out = new DataOutputSerializer(checkpoint.size() * 22 + 4);
             out.writeInt(checkpoint.size());
-            for (NumberSequenceSplit<Long> split : checkpoint) {
-                SplitSerializer.serializeV1(out, split);
+            for (NumberSequenceSplit<OUT> split : checkpoint) {
+                serializeV1(out, split);
             }
             return out.getCopyOfBuffer();
         }
 
         @Override
-        public Collection<NumberSequenceSplit<Long>> deserialize(int version, byte[] serialized)
+        // TODO: Adjust!
+        public Collection<NumberSequenceSplit<OUT>> deserialize(int version, byte[] serialized)
                 throws IOException {
             if (version != CURRENT_VERSION) {
                 throw new IOException("Unrecognized version: " + version);
             }
             final DataInputDeserializer in = new DataInputDeserializer(serialized);
             final int num = in.readInt();
-            final ArrayList<NumberSequenceSplit<Long>> result = new ArrayList<>(num);
+            final ArrayList<NumberSequenceSplit<OUT>> result = new ArrayList<>(num);
             for (int remaining = num; remaining > 0; remaining--) {
-                result.add(SplitSerializer.deserializeV1(in));
+                result.add(deserializeV1(in));
             }
             return result;
         }

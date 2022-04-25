@@ -104,39 +104,13 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
             return new NumberSequenceIterator[] {new NumberSequenceIterator(current, to)};
         }
 
-        // here, numPartitions >= 2 !!!
-
-        long elementsPerSplit;
-
-        if (to - current + 1 >= 0) {
-            elementsPerSplit = (to - current + 1) / numPartitions;
-        } else {
-            // long overflow of the range.
-            // we compute based on half the distance, to prevent the overflow.
-            // in most cases it holds that: current < 0 and to > 0, except for: to == 0 and current
-            // == Long.MIN_VALUE
-            // the later needs a special case
-            final long halfDiff; // must be positive
-
-            if (current == Long.MIN_VALUE) {
-                // this means to >= 0
-                halfDiff = (Long.MAX_VALUE / 2 + 1) + to / 2;
-            } else {
-                long posFrom = -current;
-                if (posFrom > to) {
-                    halfDiff = to + ((posFrom - to) / 2);
-                } else {
-                    halfDiff = posFrom + ((to - posFrom) / 2);
-                }
-            }
-            elementsPerSplit = halfDiff / numPartitions * 2;
-        }
+        long elementsPerSplit = calculateNumElementsPerSplit(numPartitions);
 
         if (elementsPerSplit < Long.MAX_VALUE) {
             // figure out how many get one in addition
             long numWithExtra = -(elementsPerSplit * numPartitions) + to - current + 1;
 
-            // based on rounding errors, we may have lost one)
+            // based on rounding errors, we may have lost one
             if (numWithExtra > numPartitions) {
                 elementsPerSplit++;
                 numWithExtra -= numPartitions;
@@ -172,6 +146,34 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
                 new NumberSequenceIterator(current + elementsPerSplit, to)
             };
         }
+    }
+
+    private long calculateNumElementsPerSplit(int numPartitions) {
+        long elementsPerSplit;
+        if (to - current + 1 >= 0) {
+            elementsPerSplit = (to - current + 1) / numPartitions;
+        } else {
+            // long overflow of the range.
+            // we compute based on half the distance, to prevent the overflow.
+            // in most cases it holds that: current < 0 and to > 0, except for: to == 0 and current
+            // == Long.MIN_VALUE
+            // the later needs a special case
+            final long halfDiff; // must be positive
+
+            if (current == Long.MIN_VALUE) {
+                // this means to >= 0
+                halfDiff = (Long.MAX_VALUE / 2 + 1) + to / 2;
+            } else {
+                long posFrom = -current;
+                if (posFrom > to) {
+                    halfDiff = to + ((posFrom - to) / 2);
+                } else {
+                    halfDiff = posFrom + ((to - posFrom) / 2);
+                }
+            }
+            elementsPerSplit = halfDiff / numPartitions * 2;
+        }
+        return elementsPerSplit;
     }
 
     @Override
