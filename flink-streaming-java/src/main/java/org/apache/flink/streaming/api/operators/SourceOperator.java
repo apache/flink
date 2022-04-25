@@ -68,7 +68,13 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -87,7 +93,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStreamOperator<OUT>
-        implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
+        implements OperatorEventHandler,
+                PushingAsyncDataInput<OUT>,
+                TimestampsAndWatermarks.WatermarkUpdateListener {
     private static final long serialVersionUID = 1405537676017904695L;
 
     // Package private for unit test.
@@ -156,6 +164,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             new SourceOperatorAvailabilityHelper();
 
     private final List<SplitT> outputPendingSplits = new ArrayList<>();
+
+    private int numSplits = 0;
+    private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
+    private final Set<String> currentlyPausedSplits = new HashSet<>();
 
     private enum OperatingMode {
         READING,
@@ -423,7 +435,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     private void initializeMainOutput(DataOutput<OUT> output) {
-        currentMainOutput = eventTimeLogic.createMainOutput(output, this::onWatermarkEmitted);
+        currentMainOutput = eventTimeLogic.createMainOutput(output, this);
         initializeLatencyMarkerEmitter(output);
         lastInvokedOutput = output;
         // Create per-split output for pending splits added before main output is initialized
@@ -536,6 +548,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
         try {
             List<SplitT> newSplits = event.splits(splitSerializer);
+            numSplits += newSplits.size();
             if (operatingMode == OperatingMode.OUTPUT_NOT_INITIALIZED) {
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
@@ -559,12 +572,52 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private void updateMaxDesiredWatermark(WatermarkAlignmentEvent event) {
         currentMaxDesiredWatermark = event.getMaxWatermark();
+        checkSplitWatermarkAlignment();
         sourceMetricGroup.updateMaxDesiredWatermark(currentMaxDesiredWatermark);
     }
 
-    private void onWatermarkEmitted(long emittedWatermark) {
-        lastEmittedWatermark = emittedWatermark;
+    @Override
+    public void updateCurrentEffectiveWatermark(long watermark) {
+        lastEmittedWatermark = watermark;
         checkWatermarkAlignment();
+    }
+
+    @Override
+    public void updateCurrentSplitWatermark(String splitId, long watermark) {
+        splitCurrentWatermarks.put(splitId, watermark);
+        if (currentMaxDesiredWatermark < watermark && !currentlyPausedSplits.contains(splitId)) {
+            sourceReader.pauseOrResumeSplits(
+                    Collections.singletonList(splitId), Collections.emptyList());
+            currentlyPausedSplits.add(splitId);
+        }
+    }
+
+    /**
+     * Finds the splits that are beyond the current max watermark and pauses them. At the same time,
+     * splits that have been paused and where the global watermark caught up are resumed.
+     *
+     * <p>Note: This takes effect only if there are multiple splits, otherwise it does nothing.
+     */
+    private void checkSplitWatermarkAlignment() {
+        if (numSplits <= 1) {
+            return; // If there is only a single split, we do not pause the split but the source.
+        }
+        Collection<String> splitsToPause = new ArrayList<>();
+        Collection<String> splitsToResume = new ArrayList<>();
+        splitCurrentWatermarks.forEach(
+                (splitId, splitWatermark) -> {
+                    if (splitWatermark > currentMaxDesiredWatermark) {
+                        splitsToPause.add(splitId);
+                    } else if (currentlyPausedSplits.contains(splitId)) {
+                        splitsToResume.add(splitId);
+                    }
+                });
+        splitsToPause.removeAll(currentlyPausedSplits);
+        if (!splitsToPause.isEmpty() || !splitsToResume.isEmpty()) {
+            sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            currentlyPausedSplits.addAll(splitsToPause);
+            splitsToResume.forEach(currentlyPausedSplits::remove);
+        }
     }
 
     private void checkWatermarkAlignment() {
