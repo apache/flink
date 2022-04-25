@@ -454,6 +454,57 @@ object BridgingFunctionGenUtil {
       }
     }
 
+    /**
+     * This method generates code and wraps it into a [[DefaultExpressionEvaluator]].
+     *
+     * For example, executing the following:
+     * {{{
+     *   createEvaluator("a = b", BOOLEAN(), FIELD("a", DataTypes.INT()), FIELD("b", INT()))
+     * }}}
+     * would result in:
+     * {{{
+     * public class ExpressionEvaluator$20 extends org.apache.flink.api.common.functions.AbstractRichFunction {
+     *
+     *   public ExpressionEvaluator$20(Object[] references) throws Exception {}
+     *
+     *   public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {}
+     *
+     *   public java.lang.Boolean eval(java.lang.Integer arg0, java.lang.Integer arg1) {
+     *     int result$16;
+     *     boolean isNull$16;
+     *     int result$17;
+     *     boolean isNull$17;
+     *     boolean isNull$18;
+     *     boolean result$19;
+     *
+     *     isNull$16 = arg0 == null;
+     *     result$16 = -1;
+     *     if (!isNull$16) {
+     *       result$16 = arg0;
+     *     }
+     *     isNull$17 = arg1 == null;
+     *     result$17 = -1;
+     *     if (!isNull$17) {
+     *       result$17 = arg1;
+     *     }
+     *
+     *     boolean $0IsNull = isNull$16;
+     *     int $0 = result$16;
+     *
+     *     boolean $1IsNull = isNull$17;
+     *     int $1 = result$17;
+     *
+     *     isNull$18 = $0IsNull || $1IsNull;
+     *     result$19 = false;
+     *     if (!isNull$18) {
+     *       result$19 = $0 == $1;
+     *     }
+     *
+     *     return (java.lang.Boolean) (isNull$18 ? null : ((java.lang.Boolean) result$19));
+     *   }
+     * }
+     * }}}
+     */
     private def createEvaluatorOrError(
         expression: Expression,
         outputDataType: DataType,
