@@ -227,7 +227,7 @@ class PrometheusReporterTest {
     }
 
     @Test
-    void cannotStartTwoReportersOnSamePort() throws Exception {
+    void cannotStartTwoReportersOnSamePort() {
         assertThatThrownBy(
                         () ->
                                 new PrometheusReporter(
@@ -236,7 +236,7 @@ class PrometheusReporterTest {
     }
 
     @Test
-    void canStartTwoReportersWhenUsingPortRange() throws Exception {
+    void canStartTwoReportersWhenUsingPortRange() {
         new PrometheusReporter(portRangeProvider.next()).close();
     }
 

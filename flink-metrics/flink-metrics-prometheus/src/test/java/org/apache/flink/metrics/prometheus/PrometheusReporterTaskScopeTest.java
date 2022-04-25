@@ -72,7 +72,7 @@ class PrometheusReporterTaskScopeTest {
     }
 
     @Test
-    void countersCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+    void countersCanBeAddedSeveralTimesIfTheyDifferInLabels() {
         Counter counter1 = new SimpleCounter();
         counter1.inc(1);
         Counter counter2 = new SimpleCounter();
@@ -92,7 +92,7 @@ class PrometheusReporterTaskScopeTest {
     }
 
     @Test
-    void gaugesCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+    void gaugesCanBeAddedSeveralTimesIfTheyDifferInLabels() {
         Gauge<Integer> gauge1 = () -> 3;
         Gauge<Integer> gauge2 = () -> 4;
 
@@ -110,7 +110,7 @@ class PrometheusReporterTaskScopeTest {
     }
 
     @Test
-    void metersCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+    void metersCanBeAddedSeveralTimesIfTheyDifferInLabels() {
         Meter meter = new TestMeter();
 
         reporter.notifyOfAddedMetric(meter, METRIC_NAME, metricGroup1);
@@ -157,7 +157,7 @@ class PrometheusReporterTaskScopeTest {
     }
 
     @Test
-    void removingSingleInstanceOfMetricDoesNotBreakOtherInstances() throws UnirestException {
+    void removingSingleInstanceOfMetricDoesNotBreakOtherInstances() {
         Counter counter1 = new SimpleCounter();
         counter1.inc(1);
         Counter counter2 = new SimpleCounter();
