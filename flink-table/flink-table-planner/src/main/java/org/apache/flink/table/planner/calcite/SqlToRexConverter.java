@@ -69,7 +69,7 @@ public class SqlToRexConverter {
     /**
      * Converts a SQL expression to a {@link RexNode} expression.
      *
-     * @param expr a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     * @param expr SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
     public RexNode convertToRexNode(String expr) {
         final CalciteParser parser = planner.parser();
@@ -79,7 +79,7 @@ public class SqlToRexConverter {
     /**
      * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
      *
-     * @param exprs a SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
+     * @param exprs SQL expression e.g. {@code `my_catalog`.`my_database`.`my_udf`(`f0`) + 1}
      */
     public RexNode[] convertToRexNodes(String[] exprs) {
         final CalciteParser parser = planner.parser();
