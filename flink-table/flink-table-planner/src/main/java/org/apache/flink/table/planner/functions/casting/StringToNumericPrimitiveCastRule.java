@@ -28,6 +28,7 @@ import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_INT;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_LONG;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_SHORT;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
@@ -54,19 +55,20 @@ class StringToNumericPrimitiveCastRule
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        final String trimmedInputTerm = methodCall(inputTerm, "trim");
         switch (targetLogicalType.getTypeRoot()) {
             case TINYINT:
-                return staticCall(STRING_DATA_TO_BYTE(), inputTerm);
+                return staticCall(STRING_DATA_TO_BYTE(), trimmedInputTerm);
             case SMALLINT:
-                return staticCall(STRING_DATA_TO_SHORT(), inputTerm);
+                return staticCall(STRING_DATA_TO_SHORT(), trimmedInputTerm);
             case INTEGER:
-                return staticCall(STRING_DATA_TO_INT(), inputTerm);
+                return staticCall(STRING_DATA_TO_INT(), trimmedInputTerm);
             case BIGINT:
-                return staticCall(STRING_DATA_TO_LONG(), inputTerm);
+                return staticCall(STRING_DATA_TO_LONG(), trimmedInputTerm);
             case FLOAT:
-                return staticCall(STRING_DATA_TO_FLOAT(), inputTerm);
+                return staticCall(STRING_DATA_TO_FLOAT(), trimmedInputTerm);
             case DOUBLE:
-                return staticCall(STRING_DATA_TO_DOUBLE(), inputTerm);
+                return staticCall(STRING_DATA_TO_DOUBLE(), trimmedInputTerm);
         }
         throw new IllegalArgumentException("This is a bug. Please file an issue.");
     }
