@@ -173,7 +173,7 @@ class PrometheusReporterTest {
 
         String response = pollMetrics(reporter.getPort()).getBody();
 
-        assertThat(response).doesNotContain(labelValueThatShouldBeRemoved);
+        assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
     }
 
     @Test
