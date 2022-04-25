@@ -2063,4 +2063,29 @@ class CalcITCase extends BatchTestBase {
     checkResult("SELECT TRY_CAST('invalid' AS INT)", Seq(row(null)))
     checkResult("SELECT TRY_CAST(g AS DOUBLE) FROM testTable", Seq(row(null), row(null), row(null)))
   }
+
+  @Test
+  def testMultipleCoalesces(): Unit = {
+    checkResult(
+      "SELECT COALESCE(1),\n" +
+        "COALESCE(1, 2),\n" +
+        "COALESCE(cast(NULL as int), 2),\n" +
+        "COALESCE(1, cast(NULL as int)),\n" +
+        "COALESCE(cast(NULL as int), cast(NULL as int), 3),\n" +
+        "COALESCE(4, cast(NULL as int), cast(NULL as int), cast(NULL as int)),\n" +
+        "COALESCE('1'),\n" +
+        "COALESCE('1', '23'),\n" +
+        "COALESCE(cast(NULL as varchar), '2'),\n" +
+        "COALESCE('1', cast(NULL as varchar)),\n" +
+        "COALESCE(cast(NULL as varchar), cast(NULL as varchar), '3'),\n" +
+        "COALESCE('4', cast(NULL as varchar), cast(NULL as varchar), cast(NULL as varchar)),\n" +
+        "COALESCE(1.0),\n" +
+        "COALESCE(1.0, 2),\n" +
+        "COALESCE(cast(NULL as double), 2.0),\n" +
+        "COALESCE(cast(NULL as double), 2.0, 3.0),\n" +
+        "COALESCE(2.0, cast(NULL as double), 3.0),\n" +
+        "COALESCE(cast(NULL as double), cast(NULL as double))",
+      Seq(row(1, 1, 2, 1, 3, 4, 1, 1, 2, 1, 3, 4, 1.0, 1.0, 2.0, 2.0, 2.0, null))
+    )
+  }
 }
