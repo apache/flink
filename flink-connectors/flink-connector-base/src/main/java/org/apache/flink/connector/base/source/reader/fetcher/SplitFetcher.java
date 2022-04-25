@@ -235,6 +235,26 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         }
     }
 
+    /**
+     * Called when some splits of this source instance progressed too much beyond the global
+     * watermark of all subtasks. If the split reader implements {@link SplitReader}, it will relay
+     * the information asynchronously through the split fetcher thread.
+     *
+     * @param splitsToPause the splits to pause
+     * @param splitsToResume the splits to resume
+     */
+    public void pauseOrResumeSplits(
+            Collection<SplitT> splitsToPause, Collection<SplitT> splitsToResume) {
+        lock.lock();
+        try {
+            enqueueTaskUnsafe(
+                    new PauseOrResumeSplitsTask<>(splitReader, splitsToPause, splitsToResume));
+            wakeUpUnsafe(true);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void enqueueTask(SplitFetcherTask task) {
         lock.lock();
         try {

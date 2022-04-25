@@ -19,18 +19,25 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * The interface for a source reader which is responsible for reading the records from the source
  * splits assigned by {@link SplitEnumerator}.
+ *
+ * <p>For most non-trivial source reader, it is recommended to use {@link
+ * org.apache.flink.connector.base.source.reader.SourceReaderBase SourceReaderBase} which provides
+ * an efficient hand-over protocol to avoid blocking I/O inside the task thread and supports various
+ * split-threading models.
  *
  * <p>Implementations can provide the following metrics:
  *
@@ -132,4 +139,28 @@ public interface SourceReader<T, SplitT extends SourceSplit>
      */
     @Override
     default void notifyCheckpointComplete(long checkpointId) throws Exception {}
+
+    /**
+     * Pauses or resumes reading of individual source splits.
+     *
+     * <p>Note that no other methods can be called in parallel, so it's fine to non-atomically
+     * update subscriptions. This method is simply providing connectors with more expressive APIs
+     * the opportunity to update all subscriptions at once.
+     *
+     * <p>This is currently used to align the watermarks of splits, if watermark alignment is used
+     * and the source reads from more than one split.
+     *
+     * <p>The default implementation throws an {@link UnsupportedOperationException} where the
+     * default implementation will be removed in future releases. To be compatible with future
+     * releases, it is recommended to implement this method and override the default implementation.
+     *
+     * @param splitsToPause the splits to pause
+     * @param splitsToResume the splits to resume
+     */
+    @PublicEvolving
+    default void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        throw new UnsupportedOperationException(
+                "This source reader does not support pause or resume splits.");
+    }
 }

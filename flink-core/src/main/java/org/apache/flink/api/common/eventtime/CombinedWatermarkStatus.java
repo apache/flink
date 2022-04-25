@@ -95,6 +95,12 @@ final class CombinedWatermarkStatus {
     static class PartialWatermark {
         private long watermark = Long.MIN_VALUE;
         private boolean idle = false;
+        private final WatermarkOutputMultiplexer.SplitWatermarkUpdateListener onWatermarkUpdate;
+
+        public PartialWatermark(
+                WatermarkOutputMultiplexer.SplitWatermarkUpdateListener onWatermarkUpdate) {
+            this.onWatermarkUpdate = onWatermarkUpdate;
+        }
 
         /**
          * Returns the current watermark timestamp. This will throw {@link IllegalStateException} if
@@ -114,7 +120,10 @@ final class CombinedWatermarkStatus {
         public boolean setWatermark(long watermark) {
             this.idle = false;
             final boolean updated = watermark > this.watermark;
-            this.watermark = Math.max(watermark, this.watermark);
+            if (updated) {
+                this.onWatermarkUpdate.updateWatermark(watermark);
+                this.watermark = Math.max(watermark, this.watermark);
+            }
             return updated;
         }
 

@@ -29,6 +29,7 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -141,6 +142,30 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     }
 
     public abstract void addSplits(List<SplitT> splitsToAdd);
+
+    public void alignSplitsWatermarks(
+            Collection<String> splitIdsToPause, Collection<String> splitIdsToResume) {
+        for (SplitFetcher<E, SplitT> fetcher : fetchers.values()) {
+            Map<String, SplitT> idToSplit = fetcher.assignedSplits();
+            List<SplitT> splitsToPause = lookupInAssignment(splitIdsToPause, idToSplit);
+            List<SplitT> splitsToResume = lookupInAssignment(splitIdsToResume, idToSplit);
+            if (!splitsToPause.isEmpty() || !splitsToResume.isEmpty()) {
+                fetcher.pauseOrResumeSplits(splitsToPause, splitsToResume);
+            }
+        }
+    }
+
+    private List<SplitT> lookupInAssignment(
+            Collection<String> splitIds, Map<String, SplitT> assignment) {
+        List<SplitT> splits = new ArrayList<>();
+        for (String s : splitIds) {
+            SplitT split = assignment.get(s);
+            if (split != null) {
+                splits.add(split);
+            }
+        }
+        return splits;
+    }
 
     protected void startFetcher(SplitFetcher<E, SplitT> fetcher) {
         executors.submit(fetcher);
