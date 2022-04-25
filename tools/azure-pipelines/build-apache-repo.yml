@@ -79,6 +79,9 @@ stages:
           vmImage: 'ubuntu-20.04'
         steps:
           # Skip docs check if this is a pull request that doesn't contain a documentation change
+          - task: GoTool@0
+            inputs:
+              version: '1.18.1'
           - bash: |
               source ./tools/azure-pipelines/build_properties.sh
               pr_contains_docs_changes
@@ -151,6 +154,9 @@ stages:
         pool:
           vmImage: 'ubuntu-20.04'
         steps:
+          - task: GoTool@0
+            inputs:
+              version: '1.18.1'
           - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
