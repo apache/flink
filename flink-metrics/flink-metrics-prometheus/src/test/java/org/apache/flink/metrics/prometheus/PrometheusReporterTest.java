@@ -27,8 +27,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.metrics.filter.MetricFilter;
-import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.util.NetUtils;
 
 import com.mashape.unirest.http.HttpResponse;
@@ -121,7 +119,6 @@ class PrometheusReporterTest {
 
     private void assertThatGaugeIsExported(Metric metric, String name, String expectedValue)
             throws UnirestException {
-        final String prometheusName = SCOPE_PREFIX + name;
         assertThat(addMetricAndPollResponse(metric, name))
                 .contains(createExpectedPollResponse(name, "", "gauge", expectedValue));
     }
@@ -283,10 +280,5 @@ class PrometheusReporterTest {
             base += 100;
             return NetUtils.getPortRangeFromString(lowEnd + "-" + highEnd);
         }
-    }
-
-    private static ReporterScopedSettings createReporterScopedSettings() {
-        return new ReporterScopedSettings(
-                0, ',', MetricFilter.NO_OP_FILTER, Collections.emptySet(), Collections.emptyMap());
     }
 }
