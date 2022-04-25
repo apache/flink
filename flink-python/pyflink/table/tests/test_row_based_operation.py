@@ -81,7 +81,6 @@ class RowBasedOperationTests(object):
 
         def func3(x):
             assert isinstance(x, Row)
-            x.set_field_names(['c', 'd'])
             return x
 
         pandas_udf = udf(func,

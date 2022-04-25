@@ -361,6 +361,7 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE,
     // remove output of rank number when it is not used by successor calc
     RedundantRankNumberColumnRemoveRule.INSTANCE
