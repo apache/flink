@@ -18,15 +18,13 @@
 
 package org.apache.flink.formats.json;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
-import org.apache.flink.table.utils.LegacyRowResource;
+import org.apache.flink.table.utils.LegacyRowExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,10 +34,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** ITCase to test json format for {@link JsonFormatFactory}. */
-public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
+/** ITCase to test json format for {@link JsonFormatFactory}. */
+class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
+
+    @RegisterExtension
+    LegacyRowExtension usesLegacyRows= LegacyRowExtension.INSTANCE;
+
+    @TempDir private static File temporaryFolder;
 
     @Override
     public String[] formatProperties() {
@@ -50,11 +55,26 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Test
-    public void testParseError() throws Exception {
-        String path = new URI(resultPath()).getPath();
+    void testParseError(@TempDir java.nio.file.Path temporaryFolder) throws Exception {
+        String sql =
+                String.format(
+                        "create table nonPartitionedTable ("
+                                + "x string,"
+                                + "y int,"
+                                + "a int,"
+                                + "b bigint"
+                                + ") with ("
+                                + "'connector' = 'filesystem',"
+                                + "'path' = '%s',"
+                                + "%s)",
+                        "file://"+temporaryFolder.toString(), String.join(",\n", formatProperties()));
+        tEnv().executeSql(sql);
+
+        String path = new URI(temporaryFolder.toString()).getPath();
         new File(path).mkdirs();
         File file = new File(path, "temp_file");
         file.createNewFile();
+
         FileUtils.writeFileUtf8(
                 file,
                 "{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n"
@@ -67,7 +87,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Test
-    public void bigDataTest() throws IOException {
+    void bigDataTest() throws IOException {
         int numRecords = 1000;
         File dir = generateTestData(numRecords);
 
@@ -88,7 +108,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         List<String> elements = new ArrayList<>();
         result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
-        Assert.assertEquals(numRecords, elements.size());
+        assertThat(elements.size()).isEqualTo(numRecords);
         elements.sort(String::compareTo);
 
         List<String> expected = new ArrayList<>();
@@ -97,11 +117,11 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         }
         expected.sort(String::compareTo);
 
-        Assert.assertEquals(expected, elements);
+        assertThat(elements).isEqualTo(expected);
     }
 
     private static File generateTestData(int numRecords) throws IOException {
-        File tempDir = TEMPORARY_FOLDER.newFolder();
+        File tempDir = temporaryFolder;
 
         File root = new File(tempDir, "id=0");
         root.mkdir();
