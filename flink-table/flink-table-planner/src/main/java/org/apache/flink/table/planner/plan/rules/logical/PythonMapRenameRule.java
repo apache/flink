@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
@@ -60,16 +61,15 @@ public class PythonMapRenameRule extends RelOptRule {
                         .map(topCalc.getProgram()::expandLocalRef)
                         .collect(Collectors.toList());
 
-        int inputRowFieldCount =
-                topCalc.getProgram()
-                        .getInputRowType()
-                        .getFieldList()
-                        .get(0)
-                        .getValue()
-                        .getFieldList()
-                        .size();
+        List<RelDataTypeField> fields = topCalc.getProgram().getInputRowType().getFieldList();
 
-        if (inputRowFieldCount != topProjects.size()) {
+        if (fields.size() != 1 || !fields.get(0).getValue().isStruct()) {
+            return false;
+        }
+
+        List<RelDataTypeField> fieldDataTypes = fields.get(0).getValue().getFieldList();
+
+        if (fieldDataTypes.size() != topProjects.size()) {
             return false;
         }
 
