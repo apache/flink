@@ -652,6 +652,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             JobManagerRunnerResult jobManagerRunnerResult, ExecutionType executionType) {
         if (jobManagerRunnerResult.isInitializationFailure()
                 && executionType == ExecutionType.RECOVERY) {
+            // fail fatally to make the Dispatcher fail-over and recover all jobs once more (which
+            // can only happen in HA mode)
             return CompletableFuture.completedFuture(
                     jobManagerRunnerFailed(
                             jobManagerRunnerResult.getExecutionGraphInfo().getJobId(),
