@@ -255,6 +255,7 @@ public class FineGrainedSlotManager implements SlotManager {
     @Override
     public void clearResourceRequirements(JobID jobId) {
         jobMasterTargetAddresses.remove(jobId);
+        taskManagerTracker.clearPendingAllocationsOfJob(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
     }
 
@@ -263,22 +264,23 @@ public class FineGrainedSlotManager implements SlotManager {
         checkInit();
         if (resourceRequirements.getResourceRequirements().isEmpty()
                 && resourceTracker.isRequirementEmpty(resourceRequirements.getJobId())) {
+            // Skip duplicate empty resource requirements.
             return;
-        } else if (resourceRequirements.getResourceRequirements().isEmpty()) {
+        }
+
+        if (resourceRequirements.getResourceRequirements().isEmpty()) {
             LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
+            jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
+            taskManagerTracker.clearPendingAllocationsOfJob(resourceRequirements.getJobId());
         } else {
             LOG.info(
                     "Received resource requirements from job {}: {}",
                     resourceRequirements.getJobId(),
                     resourceRequirements.getResourceRequirements());
-        }
-
-        if (resourceRequirements.getResourceRequirements().isEmpty()) {
-            jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
-        } else {
             jobMasterTargetAddresses.put(
                     resourceRequirements.getJobId(), resourceRequirements.getTargetAddress());
         }
+
         resourceTracker.notifyResourceRequirements(
                 resourceRequirements.getJobId(), resourceRequirements.getResourceRequirements());
         checkResourceRequirementsWithDelay();

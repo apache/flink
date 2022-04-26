@@ -80,6 +80,12 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
     }
 
     @Override
+    public void clearPendingAllocationsOfJob(JobID jobId) {
+        LOG.info("Clear all pending allocations for job {}.", jobId);
+        pendingSlotAllocationRecords.values().forEach(allocation -> allocation.remove(jobId));
+    }
+
+    @Override
     public void addTaskManager(
             TaskExecutorConnection taskExecutorConnection,
             ResourceProfile totalResourceProfile,
