@@ -86,8 +86,8 @@ class KubernetesPodsWatcherTest {
                                 e -> {
                                     assertThat(e)
                                             .isInstanceOf(
-                                                    KubernetesTooOldResourceVersionException.class);
-                                    assertThat(e).hasMessageContaining(errMsg);
+                                                    KubernetesTooOldResourceVersionException.class)
+                                            .hasMessageContaining(errMsg);
                                 }));
         podsWatcher.onClose(
                 new WatcherException(

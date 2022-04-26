@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * IT Tests for {@link org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient} with real K8s
  * server and client.
  */
-public class Fabric8FlinkKubeClientITCase {
+class Fabric8FlinkKubeClientITCase {
 
     @RegisterExtension
     private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
@@ -68,7 +68,7 @@ public class Fabric8FlinkKubeClientITCase {
     private ExecutorService executorService;
 
     @BeforeEach
-    private void setup() throws Exception {
+    void setup() throws Exception {
         flinkKubeClient = kubernetesExtension.getFlinkKubeClient();
         flinkKubeClient
                 .createConfigMap(
@@ -86,7 +86,7 @@ public class Fabric8FlinkKubeClientITCase {
     }
 
     @AfterEach
-    private void teardown() throws Exception {
+    void teardown() throws Exception {
         executorService.shutdownNow();
         flinkKubeClient.deleteConfigMap(TEST_CONFIG_MAP_NAME).get();
     }

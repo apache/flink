@@ -39,7 +39,7 @@ class KubernetesWorkerResourceSpecFactoryTest {
         configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
-                .isEqualByComparingTo(new CPUResource(1.0));
+                .isEqualTo(new CPUResource(1.0));
     }
 
     @Test
@@ -50,7 +50,7 @@ class KubernetesWorkerResourceSpecFactoryTest {
         configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
-                .isEqualByComparingTo(new CPUResource(2.0));
+                .isEqualTo(new CPUResource(2.0));
     }
 
     @Test
@@ -59,6 +59,6 @@ class KubernetesWorkerResourceSpecFactoryTest {
         configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
-                .isEqualByComparingTo(new CPUResource(3.0));
+                .isEqualTo(new CPUResource(3.0));
     }
 }

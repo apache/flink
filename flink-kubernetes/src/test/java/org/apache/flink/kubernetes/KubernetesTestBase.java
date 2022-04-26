@@ -30,12 +30,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.concurrent.Executors;
 
-import io.fabric8.kubernetes.api.model.Config;
-import io.fabric8.kubernetes.api.model.ConfigBuilder;
-import io.fabric8.kubernetes.api.model.NamedClusterBuilder;
-import io.fabric8.kubernetes.api.model.NamedContextBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -43,7 +38,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,8 +82,7 @@ public class KubernetesTestBase {
     protected void onSetup() throws Exception {}
 
     @BeforeEach
-    private final void setup(
-            @TempDir File flinkConfDir, @TempDir File hadoopConfDir, @TempDir File kerberosDir)
+    void setup(@TempDir File flinkConfDir, @TempDir File hadoopConfDir, @TempDir File kerberosDir)
             throws Exception {
         this.flinkConfDir = flinkConfDir.getAbsoluteFile();
         this.hadoopConfDir = hadoopConfDir.getAbsoluteFile();
@@ -107,7 +100,7 @@ public class KubernetesTestBase {
     }
 
     @AfterEach
-    private void tearDown() throws Exception {
+    void tearDown() throws Exception {
         flinkKubeClient.close();
     }
 
@@ -137,34 +130,5 @@ public class KubernetesTestBase {
     protected void generateKerberosFileItems() throws IOException {
         KubernetesTestUtils.createTemporyFile("some keytab", kerberosDir, KEYTAB_FILE);
         KubernetesTestUtils.createTemporyFile("some conf", kerberosDir, KRB5_CONF_FILE);
-    }
-
-    protected String writeKubeConfigForMockKubernetesServer(@TempDir Path kubeConfPath)
-            throws Exception {
-        final Config kubeConfig =
-                new ConfigBuilder()
-                        .withApiVersion(server.getClient().getApiVersion())
-                        .withClusters(
-                                new NamedClusterBuilder()
-                                        .withName(CLUSTER_ID)
-                                        .withNewCluster()
-                                        .withNewServer(server.getClient().getMasterUrl().toString())
-                                        .withInsecureSkipTlsVerify(true)
-                                        .endCluster()
-                                        .build())
-                        .withContexts(
-                                new NamedContextBuilder()
-                                        .withName(CLUSTER_ID)
-                                        .withNewContext()
-                                        .withCluster(CLUSTER_ID)
-                                        .withUser(
-                                                server.getClient().getConfiguration().getUsername())
-                                        .endContext()
-                                        .build())
-                        .withNewCurrentContext(CLUSTER_ID)
-                        .build();
-        final File kubeConfigFile = new File(kubeConfPath.resolve(".kube").toFile(), "config");
-        Serialization.yamlMapper().writeValue(kubeConfigFile, kubeConfig);
-        return kubeConfigFile.getAbsolutePath();
     }
 }

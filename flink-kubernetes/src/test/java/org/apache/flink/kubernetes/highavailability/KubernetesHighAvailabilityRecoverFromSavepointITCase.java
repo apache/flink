@@ -49,9 +49,9 @@ import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -68,7 +68,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for recovering from savepoint when Kubernetes HA is enabled. The savepoint will be
  * persisted as a checkpoint and stored in the ConfigMap when recovered successfully.
  */
-public class KubernetesHighAvailabilityRecoverFromSavepointITCase {
+class KubernetesHighAvailabilityRecoverFromSavepointITCase {
 
     private static final long TIMEOUT = 60 * 1000;
 
@@ -79,7 +79,6 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private static Path temporaryPath;
 
     @RegisterExtension
-    @Order(1)
     private static final MiniClusterExtension miniClusterExtension =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
@@ -89,7 +88,6 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             .build());
 
     @RegisterExtension
-    @Order(2)
     private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private ClusterClient<?> clusterClient;
@@ -97,7 +95,7 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private String savepointPath;
 
     @BeforeEach
-    private void setup(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+    void setup(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         this.clusterClient = clusterClient;
         this.savepointPath =
                 Files.createDirectory(temporaryPath.resolve("savepoints"))
@@ -148,7 +146,7 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase {
         try {
             temporaryPath = Files.createTempDirectory("haStorage");
         } catch (IOException e) {
-            throw new RuntimeException("can't create ha storage path.");
+            throw new FlinkRuntimeException("Failed to create HA storage", e);
         }
         configuration.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, temporaryPath.toAbsolutePath().toString());

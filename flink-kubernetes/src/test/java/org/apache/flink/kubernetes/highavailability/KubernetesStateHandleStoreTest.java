@@ -45,7 +45,6 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link KubernetesStateHandleStore} operations. */
@@ -61,7 +60,7 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
     private TestingLongStateHandleHelper.LongStateHandle state;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         super.setup();
         state = new TestingLongStateHandleHelper.LongStateHandle(12345L);
         TestingLongStateHandleHelper.clearGlobalState();
@@ -408,23 +407,30 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
 
                             assertThat(store.exists(key))
                                     .isEqualByComparingTo(StringResourceVersion.notExisting());
-                            StateHandleStore.NotExistException exception =
-                                    catchThrowableOfType(
+                            assertThatThrownBy(
                                             () ->
                                                     store.replace(
                                                             key,
                                                             StringResourceVersion.notExisting(),
-                                                            newState),
-                                            StateHandleStore.NotExistException.class);
-                            assertThat(exception.getSuppressed()).hasSize(1);
-                            assertThatChainOfCauses(exception.getSuppressed()[0])
-                                    .anySatisfy(
-                                            cause ->
-                                                    assertThat(cause)
-                                                            .isInstanceOf(
-                                                                    discardException.getClass())
-                                                            .hasMessageContaining(
-                                                                    discardException.getMessage()));
+                                                            newState))
+                                    .satisfies(
+                                            cause -> {
+                                                assertThat(cause)
+                                                        .isInstanceOf(
+                                                                StateHandleStore.NotExistException
+                                                                        .class);
+                                                assertThat(cause.getSuppressed()).hasSize(1);
+                                                assertThatChainOfCauses(cause.getSuppressed()[0])
+                                                        .anySatisfy(
+                                                                ex ->
+                                                                        assertThat(ex)
+                                                                                .isInstanceOf(
+                                                                                        discardException
+                                                                                                .getClass())
+                                                                                .hasMessageContaining(
+                                                                                        discardException
+                                                                                                .getMessage()));
+                                            });
 
                             // Only the new handle should have been discarded.
                             assertThat(TestingLongStateHandleHelper.getGlobalStorageSize())
@@ -603,8 +609,7 @@ class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTestBase 
                                                             new TestingLongStateHandleHelper
                                                                     .LongStateHandle(23456L)),
                                             "An exception having a PossibleInconsistentStateException as its cause should have been thrown.")
-                                    .satisfies(
-                                            cause -> assertThat(cause).isEqualTo(updateException));
+                                    .isEqualTo(updateException);
                             assertThat(anotherStore.getAllAndLock()).hasSize(1);
                             // The state does not change
                             assertThat(anotherStore.getAndLock(key).retrieveState())

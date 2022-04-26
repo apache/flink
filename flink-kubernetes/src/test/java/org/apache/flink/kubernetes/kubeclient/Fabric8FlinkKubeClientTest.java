@@ -363,7 +363,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     @Test
     void testNodePortServiceWithNoMatchingIP() {
         mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
-        assertThat(flinkKubeClient.getRestEndpoint(CLUSTER_ID).isPresent()).isFalse();
+        assertThat(flinkKubeClient.getRestEndpoint(CLUSTER_ID)).isNotPresent();
     }
 
     @Test
@@ -411,9 +411,12 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         this.flinkKubeClient.createConfigMap(configMap).get();
         final Optional<KubernetesConfigMap> currentOpt =
                 this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME);
-        assertThat(currentOpt).isPresent();
-        assertThat(currentOpt.get().getData())
-                .containsEntry(TESTING_CONFIG_MAP_KEY, TESTING_CONFIG_MAP_VALUE);
+        assertThat(currentOpt)
+                .hasValueSatisfying(
+                        map ->
+                                assertThat(map.getData())
+                                        .containsEntry(
+                                                TESTING_CONFIG_MAP_KEY, TESTING_CONFIG_MAP_VALUE));
     }
 
     @Test
@@ -556,8 +559,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                         "checkAndUpdateConfigMap should fail without a PossibleInconsistentStateException being the cause when number of retries has been exhausted.")
                 .satisfies(
                         anyCauseMatches(
-                                "Could not complete the "
-                                        + "operation. Number of retries has been exhausted."))
+                                "Could not complete the operation. Number of retries has been exhausted."))
                 .satisfies(
                         cause ->
                                 assertThatChainOfCauses(cause)

@@ -43,7 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /** Base class for high availability unit tests with a configured testing Kubernetes client. */
-public class KubernetesHighAvailabilityTestBase {
+class KubernetesHighAvailabilityTestBase {
     private static final String CLUSTER_ID = "leader-test-cluster";
 
     public static final String LOCK_IDENTITY = UUID.randomUUID().toString();
@@ -57,14 +57,14 @@ public class KubernetesHighAvailabilityTestBase {
     protected ExecutorService watchCallbackExecutorService;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("IO-Executor"));
         watchCallbackExecutorService =
                 Executors.newCachedThreadPool(new ExecutorThreadFactory("Watch-Callback"));
     }
 
     @AfterEach
-    public void teardown() {
+    void teardown() {
         ExecutorUtils.gracefulShutdown(
                 TIMEOUT, TimeUnit.MILLISECONDS, watchCallbackExecutorService, executorService);
     }

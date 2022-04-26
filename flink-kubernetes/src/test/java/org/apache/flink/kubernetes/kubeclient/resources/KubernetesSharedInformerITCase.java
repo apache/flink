@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** IT Tests for the {@link KubernetesSharedInformer}. */
-public class KubernetesSharedInformerITCase {
+class KubernetesSharedInformerITCase {
 
     @RegisterExtension
     private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
@@ -60,14 +60,14 @@ public class KubernetesSharedInformerITCase {
     private ExecutorService watchCallbackExecutorService;
 
     @BeforeEach
-    private void setUp() throws Exception {
+    void setUp() throws Exception {
         client = kubernetesExtension.getFlinkKubeClient();
         watchCallbackExecutorService =
                 Executors.newCachedThreadPool(new ExecutorThreadFactory("Watch-Callback"));
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, watchCallbackExecutorService);
         client.deleteConfigMapsByLabels(labels).get();
     }

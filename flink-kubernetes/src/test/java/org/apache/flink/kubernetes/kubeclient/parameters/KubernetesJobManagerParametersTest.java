@@ -77,7 +77,7 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     @Test
     void testGetEmptyAnnotations() {
-        assertThat(kubernetesJobManagerParameters.getAnnotations().isEmpty()).isTrue();
+        assertThat(kubernetesJobManagerParameters.getAnnotations()).isEmpty();
     }
 
     @Test

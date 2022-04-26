@@ -39,6 +39,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for the {@link KubernetesSessionCli}. */
 class KubernetesSessionCliTest {
@@ -79,10 +80,12 @@ class KubernetesSessionCliTest {
 
         final Map<String, String> executorConfigMap = executorConfig.toMap();
         assertThat(executorConfigMap).hasSize(4);
-        assertThat(executorConfigMap.get("akka.ask.timeout")).isEqualTo("5 min");
-        assertThat(executorConfigMap.get("env.java.opts")).isEqualTo("-DappName=foobar");
-        assertThat(confDirPath.toAbsolutePath().toString())
-                .isEqualTo(executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
+        assertThat(executorConfigMap)
+                .contains(
+                        entry("akka.ask.timeout", "5 min"),
+                        entry("env.java.opts", "-DappName=foobar"));
+        assertThat(executorConfig.get(DeploymentOptionsInternal.CONF_DIR))
+                .isEqualTo(confDirPath.toAbsolutePath().toString());
         assertThat(executorConfigMap).containsKey(DeploymentOptions.TARGET.key());
     }
 

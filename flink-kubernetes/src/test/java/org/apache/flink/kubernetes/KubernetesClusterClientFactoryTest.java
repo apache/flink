@@ -45,6 +45,6 @@ class KubernetesClusterClientFactoryTest {
         final ClusterClientFactory<String> factory =
                 serviceLoader.getClusterClientFactory(configuration);
 
-        assertThat(factory instanceof KubernetesClusterClientFactory).isTrue();
+        assertThat(factory).isInstanceOf(KubernetesClusterClientFactory.class);
     }
 }

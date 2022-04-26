@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * org.apache.flink.runtime.jobmanager.JobGraphStore} and {@link
  * org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} implementation for Kubernetes.
  */
-public class KubernetesStateHandleStoreITCase {
+class KubernetesStateHandleStoreITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
 

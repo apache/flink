@@ -38,14 +38,12 @@ class FlinkPodTest extends KubernetesTestBase {
                         KubernetesPodTemplateTestUtils.getPodTemplateFile(),
                         KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
         final FlinkPod copiedFlinkPod = flinkPod.copy();
-        assertThat(flinkPod == copiedFlinkPod).isFalse();
-        assertThat(
-                        flinkPod.getPodWithoutMainContainer()
-                                == copiedFlinkPod.getPodWithoutMainContainer())
-                .isFalse();
+        assertThat(flinkPod).isNotSameAs(copiedFlinkPod);
+        assertThat(flinkPod.getPodWithoutMainContainer())
+                .isNotSameAs(copiedFlinkPod.getPodWithoutMainContainer());
         assertThat(flinkPod.getPodWithoutMainContainer())
                 .isEqualTo(copiedFlinkPod.getPodWithoutMainContainer());
-        assertThat(flinkPod.getMainContainer() == copiedFlinkPod.getMainContainer()).isFalse();
+        assertThat(flinkPod.getMainContainer()).isNotSameAs(copiedFlinkPod.getMainContainer());
         assertThat(flinkPod.getMainContainer()).isEqualTo(copiedFlinkPod.getMainContainer());
     }
 }

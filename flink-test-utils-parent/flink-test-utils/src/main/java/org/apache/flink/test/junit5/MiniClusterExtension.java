@@ -241,7 +241,9 @@ public final class MiniClusterExtension
 
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
-        internalMiniClusterExtension.afterAll(context);
+        if (internalMiniClusterExtension != null) {
+            internalMiniClusterExtension.afterAll(context);
+        }
     }
 
     // Implementation

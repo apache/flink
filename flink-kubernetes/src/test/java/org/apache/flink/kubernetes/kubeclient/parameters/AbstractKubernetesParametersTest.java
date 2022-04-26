@@ -31,6 +31,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -115,7 +116,7 @@ public class AbstractKubernetesParametersTest {
         runTestWithEmptyEnv(
                 () -> {
                     final String hadoopHome = temporaryFolder.toAbsolutePath().toString();
-                    Files.createDirectories(temporaryFolder.resolve("etc/hadoop"));
+                    Files.createDirectories(temporaryFolder.resolve(Paths.get("etc", "hadoop")));
                     setEnv(Constants.ENV_HADOOP_HOME, hadoopHome);
 
                     final Optional<String> optional =

@@ -109,7 +109,7 @@ class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     @Test
     void testGetEmptyAnnotations() {
-        assertThat(kubernetesTaskManagerParameters.getAnnotations().isEmpty()).isTrue();
+        assertThat(kubernetesTaskManagerParameters.getAnnotations()).isEmpty();
     }
 
     @Test

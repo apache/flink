@@ -72,10 +72,10 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             assertThat(electionEventHandler.getConfirmedLeaderInformation())
                                     .isEqualTo(LeaderInformation.empty());
                             // The ConfigMap should also be cleared
-                            assertThat(getLeaderConfigMap().getData().get(LEADER_ADDRESS_KEY))
-                                    .isNull();
-                            assertThat(getLeaderConfigMap().getData().get(LEADER_SESSION_ID_KEY))
-                                    .isNull();
+                            assertThat(getLeaderConfigMap().getData())
+                                    .doesNotContainKey(LEADER_ADDRESS_KEY);
+                            assertThat(getLeaderConfigMap().getData())
+                                    .doesNotContainKey(LEADER_SESSION_ID_KEY);
                         });
             }
         };

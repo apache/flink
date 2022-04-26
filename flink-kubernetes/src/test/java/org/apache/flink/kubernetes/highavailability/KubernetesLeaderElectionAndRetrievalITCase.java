@@ -29,7 +29,6 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -48,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * become the leader and {@link KubernetesLeaderRetrievalDriver} could retrieve the leader address
  * from Kubernetes.
  */
-public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
+class KubernetesLeaderElectionAndRetrievalITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     private static final String LEADER_ADDRESS =

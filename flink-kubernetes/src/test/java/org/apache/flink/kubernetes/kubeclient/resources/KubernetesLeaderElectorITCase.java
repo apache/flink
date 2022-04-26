@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * IT Tests for the {@link KubernetesLeaderElector}. Start multiple leader contenders currently, one
  * should elect successfully. And if current leader dies, a new one could take over.
  */
-public class KubernetesLeaderElectorITCase {
+class KubernetesLeaderElectorITCase {
     @RegisterExtension
     private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 

@@ -60,7 +60,7 @@ class KubernetesResourceManagerDriverTest
             KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
                     new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID, "localhost:9000");
 
-    @org.junit.jupiter.api.Test
+    @Test
     void testOnPodAdded() throws Exception {
         new Context() {
             {
