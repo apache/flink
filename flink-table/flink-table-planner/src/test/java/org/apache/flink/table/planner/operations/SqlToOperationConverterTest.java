@@ -1495,7 +1495,7 @@ public class SqlToOperationConverterTest {
         assertThatThrownBy(() -> parse("alter table tb1 drop a", SqlDialect.DEFAULT))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Table `cat1`.`db1`.`tb1` only has one column, please use DROP TABLE syntax.");
+                        "Drop all columns of table is not allowed, please use DROP TABLE syntax.");
 
         CatalogTable catalogTable2 =
                 CatalogTable.of(

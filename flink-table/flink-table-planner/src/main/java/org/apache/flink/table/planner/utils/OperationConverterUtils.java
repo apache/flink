@@ -135,7 +135,7 @@ public class OperationConverterUtils {
         boolean isPrimaryKey = alterTableDropConstraint.isPrimaryKey();
         Optional<Schema.UnresolvedPrimaryKey> oriPrimaryKey =
                 catalogTable.getUnresolvedSchema().getPrimaryKey();
-        // validate primary key is exists in table
+        // validate primary key exists in table
         if (!oriPrimaryKey.isPresent()) {
             throw new ValidationException(
                     String.format("Table %s does not exist primary key.", tableIdentifier));
@@ -204,11 +204,9 @@ public class OperationConverterUtils {
                         .collect(Collectors.toList());
 
         // validate column size
-        if (originTableColumns.size() == 1 && toDropColumns.size() > 0) {
+        if (originTableColumns.size() == toDropColumns.size() && toDropColumns.size() > 0) {
             throw new ValidationException(
-                    String.format(
-                            "Table %s only has one column, please use DROP TABLE syntax.",
-                            tableIdentifier));
+                    "Drop all columns of table is not allowed, please use DROP TABLE syntax.");
         }
 
         // validate the dropped column is referenced by computed column
@@ -247,7 +245,7 @@ public class OperationConverterUtils {
                     originPrimaryKeyNames.stream()
                             .filter(pkName -> !toDropColumns.contains(pkName))
                             .collect(Collectors.toList());
-            if (newPrimaryKeyNames.size() > 0) {
+            if (!newPrimaryKeyNames.isEmpty()) {
                 builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
             }
         }
