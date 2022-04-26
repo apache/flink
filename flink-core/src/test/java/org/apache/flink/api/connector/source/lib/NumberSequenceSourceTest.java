@@ -40,6 +40,7 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
+// TODO: fix comment
 /** Tests for the {@link NumberSequenceSource}. */
 public class NumberSequenceSourceTest {
 
@@ -102,7 +103,7 @@ public class NumberSequenceSourceTest {
 
     private static SourceReader<Long, NumberSequenceSplit<Long>> createReader() {
         // the arguments passed in the source constructor matter only to the enumerator
-        return new NumberSequenceSource(0L, 0L).createReader(new DummyReaderContext());
+        return GeneratorSource.numberGenerator(0L, 0L).createReader(new DummyReaderContext());
     }
 
     // ------------------------------------------------------------------------

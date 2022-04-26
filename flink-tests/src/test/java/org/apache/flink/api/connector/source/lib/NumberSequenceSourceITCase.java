@@ -38,6 +38,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+// TODO: fix comments
 /**
  * An integration test for the sources based on iterators.
  *
@@ -65,7 +66,7 @@ public class NumberSequenceSourceITCase extends TestLogger {
 
         final DataStream<Long> stream =
                 env.fromSource(
-                        new NumberSequenceSource(1L, 1_000L),
+                        GeneratorSource.numberGenerator(1L, 1_000L),
                         WatermarkStrategy.noWatermarks(),
                         "iterator source");
 

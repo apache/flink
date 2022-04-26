@@ -42,7 +42,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.lib.GeneratorSource;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -1054,6 +1053,7 @@ public class StreamExecutionEnvironment {
     // Data stream creations
     // --------------------------------------------------------------------------------------------
 
+    // TODO: fix comments
     /**
      * Creates a new data stream that contains a sequence of numbers. This is a parallel source, if
      * you manually set the parallelism to {@code 1} (using {@link
@@ -1075,6 +1075,7 @@ public class StreamExecutionEnvironment {
         return addSource(new StatefulSequenceSource(from, to), "Sequence Source (Deprecated)");
     }
 
+    // TODO: fix comments
     /**
      * Creates a new data stream that contains a sequence of numbers (longs) and is useful for
      * testing and for cases that just need a stream of N events of any kind.
@@ -1100,25 +1101,14 @@ public class StreamExecutionEnvironment {
                     "Start of sequence must not be greater than the end");
         }
         return fromSource(
-                new NumberSequenceSource(from, to),
+                GeneratorSource.numberGenerator(from, to),
                 WatermarkStrategy.noWatermarks(),
                 "Sequence Source");
     }
 
-    public <OUT> SingleOutputStreamOperator<OUT> fromFunction(
-            MapFunction<Long, OUT> generator, long count) {
-        final DataStreamSource<Long> sequence_source =
-                fromSource(
-                        new NumberSequenceSource(0, count),
-                        WatermarkStrategy.noWatermarks(),
-                        "Sequence Source");
-        SingleOutputStreamOperator<OUT> map = sequence_source.map(generator);
-        return map;
-    }
-
     public <OUT> DataStreamSource<OUT> fromGenerator(
             MapFunction<Long, OUT> generator, long count, TypeInformation<OUT> typeInfo) {
-        GeneratorSource<OUT> source = GeneratorSource.from(generator, count, typeInfo);
+        GeneratorSource<OUT> source = GeneratorSource.from(count, generator, typeInfo);
         String sourceName = "Generator Source";
 
         final TypeInformation<OUT> resolvedTypeInfo =

@@ -19,7 +19,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -140,7 +140,7 @@ public class UnalignedCheckpointFailureHandlingITCase {
         // with zero alignment timeout some steps here are not strictly necessary currently, but
         // this may change in the future
         env.fromSource(
-                        new NumberSequenceSource(0, Long.MAX_VALUE),
+                        GeneratorSource.numberGenerator(0, Long.MAX_VALUE),
                         WatermarkStrategy.noWatermarks(),
                         "num-source")
                 // source is not parallel, so keyBy to send to all down-streams

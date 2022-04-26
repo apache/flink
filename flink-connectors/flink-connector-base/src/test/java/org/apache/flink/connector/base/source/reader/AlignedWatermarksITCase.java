@@ -25,7 +25,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -109,7 +109,7 @@ public class AlignedWatermarksITCase {
 
         DataStream<Long> slowSource =
                 env.fromSource(
-                                new NumberSequenceSource(0, Long.MAX_VALUE),
+                                GeneratorSource.numberGenerator(0, Long.MAX_VALUE),
                                 WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
                                         .withWatermarkAlignment(
                                                 "group-1",
@@ -128,7 +128,7 @@ public class AlignedWatermarksITCase {
 
         DataStream<Long> fastSource =
                 env.fromSource(
-                                new NumberSequenceSource(0, Long.MAX_VALUE),
+                                GeneratorSource.numberGenerator(0, Long.MAX_VALUE),
                                 WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
                                         .withWatermarkAlignment(
                                                 "group-1",

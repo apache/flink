@@ -25,11 +25,12 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSplit;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceEnumerator;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
+import org.apache.flink.api.scala.typeutils.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -276,6 +277,7 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
     //  Specialized Source
     // ------------------------------------------------------------------------
 
+    // TODO: fix comment
     /**
      * This is an enumerator for the {@link NumberSequenceSource}, which only responds to the split
      * requests after the next checkpoint is complete. That way, we naturally draw the split
@@ -319,14 +321,14 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
     }
 
-    private static class TestingNumberSequenceSource extends NumberSequenceSource {
+    private static class TestingNumberSequenceSource extends GeneratorSource<Long> {
         private static final long serialVersionUID = 1L;
 
         private final int numSplits;
         private final long numAllowedMessageBeforeCheckpoint;
 
         public TestingNumberSequenceSource(long from, long to, int numSplits) {
-            super(from, to);
+            super(from, to, MapFunction.identity(), Types.LONG());
             this.numSplits = numSplits;
             this.numAllowedMessageBeforeCheckpoint = (to - from) / numSplits;
         }

@@ -20,7 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -162,19 +162,19 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 
         final DataStream<Long> source1 =
                 env.fromSource(
-                        new NumberSequenceSource(1L, 10L),
+                        GeneratorSource.numberGenerator(1L, 10L),
                         WatermarkStrategy.noWatermarks(),
                         "source-1");
 
         final DataStream<Long> source2 =
                 env.fromSource(
-                        new NumberSequenceSource(11L, 20L),
+                        GeneratorSource.numberGenerator(11L, 20L),
                         WatermarkStrategy.noWatermarks(),
                         "source-2");
 
         final DataStream<Long> source3 =
                 env.fromSource(
-                        new NumberSequenceSource(21L, 30L),
+                        GeneratorSource.numberGenerator(21L, 30L),
                         WatermarkStrategy.noWatermarks(),
                         "source-3");
 
@@ -201,19 +201,19 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 
         final DataStream<Long> source1 =
                 env.fromSource(
-                        new NumberSequenceSource(1L, 10L),
+                        GeneratorSource.numberGenerator(1L, 10L),
                         WatermarkStrategy.noWatermarks(),
                         "source-1");
 
         final DataStream<Long> source2 =
                 env.fromSource(
-                        new NumberSequenceSource(11L, 20L),
+                        GeneratorSource.numberGenerator(11L, 20L),
                         WatermarkStrategy.noWatermarks(),
                         "source-2");
 
         final DataStream<Long> source3 =
                 env.fromSource(
-                        new NumberSequenceSource(21L, 30L),
+                        GeneratorSource.numberGenerator(21L, 30L),
                         WatermarkStrategy.noWatermarks(),
                         "source-3");
 
@@ -245,25 +245,25 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 
         final DataStream<Long> source1 =
                 env.fromSource(
-                        new NumberSequenceSource(1L, 10L),
+                        GeneratorSource.numberGenerator(1L, 10L),
                         WatermarkStrategy.noWatermarks(),
                         "source-1");
 
         final DataStream<Long> source2 =
                 env.fromSource(
-                        new NumberSequenceSource(11L, 20L),
+                        GeneratorSource.numberGenerator(11L, 20L),
                         WatermarkStrategy.noWatermarks(),
                         "source-2");
 
         final DataStream<Long> source3 =
                 env.fromSource(
-                        new NumberSequenceSource(21L, 30L),
+                        GeneratorSource.numberGenerator(21L, 30L),
                         WatermarkStrategy.noWatermarks(),
                         "source-3");
 
         final DataStream<Long> source4 =
                 env.fromSource(
-                        new NumberSequenceSource(31L, 40L),
+                        GeneratorSource.numberGenerator(31L, 40L),
                         WatermarkStrategy.noWatermarks(),
                         "source-4");
 
@@ -296,37 +296,37 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 
         final DataStream<Long> source1 =
                 env.fromSource(
-                        new NumberSequenceSource(1L, 10L),
+                        GeneratorSource.numberGenerator(1L, 10L),
                         WatermarkStrategy.noWatermarks(),
                         "source-1");
 
         final DataStream<Long> source2 =
                 env.fromSource(
-                        new NumberSequenceSource(11L, 20L),
+                        GeneratorSource.numberGenerator(11L, 20L),
                         WatermarkStrategy.noWatermarks(),
                         "source-2");
 
         final DataStream<Long> source3 =
                 env.fromSource(
-                        new NumberSequenceSource(21L, 30L),
+                        GeneratorSource.numberGenerator(21L, 30L),
                         WatermarkStrategy.noWatermarks(),
                         "source-3");
 
         final DataStream<Long> source4 =
                 env.fromSource(
-                        new NumberSequenceSource(31L, 40L),
+                        GeneratorSource.numberGenerator(31L, 40L),
                         WatermarkStrategy.noWatermarks(),
                         "source-4");
 
         final DataStream<Long> source5 =
                 env.fromSource(
-                        new NumberSequenceSource(41L, 50L),
+                        GeneratorSource.numberGenerator(41L, 50L),
                         WatermarkStrategy.noWatermarks(),
                         "source-5");
 
         final DataStream<Long> source6 =
                 env.fromSource(
-                        new NumberSequenceSource(51L, 60L),
+                        GeneratorSource.numberGenerator(51L, 60L),
                         WatermarkStrategy.noWatermarks(),
                         "source-6");
 

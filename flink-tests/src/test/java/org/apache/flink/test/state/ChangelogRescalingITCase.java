@@ -20,13 +20,15 @@ package org.apache.flink.test.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSplit;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
+import org.apache.flink.api.scala.typeutils.Types;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -248,11 +250,11 @@ public class ChangelogRescalingITCase extends TestLogger {
         }
     }
 
-    private static class ThrottlingNumberSequenceSource extends NumberSequenceSource {
+    private static class ThrottlingNumberSequenceSource extends GeneratorSource<Long> {
         private final int numbersPerSecond;
 
         public ThrottlingNumberSequenceSource(long from, long to, int numbersPerSecondPerReader) {
-            super(from, to);
+            super(from, to, MapFunction.identity(), Types.LONG());
             this.numbersPerSecond = numbersPerSecondPerReader;
         }
 

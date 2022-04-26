@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.source.lib;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -42,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.util.InstantiationUtil.serializeObject;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,8 +53,11 @@ public class GeneratorSource<OUT>
 
     private static final long serialVersionUID = 1L;
 
+    /** The starting number in the sequence, inclusive. */
+    private final long from;
+
     /** The end number in the sequence, inclusive. */
-    private final long count;
+    private final long to;
 
     private final TypeInformation<OUT> typeInfo;
 
@@ -62,23 +65,47 @@ public class GeneratorSource<OUT>
 
     public final Boundedness boundedness;
 
-    public long getCount() {
-        return count;
+    public long getFrom() {
+        return from;
+    }
+
+    public long getTo() {
+        return to;
+    }
+
+    protected GeneratorSource(
+            long from, long to, MapFunction<Long, OUT> mapFunction, TypeInformation<OUT> typeInfo) {
+        this.mapFunction = checkNotNull(mapFunction);
+        checkArgument(from <= to, "'from' must be <= 'to'");
+        this.from = from;
+        this.to = to;
+        this.typeInfo = typeInfo;
+        boundedness = to == Long.MAX_VALUE ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     private GeneratorSource(
-            MapFunction<Long, OUT> mapFunction, long count, TypeInformation<OUT> typeInfo) {
+            long count, MapFunction<Long, OUT> mapFunction, TypeInformation<OUT> typeInfo) {
         this.mapFunction = checkNotNull(mapFunction);
         checkArgument(count > 0, "count must be > 0");
-        this.count = count;
+        this.from = 0;
+        this.to = count;
         this.typeInfo = typeInfo;
         boundedness =
                 count == Long.MAX_VALUE ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     public static <OUT> GeneratorSource<OUT> from(
-            MapFunction<Long, OUT> mapFunction, long count, TypeInformation<OUT> typeInfo) {
-        return new GeneratorSource<>(mapFunction, count, typeInfo);
+            long from, long to, MapFunction<Long, OUT> mapFunction, TypeInformation<OUT> typeInfo) {
+        return new GeneratorSource<>(from, to, mapFunction, typeInfo);
+    }
+
+    public static GeneratorSource<Long> numberGenerator(long from, long to) {
+        return new GeneratorSource<>(from, to, MapFunction.identity(), Types.LONG);
+    }
+
+    public static <OUT> GeneratorSource<OUT> from(
+            long count, MapFunction<Long, OUT> mapFunction, TypeInformation<OUT> typeInfo) {
+        return new GeneratorSource<>(count, mapFunction, typeInfo);
     }
 
     // ------------------------------------------------------------------------
@@ -106,7 +133,7 @@ public class GeneratorSource<OUT>
             createEnumerator(SplitEnumeratorContext<NumberSequenceSplit<OUT>> enumContext)
                     throws Exception {
         final List<NumberSequenceSplit<OUT>> splits =
-                splitNumberRange(count, enumContext.currentParallelism());
+                splitNumberRange(from, to, enumContext.currentParallelism());
         return new IteratorSourceEnumerator<>(enumContext, splits);
     }
 
@@ -130,9 +157,9 @@ public class GeneratorSource<OUT>
         return new CheckpointSerializer();
     }
 
-    protected List<NumberSequenceSplit<OUT>> splitNumberRange(long to, int numSplits) {
+    protected List<NumberSequenceSplit<OUT>> splitNumberRange(long from, long to, int numSplits) {
         final NumberSequenceIterator[] subSequences =
-                new NumberSequenceIterator(0, to).split(numSplits);
+                new NumberSequenceIterator(from, to).split(numSplits);
         final ArrayList<NumberSequenceSplit<OUT>> splits = new ArrayList<>(subSequences.length);
 
         int splitId = 1;
@@ -192,7 +219,6 @@ public class GeneratorSource<OUT>
         out.writeUTF(split.splitId());
         out.writeLong(split.from());
         out.writeLong(split.to());
-        out.write(serializeObject(split.mapFunction()));
     }
 
     NumberSequenceSplit<OUT> deserializeV1(DataInputView in) throws IOException {

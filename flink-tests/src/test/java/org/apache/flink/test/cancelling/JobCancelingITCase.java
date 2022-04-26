@@ -21,7 +21,7 @@ package org.apache.flink.test.cancelling;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -73,7 +73,7 @@ public class JobCancelingITCase extends TestLogger {
         // Check both FLIP-27 and normal sources
         final DataStreamSource<Long> source1 =
                 env.fromSource(
-                        new NumberSequenceSource(1L, Long.MAX_VALUE),
+                        GeneratorSource.numberGenerator(1L, Long.MAX_VALUE),
                         WatermarkStrategy.noWatermarks(),
                         "source-1");
 

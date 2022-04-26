@@ -33,7 +33,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -955,7 +955,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
         chainEnv.fromSource(
-                        new NumberSequenceSource(0, 10), WatermarkStrategy.noWatermarks(), "input")
+                        GeneratorSource.numberGenerator(0, 10),
+                        WatermarkStrategy.noWatermarks(),
+                        "input")
                 .map((x) -> x)
                 .transform(
                         "test", BasicTypeInfo.LONG_TYPE_INFO, new YieldingTestOperatorFactory<>())
@@ -1352,7 +1354,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 .map(
                         name ->
                                 env.fromSource(
-                                                new NumberSequenceSource(1, 2),
+                                                GeneratorSource.numberGenerator(1, 2),
                                                 WatermarkStrategy.noWatermarks(),
                                                 name)
                                         .getTransformation())
@@ -1471,7 +1473,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                     .map(
                             name ->
                                     env.fromSource(
-                                                    new NumberSequenceSource(1, 2),
+                                                    GeneratorSource.numberGenerator(1, 2),
                                                     WatermarkStrategy.noWatermarks(),
                                                     name)
                                             .setDescription(name)

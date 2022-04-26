@@ -18,10 +18,6 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.connector.source.lib.GeneratorSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -40,11 +36,11 @@ public class GeneratorSourceCheck {
         //        DataStreamSource<String> ds = env.fromGenerator(generator, 10, Types.STRING);
         //        ds.print();
 
-        MapFunction<Long, String> generator = value -> ">>> " + value;
+        /*        MapFunction<Long, String> generator = value -> ">>> " + value;
         GeneratorSource<String> from = GeneratorSource.from(generator, 10, Types.STRING);
         DataStreamSource<String> watermarked =
                 env.fromSource(from, WatermarkStrategy.noWatermarks(), "watermarked");
-        //        watermarked.print();
+                watermarked.print();*/
 
         DataStreamSource<Long> longDataStreamSource = env.fromSequence(0, 10);
         longDataStreamSource.print();
