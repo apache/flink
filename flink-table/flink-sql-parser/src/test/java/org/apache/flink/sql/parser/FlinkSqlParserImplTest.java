@@ -314,7 +314,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testAlterTableAdd() {
+    void testAlterTableAdd() {
         // add single column
         sql("alter table t1 add new_column string comment 'new_column docs'")
                 .ok("ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs'");
