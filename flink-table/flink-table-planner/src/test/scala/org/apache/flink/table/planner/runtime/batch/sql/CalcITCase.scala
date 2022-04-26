@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
@@ -68,6 +69,16 @@ class CalcITCase extends BatchTestBase {
     registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfData3)
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfData3)
     registerCollection("testTable", buildInData, buildInType, "a,b,c,d,e,f,g,h,i,j")
+  }
+
+  @Test
+  def testSelectWithLegacyCastIntToDate(): Unit = {
+    tEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+      LegacyCastBehaviour.ENABLED)
+    checkResult(
+      "SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END",
+      Seq(row("1970-01-03")))
   }
 
   @Test
