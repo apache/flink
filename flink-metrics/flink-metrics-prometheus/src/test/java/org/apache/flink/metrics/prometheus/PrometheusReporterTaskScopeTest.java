@@ -137,8 +137,8 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(histogram2, METRIC_NAME, metricGroup2);
 
         final String exportedMetrics = pollMetrics(reporter.getPort()).getBody();
-        assertThat(exportedMetrics).contains("label2=\"value1_2\",} 1.0"); // histogram
-        assertThat(exportedMetrics).contains("label2=\"value2_2\",} 2.0"); // histogram
+        assertThat(exportedMetrics).contains("label2=\"value1_2\",} 1.0");
+        assertThat(exportedMetrics).contains("label2=\"value2_2\",} 2.0");
 
         final String[] labelNamesWithQuantile = addToArray(LABEL_NAMES, "quantile");
         for (Double quantile : PrometheusReporter.HistogramSummaryProxy.QUANTILES) {
