@@ -36,9 +36,11 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<cassandra.version>2.2.5</cassandra.version>
-		<driver.version>3.0.0</driver.version>
-		<guava.version>18.0</guava.version>
+		<!-- Cassandra version 4.x allow to address clusters of version 3.x as well -->
+		<cassandra.version>4.0.3</cassandra.version>
+		<!--driver 3.x works with 3.x and 4.x versions of Cassandra but driver 4.x is a complete refactoring with different API-->
+		<driver.version>3.11.2</driver.version>
+		<guava.version>19.0</guava.version>
 	</properties>
 
 	<build>
@@ -140,11 +142,11 @@ under the License.
 			<artifactId>scala-library</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
+<!--		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
-		</dependency>
+		</dependency>-->
 
 		<!-- Table ecosystem -->
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
