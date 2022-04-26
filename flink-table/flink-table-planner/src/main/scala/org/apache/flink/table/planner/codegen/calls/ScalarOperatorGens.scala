@@ -940,7 +940,8 @@ object ScalarOperatorGens {
           internalExprCasting(operand, targetType)
         } else {
           throw new CodeGenException(
-            s"Only legacy cast behaviour supports cast from '${operand.resultType}' to '$targetType'.")
+            "Only legacy cast behaviour supports cast from "
+              + s"'${operand.resultType}' to '$targetType'.")
         }
 
       // identity casting
