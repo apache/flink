@@ -68,7 +68,7 @@ table_env.execute_sql("""
 # create a Table from a Table API query:
 source_table = table_env.from_path("datagen")
 # or create a Table from a SQL query:
-source_table = table_env.sql_query("SELECT * FROM datagen")
+# source_table = table_env.sql_query("SELECT * FROM datagen")
 
 result_table = source_table.select(source_table.id + 1, source_table.data)
 
@@ -76,7 +76,7 @@ result_table = source_table.select(source_table.id + 1, source_table.data)
 # emit a Table API result Table to a sink table:
 result_table.execute_insert("print").wait()
 # or emit results via SQL query:
-table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
+# table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 ```
 
 {{< top >}}
@@ -84,7 +84,7 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 Create a TableEnvironment
 ---------------------------
 
-The `TableEnvironment` is a central concept of the Table API and SQL integration. The following code example shows how to create a TableEnvironment:
+`TableEnvironment` is a central concept of the Table API and SQL integration. The following code example shows how to create a TableEnvironment:
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -121,7 +121,7 @@ A `Table` is always bound to a specific `TableEnvironment`. It is not possible t
 
 ### Create using a List Object
 
-You can create a Table from a list object:
+You can create a Table from a list object, this is usually used when writing examples or unit tests.
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -131,61 +131,63 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
-table.to_pandas()
+table.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   _1     _2
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   _1 |                             _2 |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
 You can also create the Table with specified column names:
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+table.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   id |                           data |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
-By default the table schema is extracted from the data automatically. 
-
-If the automatically generated table schema isn't satisfactory, you can specify it manually:
+By default, the table schema is extracted from the data automatically. If the automatically generated table schema isn't satisfactory, you can also specify it manually:
 
 ```python
-table_without_schema = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-# by default the type of the "id" column is 64 bit int
-default_type = table_without_schema.to_pandas()["id"].dtype
-print('By default the type of the "id" column is %s.' % default_type)
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+# by default, the type of the "id" column is BIGINT
+print('By default the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 
 from pyflink.table import DataTypes
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                                 DataTypes.ROW([DataTypes.FIELD("id", DataTypes.TINYINT()),
                                                DataTypes.FIELD("data", DataTypes.STRING())]))
-# now the type of the "id" column is 8 bit int
-type = table.to_pandas()["id"].dtype
-print('Now the type of the "id" column is %s.' % type)
+# now the type of the "id" column is set as TINYINT
+print('Now the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 ```
 
-The result is:
+The results are as following:
 
 ```text
-By default the type of the "id" column is int64.
-Now the type of the "id" column is int8.
+By default the type of the "id" column is BIGINT.
+Now the type of the "id" column is TINYINT.
 ```
 
-### Create using a Connector
+### Create using DDL statements
 
-You can create a Table using connector DDL:
+You can also create a Table using SQL DDL statements.
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -209,21 +211,66 @@ table_env.execute_sql("""
     )
 """)
 table = table_env.from_path("random_source")
-table.to_pandas()
+table.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
+```
+
+### Create using TableDescriptor
+
+TableDescriptor is another way to define a Table. It's equivalent to SQL DDL statements.
+
+```python
+from pyflink.table import EnvironmentSettings, TableEnvironment, TableDescriptor, Schema, DataTypes
+
+# create a stream TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table_env.create_temporary_table(
+    'random_source',
+    TableDescriptor.for_connector('datagen')
+        .schema(Schema.new_builder()
+                .column('id', DataTypes.BIGINT())
+                .column('data', DataTypes.TINYINT())
+                .build())
+        .option('fields.id.kind', 'sequence')
+        .option('fields.id.start', '1')
+        .option('fields.id.end', '3')
+        .option('fields.data.kind', 'sequence')
+        .option('fields.data.start', '4')
+        .option('fields.data.end', '6')
+        .build())
+
+table = table_env.from_path("random_source")
+table.execute().print()
+```
+
+The results are as following:
+
+```text
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
 ```
 
 ### Create using a Catalog
 
-A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier.
+`TableEnvironment` maintains a map of catalogs of tables which are created with an identifier.
 
 The tables in a catalog may either be temporary, and tied to the lifecycle of a single Flink session, or permanent, and visible across multiple Flink sessions.
 
@@ -241,15 +288,18 @@ table_env.create_temporary_view('source_table', table)
 
 # create Table API table from catalog
 new_table = table_env.from_path('source_table')
-new_table.to_pandas()
+new_table.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----+----------------------+--------------------------------+
+| op |                   id |                           data |
++----+----------------------+--------------------------------+
+| +I |                    1 |                             Hi |
+| +I |                    2 |                          Hello |
++----+----------------------+--------------------------------+
 ```
 
 {{< top >}}
@@ -284,14 +334,17 @@ revenue = orders \
     .group_by(orders.name) \
     .select(orders.name, orders.revenue.sum.alias('rev_sum'))
     
-revenue.to_pandas()
+revenue.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   name  rev_sum
-0  Jack       30
++--------------------------------+----------------------+
+|                           name |              rev_sum |
++--------------------------------+----------------------+
+|                           Jack |                   30 |
++--------------------------------+----------------------+
 ```
 
 The [Row-based Operations]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations) are also supported in Python Table API, which include [Map Operation]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations),
@@ -313,21 +366,24 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
                                  ['name', 'country', 'revenue'])
 
 map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
-                    result_type=DataTypes.ROW(
-                                [DataTypes.FIELD("name", DataTypes.STRING()),
-                                 DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
-                    func_type="pandas")
+                   result_type=DataTypes.ROW(
+                               [DataTypes.FIELD("name", DataTypes.STRING()),
+                                DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
+                   func_type="pandas")
 
-orders.map(map_function).to_pandas()
+orders.map(map_function).execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   name  revenue
-0  Jack      100
-1  Rose      300
-2  Jack      200
++--------------------------------+----------------------+
+|                           name |              revenue |
++--------------------------------+----------------------+
+|                           Jack |                  100 |
+|                           Rose |                  300 |
+|                           Jack |                  200 |
++--------------------------------+----------------------+
 ```
 
 ### Write SQL Queries
@@ -379,7 +435,7 @@ table_env.execute_sql("""
 """).wait()
 ```
 
-The result is:
+The results are as following:
 
 ```text
 2> +I(4,11)
@@ -433,7 +489,7 @@ table_env.create_temporary_view('table_api_table', table)
 table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
 ```
 
-The result is:
+The results are as following:
 
 ```text
 6> +I(1,Hi)
@@ -463,20 +519,23 @@ table_env.execute_sql("""
 table = table_env.from_path("sql_source")
 
 # or create the table from a sql query
-table = table_env.sql_query("SELECT * FROM sql_source")
+# table = table_env.sql_query("SELECT * FROM sql_source")
 
 # emit the table
-table.to_pandas()
+table.execute().print()
 ```
 
-The result is:
+The results are as following:
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   4     7
-3   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
+| +I |                    4 |      7 |
++----+----------------------+--------+
 ```
 
 {{< top >}}
@@ -504,7 +563,7 @@ with res.collect() as results:
        print(result)
 ```
 
-The result is：
+The results are as following：
 
 ```text
 <Row(2, 'Hi', 'Hello')>
@@ -517,10 +576,10 @@ You can call the "to_pandas" method to [convert a `Table` object to a pandas Dat
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+print(table.to_pandas())
 ```
 
-The result is:
+The results are as following:
 
 ```text
    id   data
@@ -550,7 +609,7 @@ table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table.execute_insert("sink_table").wait()
 ```
 
-The result is:
+The results are as following:
 
 ```text
 6> +I(1,Hi)
@@ -602,7 +661,7 @@ statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple
 statement_set.execute().wait()
 ```
 
-The result is:
+The results are as following:
 
 ```text
 7> +I(1,Hi)
@@ -640,7 +699,7 @@ table = table1 \
 print(table.explain())
 ```
 
-The result is:
+The results are as following:
 
 ```text
 == Abstract Syntax Tree ==
@@ -712,7 +771,7 @@ statement_set.add_insert("black_hole_sink_table", table2)
 print(statement_set.explain())
 ```
 
-The result is:
+The results are as following:
 
 ```text
 == Abstract Syntax Tree ==
