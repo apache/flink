@@ -105,7 +105,7 @@ class AkkaRpcActorTest {
         CompletableFuture<DummyRpcGateway> futureRpcGateway =
                 akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
 
-        DummyRpcGateway rpcGateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
+        DummyRpcGateway rpcGateway = futureRpcGateway.get();
 
         assertThat(rpcGateway.getAddress()).isEqualTo(rpcEndpoint.getAddress());
     }
@@ -119,7 +119,7 @@ class AkkaRpcActorTest {
         CompletableFuture<DummyRpcGateway> futureRpcGateway =
                 akkaRpcService.connect("foobar", DummyRpcGateway.class);
 
-        assertThatThrownBy(() -> futureRpcGateway.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> futureRpcGateway.get())
                 .hasCauseInstanceOf(RpcConnectionException.class);
     }
 
@@ -136,7 +136,7 @@ class AkkaRpcActorTest {
         DummyRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(DummyRpcGateway.class);
 
         // this message should be discarded and complete with an exception
-        assertThatThrownBy(() -> rpcGateway.foobar().get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> rpcGateway.foobar().get())
                 .hasCauseInstanceOf(EndpointNotStartedException.class);
 
         // set a new value which we expect to be returned
@@ -150,7 +150,7 @@ class AkkaRpcActorTest {
             CompletableFuture<Integer> result = rpcGateway.foobar();
 
             // now we should receive a result :-)
-            Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
+            Integer actualValue = result.get();
 
             assertThat(actualValue).isEqualTo(expectedValue);
         } finally {
@@ -187,7 +187,7 @@ class AkkaRpcActorTest {
         ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
         CompletableFuture<Integer> result = rpcGateway.doStuff();
 
-        assertThatThrownBy(() -> result.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> result.get())
                 .extracting(e -> e.getCause())
                 .satisfies(
                         e ->
@@ -204,7 +204,7 @@ class AkkaRpcActorTest {
         ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
         CompletableFuture<Integer> result = rpcGateway.doStuff();
 
-        assertThatThrownBy(() -> result.get(timeout.getSize(), timeout.getUnit()))
+        assertThatThrownBy(() -> result.get())
                 .extracting(e -> e.getCause())
                 .satisfies(
                         e -> assertThat(e).isInstanceOf(Exception.class).hasMessage("some test"));
@@ -302,11 +302,10 @@ class AkkaRpcActorTest {
 
             rpcService.stopService();
 
-            terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            terminationFuture.get();
         } finally {
             rpcActorSystem.terminate();
-            AkkaFutureUtils.toJava(rpcActorSystem.whenTerminated())
-                    .get(timeout.getSize(), timeout.getUnit());
+            AkkaFutureUtils.toJava(rpcActorSystem.whenTerminated()).get();
         }
     }
 

@@ -60,8 +60,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ContextClassLoadingSettingTest {
 
-    private static final Time TIMEOUT = Time.milliseconds(10000L);
-
     // Many of the contained tests assert that a future is completed with a specific context class
     // loader by applying a synchronous operation.
     // If the initial future is completed by the time we apply the synchronous operation the test
@@ -98,7 +96,7 @@ class ContextClassLoadingSettingTest {
                 AkkaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get();
 
         actorSystem = null;
         akkaRpcService = null;

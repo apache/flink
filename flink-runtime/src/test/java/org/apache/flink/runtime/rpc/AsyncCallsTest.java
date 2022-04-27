@@ -250,7 +250,7 @@ public class AsyncCallsTest extends TestLogger {
                 testRunAsync(endpoint -> endpoint.callAsync(() -> true, timeout), newFencingToken);
 
         try {
-            resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            resultFuture.get();
 
             fail("The async call operation should fail due to the changed fencing token.");
         } catch (ExecutionException e) {
@@ -271,7 +271,7 @@ public class AsyncCallsTest extends TestLogger {
                         endpoint -> endpoint.callAsyncWithoutFencing(() -> true, timeout),
                         newFencingToken);
 
-        assertTrue(resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+        assertTrue(resultFuture.get());
     }
 
     @Test
@@ -320,7 +320,7 @@ public class AsyncCallsTest extends TestLogger {
 
             triggerSetNewFencingToken.trigger();
 
-            newFencingTokenFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            newFencingTokenFuture.get();
 
             return result;
         } finally {

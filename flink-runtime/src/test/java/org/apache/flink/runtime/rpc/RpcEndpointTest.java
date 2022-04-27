@@ -51,7 +51,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @ExtendWith(TestLoggerExtension.class)
 public class RpcEndpointTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
     private static RpcService rpcService = null;
 
     @BeforeAll
@@ -181,7 +180,7 @@ public class RpcEndpointTest {
         assertFalse(gateway.queryIsRunningFlag().get());
 
         stopFuture.complete(null);
-        terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        terminationFuture.get();
         endpoint.validateResourceClosed();
     }
 
@@ -289,7 +288,7 @@ public class RpcEndpointTest {
                                 endpoint.validateRunsInMainThread();
                                 asyncExecutionFuture.complete(null);
                             });
-            asyncExecutionFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+            asyncExecutionFuture.get();
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
@@ -451,8 +450,8 @@ public class RpcEndpointTest {
                                 endpoint.validateRunsInMainThread();
                                 return expectedInteger;
                             },
-                            TIMEOUT);
-            assertEquals(expectedInteger, integerFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit()));
+                            Time.seconds(10L));
+            assertEquals(expectedInteger, integerFuture.get());
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
