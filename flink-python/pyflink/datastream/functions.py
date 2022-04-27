@@ -17,13 +17,23 @@
 ################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Union, Any, Generic, TypeVar, Iterable
+from typing import Any, Generic, Iterable, TypeVar, Union
 
 from py4j.java_gateway import JavaObject
-
-from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
-    ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState
+from pyflink.datastream.state import (
+    AggregatingState,
+    AggregatingStateDescriptor,
+    BroadcastState,
+    ListState,
+    ListStateDescriptor,
+    MapState,
+    MapStateDescriptor,
+    ReadOnlyBroadcastState,
+    ReducingState,
+    ReducingStateDescriptor,
+    ValueState,
+    ValueStateDescriptor,
+)
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
@@ -51,11 +61,13 @@ __all__ = [
     'ProcessWindowFunction']
 
 
-W = TypeVar('W')
-W2 = TypeVar('W2')
-IN = TypeVar('IN')
-OUT = TypeVar('OUT')
-KEY = TypeVar('KEY')
+W = TypeVar("W")
+W2 = TypeVar("W2")
+IN = TypeVar("IN")
+IN1 = TypeVar("IN1")
+IN2 = TypeVar("IN2")
+OUT = TypeVar("OUT")
+KEY = TypeVar("KEY")
 
 
 class KeyedStateStore(ABC):
@@ -979,6 +991,77 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         pass
 
 
+class BaseBroadcastProcessFunction(Function):
+    class BaseContext(ABC):
+        @abstractmethod
+        def timestamp(self) -> int:
+            pass
+
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            pass
+
+        @abstractmethod
+        def current_watermark(self) -> int:
+            pass
+
+    class Context(BaseContext):
+        @abstractmethod
+        def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
+            pass
+
+    class ReadOnlyContext(BaseContext):
+        @abstractmethod
+        def get_broadcast_state(
+            self, state_descriptor: MapStateDescriptor
+        ) -> ReadOnlyBroadcastState:
+            pass
+
+
+class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, OUT]):
+    class Context(BaseBroadcastProcessFunction.Context, ABC):
+        pass
+
+    class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext, ABC):
+        pass
+
+    @abstractmethod
+    def process_element(self, value: IN1, ctx: ReadOnlyContext):
+        pass
+
+    @abstractmethod
+    def process_broadcast_element(self, value: IN2, ctx: Context):
+        pass
+
+
+class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, IN1, IN2, OUT]):
+    class Context(BaseBroadcastProcessFunction.Context):
+        @abstractmethod
+        def apply_to_keyed_state(self):
+            """
+            TODO
+            """
+            pass
+
+    class ReadOnlyContext(BaseBroadcastProcessFunction.ReadOnlyContext):
+        @abstractmethod
+        def timer_service(self) -> TimerService:
+            pass
+
+        @abstractmethod
+        def get_current_key(self) -> KEY:
+            pass
+
+    class OnTimerContext(ReadOnlyContext):
+        @abstractmethod
+        def time_domain(self) -> TimeDomain:
+            pass
+
+        @abstractmethod
+        def get_current_key(self) -> KEY:
+            pass
+
+
 class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
 
     def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
@@ -986,7 +1069,6 @@ class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
 
 
 class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
-
     class InternalWindowContext(ABC):
 
         @abstractmethod

@@ -24,17 +24,19 @@ from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.common.time import Time
 
 __all__ = [
-    'ValueStateDescriptor',
-    'ValueState',
-    'ListStateDescriptor',
-    'ListState',
-    'MapStateDescriptor',
-    'MapState',
-    'ReducingStateDescriptor',
-    'ReducingState',
-    'AggregatingStateDescriptor',
-    'AggregatingState',
-    'StateTtlConfig'
+    "ValueStateDescriptor",
+    "ValueState",
+    "ListStateDescriptor",
+    "ListState",
+    "MapStateDescriptor",
+    "MapState",
+    "ReducingStateDescriptor",
+    "ReducingState",
+    "AggregatingStateDescriptor",
+    "AggregatingState",
+    "StateTtlConfig",
+    "BroadcastState",
+    "ReadOnlyBroadcastState",
 ]
 
 T = TypeVar('T')
@@ -316,6 +318,61 @@ class StateDescriptor(ABC):
         :param ttl_config: Configuration of state TTL
         """
         self._ttl_config = ttl_config
+
+
+class ReadOnlyBroadcastState(State, Generic[K, V]):
+    @abstractmethod
+    def get(self, key: K) -> V:
+        pass
+
+    @abstractmethod
+    def contains(self, key: K) -> bool:
+        pass
+
+    @abstractmethod
+    def items(self) -> Iterable[Tuple[K, V]]:
+        pass
+
+    @abstractmethod
+    def keys(self) -> Iterable[K]:
+        pass
+
+    @abstractmethod
+    def values(self) -> Iterable[V]:
+        pass
+
+    @abstractmethod
+    def is_empty(self) -> bool:
+        pass
+
+    def __getitem__(self, key: K) -> V:
+        return self.get(key)
+
+    def __contains__(self, key: K) -> bool:
+        return self.contains(key)
+
+    def __iter__(self) -> Iterator[K]:
+        return iter(self.keys())
+
+
+class BroadcastState(ReadOnlyBroadcastState):
+    @abstractmethod
+    def put(self, key: K, value: V) -> None:
+        pass
+
+    @abstractmethod
+    def put_all(self, dict_value: Dict[K, V]) -> None:
+        pass
+
+    @abstractmethod
+    def remove(self, key: K) -> None:
+        pass
+
+    def __setitem__(self, key: K, value: V) -> None:
+        self.put(key, value)
+
+    def __delitem__(self, key: K) -> None:
+        self.remove(key)
 
 
 class ValueStateDescriptor(StateDescriptor):
