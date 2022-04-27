@@ -18,7 +18,6 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.testutils.TestingUtils;
@@ -230,7 +229,6 @@ public class FutureUtilsTest extends TestLogger {
      */
     public void testRetryWithDelayRetryStrategy() throws Exception {
         final int retries = 4;
-        final Time delay = Time.milliseconds(5L);
         final AtomicInteger countDown = new AtomicInteger(retries);
 
         long start = System.currentTimeMillis();

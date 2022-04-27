@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -122,7 +121,7 @@ class JMXJobManagerMetricTest {
 
             FutureUtils.retrySuccessfulWithDelay(
                             () -> client.getJobStatus(jobGraph.getJobID()),
-                            Time.milliseconds(10),
+                            Duration.ofMillis(10),
                             deadline,
                             status -> status == JobStatus.RUNNING,
                             new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))

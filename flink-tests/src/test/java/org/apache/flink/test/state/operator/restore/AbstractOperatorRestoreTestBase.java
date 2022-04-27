@@ -21,7 +21,6 @@ package org.apache.flink.test.state.operator.restore;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -148,7 +147,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         CompletableFuture<JobStatus> jobRunningFuture =
                 FutureUtils.retrySuccessfulWithDelay(
                         () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Time.milliseconds(50),
+                        Duration.ofMillis(50),
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.RUNNING,
                         scheduledExecutor);
@@ -187,7 +186,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         CompletableFuture<JobStatus> jobCanceledFuture =
                 FutureUtils.retrySuccessfulWithDelay(
                         () -> clusterClient.getJobStatus(jobToMigrate.getJobID()),
-                        Time.milliseconds(50),
+                        Duration.ofMillis(50),
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.CANCELED,
                         scheduledExecutor);
@@ -211,7 +210,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         CompletableFuture<JobStatus> jobStatusFuture =
                 FutureUtils.retrySuccessfulWithDelay(
                         () -> clusterClient.getJobStatus(jobToRestore.getJobID()),
-                        Time.milliseconds(50),
+                        Duration.ofMillis(50),
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.FINISHED,
                         scheduledExecutor);
