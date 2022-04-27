@@ -39,7 +39,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import akka.actor.ActorRef;
@@ -76,7 +75,7 @@ class AkkaRpcActorTest {
     //  shared test members
     // ------------------------------------------------------------------------
 
-    private static Time timeout = Time.milliseconds(10000L);
+    private static Duration timeout = Duration.ofSeconds(10L);
 
     private static AkkaRpcService akkaRpcService;
 
@@ -373,9 +372,9 @@ class AkkaRpcActorTest {
             assertThat(terminationFuture).isNotDone();
 
             final CompletableFuture<Integer> firstAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(timeout);
+                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
             final CompletableFuture<Integer> secondAsyncOperationFuture =
-                    asyncOperationGateway.asyncOperation(timeout);
+                    asyncOperationGateway.asyncOperation(Time.fromDuration(timeout));
 
             endpoint.awaitEnterAsyncOperation();
 
@@ -395,7 +394,7 @@ class AkkaRpcActorTest {
 
             assertThat(endpoint.getNumberAsyncOperationCalls()).isEqualTo(1);
             assertThat(secondAsyncOperationFuture)
-                    .failsWithin(TimeUtils.toDuration(timeout))
+                    .failsWithin(timeout)
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseInstanceOf(RecipientUnreachableException.class);
         } finally {

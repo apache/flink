@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -450,7 +449,7 @@ public class RpcEndpointTest {
                                 endpoint.validateRunsInMainThread();
                                 return expectedInteger;
                             },
-                            Time.seconds(10L));
+                            Duration.ofSeconds(10L));
             assertEquals(expectedInteger, integerFuture.get());
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint);
@@ -466,7 +465,7 @@ public class RpcEndpointTest {
     public void testCallAsyncTimeout()
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final Time timeout = Time.milliseconds(100);
+        final Duration timeout = Duration.ofMillis(100);
         CountDownLatch latch = new CountDownLatch(1);
         try {
             endpoint.start();
@@ -504,7 +503,7 @@ public class RpcEndpointTest {
         }
 
         @Override
-        public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
+        public <V> CompletableFuture<V> callAsync(Callable<V> callable, Duration callTimeout) {
             throw new UnsupportedOperationException();
         }
 

@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -39,6 +38,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -417,8 +417,7 @@ class ContextClassLoadingSettingTest {
         @Override
         public CompletableFuture<ClassLoader> doCallAsync() {
             return callAsync(
-                    () -> Thread.currentThread().getContextClassLoader(),
-                    Time.of(10, TimeUnit.SECONDS));
+                    () -> Thread.currentThread().getContextClassLoader(), Duration.ofSeconds(10));
         }
 
         @Override

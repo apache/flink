@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.TimeUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -409,7 +410,7 @@ public class FencedRpcEndpointTest {
 
                         return Acknowledge.get();
                     },
-                    timeout);
+                    TimeUtils.toDuration(timeout));
         }
     }
 }
