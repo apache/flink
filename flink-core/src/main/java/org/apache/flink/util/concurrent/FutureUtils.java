@@ -1008,16 +1008,6 @@ public class FutureUtils {
                 executor);
     }
 
-    /**
-     * Converts Flink time into a {@link Duration}.
-     *
-     * @param time to convert into a Duration
-     * @return Duration with the length of the given time
-     */
-    public static Duration toDuration(Time time) {
-        return Duration.ofMillis(time.toMilliseconds());
-    }
-
     // ------------------------------------------------------------------------
     //  Converting futures
     // ------------------------------------------------------------------------
