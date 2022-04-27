@@ -30,7 +30,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.client.program.ClusterClient;
@@ -711,7 +710,7 @@ public class SavepointITCase extends TestLogger {
 
             FutureUtils.retrySuccessfulWithDelay(
                     () -> client.getJobStatus(jobId),
-                    Time.milliseconds(50),
+                    Duration.ofMillis(50),
                     Deadline.now().plus(Duration.ofSeconds(30)),
                     status -> status == JobStatus.CANCELED,
                     new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));

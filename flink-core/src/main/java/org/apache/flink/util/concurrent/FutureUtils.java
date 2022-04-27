@@ -19,7 +19,6 @@
 package org.apache.flink.util.concurrent;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
@@ -322,7 +321,7 @@ public class FutureUtils {
      */
     public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
             final Supplier<CompletableFuture<T>> operation,
-            final Time retryDelay,
+            final Duration retryDelay,
             final Deadline deadline,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -343,7 +342,7 @@ public class FutureUtils {
     private static <T> void retrySuccessfulOperationWithDelay(
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
-            final Time retryDelay,
+            final Duration retryDelay,
             final Deadline deadline,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -376,7 +375,7 @@ public class FutureUtils {
                                                                         deadline,
                                                                         acceptancePredicate,
                                                                         scheduledExecutor),
-                                                retryDelay.toMilliseconds(),
+                                                retryDelay.toMillis(),
                                                 TimeUnit.MILLISECONDS);
 
                                 resultFuture.whenComplete(
