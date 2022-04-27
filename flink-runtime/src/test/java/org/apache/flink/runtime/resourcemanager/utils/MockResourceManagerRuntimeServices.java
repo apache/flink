@@ -39,7 +39,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class MockResourceManagerRuntimeServices {
 
     public final RpcService rpcService;
-    public final Time timeout;
     public final TestingHighAvailabilityServices highAvailabilityServices;
     public final HeartbeatServices heartbeatServices;
     public final DelegationTokenManager delegationTokenManager;
@@ -47,10 +46,9 @@ public class MockResourceManagerRuntimeServices {
     public final JobLeaderIdService jobLeaderIdService;
     public final SlotManager slotManager;
 
-    public MockResourceManagerRuntimeServices(RpcService rpcService, Time timeout) {
+    public MockResourceManagerRuntimeServices(RpcService rpcService) {
         this(
                 rpcService,
-                timeout,
                 DeclarativeSlotManagerBuilder.newBuilder(
                                 new ScheduledExecutorServiceAdapter(
                                         new DirectScheduledExecutorService()))
@@ -60,10 +58,8 @@ public class MockResourceManagerRuntimeServices {
                         .build());
     }
 
-    public MockResourceManagerRuntimeServices(
-            RpcService rpcService, Time timeout, SlotManager slotManager) {
+    public MockResourceManagerRuntimeServices(RpcService rpcService, SlotManager slotManager) {
         this.rpcService = checkNotNull(rpcService);
-        this.timeout = checkNotNull(timeout);
         this.slotManager = slotManager;
         highAvailabilityServices = new TestingHighAvailabilityServices();
         rmLeaderElectionService = new TestingLeaderElectionService();

@@ -880,7 +880,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                 throws Exception {
             final TestingRpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
             final MockResourceManagerRuntimeServices rmServices =
-                    new MockResourceManagerRuntimeServices(rpcService, TIMEOUT_TIME, slotManager);
+                    new MockResourceManagerRuntimeServices(rpcService, slotManager);
             final Duration retryInterval =
                     configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
             final Duration workerRegistrationTimeout =
