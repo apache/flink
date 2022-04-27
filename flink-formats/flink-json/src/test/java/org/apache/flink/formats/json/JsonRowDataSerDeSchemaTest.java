@@ -35,6 +35,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.junit.jupiter.api.Test;
+
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -49,8 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-
-import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -451,8 +451,14 @@ class JsonRowDataSerDeSchemaTest {
 
         errorMessage =
                 "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.";
-        assertThatThrownBy(() -> new JsonRowDataDeserializationSchema(
-                schema, InternalTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601))
+        assertThatThrownBy(
+                        () ->
+                                new JsonRowDataDeserializationSchema(
+                                        schema,
+                                        InternalTypeInfo.of(schema),
+                                        true,
+                                        true,
+                                        TimestampFormat.ISO_8601))
                 .hasMessageContaining(errorMessage);
     }
 
@@ -496,7 +502,7 @@ class JsonRowDataSerDeSchemaTest {
     }
 
     @Test
-    void testSerializationMapNullKey(){
+    void testSerializationMapNullKey() {
         RowType rowType =
                 (RowType)
                         ROW(FIELD("nestedMap", MAP(STRING(), MAP(STRING(), INT()))))
@@ -551,9 +557,7 @@ class JsonRowDataSerDeSchemaTest {
                 "{\"nestedMap\":{\"no-null key\":{\"no-null key\":1,\"nullKey\":2},\"nullKey\":{\"no-null key\":1,\"nullKey\":2}}}";
 
         assertThatThrownBy(() -> serializationSchema1.serialize(rowData))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(errorMessage1)
-                );
+                .satisfies(FlinkAssertions.anyCauseMatches(errorMessage1));
 
         // mapNullKey Mode is drop
         byte[] actual2 = serializationSchema2.serialize(rowData);
@@ -635,10 +639,7 @@ class JsonRowDataSerDeSchemaTest {
         String errorMessage = "Fail to serialize at field: f1.";
 
         assertThatThrownBy(() -> serializationSchema.serialize(genericRowData))
-                .satisfies(
-                        anyCauseMatches(RuntimeException.class,
-                        errorMessage)
-                );
+                .satisfies(anyCauseMatches(RuntimeException.class, errorMessage));
     }
 
     @Test
@@ -651,10 +652,7 @@ class JsonRowDataSerDeSchemaTest {
         String errorMessage = "Fail to deserialize at field: f1.";
 
         assertThatThrownBy(() -> deserializationSchema.deserialize(json.getBytes()))
-                .satisfies(
-                        anyCauseMatches(RuntimeException.class,
-                                errorMessage)
-                );
+                .satisfies(anyCauseMatches(RuntimeException.class, errorMessage));
     }
 
     private void testIgnoreParseErrors(TestSpec spec) throws Exception {
@@ -674,7 +672,9 @@ class JsonRowDataSerDeSchemaTest {
         }
         RowData rowData = ignoreErrorsSchema.deserialize(spec.json.getBytes());
         Row actual = convertToExternal(rowData, fromLogicalToDataType(spec.rowType));
-        assertThat(actual).isEqualTo(expected).withFailMessage("Test Ignore Parse Error: " + spec.json);
+        assertThat(actual)
+                .isEqualTo(expected)
+                .withFailMessage("Test Ignore Parse Error: " + spec.json);
     }
 
     private void testParseErrors(TestSpec spec) {

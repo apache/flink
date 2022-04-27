@@ -145,17 +145,21 @@ class DebeziumJsonFormatFactoryTest {
                         ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
-        assertThatThrownBy(() -> {
-            final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-            TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-                    (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
-            // should fail
-            sinkMock.valueFormat.createRuntimeEncoder(
-                    new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
-            fail();
-        }).satisfies(anyCauseMatches(RuntimeException.class,
-                "Debezium JSON serialization doesn't support "
-                        + "'debezium-json.schema-include' option been set to true."));
+        assertThatThrownBy(
+                        () -> {
+                            final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+                            TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                                    (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+                            // should fail
+                            sinkMock.valueFormat.createRuntimeEncoder(
+                                    new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
+                            fail();
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                RuntimeException.class,
+                                "Debezium JSON serialization doesn't support "
+                                        + "'debezium-json.schema-include' option been set to true."));
     }
 
     @Test

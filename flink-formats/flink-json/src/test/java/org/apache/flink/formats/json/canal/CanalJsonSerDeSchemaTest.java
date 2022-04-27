@@ -301,7 +301,7 @@ class CanalJsonSerDeSchemaTest {
 
     private static class SimpleCollector implements Collector<RowData> {
 
-        private List<RowData> list = new ArrayList<>();
+        private final List<RowData> list = new ArrayList<>();
 
         @Override
         public void collect(RowData record) {

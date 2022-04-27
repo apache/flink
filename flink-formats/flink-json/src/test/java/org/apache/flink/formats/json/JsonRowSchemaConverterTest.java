@@ -18,18 +18,18 @@
 
 package org.apache.flink.formats.json;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.util.FileUtils;
+
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.net.URL;
 import java.util.Objects;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JsonRowSchemaConverter}. */
 class JsonRowSchemaConverterTest {
@@ -120,8 +120,10 @@ class JsonRowSchemaConverterTest {
 
     @Test
     void testArrayWithAdditionalItems() {
-        assertThatThrownBy(() -> JsonRowSchemaConverter.convert(
-                "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }"))
+        assertThatThrownBy(
+                        () ->
+                                JsonRowSchemaConverter.convert(
+                                        "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

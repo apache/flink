@@ -18,13 +18,15 @@
 
 package org.apache.flink.formats.json;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
 import org.apache.flink.table.utils.LegacyRowExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,15 +36,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase to test json format for {@link JsonFormatFactory}. */
 class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 
-    @RegisterExtension
-    LegacyRowExtension usesLegacyRows= LegacyRowExtension.INSTANCE;
+    @RegisterExtension LegacyRowExtension usesLegacyRows = LegacyRowExtension.INSTANCE;
 
     @TempDir private static File temporaryFolder;
 
@@ -67,7 +66,8 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
                                 + "'connector' = 'filesystem',"
                                 + "'path' = '%s',"
                                 + "%s)",
-                        "file://"+temporaryFolder.toString(), String.join(",\n", formatProperties()));
+                        "file://" + temporaryFolder.toString(),
+                        String.join(",\n", formatProperties()));
         tEnv().executeSql(sql);
 
         String path = new URI(temporaryFolder.toString()).getPath();

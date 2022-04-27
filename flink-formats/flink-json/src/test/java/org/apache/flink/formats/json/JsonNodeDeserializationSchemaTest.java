@@ -17,16 +17,14 @@
 
 package org.apache.flink.formats.json;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.junit.jupiter.api.Test;
-
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JsonNodeDeserializationSchema}. */
 class JsonNodeDeserializationSchemaTest {

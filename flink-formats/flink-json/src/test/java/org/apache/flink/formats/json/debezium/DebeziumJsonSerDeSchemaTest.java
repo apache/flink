@@ -86,9 +86,12 @@ class DebeziumJsonSerDeSchemaTest {
 
     @Test
     void testPostgresDefaultReplicaIdentify() {
-        assertThatThrownBy(() -> testSerializationDeserialization(
+        assertThatThrownBy(
+                        () ->
+                                testSerializationDeserialization(
                                         "debezium-postgres-data-replica-identity.txt", false))
-                .as("The \"before\" field of UPDATE message is null, if you are using Debezium Postgres Connector, "
+                .as(
+                        "The \"before\" field of UPDATE message is null, if you are using Debezium Postgres Connector, "
                                 + "please check the Postgres table has been set REPLICA IDENTITY to FULL level.")
                 .isInstanceOf(Exception.class);
     }
