@@ -313,23 +313,23 @@ t = table_env.from_elements([(1, 2, "Lee"),
                              (7, 8, "Lee")]).alias("value", "count", "name")
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).execute()
+result.print()
 
 # register function
 table_env.create_temporary_function("weighted_avg", WeightedAvg())
 
 # call registered function in Table API
-result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).to_pandas()
-print(result)
+result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).execute()
+result.print()
 
 # register table
 table_env.create_temporary_view("source", t)
 
 # call registered function in SQL
 result = table_env.sql_query(
-    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
-print(result)
+    "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").execute()
+result.print()
 
 # use the general Python aggregate function in GroupBy Window Aggregation
 tumble_window = Tumble.over(lit(1).hours) \
@@ -339,9 +339,8 @@ tumble_window = Tumble.over(lit(1).hours) \
 result = t.window(tumble_window) \
         .group_by(col('w'), col('name')) \
         .select(col('w').start, col('w').end, weighted_avg(col('value'), col('count'))) \
-        .to_pandas()
-print(result)
-
+        .execute()
+result.print()
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -449,6 +448,7 @@ The following example shows how to define your own aggregate function and call i
 ```python
 from pyflink.common import Row
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
 class Top2(TableAggregateFunction):
@@ -482,13 +482,14 @@ table_env = TableEnvironment.create(env_settings)
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
 top2 = udtaf(Top2())
 t = table_env.from_elements([(1, 'Hi', 'Hello'),
-                              (3, 'Hi', 'hi'),
-                              (5, 'Hi2', 'hi'),
-                              (7, 'Hi', 'Hello'),
-                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (3, 'Hi', 'hi'),
+                             (5, 'Hi2', 'hi'),
+                             (7, 'Hi', 'Hello'),
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+t.group_by(t.b).flat_aggregate(top2).select(col('*')).execute().print()
 
 # the result is:
 #      b    a

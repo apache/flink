@@ -68,7 +68,7 @@ table_env.execute_sql("""
 # 通过 Table API 创建一张表：
 source_table = table_env.from_path("datagen")
 # 或者通过 SQL 查询语句创建一张表：
-source_table = table_env.sql_query("SELECT * FROM datagen")
+# source_table = table_env.sql_query("SELECT * FROM datagen")
 
 result_table = source_table.select(source_table.id + 1, source_table.data)
 
@@ -76,7 +76,7 @@ result_table = source_table.select(source_table.id + 1, source_table.data)
 # 将 Table API 结果表数据写入 sink 表：
 result_table.execute_insert("print").wait()
 # 或者通过 SQL 查询语句来写入 sink 表：
-table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
+# table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 ```
 
 {{< top >}}
@@ -131,56 +131,58 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   _1     _2
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   _1 |                             _2 |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
 你也可以创建具有指定列名的表：
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----------------------+--------------------------------+
+|                   id |                           data |
++----------------------+--------------------------------+
+|                    1 |                             Hi |
+|                    2 |                          Hello |
++----------------------+--------------------------------+
 ```
 
-默认情况下，表结构是从数据中自动提取的。
-
-如果自动生成的表模式不符合你的要求，你也可以手动指定：
+默认情况下，表结构是从数据中自动提取的。 如果自动生成的表模式不符合你的要求，你也可以手动指定：
 
 ```python
-table_without_schema = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 # 默认情况下，“id” 列的类型是 64 位整型
-default_type = table_without_schema.to_pandas()["id"].dtype
-print('By default the type of the "id" column is %s.' % default_type)
+print('By default the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 
 from pyflink.table import DataTypes
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                                 DataTypes.ROW([DataTypes.FIELD("id", DataTypes.TINYINT()),
                                                DataTypes.FIELD("data", DataTypes.STRING())]))
 # 现在 “id” 列的类型是 8 位整型
-type = table.to_pandas()["id"].dtype
-print('Now the type of the "id" column is %s.' % type)
+print('Now the type of the "id" column is %s.' % table.get_schema().get_field_data_type("id"))
 ```
 
 结果为：
 
 ```text
-默认情况下，“id” 列的类型是 64 位整型。
-现在 “id” 列的类型是 8 位整型。
+By default the type of the "id" column is BIGINT.
+Now the type of the "id" column is TINYINT.
 ```
 
 ### 通过 DDL 创建
@@ -209,16 +211,61 @@ table_env.execute_sql("""
     )
 """)
 table = table_env.from_path("random_source")
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
+```
+
+### 通过 TableDescriptor 创建
+
+你也可以通过 TableDescriptor 来创建表. 这种方式等价于通过 SQL DDL 语句的方式.
+
+```python
+from pyflink.table import EnvironmentSettings, TableEnvironment, TableDescriptor, Schema, DataTypes
+
+# create a stream TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table_env.create_temporary_table(
+    'random_source',
+    TableDescriptor.for_connector('datagen')
+        .schema(Schema.new_builder()
+                .column('id', DataTypes.BIGINT())
+                .column('data', DataTypes.TINYINT())
+                .build())
+        .option('fields.id.kind', 'sequence')
+        .option('fields.id.start', '1')
+        .option('fields.id.end', '3')
+        .option('fields.data.kind', 'sequence')
+        .option('fields.data.start', '4')
+        .option('fields.data.end', '6')
+        .build())
+
+table = table_env.from_path("random_source")
+table.execute().print()
+```
+
+The results are as following:
+
+```text
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
++----+----------------------+--------+
 ```
 
 ### 通过 Catalog 创建
@@ -241,15 +288,18 @@ table_env.create_temporary_view('source_table', table)
 
 # 从 catalog 中获取 Table API 表
 new_table = table_env.from_path('source_table')
-new_table.to_pandas()
+new_table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id   data
-0   1     Hi
-1   2  Hello
++----+----------------------+--------------------------------+
+| op |                   id |                           data |
++----+----------------------+--------------------------------+
+| +I |                    1 |                             Hi |
+| +I |                    2 |                          Hello |
++----+----------------------+--------------------------------+
 ```
 
 {{< top >}}
@@ -284,14 +334,17 @@ revenue = orders \
     .group_by(orders.name) \
     .select(orders.name, orders.revenue.sum.alias('rev_sum'))
     
-revenue.to_pandas()
+revenue.execute().print()
 ```
 
 结果为：
 
 ```text
-   name  rev_sum
-0  Jack       30
++--------------------------------+----------------------+
+|                           name |              rev_sum |
++--------------------------------+----------------------+
+|                           Jack |                   30 |
++--------------------------------+----------------------+
 ```
 
 Table API 也支持 [行操作]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations)的 API, 这些行操作包括 [Map Operation]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations), 
@@ -313,21 +366,24 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
                                  ['name', 'country', 'revenue'])
 
 map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
-                    result_type=DataTypes.ROW(
-                                [DataTypes.FIELD("name", DataTypes.STRING()),
-                                 DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
-                    func_type="pandas")
+                   result_type=DataTypes.ROW(
+                               [DataTypes.FIELD("name", DataTypes.STRING()),
+                                DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
+                   func_type="pandas")
 
-orders.map(map_function).to_pandas()
+orders.map(map_function).execute().print()
 ```
 
 结果为：
 
 ```text
-   name  revenue
-0  Jack      100
-1  Rose      300
-2  Jack      200
++--------------------------------+----------------------+
+|                           name |              revenue |
++--------------------------------+----------------------+
+|                           Jack |                  100 |
+|                           Rose |                  300 |
+|                           Jack |                  200 |
++--------------------------------+----------------------+
 ```
 
 ### SQL 查询
@@ -463,20 +519,23 @@ table_env.execute_sql("""
 table = table_env.from_path("sql_source")
 
 # 或者通过 SQL 查询语句创建表
-table = table_env.sql_query("SELECT * FROM sql_source")
+# table = table_env.sql_query("SELECT * FROM sql_source")
 
 # 将表中的数据写出
-table.to_pandas()
+table.execute().print()
 ```
 
 结果为：
 
 ```text
-   id  data
-0   2     5
-1   1     4
-2   4     7
-3   3     6
++----+----------------------+--------+
+| op |                   id |   data |
++----+----------------------+--------+
+| +I |                    1 |      4 |
+| +I |                    2 |      5 |
+| +I |                    3 |      6 |
+| +I |                    4 |      7 |
++----+----------------------+--------+
 ```
 
 {{< top >}}
@@ -516,7 +575,7 @@ with res.collect() as results:
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.to_pandas()
+print(table.to_pandas())
 ```
 
 结果为：
