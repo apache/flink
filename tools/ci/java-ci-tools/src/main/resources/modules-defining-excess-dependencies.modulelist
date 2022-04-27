@@ -20,7 +20,7 @@
 # These are usually undeclared shaded (or otherwise included) dependencies from transitive dependencies.
 
 flink-sql-connector-hive-2.3.9
-flink-sql-connector-hive-3.1.2
+flink-sql-connector-hive-3.1.3
 flink-sql-connector-hbase-1.4
 flink-sql-connector-hbase-2.2
 flink-python
