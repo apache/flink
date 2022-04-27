@@ -101,7 +101,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
         final MockResourceManagerRuntimeServices rmServices =
                 new MockResourceManagerRuntimeServices(
-                        RPC_SERVICE.getTestingRpcService(), TIMEOUT, slotManager);
+                        RPC_SERVICE.getTestingRpcService(), slotManager);
 
         final TestingStandaloneResourceManager rm =
                 new TestingStandaloneResourceManager(
