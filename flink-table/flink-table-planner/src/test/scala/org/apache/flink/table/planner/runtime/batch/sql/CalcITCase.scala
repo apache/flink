@@ -72,9 +72,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSelectWithLegacyCastIntToDate(): Unit = {
-    tEnv.getConfig.getConfiguration.set(
-      ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-      LegacyCastBehaviour.ENABLED)
+    tEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR, LegacyCastBehaviour.ENABLED)
     checkResult(
       "SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END",
       Seq(row("1970-01-03")))

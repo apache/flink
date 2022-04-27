@@ -54,12 +54,11 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testSelectWithLegacyCastIntToDate(): Unit = {
-    tEnv.getConfig.getConfiguration.set(
-      ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-      LegacyCastBehaviour.ENABLED)
+    tEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR, LegacyCastBehaviour.ENABLED)
 
-    val result = tEnv.sqlQuery(
-      "SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END")
+    val result = tEnv
+      .sqlQuery("SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END")
       .toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
