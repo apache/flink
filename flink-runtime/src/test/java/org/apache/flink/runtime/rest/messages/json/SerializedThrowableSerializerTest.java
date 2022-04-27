@@ -59,14 +59,18 @@ public class SerializedThrowableSerializerTest extends TestLogger {
         final SerializedThrowable deserializedSerializedThrowable =
                 objectMapper.readValue(json, SerializedThrowable.class);
 
-        assertEquals("message", deserializedSerializedThrowable.getMessage());
+        assertEquals("java.lang.Exception: message", deserializedSerializedThrowable.getMessage());
         assertEquals(
                 serializedThrowable.getFullStringifiedStackTrace(),
                 deserializedSerializedThrowable.getFullStringifiedStackTrace());
-        assertEquals("cause", deserializedSerializedThrowable.getCause().getMessage());
+        assertEquals(
+                "java.lang.Exception: cause",
+                deserializedSerializedThrowable.getCause().getMessage());
         assertTrue(deserializedSerializedThrowable.getCause() instanceof SerializedThrowable);
         assertEquals(1, deserializedSerializedThrowable.getSuppressed().length);
-        assertEquals("suppressed", deserializedSerializedThrowable.getSuppressed()[0].getMessage());
+        assertEquals(
+                "java.lang.Exception: suppressed",
+                deserializedSerializedThrowable.getSuppressed()[0].getMessage());
         assertTrue(
                 deserializedSerializedThrowable.getSuppressed()[0] instanceof SerializedThrowable);
     }
