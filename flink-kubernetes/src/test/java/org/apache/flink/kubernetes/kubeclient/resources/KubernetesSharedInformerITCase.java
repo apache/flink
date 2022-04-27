@@ -18,21 +18,21 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,16 +44,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** IT Tests for the {@link KubernetesSharedInformer}. */
-public class KubernetesSharedInformerITCase extends TestLogger {
+class KubernetesSharedInformerITCase {
 
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private final ImmutableMap<String, String> labels =
             ImmutableMap.of("app", "shared-informer-test-cluster");
@@ -61,20 +59,21 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     private FlinkKubeClient client;
     private ExecutorService watchCallbackExecutorService;
 
-    @Before
-    public void setUp() throws Exception {
-        client = kubernetesResource.getFlinkKubeClient();
+    @BeforeEach
+    void setUp() throws Exception {
+        client = kubernetesExtension.getFlinkKubeClient();
         watchCallbackExecutorService =
                 Executors.newCachedThreadPool(new ExecutorThreadFactory("Watch-Callback"));
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, watchCallbackExecutorService);
         client.deleteConfigMapsByLabels(labels).get();
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120000)
     public void testWatch() throws Exception {
 
         try (KubernetesConfigMapSharedWatcher watcher =
@@ -91,7 +90,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 for (TestingCallbackHandler handler : callbackHandlers) {
                     handler.addFuture.get();
                     handler.addOrUpdateFuture.get();
-                    assertFalse(handler.assertFuture.isCompletedExceptionally());
+                    assertThat(handler.assertFuture).isNotCompletedExceptionally();
                 }
                 watchers.forEach(Watch::close);
                 callbackHandlers.clear();
@@ -115,7 +114,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     }
 
     @Test
-    public void testWatchWithBlockHandler() throws Exception {
+    void testWatchWithBlockHandler() throws Exception {
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
 
@@ -129,11 +128,9 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             for (int i = 1; i <= maxUpdateVal; i++) {
                 updateConfigMap(configMapName, ImmutableMap.of("val", String.valueOf(i)));
             }
-            try {
-                handler.expectedFuture.get(120, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                fail("expected value: " + maxUpdateVal + ", actual: " + handler.val);
-            }
+            assertThatCode(() -> handler.expectedFuture.get(120, TimeUnit.SECONDS))
+                    .as("expected value: " + maxUpdateVal + ", actual: " + handler.val)
+                    .doesNotThrowAnyException();
             try {
                 handler.assertFuture.get(2 * block, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
@@ -219,14 +216,14 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             check(
                     assertFuture,
                     () -> {
-                        assertThat(kubernetesConfigMap.getName(), is(resourceName));
-                        assertFalse(addFuture.isDone());
-                        assertFalse(addOrUpdateFuture.isDone());
+                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
+                        assertThat(addFuture).isNotDone();
+                        assertThat(addOrUpdateFuture).isNotDone();
                     });
             addFuture.complete(null);
             final String foo = kubernetesConfigMap.getData().get("foo");
             if (foo != null) {
-                check(assertFuture, () -> assertThat(foo, is("bar")));
+                check(assertFuture, () -> assertThat(foo).isEqualTo("bar"));
                 addOrUpdateFuture.complete(null);
             }
         }
@@ -238,12 +235,12 @@ public class KubernetesSharedInformerITCase extends TestLogger {
             check(
                     assertFuture,
                     () -> {
-                        assertThat(kubernetesConfigMap.getName(), is(resourceName));
-                        assertThat(foo, is("bar"));
-                        assertTrue(addFuture.isDone());
+                        assertThat(kubernetesConfigMap.getName()).isEqualTo(resourceName);
+                        assertThat(foo).isEqualTo("bar");
+                        assertThat(addFuture).isDone();
                     });
             if (addOrUpdateFuture.isDone()) {
-                check(assertFuture, () -> assertTrue(isDeleting(kubernetesConfigMap)));
+                check(assertFuture, () -> assertThat(isDeleting(kubernetesConfigMap)).isTrue());
             } else {
                 addOrUpdateFuture.complete(null);
             }
@@ -251,7 +248,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
 
         @Override
         public void onDeleted(List<KubernetesConfigMap> resources) {
-            check(assertFuture, () -> assertFalse(deleteFuture.isDone()));
+            check(assertFuture, () -> assertThat(deleteFuture).isNotDone());
             deleteFuture.complete(null);
         }
     }
@@ -287,7 +284,9 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 return;
             }
             final long newVal = Long.parseLong(valData);
-            check(assertFuture, () -> assertTrue(newVal > val || isDeleting(kubernetesConfigMap)));
+            check(
+                    assertFuture,
+                    () -> assertThat(newVal > val || isDeleting(kubernetesConfigMap)).isTrue());
             val = newVal;
             block();
             if (expected == val) {

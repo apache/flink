@@ -22,10 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
-import org.apache.flink.util.StringUtils;
 
-import org.junit.Assume;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.ExternalResource;
+
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * {@link ExternalResource} which has a configured real Kubernetes cluster and client. We assume
@@ -33,7 +36,7 @@ import org.junit.rules.ExternalResource;
  * environment ITCASE_KUBECONFIG is set with a valid kube config file. In the E2E tests, we will use
  * a minikube for the testing.
  */
-public class KubernetesResource extends ExternalResource {
+public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback {
 
     private static final String CLUSTER_ID = "flink-itcase-cluster";
     private static final int KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES = 100;
@@ -44,16 +47,15 @@ public class KubernetesResource extends ExternalResource {
 
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
-        Assume.assumeTrue(
-                "ITCASE_KUBECONFIG environment is not set.",
-                !StringUtils.isNullOrWhitespaceOnly(kubeConfigEnv));
+        assumeThat(kubeConfigEnv)
+                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
+                .isNotBlank();
         kubeConfigFile = kubeConfigEnv;
     }
 
     @Override
-    public void before() {
+    public void beforeAll(ExtensionContext extensionContext) throws Exception {
         checkEnv();
-
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
         configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
@@ -65,8 +67,10 @@ public class KubernetesResource extends ExternalResource {
     }
 
     @Override
-    public void after() {
-        flinkKubeClient.close();
+    public void afterAll(ExtensionContext extensionContext) throws Exception {
+        if (flinkKubeClient != null) {
+            flinkKubeClient.close();
+        }
     }
 
     public Configuration getConfiguration() {
