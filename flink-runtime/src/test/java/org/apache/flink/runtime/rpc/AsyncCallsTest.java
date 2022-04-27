@@ -129,7 +129,7 @@ public class AsyncCallsTest extends TestLogger {
             // validate that no concurrent access happened
             assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -189,7 +189,7 @@ public class AsyncCallsTest extends TestLogger {
 
             assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -324,7 +324,7 @@ public class AsyncCallsTest extends TestLogger {
 
             return result;
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestEndpoint);
         }
     }
 

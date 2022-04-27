@@ -246,7 +246,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
             disconnectFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 
@@ -567,7 +567,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
             testAction.accept(
                     jobId, taskResultPartitionDescriptor, taskExecutor, taskExecutorGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
 
         // the shutdown of the backing shuffle environment releases all partitions

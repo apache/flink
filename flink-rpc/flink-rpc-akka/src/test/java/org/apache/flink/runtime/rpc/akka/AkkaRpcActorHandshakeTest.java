@@ -94,7 +94,7 @@ class AkkaRpcActorHandshakeTest {
 
             assertThat(dummyRpcGateway.foobar().get()).isEqualTo(value);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -116,7 +116,7 @@ class AkkaRpcActorHandshakeTest {
                     .extracting(ExceptionUtils::stripExecutionException)
                     .isInstanceOf(HandshakeException.class);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -140,7 +140,7 @@ class AkkaRpcActorHandshakeTest {
                     .isInstanceOf(HandshakeException.class);
 
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 

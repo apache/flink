@@ -201,7 +201,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
             assertThat(deployedExecutionsQueue.take(), hasSize(0));
         } finally {
-            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+            RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
 

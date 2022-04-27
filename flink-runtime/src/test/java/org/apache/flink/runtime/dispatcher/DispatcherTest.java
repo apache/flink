@@ -177,7 +177,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @After
     public void tearDown() throws Exception {
         if (dispatcher != null) {
-            RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(dispatcher);
         }
         super.tearDown();
     }

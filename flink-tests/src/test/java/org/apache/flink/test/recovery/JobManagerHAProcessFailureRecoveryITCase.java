@@ -430,7 +430,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                 highAvailabilityServices.closeAndCleanupAllData();
             }
 
-            RpcUtils.terminateRpcService(rpcService, timeout);
+            RpcUtils.terminateRpcService(rpcService);
 
             // Delete coordination directory
             if (coordinateTempDir != null) {

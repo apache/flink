@@ -20,7 +20,6 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -239,7 +238,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
             fatalErrorHandler.rethrowError();
 
-            RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+            RpcUtils.terminateRpcService(rpcService);
 
             haServices.closeAndCleanupAllData();
         }

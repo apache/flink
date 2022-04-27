@@ -319,7 +319,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
         public void close() throws Exception {
             try {
                 if (jobMaster != null) {
-                    RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+                    RpcUtils.terminateRpcEndpoint(jobMaster);
                 }
             } finally {
                 temporaryFolder.delete();
