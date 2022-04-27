@@ -29,7 +29,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
@@ -75,19 +75,19 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
         try (HttpTestClient httpClient =
                 new HttpTestClient("localhost", bootstrap.getServerPort())) {
             // 1. no leader gateway available --> Service unavailable
-            httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
+            httpClient.sendGetRequest(restPath, TimeUtils.toDuration(timeout));
 
             HttpTestClient.SimpleHttpResponse response =
-                    httpClient.getNextResponse(FutureUtils.toDuration(timeout));
+                    httpClient.getNextResponse(TimeUtils.toDuration(timeout));
 
             Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
             // 2. with leader
             gatewayFuture.complete(gateway);
 
-            httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
+            httpClient.sendGetRequest(restPath, TimeUtils.toDuration(timeout));
 
-            response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
+            response = httpClient.getNextResponse(TimeUtils.toDuration(timeout));
 
             Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
             Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());
