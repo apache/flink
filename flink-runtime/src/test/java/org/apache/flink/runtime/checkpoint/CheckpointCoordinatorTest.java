@@ -3084,14 +3084,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         graph.getJobID(), coordinator, attemptID1, expectedRootCause);
 
         assertTrue(syncSavepoint.isDisposed());
-
+        String expectedRootCauseMessage =
+                String.format(
+                        "%s: %s",
+                        expectedRootCause.getClass().getName(), expectedRootCause.getMessage());
         try {
             savepointFuture.get();
             fail("Expected Exception not found.");
         } catch (ExecutionException e) {
             final Throwable cause = ExceptionUtils.stripExecutionException(e);
             assertTrue(cause instanceof CheckpointException);
-            assertEquals(expectedRootCause.getMessage(), cause.getCause().getCause().getMessage());
+            assertEquals(expectedRootCauseMessage, cause.getCause().getCause().getMessage());
         }
 
         assertEquals(1L, invocationCounterAndException.f0.intValue());
@@ -3102,7 +3105,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 .getCause()
                                 .getCause()
                                 .getMessage()
-                                .equals(expectedRootCause.getMessage()));
+                                .equals(expectedRootCauseMessage));
 
         coordinator.shutdown();
     }

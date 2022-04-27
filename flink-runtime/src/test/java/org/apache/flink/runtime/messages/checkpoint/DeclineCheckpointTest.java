@@ -76,6 +76,11 @@ public class DeclineCheckpointTest extends TestLogger {
         Optional<Throwable> throwableWithMessage =
                 ExceptionUtils.findThrowableWithMessage(throwable, userException.getMessage());
         assertTrue(throwableWithMessage.isPresent());
-        assertThat(throwableWithMessage.get().getMessage(), equalTo(userException.getMessage()));
+        assertThat(
+                throwableWithMessage.get().getMessage(),
+                equalTo(
+                        String.format(
+                                "%s: %s",
+                                userException.getClass().getName(), userException.getMessage())));
     }
 }
