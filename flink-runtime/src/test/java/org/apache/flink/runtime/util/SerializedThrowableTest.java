@@ -31,6 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/** Test for the {@link SerializedThrowable}. */
 public class SerializedThrowableTest {
 
     @Test
@@ -38,9 +39,6 @@ public class SerializedThrowableTest {
         try {
             IllegalArgumentException original = new IllegalArgumentException("test message");
             SerializedThrowable serialized = new SerializedThrowable(original);
-
-            assertEquals(original.getMessage(), serialized.getMessage());
-            assertEquals(original.toString(), serialized.toString());
 
             assertEquals(
                     ExceptionUtils.stringifyException(original),
@@ -74,17 +72,23 @@ public class SerializedThrowableTest {
 
             // validate that the SerializedThrowable mimics the original exception
             SerializedThrowable serialized = new SerializedThrowable(userException);
-            assertEquals(userException.getMessage(), serialized.getMessage());
-            assertEquals(userException.toString(), serialized.toString());
             assertEquals(
                     ExceptionUtils.stringifyException(userException),
                     ExceptionUtils.stringifyException(serialized));
             assertArrayEquals(userException.getStackTrace(), serialized.getStackTrace());
 
+            // validate the detailMessage of SerializedThrowable contains the class name of original
+            // exception
+            Exception userException2 = new Exception("error");
+            SerializedThrowable serialized2 = new SerializedThrowable(userException2);
+            String result =
+                    String.format(
+                            "%s(%s)",
+                            userException2.getClass().getName(), userException2.getMessage());
+            assertEquals(serialized2.getMessage(), result);
+
             // copy the serialized throwable and make sure everything still works
             SerializedThrowable copy = CommonTestUtils.createCopySerializable(serialized);
-            assertEquals(userException.getMessage(), copy.getMessage());
-            assertEquals(userException.toString(), copy.toString());
             assertEquals(
                     ExceptionUtils.stringifyException(userException),
                     ExceptionUtils.stringifyException(copy));
@@ -113,13 +117,13 @@ public class SerializedThrowableTest {
 
         SerializedThrowable st = new SerializedThrowable(root);
 
-        assertEquals("level0", st.getMessage());
+        assertEquals("java.lang.Exception(level0)", st.getMessage());
 
         assertNotNull(st.getCause());
-        assertEquals("level1", st.getCause().getMessage());
+        assertEquals("java.lang.Exception(level1)", st.getCause().getMessage());
 
         assertNotNull(st.getCause().getCause());
-        assertEquals("level2", st.getCause().getCause().getMessage());
+        assertEquals("java.lang.Exception(level2)", st.getCause().getCause().getMessage());
     }
 
     @Test
@@ -148,8 +152,10 @@ public class SerializedThrowableTest {
         assertNotNull(serialized.getCause());
 
         SerializedThrowable copy = new SerializedThrowable(serialized);
-        assertEquals("parent message", copy.getMessage());
+        assertEquals(
+                "org.apache.flink.util.SerializedThrowable(java.lang.Exception(parent message))",
+                copy.getMessage());
         assertNotNull(copy.getCause());
-        assertEquals("original message", copy.getCause().getMessage());
+        assertEquals("java.lang.Exception(original message)", copy.getCause().getMessage());
     }
 }
