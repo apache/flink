@@ -467,17 +467,24 @@ public final class OperationTreeBuilder {
     }
 
     public QueryOperation map(Expression mapFunction, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final ResolvedExpression resolvedCall = resolveSingleExpression(mapFunction, resolver);
 
-        Expression resolvedMapFunction = mapFunction.accept(lookupResolver);
-
-        if (!isFunctionOfKind(resolvedMapFunction, FunctionKind.SCALAR)) {
+        if (!isFunctionOfKind(resolvedCall, FunctionKind.SCALAR)) {
             throw new ValidationException(
                     "Only a scalar function can be used in the map operator.");
         }
 
+        final List<String> originFieldNames =
+                DataTypeUtils.flattenToNames(resolvedCall.getOutputDataType());
+
         Expression expandedFields =
-                unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedMapFunction);
-        return project(Collections.singletonList(expandedFields), child, false);
+                unresolvedCall(BuiltInFunctionDefinitions.FLATTEN, resolvedCall);
+        return alias(
+                originFieldNames.stream()
+                        .map(ApiExpressionUtils::unresolvedRef)
+                        .collect(Collectors.toList()),
+                project(Collections.singletonList(expandedFields), child, false));
     }
 
     public QueryOperation flatMap(Expression tableFunctionCall, QueryOperation child) {

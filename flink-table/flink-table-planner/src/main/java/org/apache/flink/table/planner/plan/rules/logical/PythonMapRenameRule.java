@@ -18,21 +18,22 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.rex.RexFieldAccess;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Rule will rename the Flatten {@link FlinkLogicalCalc} used after Map operation. */
+/**
+ * Rule which renames the field names of the Flatten {@link FlinkLogicalCalc} which is right after a
+ * {@link FlinkLogicalCalc} representing a Python Map operation to the output names of the map
+ * function.
+ */
 public class PythonMapRenameRule extends RelOptRule {
 
     public static final PythonMapRenameRule INSTANCE = new PythonMapRenameRule();
@@ -48,36 +49,27 @@ public class PythonMapRenameRule extends RelOptRule {
         FlinkLogicalCalc topCalc = call.rel(0);
         FlinkLogicalCalc bottomCalc = call.rel(1);
 
+        // the bottom node is a Python map function
         List<RexNode> bottomProjects =
                 bottomCalc.getProgram().getProjectList().stream()
                         .map(bottomCalc.getProgram()::expandLocalRef)
                         .collect(Collectors.toList());
-        if (bottomProjects.size() != 1 || !PythonUtil.isPythonCall(bottomProjects.get(0), null)) {
+        if (bottomProjects.size() != 1
+                || !PythonUtil.isPythonCall(bottomProjects.get(0), null)
+                || bottomCalc.getProgram().getCondition() != null) {
             return false;
         }
 
-        List<RexNode> topProjects =
-                topCalc.getProgram().getProjectList().stream()
-                        .map(topCalc.getProgram()::expandLocalRef)
-                        .collect(Collectors.toList());
-
-        List<RelDataTypeField> fields = topCalc.getProgram().getInputRowType().getFieldList();
-
-        if (fields.size() != 1 || !fields.get(0).getValue().isStruct()) {
-            return false;
-        }
-
-        List<RelDataTypeField> fieldDataTypes = fields.get(0).getValue().getFieldList();
-
-        if (fieldDataTypes.size() != topProjects.size()) {
-            return false;
-        }
-
-        List<String> fieldNames =
-                bottomCalc.getRowType().getFieldList().get(0).getValue().getFieldNames();
-
-        return isFlattenCalc(topProjects)
-                && !fieldNames.equals(topCalc.getProgram().getOutputRowType().getFieldNames());
+        // the top calc is a flatten operation and the field names of the flatten are not equal to
+        // the field names of the bottom calc
+        return PythonUtil.isFlattenCalc(topCalc)
+                && !bottomCalc
+                        .getRowType()
+                        .getFieldList()
+                        .get(0)
+                        .getValue()
+                        .getFieldNames()
+                        .equals(topCalc.getProgram().getOutputRowType().getFieldNames());
     }
 
     @Override
@@ -107,28 +99,5 @@ public class PythonMapRenameRule extends RelOptRule {
                                         .getFieldNames(),
                                 call.builder().getRexBuilder()));
         call.transformTo(newCalc);
-    }
-
-    private boolean isFlattenCalc(List<RexNode> projects) {
-        for (int i = 0; i < projects.size(); i++) {
-            RexNode project = projects.get(i);
-            // every RexNode must be a RexFieldAccess
-            if (project instanceof RexFieldAccess) {
-                if (((RexFieldAccess) project).getField().getIndex() != i) {
-                    return false;
-                }
-                RexNode expr = ((RexFieldAccess) project).getReferenceExpr();
-                if (expr instanceof RexInputRef) {
-                    if (((RexInputRef) expr).getIndex() != 0) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        return true;
     }
 }

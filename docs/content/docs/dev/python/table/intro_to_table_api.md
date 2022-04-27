@@ -318,7 +318,7 @@ map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
                                  DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
                     func_type="pandas")
 
-orders.map(map_function).alias('name', 'revenue').to_pandas()
+orders.map(map_function).to_pandas()
 ```
 
 The result is:

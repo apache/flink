@@ -153,9 +153,10 @@ class Row(object):
     def get_fields_by_names(self, names: List[str]):
         if not hasattr(self, '_fields') or names == self._fields:
             return self._values
-        elif sorted(names) != sorted(self._fields):
-            raise Exception("The field names {0} of result Row are different to field names {1} "
-                            "for udf declarations".format(names, self._fields))
+
+        difference = list(set(names).difference(set(self._fields)))
+        if difference:
+            raise Exception("Field names {0} not exist in {1}.".format(difference, self._fields))
         else:
             return [self._values[self._fields.index(name)] for name in names]
 
