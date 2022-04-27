@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -149,7 +149,8 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
      * @param timeout for the operation.
      * @return Future containing the callable result.
      */
-    protected <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout) {
+    protected <V> CompletableFuture<V> callAsyncWithoutFencing(
+            Callable<V> callable, Duration timeout) {
         if (rpcServer instanceof FencedMainThreadExecutable) {
             return ((FencedMainThreadExecutable) rpcServer)
                     .callAsyncWithoutFencing(callable, timeout);

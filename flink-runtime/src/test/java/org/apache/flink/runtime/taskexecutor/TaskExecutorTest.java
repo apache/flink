@@ -131,6 +131,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -3005,7 +3006,7 @@ public class TaskExecutorTest extends TestLogger {
             throws InterruptedException, ExecutionException {
         return ctx.taskExecutor
                 .getMainThreadExecutableForTesting()
-                .callAsync(booleanCallable, Time.seconds(5))
+                .callAsync(booleanCallable, Duration.ofSeconds(5))
                 .get();
     }
 }

@@ -45,6 +45,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -159,12 +160,14 @@ class TestingDispatcher extends Dispatcher {
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
-        return callAsyncWithoutFencing(() -> getJobTerminationFuture(jobId), timeout)
+        return callAsyncWithoutFencing(
+                        () -> getJobTerminationFuture(jobId), TimeUtils.toDuration(timeout))
                 .thenCompose(Function.identity());
     }
 
     CompletableFuture<Integer> getNumberJobs(Time timeout) {
-        return callAsyncWithoutFencing(() -> listJobs(timeout).get().size(), timeout);
+        return callAsyncWithoutFencing(
+                () -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
     }
 
     void waitUntilStarted() {

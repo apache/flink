@@ -151,6 +151,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1452,7 +1453,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void startRegistrationTimeout() {
-        final Time maxRegistrationDuration = taskManagerConfiguration.getMaxRegistrationDuration();
+        final Duration maxRegistrationDuration =
+                taskManagerConfiguration.getMaxRegistrationDuration();
 
         if (maxRegistrationDuration != null) {
             final UUID newRegistrationTimeoutId = UUID.randomUUID();
@@ -1468,7 +1470,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private void registrationTimeout(@Nonnull UUID registrationTimeoutId) {
         if (registrationTimeoutId.equals(currentRegistrationTimeoutId)) {
-            final Time maxRegistrationDuration =
+            final Duration maxRegistrationDuration =
                     taskManagerConfiguration.getMaxRegistrationDuration();
 
             onFatalError(

@@ -30,6 +30,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -52,7 +53,7 @@ public class AsyncCallsTest extends TestLogger {
     //  shared test members
     // ------------------------------------------------------------------------
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
 
     private static RpcService rpcService;
 
@@ -121,7 +122,7 @@ public class AsyncCallsTest extends TestLogger {
                                 }
                                 return "test";
                             },
-                            Time.seconds(30L));
+                            Duration.ofSeconds(30L));
 
             String str = result.get(30, TimeUnit.SECONDS);
             assertEquals("test", str);
@@ -202,7 +203,7 @@ public class AsyncCallsTest extends TestLogger {
     /** Tests that async code is not executed if the fencing token changes. */
     @Test
     public void testRunAsyncWithFencing() throws Exception {
-        final Time shortTimeout = Time.milliseconds(100L);
+        final Duration shortTimeout = Duration.ofMillis(100L);
         final UUID newFencingToken = UUID.randomUUID();
         final CompletableFuture<UUID> resultFuture = new CompletableFuture<>();
 
@@ -215,7 +216,7 @@ public class AsyncCallsTest extends TestLogger {
                 newFencingToken);
 
         try {
-            resultFuture.get(shortTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            resultFuture.get(shortTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             fail(
                     "The async run operation should not complete since it is filtered out due to the changed fencing token.");
@@ -237,8 +238,7 @@ public class AsyncCallsTest extends TestLogger {
                 },
                 newFencingToken);
 
-        assertEquals(
-                newFencingToken, resultFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+        assertEquals(newFencingToken, resultFuture.get());
     }
 
     /** Tests that async callables are not executed if the fencing token changes. */
@@ -308,7 +308,8 @@ public class AsyncCallsTest extends TestLogger {
             fencedTestEndpoint.start();
 
             CompletableFuture<Acknowledge> newFencingTokenFuture =
-                    fencedTestGateway.setNewFencingToken(newFencingToken, timeout);
+                    fencedTestGateway.setNewFencingToken(
+                            newFencingToken, Time.fromDuration(timeout));
 
             assertFalse(newFencingTokenFuture.isDone());
 
