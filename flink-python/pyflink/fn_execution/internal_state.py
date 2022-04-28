@@ -16,10 +16,20 @@
 # limitations under the License.
 ################################################################################
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List, Iterable, Collection
+from typing import Collection, Generic, Iterable, List, TypeVar
 
-from pyflink.datastream.state import State, ValueState, AppendingState, MergingState, ListState, \
-    AggregatingState, ReducingState, MapState
+from pyflink.datastream.state import (
+    AggregatingState,
+    AppendingState,
+    BroadcastState,
+    ListState,
+    MapState,
+    MergingState,
+    ReadOnlyBroadcastState,
+    ReducingState,
+    State,
+    ValueState,
+)
 
 N = TypeVar('N')
 T = TypeVar('T')
@@ -110,4 +120,12 @@ class InternalMapState(InternalKvState[N], MapState[K, V], ABC):
     """
     The peer to the :class:MapState in the internal state type hierarchy.
     """
+    pass
+
+
+class InternalReadOnlyBroadcastState(ReadOnlyBroadcastState[K, V], ABC):
+    pass
+
+
+class InternalBroadcastState(InternalReadOnlyBroadcastState[K, V], BroadcastState[K, V], ABC):
     pass

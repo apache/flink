@@ -16,29 +16,39 @@
 # limitations under the License.
 ################################################################################
 import abc
+from typing import cast
 
 from pyflink.common import Row
 from pyflink.common.serializer import VoidNamespaceSerializer
-from pyflink.datastream import TimeDomain, RuntimeContext
+from pyflink.datastream import RuntimeContext, TimeDomain
+from pyflink.datastream.functions import (
+    BroadcastProcessFunction,
+    CoProcessFunction,
+    Function,
+    OperatorStateStore,
+    ProcessFunction,
+)
 from pyflink.datastream.window import WindowOperationDescriptor
 from pyflink.fn_execution import pickle
-from pyflink.fn_execution.datastream.process_function import (
-    InternalKeyedProcessFunctionOnTimerContext,
-    InternalKeyedProcessFunctionContext,
-    InternalProcessFunctionContext,
-)
-from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
-from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
-from pyflink.fn_execution.datastream.timerservice_impl import (
-    TimerServiceImpl,
-    InternalTimerServiceImpl,
-    NonKeyedTimerServiceImpl,
-)
 from pyflink.fn_execution.datastream.input_handler import (
     RunnerInputHandler,
     TimerHandler,
     _emit_results,
 )
+from pyflink.fn_execution.datastream.process_function import (
+    InternalBroadcastProcessFunctionContext,
+    InternalKeyedProcessFunctionContext,
+    InternalKeyedProcessFunctionOnTimerContext,
+    InternalProcessFunctionContext,
+    InternalReadOnlyBroadcastProcessFunctionContext,
+)
+from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
+from pyflink.fn_execution.datastream.timerservice_impl import (
+    InternalTimerServiceImpl,
+    NonKeyedTimerServiceImpl,
+    TimerServiceImpl,
+)
+from pyflink.fn_execution.datastream.window.window_operator import WindowOperator
 from pyflink.metrics.metricbase import GenericMetricGroup
 
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:ds:stateless_function:v1"
@@ -75,8 +85,9 @@ class Operation(abc.ABC):
 
 
 class StatelessOperation(Operation):
-    def __init__(self, serialized_fn):
+    def __init__(self, serialized_fn, operator_state_store: OperatorStateStore):
         super(StatelessOperation, self).__init__(serialized_fn)
+        self.operator_state_store = operator_state_store
         (
             self.open_func,
             self.close_func,
@@ -86,7 +97,12 @@ class StatelessOperation(Operation):
             runtime_context=StreamingRuntimeContext.of(
                 serialized_fn.runtime_context, self.base_metric_group
             ),
+            operator_state_store=self.operator_state_store,
         )
+
+    def finish(self):
+        super().finish()
+        self.operator_state_store.commit()
 
     def open(self):
         self.open_func()
@@ -99,7 +115,7 @@ class StatelessOperation(Operation):
 
 
 class StatefulOperation(Operation):
-    def __init__(self, serialized_fn, keyed_state_backend):
+    def __init__(self, serialized_fn, keyed_state_backend, operator_state_store):
         super(StatefulOperation, self).__init__(serialized_fn)
         self.keyed_state_backend = keyed_state_backend
         (
@@ -139,7 +155,9 @@ class StatefulOperation(Operation):
 
 
 def extract_stateless_function(
-    user_defined_function_proto, runtime_context: RuntimeContext
+    user_defined_function_proto,
+    runtime_context: RuntimeContext,
+    operator_state_store: OperatorStateStore,
 ):
     """
     Extracts user-defined-function from the proto representation of a
@@ -171,7 +189,7 @@ def extract_stateless_function(
         process_element_func = revise_output
 
     else:
-        user_defined_func = pickle.loads(user_defined_function_proto.payload)
+        user_defined_func = cast(Function, pickle.loads(user_defined_function_proto.payload))
 
         def open_func():
             if hasattr(user_defined_func, "open"):
@@ -182,6 +200,7 @@ def extract_stateless_function(
                 user_defined_func.close()
 
         if func_type == UserDefinedDataStreamFunction.PROCESS:
+            user_defined_func = cast(ProcessFunction, user_defined_func)
             process_element = user_defined_func.process_element
             ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
 
@@ -197,6 +216,7 @@ def extract_stateless_function(
             process_element_func = wrapped_func
 
         elif func_type == UserDefinedDataStreamFunction.CO_PROCESS:
+            user_defined_func = cast(CoProcessFunction, user_defined_func)
             process_element1 = user_defined_func.process_element1
             process_element2 = user_defined_func.process_element2
             ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
@@ -213,6 +233,35 @@ def extract_stateless_function(
                     results = process_element1(normal_data[1], ctx)
                 else:
                     results = process_element2(normal_data[2], ctx)
+
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
+
+            process_element_func = wrapped_func
+
+        elif func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS:
+            user_defined_func = cast(BroadcastProcessFunction, user_defined_func)
+            process_element = user_defined_func.process_element
+            process_broadcast_element = user_defined_func.process_broadcast_element
+            broadcast_ctx = InternalBroadcastProcessFunctionContext(
+                NonKeyedTimerServiceImpl(), operator_state_store
+            )
+            read_only_broadcast_ctx = InternalReadOnlyBroadcastProcessFunctionContext(
+                NonKeyedTimerServiceImpl(), operator_state_store
+            )
+
+            def wrapped_func(value):
+                # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK,
+                #   [isBroadcast, broadcastInput, normalInput]]
+                timestamp = value[0]
+                watermark = value[1]
+                ctx.set_timestamp(timestamp)
+                ctx.timer_service().advance_watermark(watermark)
+
+                data = value[2]
+                if data[0]:
+                    results = process_broadcast_element(data[1], broadcast_ctx)
+                else:
+                    results = process_element(data[2], read_only_broadcast_ctx)
 
                 yield from _emit_results(timestamp, watermark, results, has_side_output)
 
@@ -315,9 +364,7 @@ def extract_stateful_function(
             raise Exception("Unsupported func_type: " + str(func_type))
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
-        window_operation_descriptor = (
-            user_defined_func
-        )  # type: WindowOperationDescriptor
+        window_operation_descriptor = cast(WindowOperationDescriptor, user_defined_func)
         window_assigner = window_operation_descriptor.assigner
         window_trigger = window_operation_descriptor.trigger
         allowed_lateness = window_operation_descriptor.allowed_lateness

@@ -355,7 +355,7 @@ class ReadOnlyBroadcastState(State, Generic[K, V]):
         return iter(self.keys())
 
 
-class BroadcastState(ReadOnlyBroadcastState):
+class BroadcastState(ReadOnlyBroadcastState[K, V]):
     @abstractmethod
     def put(self, key: K, value: V) -> None:
         pass

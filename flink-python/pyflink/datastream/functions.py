@@ -40,25 +40,29 @@ from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
 
 __all__ = [
-    'RuntimeContext',
-    'MapFunction',
-    'CoMapFunction',
-    'FlatMapFunction',
-    'CoFlatMapFunction',
-    'ReduceFunction',
-    'AggregateFunction',
-    'KeySelector',
-    'FilterFunction',
-    'Partitioner',
-    'SourceFunction',
-    'SinkFunction',
-    'ProcessFunction',
-    'CoProcessFunction',
-    'KeyedProcessFunction',
-    'KeyedCoProcessFunction',
-    'TimerService',
-    'WindowFunction',
-    'ProcessWindowFunction']
+    "RuntimeContext",
+    "MapFunction",
+    "CoMapFunction",
+    "FlatMapFunction",
+    "CoFlatMapFunction",
+    "ReduceFunction",
+    "AggregateFunction",
+    "KeySelector",
+    "FilterFunction",
+    "Partitioner",
+    "SourceFunction",
+    "SinkFunction",
+    "ProcessFunction",
+    "CoProcessFunction",
+    "KeyedProcessFunction",
+    "KeyedCoProcessFunction",
+    "TimerService",
+    "WindowFunction",
+    "ProcessWindowFunction",
+    "BroadcastProcessFunction",
+    "KeyedBroadcastProcessFunction",
+    "OperatorStateStore",
+]
 
 
 W = TypeVar("W")
@@ -128,6 +132,26 @@ class KeyedStateStore(ABC):
 
         This state is only accessible if the function is executed on a KeyedStream.
         """
+        pass
+
+
+class OperatorStateStore(ABC):
+    """
+    Currently only broadcast state is supported
+    """
+
+    @abstractmethod
+    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
+        pass
+
+    @abstractmethod
+    def get_read_only_broadcast_state(
+        self, state_descriptor: MapStateDescriptor
+    ) -> ReadOnlyBroadcastState:
+        pass
+
+    @abstractmethod
+    def commit(self):
         pass
 
 
@@ -1060,6 +1084,18 @@ class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, I
         @abstractmethod
         def get_current_key(self) -> KEY:
             pass
+
+    @abstractmethod
+    def process_element(self, value: IN1, ctx: ReadOnlyContext):
+        pass
+
+    @abstractmethod
+    def process_broadcast_element(self, value: IN2, ctx: Context):
+        pass
+
+    @abstractmethod
+    def on_timer(self, timestamp: int, ctx: OnTimerContext):
+        pass
 
 
 class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):

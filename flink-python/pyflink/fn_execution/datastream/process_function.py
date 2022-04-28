@@ -16,9 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.datastream import TimerService, TimeDomain
-from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction, \
-    ProcessFunction, CoProcessFunction
+from pyflink.datastream import TimeDomain, TimerService
+from pyflink.datastream.functions import (
+    BroadcastProcessFunction,
+    CoProcessFunction,
+    KeyedCoProcessFunction,
+    KeyedProcessFunction,
+    OperatorStateStore,
+    ProcessFunction,
+)
+from pyflink.datastream.state import BroadcastState, MapStateDescriptor, ReadOnlyBroadcastState
 
 
 class InternalKeyedProcessFunctionOnTimerContext(
@@ -96,6 +103,50 @@ class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.
 
     def timestamp(self) -> int:
         return self._timestamp
+
+    def set_timestamp(self, ts: int):
+        self._timestamp = ts
+
+
+class InternalBroadcastProcessFunctionContext(BroadcastProcessFunction.Context):
+    def __init__(self, timer_service: TimerService, operator_state_store: OperatorStateStore):
+        self._timer_service = timer_service
+        self._timestamp = None
+        self._operator_state_store = operator_state_store
+
+    def timestamp(self) -> int:
+        return self._timestamp
+
+    def current_processing_time(self) -> int:
+        return self._timer_service.current_processing_time()
+
+    def current_watermark(self) -> int:
+        return self._timer_service.current_watermark()
+
+    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
+        return self._operator_state_store.get_broadcast_state(state_descriptor)
+
+    def set_timestamp(self, ts: int):
+        self._timestamp = ts
+
+
+class InternalReadOnlyBroadcastProcessFunctionContext(BroadcastProcessFunction.ReadOnlyContext):
+    def __init__(self, timer_server: TimerService, operator_state_store: OperatorStateStore):
+        self._timer_service = timer_server
+        self._timestamp = None
+        self._operator_state_store = operator_state_store
+
+    def timestamp(self) -> int:
+        return self._timestamp
+
+    def current_processing_time(self) -> int:
+        return self._timer_service.current_processing_time()
+
+    def current_watermark(self) -> int:
+        return self._timer_service.current_watermark()
+
+    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
+        return self._operator_state_store.get_read_only_broadcast_state(state_descriptor)
 
     def set_timestamp(self, ts: int):
         self._timestamp = ts

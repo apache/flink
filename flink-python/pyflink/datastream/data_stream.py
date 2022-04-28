@@ -15,36 +15,66 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import typing
 import uuid
 from enum import Enum
-from typing import Callable, Union, List, cast, Optional
+from typing import Callable, Collection, List, Optional, Union, cast
 
-from pyflink.common import typeinfo, ExecutionConfig, Row
-from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
-from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
+from pyflink.common import ExecutionConfig, Row, typeinfo
+from pyflink.common.typeinfo import RowTypeInfo, TypeInformation, Types, _from_java_type
+from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
 from pyflink.datastream.connectors import Sink
-from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapFunction, Function,
-                                          FunctionWrapper, SinkFunction, FilterFunction,
-                                          KeySelector, ReduceFunction, CoMapFunction,
-                                          CoFlatMapFunction, Partitioner, RuntimeContext,
-                                          ProcessFunction, KeyedProcessFunction,
-                                          KeyedCoProcessFunction, WindowFunction,
-                                          ProcessWindowFunction, InternalWindowFunction,
-                                          InternalIterableWindowFunction,
-                                          InternalIterableProcessWindowFunction, CoProcessFunction,
-                                          InternalSingleValueWindowFunction,
-                                          InternalSingleValueProcessWindowFunction,
-                                          PassThroughWindowFunction, AggregateFunction)
+from pyflink.datastream.functions import (
+    AggregateFunction,
+    BroadcastProcessFunction,
+    CoFlatMapFunction,
+    CoMapFunction,
+    CoProcessFunction,
+    FilterFunction,
+    FlatMapFunction,
+    Function,
+    FunctionWrapper,
+    InternalIterableProcessWindowFunction,
+    InternalIterableWindowFunction,
+    InternalSingleValueProcessWindowFunction,
+    InternalSingleValueWindowFunction,
+    InternalWindowFunction,
+    KeyedBroadcastProcessFunction,
+    KeyedCoProcessFunction,
+    KeyedProcessFunction,
+    KeySelector,
+    MapFunction,
+    Partitioner,
+    PassThroughWindowFunction,
+    ProcessFunction,
+    ProcessWindowFunction,
+    ReduceFunction,
+    RuntimeContext,
+    SinkFunction,
+    WindowFunction,
+    _get_python_env,
+)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
-from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    StateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor
+from pyflink.datastream.state import (
+    AggregatingStateDescriptor,
+    ListStateDescriptor,
+    MapStateDescriptor,
+    ReducingStateDescriptor,
+    StateDescriptor,
+    ValueState,
+    ValueStateDescriptor,
+)
 from pyflink.datastream.utils import convert_to_python_obj
-from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
-                                       CountWindowSerializer, TimeWindowSerializer, Trigger,
-                                       WindowAssigner, WindowOperationDescriptor,
-                                       GlobalWindowSerializer)
+from pyflink.datastream.window import (
+    CountSlidingWindowAssigner,
+    CountTumblingWindowAssigner,
+    CountWindowSerializer,
+    GlobalWindowSerializer,
+    TimeWindowSerializer,
+    Trigger,
+    WindowAssigner,
+    WindowOperationDescriptor,
+)
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
@@ -464,7 +494,9 @@ class DataStream(object):
         j_united_stream = self._j_data_stream.union(j_data_stream_arr)
         return DataStream(j_data_stream=j_united_stream)
 
-    def connect(self, ds: 'DataStream') -> 'ConnectedStreams':
+    def connect(
+        self, ds: Union["DataStream", "BroadcastStream"]
+    ) -> Union["ConnectedStreams", "BroadcastConnectedStream"]:
         """
         Creates a new 'ConnectedStreams' by connecting 'DataStream' outputs of (possible)
         different types with each other. The DataStreams connected using this operator can
@@ -473,6 +505,10 @@ class DataStream(object):
         :param ds: The DataStream with which this stream will be connected.
         :return: The `ConnectedStreams`.
         """
+        if isinstance(ds, BroadcastStream):
+            return BroadcastConnectedStream(
+                self, ds, cast(BroadcastStream, ds).broadcast_state_descriptors
+            )
         return ConnectedStreams(self, ds)
 
     def shuffle(self) -> 'DataStream':
@@ -541,13 +577,19 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.forward())
 
-    def broadcast(self) -> 'DataStream':
+    def broadcast(self, *args) -> Union["DataStream", "BroadcastStream"]:
         """
         Sets the partitioning of the DataStream so that the output elements are broadcasted to every
         parallel instance of the next operation.
 
         :return: The DataStream with broadcast partitioning set.
         """
+        if args:
+            for arg in args:
+                if not isinstance(arg, MapStateDescriptor):
+                    raise TypeError("broadcast_state_descriptor must be MapStateDescriptor")
+            broadcast_state_descriptors = [arg for arg in args]  # type: List[MapStateDescriptor]
+            return BroadcastStream(self.broadcast(), broadcast_state_descriptors)
         return DataStream(self._j_data_stream.broadcast())
 
     def process(self, func: ProcessFunction, output_type: TypeInformation = None) -> 'DataStream':
@@ -2089,6 +2131,62 @@ class ConnectedStreams(object):
         return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)
 
 
+class BroadcastStream(object):
+    def __init__(
+        self,
+        input_stream: "DataStream",
+        broadcast_state_descriptors: Collection[MapStateDescriptor],
+    ):
+        self.input_stream = input_stream
+        self.broadcast_state_descriptors = broadcast_state_descriptors
+
+
+class BroadcastConnectedStream(object):
+    def __init__(
+        self,
+        non_broadcast_stream: "DataStream",
+        broadcast_stream: "BroadcastStream",
+        broadcast_state_descriptors: Collection[MapStateDescriptor],
+    ):
+        self.non_broadcast_stream = non_broadcast_stream
+        self.broadcast_stream = broadcast_stream
+        self.broadcast_state_descriptors = broadcast_state_descriptors
+
+    def process(
+        self,
+        func: Union[BroadcastProcessFunction, KeyedBroadcastProcessFunction],
+        output_type: TypeInformation = None,
+    ):
+        if isinstance(func, BroadcastProcessFunction) and self._is_keyed_stream():
+            raise TypeError("BroadcastProcessFunction should be applied to non-keyed DataStream")
+        if isinstance(func, KeyedBroadcastProcessFunction) and not self._is_keyed_stream():
+            raise TypeError("KeyedBroadcastProcessFunction should be applied to KeyedStream")
+
+        from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+
+        if self._is_keyed_stream():
+            func_type = UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS  # type: ignore
+            func_name = "Keyed Co-Process-Broadcast"
+        else:
+            func_type = UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS  # type: ignore
+            func_name = "Co-Process-Broadcast"
+
+        jvm = get_gateway().jvm
+        j_operator, j_output_type = _get_two_input_stream_operator(
+            self, func, func_type, output_type
+        )
+        j_transformation = None
+
+        return DataStream(
+            jvm.org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator(
+                self.non_broadcast_stream._j_data_stream.getExecutionEnvironment(), j_transformation
+            )
+        )
+
+    def _is_keyed_stream(self):
+        return isinstance(self.non_broadcast_stream, KeyedStream)
+
+
 def _get_one_input_stream_operator(data_stream: DataStream,
                                    func: Union[Function,
                                                FunctionWrapper,
@@ -2132,7 +2230,7 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
         JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessOperator
     elif func_type == UserDefinedDataStreamFunction.WINDOW:  # type: ignore
-        window_serializer = typing.cast(WindowOperationDescriptor, func).window_serializer
+        window_serializer = cast(WindowOperationDescriptor, func).window_serializer
         if isinstance(window_serializer, TimeWindowSerializer):
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.table.runtime.operators.window.TimeWindow.Serializer()
