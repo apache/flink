@@ -64,7 +64,7 @@ PulsarSource<String> pulsarSource = PulsarSource.builder()
     .setSubscriptionType(SubscriptionType.Exclusive)
     .build();
 
-env.fromSource(source, WatermarkStrategy.noWatermarks(), "Pulsar Source");
+env.fromSource(pulsarSource, WatermarkStrategy.noWatermarks(), "Pulsar Source");
 ```
 
 The following properties are **required** for building a PulsarSource:
