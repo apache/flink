@@ -59,7 +59,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
     public static void teardown()
             throws InterruptedException, ExecutionException, TimeoutException {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
             rpcService = null;
         }
     }
@@ -130,7 +130,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
                             .foobar(TIMEOUT)
                             .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS));
         } finally {
-            RpcUtils.terminateRpcEndpoints(TIMEOUT, dummyRpcEndpoint, dummyRpcEndpoint2);
+            RpcUtils.terminateRpcEndpoint(dummyRpcEndpoint, dummyRpcEndpoint2);
         }
     }
 

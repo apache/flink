@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
@@ -45,8 +44,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the over sized response message handling of the {@link AkkaRpcActor}. */
 class AkkaRpcActorOversizedResponseMessageTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
-
     private static final int FRAMESIZE = 32000;
 
     private static final String OVERSIZED_PAYLOAD = new String(new byte[FRAMESIZE]);
@@ -72,7 +69,7 @@ class AkkaRpcActorOversizedResponseMessageTest {
 
     @AfterAll
     static void teardownClass() throws Exception {
-        RpcUtils.terminateRpcServices(TIMEOUT, rpcService1, rpcService2);
+        RpcUtils.terminateRpcService(rpcService1, rpcService2);
     }
 
     @Test
@@ -152,7 +149,7 @@ class AkkaRpcActorOversizedResponseMessageTest {
 
             return rpcCall.apply(rpcGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -169,7 +166,7 @@ class AkkaRpcActorOversizedResponseMessageTest {
 
             return rpcCall.apply(rpcGateway);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 

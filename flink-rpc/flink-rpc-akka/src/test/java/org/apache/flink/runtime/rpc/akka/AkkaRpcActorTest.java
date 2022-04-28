@@ -90,7 +90,7 @@ class AkkaRpcActorTest {
 
     @AfterAll
     static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
-        RpcUtils.terminateRpcService(akkaRpcService, timeout);
+        RpcUtils.terminateRpcService(akkaRpcService);
     }
 
     /**
@@ -154,7 +154,7 @@ class AkkaRpcActorTest {
 
             assertThat(actualValue).isEqualTo(expectedValue);
         } finally {
-            RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
@@ -252,8 +252,8 @@ class AkkaRpcActorTest {
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseInstanceOf(RpcException.class);
         } finally {
-            RpcUtils.terminateRpcService(clientAkkaRpcService, timeout);
-            RpcUtils.terminateRpcService(serverAkkaRpcService, timeout);
+            RpcUtils.terminateRpcService(clientAkkaRpcService);
+            RpcUtils.terminateRpcService(serverAkkaRpcService);
         }
     }
 
@@ -332,7 +332,7 @@ class AkkaRpcActorTest {
             // the onStopFuture completion should allow the endpoint to terminate
             terminationFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -352,7 +352,7 @@ class AkkaRpcActorTest {
 
             terminationFuture.get();
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -400,7 +400,7 @@ class AkkaRpcActorTest {
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseInstanceOf(RecipientUnreachableException.class);
         } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 
@@ -416,7 +416,7 @@ class AkkaRpcActorTest {
             onStartEndpoint.start();
             onStartEndpoint.awaitUntilOnStartCalled();
         } finally {
-            RpcUtils.terminateRpcEndpoint(onStartEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(onStartEndpoint);
         }
     }
 
@@ -464,7 +464,7 @@ class AkkaRpcActorTest {
             assertThat(endpoint.getNumOnStopCalls()).isEqualTo(1);
         } finally {
             onStopFuture.complete(null);
-            RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(endpoint);
         }
     }
 

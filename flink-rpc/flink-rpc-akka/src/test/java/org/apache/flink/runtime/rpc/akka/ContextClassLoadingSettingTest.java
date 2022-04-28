@@ -323,8 +323,8 @@ class ContextClassLoadingSettingTest {
             // exception
             connect.getPickyObject().get();
         } finally {
-            RpcUtils.terminateRpcService(clientAkkaRpcService, TIMEOUT);
-            RpcUtils.terminateRpcService(serverAkkaRpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(clientAkkaRpcService);
+            RpcUtils.terminateRpcService(serverAkkaRpcService);
         }
     }
 

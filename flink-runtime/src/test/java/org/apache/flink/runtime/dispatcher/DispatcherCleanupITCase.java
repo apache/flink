@@ -119,7 +119,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         while (!toTerminate.isEmpty()) {
             final RpcEndpoint endpoint = toTerminate.poll();
             try {
-                RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+                RpcUtils.terminateRpcEndpoint(endpoint);
             } catch (Exception e) {
                 // Ignore.
             }

@@ -166,7 +166,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 

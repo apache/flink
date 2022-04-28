@@ -315,7 +315,7 @@ class AkkaRpcServiceTest {
             terminationFuture.get();
             assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted()).isTrue();
         } finally {
-            RpcUtils.terminateRpcService(akkaRpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(akkaRpcService);
         }
     }
 

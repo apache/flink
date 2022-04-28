@@ -129,7 +129,7 @@ public class ResourceManagerTest extends TestLogger {
     @After
     public void after() throws Exception {
         if (resourceManager != null) {
-            RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(resourceManager);
         }
 
         if (highAvailabilityServices != null) {
@@ -148,7 +148,7 @@ public class ResourceManagerTest extends TestLogger {
     @AfterClass
     public static void tearDownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcServices(TIMEOUT, rpcService);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
