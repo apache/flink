@@ -130,7 +130,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
                             .foobar(TIMEOUT)
                             .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS));
         } finally {
-            RpcUtils.terminateRpcEndpoints(dummyRpcEndpoint, dummyRpcEndpoint2);
+            RpcUtils.terminateRpcEndpoint(dummyRpcEndpoint, dummyRpcEndpoint2);
         }
     }
 

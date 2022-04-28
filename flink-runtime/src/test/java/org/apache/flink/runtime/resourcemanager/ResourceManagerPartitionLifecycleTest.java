@@ -82,7 +82,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
     @AfterClass
     public static void tearDownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcServices(rpcService);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 

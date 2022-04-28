@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 /** Utility functions for Flink's RPC implementation. */
@@ -73,45 +72,16 @@ public class RpcUtils {
     }
 
     /**
-     * Shuts the given {@link RpcEndpoint} down and awaits its termination.
+     * Shuts the given {@link RpcEndpoint}s down and awaits their termination.
      *
-     * @param rpcEndpoint to terminate
+     * @param rpcEndpoints to terminate
      * @throws ExecutionException if a problem occurred
      * @throws InterruptedException if the operation has been interrupted
-     * @throws TimeoutException if a timeout occurred
      */
     @VisibleForTesting
-    public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint)
-            throws ExecutionException, InterruptedException, TimeoutException {
-        rpcEndpoint.closeAsync().get();
-    }
-
-    /**
-     * Shuts the given {@link RpcEndpoint RpcEndpoints} down and waits for their termination.
-     *
-     * @param rpcEndpoints to shut down
-     * @throws InterruptedException if the operation has been interrupted
-     * @throws ExecutionException if a problem occurred
-     * @throws TimeoutException if a timeout occurred
-     */
-    @VisibleForTesting
-    public static void terminateRpcEndpoints(RpcEndpoint... rpcEndpoints)
-            throws InterruptedException, ExecutionException, TimeoutException {
+    public static void terminateRpcEndpoint(RpcEndpoint... rpcEndpoints)
+            throws ExecutionException, InterruptedException {
         terminateAsyncCloseables(Arrays.asList(rpcEndpoints));
-    }
-
-    /**
-     * Shuts the given rpc service down and waits for its termination.
-     *
-     * @param rpcService to shut down
-     * @throws InterruptedException if the operation has been interrupted
-     * @throws ExecutionException if a problem occurred
-     * @throws TimeoutException if a timeout occurred
-     */
-    @VisibleForTesting
-    public static void terminateRpcService(RpcService rpcService)
-            throws InterruptedException, ExecutionException, TimeoutException {
-        rpcService.stopService().get();
     }
 
     /**
@@ -120,11 +90,10 @@ public class RpcUtils {
      * @param rpcServices to shut down
      * @throws InterruptedException if the operation has been interrupted
      * @throws ExecutionException if a problem occurred
-     * @throws TimeoutException if a timeout occurred
      */
     @VisibleForTesting
-    public static void terminateRpcServices(RpcService... rpcServices)
-            throws InterruptedException, ExecutionException, TimeoutException {
+    public static void terminateRpcService(RpcService... rpcServices)
+            throws InterruptedException, ExecutionException {
         terminateAsyncCloseables(
                 Arrays.stream(rpcServices)
                         .map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
@@ -133,7 +102,7 @@ public class RpcUtils {
 
     private static void terminateAsyncCloseables(
             Collection<? extends AutoCloseableAsync> closeables)
-            throws InterruptedException, ExecutionException, TimeoutException {
+            throws InterruptedException, ExecutionException {
         final Collection<CompletableFuture<?>> terminationFutures =
                 new ArrayList<>(closeables.size());
 

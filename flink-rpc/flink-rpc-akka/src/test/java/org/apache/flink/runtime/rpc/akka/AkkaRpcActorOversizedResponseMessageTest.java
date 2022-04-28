@@ -69,7 +69,7 @@ class AkkaRpcActorOversizedResponseMessageTest {
 
     @AfterAll
     static void teardownClass() throws Exception {
-        RpcUtils.terminateRpcServices(rpcService1, rpcService2);
+        RpcUtils.terminateRpcService(rpcService1, rpcService2);
     }
 
     @Test

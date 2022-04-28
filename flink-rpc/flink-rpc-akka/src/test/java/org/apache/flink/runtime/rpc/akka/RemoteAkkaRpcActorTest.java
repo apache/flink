@@ -57,7 +57,7 @@ class RemoteAkkaRpcActorTest {
 
     @AfterAll
     static void teardownClass() throws InterruptedException, ExecutionException, TimeoutException {
-        RpcUtils.terminateRpcServices(rpcService, otherRpcService);
+        RpcUtils.terminateRpcService(rpcService, otherRpcService);
     }
 
     @Test
