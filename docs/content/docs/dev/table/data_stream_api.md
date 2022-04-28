@@ -2883,7 +2883,7 @@ t_env = ...
 
 table = t_env.from_elements([("john", 35), ("sarah", 32)], 
               DataTypes.ROW([DataTypes.FIELD("name", DataTypes.STRING()),
-                            DataTypes.FIELD("age", DataTypes.INT())]))
+                             DataTypes.FIELD("age", DataTypes.INT())]))
 
 # Convert the Table into an append DataStream of Row by specifying the type information
 ds_row = t_env.to_append_stream(table, Types.ROW([Types.STRING(), Types.INT()]))

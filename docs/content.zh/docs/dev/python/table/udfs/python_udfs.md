@@ -41,7 +41,9 @@ Python 标量函数的行为由名为 `eval` 的方法定义，`eval` 方法支�
 以下示例显示了如何定义自己的 Python 哈希函数、如何在 TableEnvironment 中注册它以及如何在作业中使用它。
 
 ```python
-from pyflink.table.expressions import call 
+from pyflink.table.expressions import call, col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import ScalarFunction, udf
 
 class HashCode(ScalarFunction):
   def __init__(self):
@@ -56,7 +58,7 @@ table_env = TableEnvironment.create(settings)
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # 在 Python Table API 中使用 Python 自定义函数
-my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
+my_table.select(col("string"), col("bigint"), hash_code(col("bigint")), call(hash_code, col("bigint")))
 
 # 在 SQL API 中使用 Python 自定义函数
 table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
@@ -78,7 +80,8 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
 settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
@@ -87,7 +90,7 @@ table_env = TableEnvironment.create(settings)
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # 在 Python Table API 中使用 Java 函数
-my_table.select(call('hash_code', my_table.string))
+my_table.select(call('hash_code', col("string")))
 
 # 在 SQL API 中使用 Java 函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -128,10 +131,10 @@ add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 # 注册 Python 自定义函数
 table_env.create_temporary_function("add", add)
 # 在 Python Table API 中使用 Python 自定义函数
-my_table.select("add(a, b)")
+my_table.select(call('add', col('a'), col('b')))
 
 # 也可以在 Python Table API 中直接使用 Python 自定义函数
-my_table.select(add(my_table.a, my_table.b))
+my_table.select(add(col('a'), col('b')))
 ```
 
 <a name="table-functions"></a>
@@ -143,6 +146,10 @@ my_table.select(add(my_table.a, my_table.b))
 以下示例说明了如何定义自己的 Python 自定义表值函数，将其注册到 TableEnvironment 中，并在作业中使用它。
 
 ```python
+from pyflink.table.expressions import col
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import TableFunction, udtf
+
 class Split(TableFunction):
     def eval(self, string):
         for s in string.split(" "):
@@ -156,8 +163,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # 在 Python Table API 中使用 Python 表值函数
-my_table.join_lateral(split(my_table.a).alias("word, length"))
-my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
+my_table.join_lateral(split(col("a")).alias("word", "length"))
+my_table.left_outer_join_lateral(split(col("a")).alias("word", "length"))
 
 # 在 SQL API 中使用 Python 表值函数
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
@@ -183,7 +190,8 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
-from pyflink.table.expressions import call
+from pyflink.table.expressions import call, col
+from pyflink.table import TableEnvironment, EnvironmentSettings
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -193,8 +201,8 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
 # 在 Python Table API 中使用表值函数。 "alias"指定表的字段名称。
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', col('a')).alias("word", "length")).select(col('a'), col('word'), col('length'))
 
 # 注册 Python 函数。
 
@@ -311,14 +319,14 @@ t = table_env.from_elements([(1, 2, "Lee"),
                              (7, 8, "Lee")]).alias("value", "count", "name")
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).select(weighted_avg(t.value, t.count).alias("avg")).execute()
+result = t.group_by(col("name")).select(weighted_avg(col("value"), col("count")).alias("avg")).execute()
 result.print()
 
 # register function
 table_env.create_temporary_function("weighted_avg", WeightedAvg())
 
 # call registered function in Table API
-result = t.group_by(t.name).select(call("weighted_avg", t.value, t.count).alias("avg")).execute()
+result = t.group_by(col("name")).select(call("weighted_avg", col("value"), col("count")).alias("avg")).execute()
 result.print()
 
 # register table
@@ -487,7 +495,7 @@ t = table_env.from_elements([(1, 'Hi', 'Hello'),
                             ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-t.group_by(t.b).flat_aggregate(top2).select(col('*')).execute().print()
+t.group_by(col('b')).flat_aggregate(top2).select(col('*')).execute().print()
 
 # the result is:
 +----+--------------------------------+----------------------+

@@ -236,8 +236,7 @@ class TableConfig(object):
         Example:
         ::
 
-            >>> table_config = TableConfig() \\
-            ...     .set_idle_state_retention(datetime.timedelta(days=1))
+            >>> table_config.set_idle_state_retention(datetime.timedelta(days=1))
 
         .. note::
 

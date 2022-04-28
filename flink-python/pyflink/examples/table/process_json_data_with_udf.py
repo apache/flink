@@ -21,6 +21,7 @@ import sys
 
 from pyflink.table import (EnvironmentSettings, TableEnvironment, DataTypes, TableDescriptor,
                            Schema)
+from pyflink.table.expressions import col
 from pyflink.table.udf import udf
 
 
@@ -54,7 +55,7 @@ def process_json_data_with_udf():
         json_data['tel'] += 1
         return json.dumps(json_data)
 
-    table = table.select(table.id, update_tel(table.data))
+    table = table.select(col('id'), update_tel(col('data')))
 
     # execute
     table.execute_insert('sink') \
