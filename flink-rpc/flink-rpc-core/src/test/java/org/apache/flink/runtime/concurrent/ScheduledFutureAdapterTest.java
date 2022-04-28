@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.concurrent;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
 
@@ -32,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link ScheduledFutureAdapter}. */
-@ExtendWith(TestLoggerExtension.class)
 class ScheduledFutureAdapterTest {
 
     private ScheduledFutureAdapter<Integer> objectUnderTest;
