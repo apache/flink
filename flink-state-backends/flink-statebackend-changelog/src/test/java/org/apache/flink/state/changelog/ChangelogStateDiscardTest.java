@@ -32,6 +32,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -276,6 +277,8 @@ public class ChangelogStateDiscardTest {
                 "test-subtask",
                 executionConfig,
                 TtlTimeProvider.DEFAULT,
+                new ChangelogStateBackendMetricGroup(
+                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
                 writer,
                 emptyList(),
                 new MemoryBackendCheckpointStorageAccess(

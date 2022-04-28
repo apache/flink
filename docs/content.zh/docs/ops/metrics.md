@@ -1277,7 +1277,7 @@ Note that the metrics are only available via reporters.
   </thead>
   <tbody>
     <tr>
-      <th rowspan="20"><strong>Job (only available on TaskManager)</strong></th>
+      <th rowspan="8"><strong>Job (only available on TaskManager)</strong></th>
       <td>numberOfUploadRequests</td>
       <td>Total number of upload requests made</td>
       <td>Counter</td>
@@ -1315,6 +1315,42 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>uploadQueueSize</td>
       <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="7"><strong>Task/Operator</strong></th>
+      <td>startedMaterialization</td>
+      <td>The number of started materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>completedMaterialization</td>
+      <td>The number of successfully completed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>failedMaterialization</td>
+      <td>The number of failed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfMaterialization</td>
+      <td>The full size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfMaterialization</td>
+      <td>The incremental size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfNonMaterialization</td>
+      <td>The full size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfNonMaterialization</td>
+      <td>The incremental size of the non-materialization part of the last reported checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
   </tbody>

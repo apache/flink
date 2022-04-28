@@ -106,6 +106,7 @@ public abstract class AbstractChangelogStateBackend
                 operatorIdentifier,
                 keyGroupRange,
                 ttlTimeProvider,
+                metricGroup,
                 castHandles(stateHandles),
                 baseHandles ->
                         (AbstractKeyedStateBackend<K>)
@@ -143,6 +144,7 @@ public abstract class AbstractChangelogStateBackend
                 operatorIdentifier,
                 keyGroupRange,
                 ttlTimeProvider,
+                metricGroup,
                 castHandles(stateHandles),
                 baseHandles ->
                         (AbstractKeyedStateBackend<K>)
@@ -187,6 +189,7 @@ public abstract class AbstractChangelogStateBackend
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
             TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
             Collection<ChangelogStateBackendHandle> stateBackendHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception;

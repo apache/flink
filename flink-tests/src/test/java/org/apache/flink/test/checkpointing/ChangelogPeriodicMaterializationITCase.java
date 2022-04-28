@@ -20,7 +20,9 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.Preconditions;
@@ -158,18 +160,18 @@ public class ChangelogPeriodicMaterializationITCase
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
         StreamExecutionEnvironment env =
                 getEnv(
-                        new DelegatedStateBackendWrapper(
+                        StateBackendTestUtils.wrapStateBackendWithSnapshotFunction(
                                 delegatedStateBackend,
                                 snapshotResultFuture -> {
                                     if (hasFailed.get().compareAndSet(false, true)) {
-                                        throw new RuntimeException();
+                                        return ExceptionallyDoneFuture.of(new RuntimeException());
                                     } else {
                                         return snapshotResultFuture;
                                     }
                                 }),
                         checkpointFolder,
                         100,
-                        1,
+                        0,
                         10,
                         1);
         env.setParallelism(1);

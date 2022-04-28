@@ -155,6 +155,8 @@ public class ChangelogKeyedStateBackend<K>
     private final FunctionDelegationHelper functionDelegationHelper =
             new FunctionDelegationHelper();
 
+    private final ChangelogStateBackendMetricGroup metrics;
+
     /**
      * {@link SequenceNumber} denoting last upload range <b>start</b>, inclusive. Updated to {@link
      * ChangelogSnapshotState#materializedTo} when {@link #snapshot(long, long,
@@ -191,6 +193,7 @@ public class ChangelogKeyedStateBackend<K>
             String subtaskName,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            ChangelogStateBackendMetricGroup metricGroup,
             StateChangelogWriter<? extends ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState,
             CheckpointStorageWorkerView checkpointStorageWorkerView) {
@@ -199,6 +202,7 @@ public class ChangelogKeyedStateBackend<K>
                 subtaskName,
                 executionConfig,
                 ttlTimeProvider,
+                metricGroup,
                 stateChangelogWriter,
                 initialState,
                 checkpointStorageWorkerView,
@@ -211,6 +215,7 @@ public class ChangelogKeyedStateBackend<K>
             String subtaskName,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            ChangelogStateBackendMetricGroup metricGroup,
             StateChangelogWriter<? extends ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState,
             CheckpointStorageWorkerView checkpointStorageWorkerView,
@@ -220,6 +225,7 @@ public class ChangelogKeyedStateBackend<K>
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
+        this.metrics = metricGroup;
         this.changelogStateFactory = changelogStateFactory;
         this.stateChangelogWriter = stateChangelogWriter;
         this.lastUploadedTo = stateChangelogWriter.initialSequenceNumber();
@@ -395,10 +401,17 @@ public class ChangelogKeyedStateBackend<K>
                                         buildSnapshotResult(
                                                 checkpointId,
                                                 delta,
-                                                changelogStateBackendStateCopy)));
+                                                changelogStateBackendStateCopy))
+                        .whenComplete(
+                                (snapshotResult, throwable) ->
+                                        metrics.reportSnapshotResult(snapshotResult))
+                        .thenApply(
+                                snapshotResult ->
+                                        SnapshotResult.of(
+                                                snapshotResult.getJobManagerOwnedSnapshot())));
     }
 
-    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
+    private SnapshotResult<ChangelogStateBackendHandle> buildSnapshotResult(
             long checkpointId,
             ChangelogStateHandle delta,
             ChangelogSnapshotState changelogStateBackendStateCopy) {

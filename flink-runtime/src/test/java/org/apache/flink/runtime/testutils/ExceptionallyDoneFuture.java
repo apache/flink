@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks;
+package org.apache.flink.runtime.testutils;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;

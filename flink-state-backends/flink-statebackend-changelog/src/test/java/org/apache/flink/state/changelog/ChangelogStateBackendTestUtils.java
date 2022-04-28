@@ -31,6 +31,7 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.changelog.fs.TaskChangelogRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -88,7 +89,13 @@ public class ChangelogStateBackendTestUtils {
             throws Exception {
 
         return createKeyedBackend(
-                stateBackend, keySerializer, numberOfKeyGroups, keyGroupRange, null, env);
+                stateBackend,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                new UnregisteredMetricsGroup(),
+                null,
+                env);
     }
 
     public static <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
@@ -96,6 +103,26 @@ public class ChangelogStateBackendTestUtils {
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
+            MetricGroup metricGroup,
+            Environment env)
+            throws Exception {
+
+        return createKeyedBackend(
+                stateBackend,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                metricGroup,
+                null,
+                env);
+    }
+
+    public static <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
+            StateBackend stateBackend,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            MetricGroup metricGroup,
             KeyedStateHandle state,
             Environment env)
             throws Exception {
@@ -109,7 +136,7 @@ public class ChangelogStateBackendTestUtils {
                 keyGroupRange,
                 env.getTaskKvStateRegistry(),
                 TtlTimeProvider.DEFAULT,
-                new UnregisteredMetricsGroup(),
+                metricGroup,
                 state == null ? Collections.emptyList() : Collections.singletonList(state),
                 new CloseableRegistry());
     }
@@ -118,14 +145,37 @@ public class ChangelogStateBackendTestUtils {
             StateBackend stateBackend, Environment env) throws Exception {
 
         return createKeyedBackend(
-                stateBackend, IntSerializer.INSTANCE, 10, new KeyGroupRange(0, 9), env);
+                stateBackend,
+                IntSerializer.INSTANCE,
+                10,
+                new KeyGroupRange(0, 9),
+                new UnregisteredMetricsGroup(),
+                env);
+    }
+
+    public static CheckpointableKeyedStateBackend<Integer> createKeyedBackend(
+            StateBackend stateBackend, Environment env, MetricGroup metricGroup) throws Exception {
+
+        return createKeyedBackend(
+                stateBackend,
+                IntSerializer.INSTANCE,
+                10,
+                new KeyGroupRange(0, 9),
+                metricGroup,
+                env);
     }
 
     private static CheckpointableKeyedStateBackend<Integer> restoreKeyedBackend(
             StateBackend stateBackend, KeyedStateHandle state, Environment env) throws Exception {
 
         return createKeyedBackend(
-                stateBackend, IntSerializer.INSTANCE, 10, new KeyGroupRange(0, 9), state, env);
+                stateBackend,
+                IntSerializer.INSTANCE,
+                10,
+                new KeyGroupRange(0, 9),
+                new UnregisteredMetricsGroup(),
+                state,
+                env);
     }
 
     public static TestTaskStateManager createTaskStateManager(File changelogStoragePath)
@@ -327,12 +377,23 @@ public class ChangelogStateBackendTestUtils {
     private static PeriodicMaterializationManager periodicMaterializationManager(
             ChangelogKeyedStateBackend<Integer> keyedBackend,
             CompletableFuture<Void> asyncComplete) {
+        return periodicMaterializationManager(
+                keyedBackend,
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
+                asyncComplete);
+    }
+
+    static PeriodicMaterializationManager periodicMaterializationManager(
+            ChangelogKeyedStateBackend<Integer> keyedBackend,
+            MetricGroup metricGroup,
+            CompletableFuture<Void> asyncComplete) {
         return new PeriodicMaterializationManager(
                 new SyncMailboxExecutor(),
                 Executors.newDirectExecutorService(),
                 "testTask",
                 (message, exception) -> asyncComplete.completeExceptionally(exception),
                 keyedBackend,
+                new ChangelogMaterializationMetricGroup(metricGroup),
                 10,
                 1,
                 "testTask");
