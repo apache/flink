@@ -75,6 +75,7 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
                         .setAdminUrl(operator().adminUrl())
                         .setDeliveryGuarantee(guarantee)
                         .setTopics(topic)
+                        .setProducerName("pulsar-sink-it-case")
                         .setSerializationSchema(flinkSchema(new SimpleStringSchema()))
                         .build();
 
