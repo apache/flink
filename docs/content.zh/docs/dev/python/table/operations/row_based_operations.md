@@ -44,7 +44,7 @@ table_env = TableEnvironment.create(env_settings)
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]))
+                                DataTypes.FIELD("data", DataTypes.STRING())]))
 def func1(id: int, data: str) -> Row:
     return Row(id, data * 2)
 
@@ -63,7 +63,7 @@ It also supports to take a Row object (containing all the columns of the input t
 
 ```python
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]))
+                                DataTypes.FIELD("data", DataTypes.STRING())]))
 def func2(data: Row) -> Row:
     return Row(data.id, data.data * 2)
 
@@ -86,7 +86,7 @@ It should be noted that the input type and output type should be pandas.DataFram
 ```python
 import pandas as pd
 @udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                               DataTypes.FIELD("data", DataTypes.STRING())]),
+                                DataTypes.FIELD("data", DataTypes.STRING())]),
      func_type='pandas')
 def func3(data: pd.DataFrame) -> pd.DataFrame:
     res = pd.concat([data.id, data.data * 2], axis=1)
@@ -288,10 +288,11 @@ t = table_env.from_elements([(1, 'Hi', 'Hello'),
                              (3, 'Hi', 'hi'),
                              (5, 'Hi2', 'hi'),
                              (7, 'Hi', 'Hello'),
-                             (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+                             (2, 'Hi', 'Hello')],
+                            ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.b).flat_aggregate(top2).select(col('*')).to_pandas()
+result = t.group_by(col('b')).flat_aggregate(top2).select(col('*')).to_pandas()
 
 # the result is:
 #+----+--------------------------------+----------------------+

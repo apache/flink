@@ -138,6 +138,8 @@ The predefined data sinks support writing to Pandas DataFrame.
 PyFlink Tables support conversion to and from Pandas DataFrame.
 
 ```python
+from pyflink.table.expressions import col
+
 import pandas as pd
 import numpy as np
 
@@ -155,6 +157,8 @@ pdf = table.to_pandas()
 be acceptable atomic types or acceptable composite types.
 
 ```python
+from pyflink.table import DataTypes
+
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
 # use the second parameter to specify custom field names

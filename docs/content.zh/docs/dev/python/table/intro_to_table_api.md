@@ -319,6 +319,7 @@ new_table.execute().print()
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 # 通过 batch table environment 来执行查询
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -329,11 +330,11 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
 
 # 计算所有来自法国客户的收入
 revenue = orders \
-    .select(orders.name, orders.country, orders.revenue) \
-    .where(orders.country == 'FRANCE') \
-    .group_by(orders.name) \
-    .select(orders.name, orders.revenue.sum.alias('rev_sum'))
-    
+    .select(col("name"), col("country"), col("revenue")) \
+    .where(col("country") == 'FRANCE') \
+    .group_by(col("name")) \
+    .select(col("name"), col("country").sum.alias('rev_sum'))
+
 revenue.execute().print()
 ```
 
@@ -686,6 +687,7 @@ Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化�
 ```python
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -693,7 +695,7 @@ table_env = TableEnvironment.create(env_settings)
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table = table1 \
-    .where(table1.data.like('H%')) \
+    .where(col("data").like('H%')) \
     .union_all(table2)
 print(table.explain())
 ```
@@ -739,6 +741,7 @@ Stage 136 : Data Source
 ```python
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(environment_settings=env_settings)
@@ -764,7 +767,7 @@ table_env.execute_sql("""
 
 statement_set = table_env.create_statement_set()
 
-statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')))
+statement_set.add_insert("print_sink_table", table1.where(col("data").like('H%')))
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())

@@ -36,6 +36,7 @@ All Table API and SQL programs, both batch and streaming, follow the same patter
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 # 1. create a TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
@@ -70,7 +71,7 @@ source_table = table_env.from_path("datagen")
 # or create a Table from a SQL query:
 # source_table = table_env.sql_query("SELECT * FROM datagen")
 
-result_table = source_table.select(source_table.id + 1, source_table.data)
+result_table = source_table.select(col("id") + 1, col("data"))
 
 # 5. emit query result to sink table
 # emit a Table API result Table to a sink table:
@@ -319,6 +320,7 @@ The following example shows a simple Table API aggregation query:
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 # using batch table environment to execute the queries
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -329,11 +331,11 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
 
 # compute revenue for all customers from France
 revenue = orders \
-    .select(orders.name, orders.country, orders.revenue) \
-    .where(orders.country == 'FRANCE') \
-    .group_by(orders.name) \
-    .select(orders.name, orders.revenue.sum.alias('rev_sum'))
-    
+    .select(col("name"), col("country"), col("revenue")) \
+    .where(col("country") == 'FRANCE') \
+    .group_by(col("name")) \
+    .select(col("name"), col("country").sum.alias('rev_sum'))
+
 revenue.execute().print()
 ```
 
@@ -687,6 +689,7 @@ The following code shows how to use the `Table.explain()` method:
 ```python
 # using a stream TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -694,7 +697,7 @@ table_env = TableEnvironment.create(env_settings)
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table = table1 \
-    .where(table1.data.like('H%')) \
+    .where(col("data").like('H%')) \
     .union_all(table2)
 print(table.explain())
 ```
@@ -740,6 +743,7 @@ The following code shows how to use the `StatementSet.explain()` method:
 ```python
 # using a stream TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table.expressions import col
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
@@ -765,7 +769,7 @@ table_env.execute_sql("""
 
 statement_set = table_env.create_statement_set()
 
-statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')))
+statement_set.add_insert("print_sink_table", table1.where(col("data").like('H%')))
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())

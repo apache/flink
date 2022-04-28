@@ -1934,7 +1934,7 @@ class StreamTableEnvironment(TableEnvironment):
             ...         .column("id", DataTypes.BIGINT())
             ...         .column("payload", DataTypes.ROW(
             ...                                     [DataTypes.FIELD("name", DataTypes.STRING()),
-            ...                                     DataTypes.FIELD("age", DataTypes.INT())]))
+            ...                                      DataTypes.FIELD("age", DataTypes.INT())]))
             ...         .build())
 
         Note that the type system of the table ecosystem is richer than the one of the DataStream

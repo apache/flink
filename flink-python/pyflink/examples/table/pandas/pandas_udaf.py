@@ -75,8 +75,8 @@ def pandas_udaf():
 
     # define the tumble window operation
     table = table.window(Tumble.over(lit(5).seconds).on(col("ts")).alias("w")) \
-                 .group_by(table.name, col('w')) \
-                 .select(table.name, mean_udaf(table.price), col("w").start, col("w").end)
+                 .group_by(col('name'), col('w')) \
+                 .select(col('name'), mean_udaf(col('price')), col("w").start, col("w").end)
 
     # submit for execution
     table.execute_insert('sink') \

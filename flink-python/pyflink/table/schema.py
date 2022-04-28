@@ -139,9 +139,9 @@ class Schema(object):
             Example:
             ::
 
-                >>> Schema.new_builder().
-                ...  column_by_expression("ts", "orig_ts - INTERVAL '60' MINUTE").
-                ...  column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
+                >>> Schema.new_builder() \\
+                ...     .column_by_expression("ts", "orig_ts - INTERVAL '60' MINUTE") \\
+                ...     .column_by_metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp")
 
             :param column_name: Column name
             :param expr: Computation of the column
