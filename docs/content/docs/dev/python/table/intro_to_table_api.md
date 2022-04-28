@@ -101,22 +101,25 @@ table_env = TableEnvironment.create(env_settings)
 
 For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({{< ref "docs/dev/python/table/table_environment" >}}#create-a-tableenvironment).
 
-The `TableEnvironment` is responsible for:
+`TableEnvironment` is responsible for:
 
-* Creating `Table`s
-* Registering `Table`s as a temporary view
-* Executing SQL queries, see [SQL]({{< ref "docs/dev/table/sql/overview" >}}) for more details
-* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) and [Vectorized User-defined Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}) for more details
-* Configuring the job, see [Python Configuration]({{< ref "docs/dev/python/python_config" >}}) for more details
-* Managing Python dependencies, see [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}) for more details
-* Submitting the jobs for execution
+* `Table` management: [Creating Tables](#create-tables), listing Tables, [Conversion between Table and DataStream]({{< ref "docs/dev/table/data_stream_api" >}}#converting-between-datastream-and-table), etc.
+* User-defined function management: User-defined function registration, dropping, listing, etc. See [General User-defined Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) and [Vectorized User-defined Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}) for more details about Python user-defined functions.
+* Executing [SQL]({{< ref "docs/dev/table/sql/overview" >}}) queries: See [Write SQL Queries](#write-sql-queries) for more details.
+* Job configuration: See [Python Configuration]({{< ref "docs/dev/python/python_config" >}}) for more details.
+* Python dependency management: See [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}) for more details.
+* Job submission: See [Emit Results](#emit-results) for more details.
 
 {{< top >}}
 
 Create Tables
 ---------------
 
-`Table` is a core component of the Python Table API. A `Table` is a logical representation of the intermediate result of a Table API Job.
+`Table` is a core component of the Python Table API. A `Table` object describes a pipeline of data transformations. It does not
+contain the data itself in any way. Instead, it describes how to read data from a table source,
+and how to eventually write data to a table sink. The declared pipeline can be
+printed, optimized, and eventually executed in a cluster. The pipeline can work with bounded or
+unbounded streams which enables both streaming and batch scenarios.
 
 A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine tables from different TableEnvironments in same query, e.g., to join or union them.
 
@@ -146,7 +149,7 @@ The results are as following:
 +----------------------+--------------------------------+
 ```
 
-You can also create the Table with specified column names:
+You can also create a Table with specified column names:
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -164,7 +167,7 @@ The results are as following:
 +----------------------+--------------------------------+
 ```
 
-By default, the table schema is extracted from the data automatically. If the automatically generated table schema isn't satisfactory, you can also specify it manually:
+By default, the table schema is extracted from the data automatically. If the automatically generated table schema isn't as expected, you can also specify it manually:
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -188,7 +191,7 @@ Now the type of the "id" column is TINYINT.
 
 ### Create using DDL statements
 
-You can also create a Table using SQL DDL statements.
+You can also create a Table using SQL DDL statements. It represents a Table which reads data from the specified external storage.
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -545,6 +548,35 @@ The results are as following:
 Emit Results
 ----------------
 
+### Print the Table
+
+You can call the `TableResult.print` method to print the content of the Table to console.
+This is usually used when you want to preview the table.
+
+```python
+# prepare source tables 
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# Get TableResult
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# Print the table
+table_result.print()
+```
+
+The results are as following:
+
+```text
++----+----------------------+--------------------------------+--------------------------------+
+| op |               EXPR$0 |                              b |                              c |
++----+----------------------+--------------------------------+--------------------------------+
+| +I |                    2 |                             Hi |                          Hello |
+| +I |                    3 |                          Hello |                          Hello |
++----+----------------------+--------------------------------+--------------------------------+
+```
+
+<span class="label label-info">Note</span> It will trigger the materialization of the table and collect table content to the memory of the client, it's a good practice to limit the number of rows collected via {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}.
+
 ### Collect Results to Client
 
 You can call the `TableResult.collect` method to collect results of a table to client.
@@ -557,10 +589,10 @@ The following code shows how to use the `TableResult.collect()` method：
 source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
 
 # Get TableResult
-res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
 
 # Traversal result
-with res.collect() as results:
+with table_result.collect() as results:
    for result in results:
        print(result)
 ```
@@ -571,6 +603,8 @@ The results are as following：
 <Row(2, 'Hi', 'Hello')>
 <Row(3, 'Hello', 'Hello')>
 ```
+
+<span class="label label-info">Note</span> It will trigger the materialization of the table and collect table content to the memory of the client, it's a good practice to limit the number of rows collected via {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}.
 
 ### Collect Results to Client by converting it to pandas DataFrame 
 
@@ -589,9 +623,9 @@ The results are as following:
 1   2  Hello
 ```
 
-<span class="label label-info">Note</span> "to_pandas" will trigger the materialization of the table and collect table content to the memory of the client, it's a good practice to limit the number of rows collected via {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}.
+<span class="label label-info">Note</span> It will trigger the materialization of the table and collect table content to the memory of the client, it's a good practice to limit the number of rows collected via {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}.
 
-<span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
+<span class="label label-info">Note</span> Not all the data types are supported.
 
 ### Emit Results to One Sink Table
 
@@ -676,7 +710,8 @@ Explain Tables
 -----------------
 
 The Table API provides a mechanism to explain the logical and optimized query plans used to compute a `Table`. 
-This is done through the `Table.explain()` or `StatementSet.explain()` methods. `Table.explain()`returns the plan of a `Table`. `StatementSet.explain()` returns the plan for multiple sinks. These methods return a string describing three things:
+This is done through the `Table.explain()` or `StatementSet.explain()` methods. `Table.explain()` returns the plan of a `Table`.
+`StatementSet.explain()` is used to get the plan for a job which contains multiple sinks. These methods return a string describing three things:
 
 1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
 2. the optimized logical query plan, and

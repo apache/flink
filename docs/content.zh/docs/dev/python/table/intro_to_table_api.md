@@ -102,20 +102,23 @@ table_env = TableEnvironment.create(env_settings)
 
 `TableEnvironment` 可以用来:
 
-* 创建 `Table`
-* 将 `Table` 注册成临时表
-* 执行 SQL 查询，更多细节可查阅 [SQL]({{< ref "docs/dev/table/sql/overview" >}})
-* 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和 [向量化的用户自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
-* 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
-* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
-* 提交作业执行
+* `Table` 管理：[创建表](#create-tables)、列举表、[Table 和 DataStream 互转]({{< ref "docs/dev/table/data_stream_api" >}}#converting-between-datastream-and-table)等。
+* 自定义函数管理：自定义函数的注册、删除、列举等。 关于 Python 自定义函数的更多细节，请参考[普通自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和[向量化自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})章节的介绍。
+* 执行 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 语句：更多细节可查阅[SQL 查询](#write-sql-queries)章节的介绍。
+* 作业配置管理：更多细节可查阅[Python 配置]({{< ref "docs/dev/python/python_config" >}})章节的介绍。
+* Python 依赖管理：更多细节可查阅[依赖管理]({{< ref "docs/dev/python/dependency_management" >}})章节的介绍。
+* 作业提交：更多细节可查阅[作业提交](#emit-results)章节的介绍。
 
 {{< top >}}
+
+<a name="create-tables"></a>
 
 创建表
 ---------------
 
-`Table` 是 Python Table API 的核心组件。`Table` 是 Table API 作业中间结果的逻辑表示。
+`Table` 是 Python Table API 的核心组件。`Table` 对象由一系列数据转换操作构成，但是它不包含数据本身。
+相反，它描述了如何从数据源中读取数据，以及如何将最终结果写出到外部存储等。表可以被打印、优化并最终在集群中执行。
+表也可以是有限流或无限流，以支持流式处理和批处理场景。
 
 一个 `Table` 实例总是与一个特定的 `TableEnvironment` 相绑定。不支持在同一个查询中合并来自不同 TableEnvironments 的表，例如 join 或者 union 它们。
 
@@ -163,7 +166,7 @@ table.execute().print()
 +----------------------+--------------------------------+
 ```
 
-默认情况下，表结构是从数据中自动提取的。 如果自动生成的表模式不符合你的要求，你也可以手动指定：
+默认情况下，表结构是从数据中自动提取的。 如果自动生成的表模式不符合你的预期，你也可以手动指定：
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -187,7 +190,7 @@ Now the type of the "id" column is TINYINT.
 
 ### 通过 DDL 创建
 
-你可以通过 DDL 创建一张表：
+你可以通过 DDL 语句创建表，它代表一张从指定的外部存储读取数据的表：
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
@@ -387,6 +390,8 @@ orders.map(map_function).execute().print()
 +--------------------------------+----------------------+
 ```
 
+<a name="write-sql-queries"></a>
+
 ### SQL 查询
 
 Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
@@ -541,8 +546,38 @@ table.execute().print()
 
 {{< top >}}
 
+<a name="emit-results"></a>
+
 将结果写出
 ----------------
+
+### 打印结果
+
+你可以通过 `TableResult.print` 方法，将表的结果打印到标准输出中。该方法通常用于预览表的中间结果。
+
+```python
+# prepare source tables 
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# Get TableResult
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# Print the table
+table_result.print()
+```
+
+结果为：
+
+```text
++----+----------------------+--------------------------------+--------------------------------+
+| op |               EXPR$0 |                              b |                              c |
++----+----------------------+--------------------------------+--------------------------------+
+| +I |                    2 |                             Hi |                          Hello |
+| +I |                    3 |                          Hello |                          Hello |
++----+----------------------+--------------------------------+--------------------------------+
+```
+
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
 
 ### 将结果数据收集到客户端
 
@@ -555,10 +590,10 @@ table.execute().print()
 source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
 
 # 得到 TableResult
-res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+table_result = table_env.execute_sql("select a + 1, b, c from %s" % source)
 
 # 遍历结果
-with res.collect() as results:
+with table_result.collect() as results:
    for result in results:
        print(result)
 ```
@@ -569,6 +604,8 @@ with res.collect() as results:
 <Row(2, 'Hi', 'Hello')>
 <Row(3, 'Hello', 'Hello')>
 ```
+
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
 
 ### 将结果数据转换为Pandas DataFrame，并收集到客户端
 
@@ -587,9 +624,9 @@ print(table.to_pandas())
 1   2  Hello
 ```
 
-<span class="label label-info">Note</span> "to_pandas" 会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
+<span class="label label-info">Note</span> 该方式会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
 
-<span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且，并不是所有的数据类型都可以转换为 pandas DataFrames。
+<span class="label label-info">Note</span> 并不是所有的数据类型都可以转换为 pandas DataFrames。
 
 ### 将结果写入到一张 Sink 表中
 

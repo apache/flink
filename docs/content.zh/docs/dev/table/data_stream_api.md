@@ -62,6 +62,8 @@ mentioned here for completeness.
 
 {{< top >}}
 
+<a name="converting-between-datastream-and-table"></a>
+
 Converting between DataStream and Table
 ---------------------------------------
 

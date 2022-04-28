@@ -112,17 +112,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>sql_query(query)</strong>
-      </td>
-      <td>
-        Evaluates a SQL query and retrieves the result as a `Table` object. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>create_temporary_view(view_path, table)</strong>
       </td>
       <td>
@@ -168,6 +157,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>sql_query(query)</strong>
+      </td>
+      <td>
+        Evaluates a SQL query and retrieves the result as a `Table` object. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_query" name="link">}}
       </td>
     </tr>
   </tbody>
@@ -574,7 +574,9 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
         The following code is an example showing how to set the configuration options through this API:<br>
 # set the parallelism to 8<br>
-table_env.get_config().set("parallelism.default", "8")
+table_env.get_config().set("parallelism.default", "8")<br>
+# set the job name <br>
+table_env.get_config().set("pipeline.name", "my_first_job")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="link">}}
