@@ -239,6 +239,8 @@ Setting the maximum parallelism to a very large
 value can be detrimental to performance because some state backends have to keep internal data
 structures that scale with the number of key-groups (which are the internal implementation mechanism for
 rescalable state).
+
+Changing the maximum parallelism explicitly when recovery from original job will lead to state incompatibility.
 {{< /hint >}}
 
 {{< top >}}
