@@ -78,16 +78,16 @@ class TimeoutCallStackTest {
     }
 
     @Test
-    void testTimeoutException() throws Exception {
-        txestTimeoutException(gateway -> gateway.callThatTimesOut(Time.milliseconds(1)));
+    void testTimeoutExceptionWithTime() throws Exception {
+        testTimeoutException(gateway -> gateway.callThatTimesOut(Time.milliseconds(1)));
     }
 
     @Test
     void testTimeoutExceptionWithDuration() throws Exception {
-        txestTimeoutException(gateway -> gateway.callThatTimesOut(Duration.ofMillis(1)));
+        testTimeoutException(gateway -> gateway.callThatTimesOut(Duration.ofMillis(1)));
     }
 
-    private void txestTimeoutException(
+    private void testTimeoutException(
             Function<TestingGateway, CompletableFuture<Void>> timeoutOperation) throws Exception {
         final TestingGateway gateway = createTestingGateway();
 
