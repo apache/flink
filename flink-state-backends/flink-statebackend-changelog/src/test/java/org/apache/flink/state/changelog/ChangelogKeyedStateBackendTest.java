@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -108,6 +109,8 @@ public class ChangelogKeyedStateBackendTest {
                 "test",
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
+                new ChangelogStateBackendMetricGroup(
+                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup()),
                 new InMemoryStateChangelogStorage()
                         .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),
