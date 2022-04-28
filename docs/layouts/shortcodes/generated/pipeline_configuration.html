@@ -84,7 +84,7 @@
             <td><h5>pipeline.max-parallelism</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
+            <td>The program-wide maximum parallelism used for operators which haven't specified a maximum parallelism. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state. Changing the value explicitly when recovery from original job will lead to state incompatibility.</td>
         </tr>
         <tr>
             <td><h5>pipeline.name</h5></td>
