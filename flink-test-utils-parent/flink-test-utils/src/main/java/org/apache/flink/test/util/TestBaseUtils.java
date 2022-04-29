@@ -19,7 +19,6 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 
@@ -47,26 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Utility class containing various methods for testing purposes. */
-public class TestBaseUtils extends TestLogger {
-
-    protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    // ------------------------------------------------------------------------
-
-    protected TestBaseUtils() {
-        verifyJvmOptions();
-    }
-
-    private static void verifyJvmOptions() {
-        long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
-                "Insufficient java heap space "
-                        + heap
-                        + "mb - set JVM option: -Xmx"
-                        + MINIMUM_HEAP_SIZE_MB
-                        + "m",
-                heap > MINIMUM_HEAP_SIZE_MB - 50);
-    }
+public class TestBaseUtils {
 
     // --------------------------------------------------------------------------------------------
     //  Result Checking
