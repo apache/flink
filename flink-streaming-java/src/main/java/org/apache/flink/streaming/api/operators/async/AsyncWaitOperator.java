@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -51,10 +52,15 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
+
+import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
 
 /**
  * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
@@ -67,6 +73,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * order to give exactly once processing guarantees, the operator stores all currently in-flight
  * {@link StreamElement} in it's operator state. Upon recovery the recorded set of stream elements
  * is replayed.
+ *
+ * <p>The operator also support retry on predefined condition and strategy {@link
+ * AsyncRetryStrategy}. If given strategy is NO_RETRY_STRATEGY or a custom implemented {@link
+ * org.apache.flink.streaming.api.functions.async.AsyncRetryPredicate} which defines empty retry
+ * predicate, then no retry will happen, everything keeps the same as the {@link AsyncWaitOperator}
+ * without retry support.
  *
  * <p>In case of chaining of this operator, it has to be made sure that the operators in the chain
  * are opened tail to head. The reason for this is that an opened {@link AsyncWaitOperator} starts
@@ -92,6 +104,12 @@ public class AsyncWaitOperator<IN, OUT>
     /** Timeout for the async collectors. */
     private final long timeout;
 
+    /** AsyncRetryStrategy for the async function. */
+    private final AsyncRetryStrategy<OUT> asyncRetryStrategy;
+
+    /** If the retry strategy is not no_retry. */
+    private final boolean retryEnabled;
+
     /** {@link TypeSerializer} for inputs while making snapshots. */
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
@@ -101,6 +119,9 @@ public class AsyncWaitOperator<IN, OUT>
     /** Queue, into which to store the currently in-flight stream elements. */
     private transient StreamElementQueue<OUT> queue;
 
+    /** Unfinished delay retry handlers, will be removed when a retry has been done. */
+    private transient Set<RetryableResultHandlerDelegator> incompleteDelayRetryHandlers;
+
     /** Mailbox executor used to yield while waiting for buffers to empty. */
     private final transient MailboxExecutor mailboxExecutor;
 
@@ -109,11 +130,18 @@ public class AsyncWaitOperator<IN, OUT>
     /** Whether object reuse has been enabled or disabled. */
     private transient boolean isObjectReuseEnabled;
 
+    private transient Predicate<Collection<OUT>> retryResultPredicate;
+
+    private transient Predicate<Throwable> retryExceptionPredicate;
+
+    private transient AtomicBoolean delayedRetryAvailable;
+
     public AsyncWaitOperator(
             @Nonnull AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
             int capacity,
             @Nonnull AsyncDataStream.OutputMode outputMode,
+            @Nonnull AsyncRetryStrategy<OUT> asyncRetryStrategy,
             @Nonnull ProcessingTimeService processingTimeService,
             @Nonnull MailboxExecutor mailboxExecutor) {
         super(asyncFunction);
@@ -127,6 +155,18 @@ public class AsyncWaitOperator<IN, OUT>
         this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
         this.timeout = timeout;
+
+        this.asyncRetryStrategy = asyncRetryStrategy;
+
+        this.retryEnabled =
+                // construct from utility class
+                asyncRetryStrategy != NO_RETRY_STRATEGY
+                        // construct from api
+                        || (!asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()
+                                && !asyncRetryStrategy
+                                        .getRetryPredicate()
+                                        .exceptionPredicate()
+                                        .isPresent());
 
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
@@ -143,7 +183,6 @@ public class AsyncWaitOperator<IN, OUT>
         this.inStreamElementSerializer =
                 new StreamElementSerializer<>(
                         getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
-
         switch (outputMode) {
             case ORDERED:
                 queue = new OrderedStreamElementQueue<>(capacity);
@@ -154,6 +193,14 @@ public class AsyncWaitOperator<IN, OUT>
             default:
                 throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
         }
+        if (asyncRetryStrategy.getRetryPredicate().resultPredicate().isPresent()) {
+            this.retryResultPredicate =
+                    asyncRetryStrategy.getRetryPredicate().resultPredicate().get();
+        }
+        if (asyncRetryStrategy.getRetryPredicate().exceptionPredicate().isPresent()) {
+            this.retryExceptionPredicate =
+                    asyncRetryStrategy.getRetryPredicate().exceptionPredicate().get();
+        }
 
         this.timestampedCollector = new TimestampedCollector<>(super.output);
     }
@@ -163,6 +210,10 @@ public class AsyncWaitOperator<IN, OUT>
         super.open();
 
         this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
+        if (retryEnabled) {
+            this.incompleteDelayRetryHandlers = new HashSet<>();
+            this.delayedRetryAvailable = new AtomicBoolean(true);
+        }
 
         if (recoveredStreamElements != null) {
             for (StreamElement element : recoveredStreamElements.get()) {
@@ -197,11 +248,12 @@ public class AsyncWaitOperator<IN, OUT>
         // add element first to the queue
         final ResultFuture<OUT> entry = addToWorkQueue(element);
 
-        final ResultHandler resultHandler = new ResultHandler(element, entry);
+        final RetryableResultHandlerDelegator resultHandler =
+                new RetryableResultHandlerDelegator(element, entry, getProcessingTimeService());
 
         // register a timeout for the entry if timeout is configured
         if (timeout > 0L) {
-            resultHandler.registerTimeout(getProcessingTimeService(), timeout);
+            resultHandler.registerTimeout(timeout);
         }
 
         userFunction.asyncInvoke(element.getValue(), resultHandler);
@@ -252,6 +304,9 @@ public class AsyncWaitOperator<IN, OUT>
 
     @Override
     public void endInput() throws Exception {
+        // we should finish all in fight delayed retry immediately.
+        finishInFlightDelayedRetry();
+
         // we should wait here for the data in flight to be finished. the reason is that the
         // timer not in running will be forbidden to fire after this, so that when the async
         // operation is stuck, it results in deadlock due to what the timeout timer is not fired
@@ -271,8 +326,7 @@ public class AsyncWaitOperator<IN, OUT>
      * @return a handle that allows to set the result of the async computation for the given
      *     element.
      */
-    private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement)
-            throws InterruptedException {
+    private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement) throws Exception {
 
         Optional<ResultFuture<OUT>> queueEntry;
         while (!(queueEntry = queue.tryPut(streamElement)).isPresent()) {
@@ -280,6 +334,25 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         return queueEntry.get();
+    }
+
+    private void finishInFlightDelayedRetry() throws Exception {
+        if (retryEnabled) {
+            // disable delayed retry, after which all data will give up retry and complete normally.
+            this.delayedRetryAvailable.set(false);
+            if (incompleteDelayRetryHandlers.size() > 0) {
+                for (RetryableResultHandlerDelegator delegator : incompleteDelayRetryHandlers) {
+                    assert delegator.resultHandler.inputRecord.isRecord();
+                    assert delegator.retryInFlight.get() && delegator.delayedRetryTimer != null;
+                    // cancel delayed retry timer
+                    if (delegator.delayedRetryTimer.cancel(true)) {
+                        doRetry(delegator);
+                    }
+                    // cancel failure means retry action already being executed
+                }
+                incompleteDelayRetryHandlers.clear();
+            }
+        }
     }
 
     private void waitInFlightInputsFinished() throws InterruptedException {
@@ -315,6 +388,143 @@ public class AsyncWaitOperator<IN, OUT>
                             mailboxClosedException);
                 }
             }
+        }
+    }
+
+    private void doRetry(RetryableResultHandlerDelegator resultHandlerDelegator) throws Exception {
+        // increment current attempt number
+        resultHandlerDelegator.incrementAttempts();
+
+        // fire a new attempt
+        userFunction.asyncInvoke(resultHandlerDelegator.getInputRecord(), resultHandlerDelegator);
+    }
+
+    /** A delegator holds the real {@link ResultHandler} to handle retries. */
+    private class RetryableResultHandlerDelegator implements ResultFuture<OUT> {
+
+        private final ResultHandler resultHandler;
+        private final ProcessingTimeService processingTimeService;
+
+        private ScheduledFuture<?> delayedRetryTimer;
+
+        /** start from 1, when this entry created, the first attempt will happen */
+        private int currentAttempts = 1;
+
+        private long backoffTimeMillis;
+
+        private final AtomicBoolean retryInFlight = new AtomicBoolean(false);
+
+        public RetryableResultHandlerDelegator(
+                StreamRecord<IN> inputRecord,
+                ResultFuture<OUT> resultFuture,
+                ProcessingTimeService processingTimeService) {
+            this.resultHandler = new ResultHandler(inputRecord, resultFuture);
+            this.processingTimeService = processingTimeService;
+        }
+
+        public void registerTimeout(long timeout) {
+            resultHandler.registerTimeout(processingTimeService, timeout);
+        }
+
+        @Override
+        public void complete(Collection<OUT> results) {
+            if (retryEnabled) {
+                mailboxExecutor.submit(() -> cleanupLastRetryInMailbox(), "cleanup last retry");
+                if (!resultHandler.completed.get() && ifRetryOrCompleted(results, null)) {
+                    return;
+                }
+            }
+            resultHandler.complete(results);
+        }
+
+        @Override
+        public void completeExceptionally(Throwable error) {
+            if (retryEnabled) {
+                mailboxExecutor.submit(() -> cleanupLastRetryInMailbox(), "cleanup last retry");
+                if (ifRetryOrCompleted(null, error)) {
+                    return;
+                }
+            }
+            resultHandler.completeExceptionally(error);
+        }
+
+        private void cleanupLastRetryInMailbox() {
+            if (retryInFlight.compareAndSet(true, false)) {
+                assert incompleteDelayRetryHandlers.contains(this);
+                // remove from delayed retry queue
+                incompleteDelayRetryHandlers.remove(this);
+                delayedRetryTimer = null;
+            }
+        }
+
+        private boolean ifRetryOrCompleted(Collection<OUT> results, Throwable error) {
+            if (delayedRetryAvailable.get() && resultHandler.inputRecord.isRecord()) {
+                boolean satisfy = false;
+                if (null != results && null != retryResultPredicate) {
+                    satisfy = (satisfy || retryResultPredicate.test(results));
+                }
+                if (null != error && null != retryExceptionPredicate) {
+                    satisfy = (satisfy || retryExceptionPredicate.test(error));
+                }
+                if (satisfy) {
+                    if (asyncRetryStrategy.canRetry(getCurrentAttempts())) {
+                        long nextBackoffTimeMillis =
+                                asyncRetryStrategy.getBackoffTimeMillis(getCurrentAttempts());
+                        setBackoffTimeMillis(nextBackoffTimeMillis);
+                        if (delayedRetryAvailable.get()) {
+                            // timer thread will finally dispatch the task to mailbox executor
+                            mailboxExecutor.submit(
+                                    () -> trySubmitRetryInMailboxOrComplete(this, results, error),
+                                    "delayed retry or give up retry");
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void trySubmitRetryInMailboxOrComplete(
+                RetryableResultHandlerDelegator resultHandlerDelegator,
+                Collection<OUT> results,
+                Throwable error) {
+            if (delayedRetryAvailable.get()) {
+                incompleteDelayRetryHandlers.add(resultHandlerDelegator);
+                retryInFlight.set(true);
+                final long delayedRetry =
+                        resultHandlerDelegator.getBackoffTimeMillis()
+                                + getProcessingTimeService().getCurrentProcessingTime();
+                delayedRetryTimer =
+                        processingTimeService.registerTimer(
+                                delayedRetry, timestamp -> doRetry(resultHandlerDelegator));
+            } else {
+                // give up retry and complete immediately
+                if (null != results) {
+                    resultHandler.complete(results);
+                } else {
+                    resultHandler.completeExceptionally(error);
+                }
+            }
+        }
+
+        public long getBackoffTimeMillis() {
+            return backoffTimeMillis;
+        }
+
+        public void setBackoffTimeMillis(long backoffTimeMillis) {
+            this.backoffTimeMillis = backoffTimeMillis;
+        }
+
+        public int getCurrentAttempts() {
+            return currentAttempts;
+        }
+
+        private void incrementAttempts() {
+            currentAttempts++;
+        }
+
+        private IN getInputRecord() {
+            return resultHandler.inputRecord.getValue();
         }
     }
 
@@ -402,7 +612,7 @@ public class AsyncWaitOperator<IN, OUT>
             processInMailbox(Collections.emptyList());
         }
 
-        public void registerTimeout(ProcessingTimeService processingTimeService, long timeout) {
+        private void registerTimeout(ProcessingTimeService processingTimeService, long timeout) {
             final long timeoutTimestamp =
                     timeout + processingTimeService.getCurrentProcessingTime();
 
