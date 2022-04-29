@@ -25,8 +25,8 @@ import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -54,7 +54,7 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  * same.
  */
 @RunWith(Parameterized.class)
-public class BoundedSourceITCase extends TestBaseUtils {
+public class BoundedSourceITCase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
