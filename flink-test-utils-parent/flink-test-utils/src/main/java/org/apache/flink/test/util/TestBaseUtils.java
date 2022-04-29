@@ -20,28 +20,19 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,8 +42,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -63,8 +52,6 @@ import static org.junit.Assert.fail;
 
 /** Utility class containing various methods for testing purposes. */
 public class TestBaseUtils extends TestLogger {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
 
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
@@ -462,53 +449,6 @@ public class TestBaseUtils extends TestLogger {
         }
         path += (forClass.getName() + "-" + folder);
         return path;
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Web utils
-    // ---------------------------------------------------------------------------------------------
-
-    public static String getFromHTTP(String url) throws Exception {
-        return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
-    }
-
-    public static String getFromHTTP(String url, Time timeout) throws Exception {
-        final URL u = new URL(url);
-        LOG.info("Accessing URL " + url + " as URL: " + u);
-
-        final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
-
-        while (System.currentTimeMillis() <= deadline) {
-            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-            connection.setConnectTimeout(100000);
-            connection.connect();
-
-            if (Objects.equals(
-                    HttpResponseStatus.SERVICE_UNAVAILABLE,
-                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
-                // service not available --> Sleep and retry
-                LOG.debug("Web service currently not available. Retrying the request in a bit.");
-                Thread.sleep(100L);
-            } else {
-                InputStream is;
-
-                if (connection.getResponseCode() >= 400) {
-                    // error!
-                    LOG.warn(
-                            "HTTP Response code when connecting to {} was {}",
-                            url,
-                            connection.getResponseCode());
-                    is = connection.getErrorStream();
-                } else {
-                    is = connection.getInputStream();
-                }
-
-                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
-            }
-        }
-
-        throw new TimeoutException(
-                "Could not get HTTP response in time since the service is still unavailable.");
     }
 
     /**

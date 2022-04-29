@@ -38,7 +38,6 @@ import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectClusterRESTAddress;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.test.util.TestBaseUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,6 +49,8 @@ import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
@@ -62,7 +63,9 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,6 +73,8 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the WebFrontend. */
 class WebFrontendITCase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(WebFrontendITCase.class);
 
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int NUM_SLOTS = 4;
@@ -117,9 +122,7 @@ class WebFrontendITCase {
 
     @Test
     void getFrontPage(@InjectClusterRESTAddress URI restAddress) throws Exception {
-        String fromHTTP =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/index.html");
+        String fromHTTP = getFromHTTP("http://localhost:" + restAddress.getPort() + "/index.html");
         assertThat(fromHTTP).contains("Apache Flink Web Dashboard");
     }
 
@@ -163,9 +166,7 @@ class WebFrontendITCase {
 
     @Test
     void getNumberOfTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
-        String json =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode response = mapper.readTree(json);
@@ -176,9 +177,7 @@ class WebFrontendITCase {
 
     @Test
     void getTaskManagers(@InjectClusterRESTAddress URI restAddress) throws Exception {
-        String json =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode parsed = mapper.readTree(json);
@@ -198,15 +197,11 @@ class WebFrontendITCase {
                 WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
 
         FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-        String logs =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/jobmanager/log");
+        String logs = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/log");
         assertThat(logs).contains("job manager log");
 
         FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-        logs =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/jobmanager/stdout");
+        logs = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/stdout");
         assertThat(logs).contains("job manager out");
     }
 
@@ -221,7 +216,7 @@ class WebFrontendITCase {
         FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
 
         String logs =
-                TestBaseUtils.getFromHTTP(
+                getFromHTTP(
                         "http://localhost:"
                                 + restAddress.getPort()
                                 + "/jobmanager/logs/"
@@ -232,9 +227,7 @@ class WebFrontendITCase {
     @Test
     void getTaskManagerLogAndStdoutFiles(@InjectClusterRESTAddress URI restAddress)
             throws Exception {
-        String json =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/taskmanagers/");
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/taskmanagers/");
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode parsed = mapper.readTree(json);
@@ -248,7 +241,7 @@ class WebFrontendITCase {
         // we check for job manager log files, since no separate taskmanager logs exist
         FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
         String logs =
-                TestBaseUtils.getFromHTTP(
+                getFromHTTP(
                         "http://localhost:"
                                 + restAddress.getPort()
                                 + "/taskmanagers/"
@@ -258,7 +251,7 @@ class WebFrontendITCase {
 
         FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
         logs =
-                TestBaseUtils.getFromHTTP(
+                getFromHTTP(
                         "http://localhost:"
                                 + restAddress.getPort()
                                 + "/taskmanagers/"
@@ -270,8 +263,7 @@ class WebFrontendITCase {
     @Test
     void getConfiguration(@InjectClusterRESTAddress URI restAddress) throws Exception {
         String config =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/jobmanager/config");
+                getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobmanager/config");
         Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 
         MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
@@ -378,9 +370,7 @@ class WebFrontendITCase {
 
         final Duration testTimeout = Duration.ofMinutes(2);
 
-        String json =
-                TestBaseUtils.getFromHTTP(
-                        "http://localhost:" + restAddress.getPort() + "/jobs/overview");
+        String json = getFromHTTP("http://localhost:" + restAddress.getPort() + "/jobs/overview");
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode parsed = mapper.readTree(json);
@@ -453,6 +443,45 @@ class WebFrontendITCase {
                 .filter(status -> !status.getJobState().isGloballyTerminalState())
                 .map(JobStatusMessage::getJobId)
                 .collect(Collectors.toList());
+    }
+
+    private static String getFromHTTP(String url) throws Exception {
+        final URL u = new URL(url);
+        LOG.info("Accessing URL " + url + " as URL: " + u);
+
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
+
+        while (deadline.hasTimeLeft()) {
+            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+            connection.setConnectTimeout(100000);
+            connection.connect();
+
+            if (Objects.equals(
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+                // service not available --> Sleep and retry
+                LOG.debug("Web service currently not available. Retrying the request in a bit.");
+                Thread.sleep(100L);
+            } else {
+                InputStream is;
+
+                if (connection.getResponseCode() >= 400) {
+                    // error!
+                    LOG.warn(
+                            "HTTP Response code when connecting to {} was {}",
+                            url,
+                            connection.getResponseCode());
+                    is = connection.getErrorStream();
+                } else {
+                    is = connection.getInputStream();
+                }
+
+                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+            }
+        }
+
+        throw new TimeoutException(
+                "Could not get HTTP response in time since the service is still unavailable.");
     }
 
     /** Test invokable that allows waiting for all subtasks to be running. */
