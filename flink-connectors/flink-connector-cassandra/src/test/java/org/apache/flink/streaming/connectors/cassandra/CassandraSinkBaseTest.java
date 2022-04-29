@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.cassandra.utils.ResultSetFutures;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;

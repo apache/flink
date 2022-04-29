@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.cassandra.utils.SinkUtils;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -36,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -150,17 +150,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN>
     public abstract ListenableFuture<V> send(IN value);
 
     private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
-        if (!semaphore.tryAcquire(
+        SinkUtils.tryAcquire(
                 permits,
-                config.getMaxConcurrentRequestsTimeout().toMillis(),
-                TimeUnit.MILLISECONDS)) {
-            throw new TimeoutException(
-                    String.format(
-                            "Failed to acquire %d out of %d permits to send value in %s.",
-                            permits,
-                            config.getMaxConcurrentRequests(),
-                            config.getMaxConcurrentRequestsTimeout()));
-        }
+                config.getMaxConcurrentRequests(),
+                config.getMaxConcurrentRequestsTimeout(),
+                semaphore);
     }
 
     private void checkAsyncErrors() throws Exception {
