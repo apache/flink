@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultCollections;
+
 /** Test registering types with Kryo. */
 @RunWith(Parameterized.class)
 public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBase {

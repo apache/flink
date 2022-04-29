@@ -33,6 +33,8 @@ import org.apache.flink.util.Collector;
 
 import java.io.BufferedReader;
 
+import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
+
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup
  * function.

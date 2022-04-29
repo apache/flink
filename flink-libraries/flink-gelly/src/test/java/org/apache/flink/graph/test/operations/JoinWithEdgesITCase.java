@@ -37,6 +37,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /**
  * Tests for {@link Graph#joinWithEdges}, {@link Graph#joinWithEdgesOnSource}, and {@link
  * Graph#joinWithEdgesOnTarget}.

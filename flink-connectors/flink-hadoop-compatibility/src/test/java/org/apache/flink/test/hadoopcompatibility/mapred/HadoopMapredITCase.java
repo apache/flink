@@ -26,6 +26,8 @@ import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
 /** IT cases for mapred. */
 public class HadoopMapredITCase extends JavaProgramTestBase {
 

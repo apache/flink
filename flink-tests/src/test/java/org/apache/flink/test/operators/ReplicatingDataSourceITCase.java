@@ -38,6 +38,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+
 /** Tests for replicating DataSources. */
 @RunWith(Parameterized.class)
 public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {

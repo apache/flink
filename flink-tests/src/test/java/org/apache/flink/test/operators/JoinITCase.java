@@ -52,6 +52,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Integration tests for {@link JoinFunction} and {@link FlatJoinFunction}. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
