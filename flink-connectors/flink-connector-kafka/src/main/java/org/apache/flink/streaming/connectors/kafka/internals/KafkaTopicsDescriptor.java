@@ -20,11 +20,14 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -49,8 +52,12 @@ public class KafkaTopicsDescriptor implements Serializable {
 
         if (fixedTopics != null) {
             checkArgument(
-                    !fixedTopics.isEmpty(),
-                    "If subscribing to a fixed topics list, the supplied list cannot be empty.");
+                    !fixedTopics.isEmpty()
+                            && fixedTopics.stream()
+                                    .filter(s -> StringUtils.isBlank(s))
+                                    .collect(Collectors.toList())
+                                    .isEmpty(),
+                    "If subscribing to a fixed topics list, the supplied list cannot be empty or contain blanks.");
         }
 
         this.fixedTopics = fixedTopics;
