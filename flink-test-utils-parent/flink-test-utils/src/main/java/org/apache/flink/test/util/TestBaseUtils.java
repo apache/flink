@@ -283,7 +283,7 @@ public class TestBaseUtils extends TestLogger {
         }
     }
 
-    protected static File asFile(String path) {
+    public static File asFile(String path) {
         try {
             URI uri = new URI(path);
             if (uri.getScheme().equals("file")) {

@@ -45,6 +45,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Integration tests for {@link ReduceFunction} and {@link RichReduceFunction}. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)

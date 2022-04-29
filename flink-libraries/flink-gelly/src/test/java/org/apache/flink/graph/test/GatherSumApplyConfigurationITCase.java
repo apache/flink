@@ -43,6 +43,8 @@ import org.junit.runners.Parameterized;
 import java.util.HashSet;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Tests for {@link GSAConfiguration}. */
 @RunWith(Parameterized.class)
 public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase {

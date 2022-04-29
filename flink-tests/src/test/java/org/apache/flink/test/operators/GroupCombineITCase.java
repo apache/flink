@@ -41,6 +41,8 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /**
  * The GroupCombine operator is not easy to test because it is essentially just a combiner. The
  * result can be the result of a normal groupReduce at any stage its execution. The basic idea is to

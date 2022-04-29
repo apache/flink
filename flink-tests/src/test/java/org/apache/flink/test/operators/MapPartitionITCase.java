@@ -30,6 +30,8 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultCollections;
+
 /** Integration tests for {@link MapPartitionFunction}. */
 @SuppressWarnings("serial")
 public class MapPartitionITCase extends JavaProgramTestBase {
