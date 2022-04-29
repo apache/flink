@@ -41,10 +41,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test Filesystem connector with OGG Json. */
 class OggJsonFileSystemITCase extends StreamingTestBase {
 
-    @TempDir private java.nio.file.Path tempSourceDir;
-
-    @TempDir private java.nio.file.Path tempSinkDir;
-
     private static final List<String> EXPECTED =
             Arrays.asList(
                     "+I[101, SCOOTER, Small 2-wheel scooter, 3.14]",
@@ -78,7 +74,8 @@ class OggJsonFileSystemITCase extends StreamingTestBase {
         return Files.readAllBytes(path);
     }
 
-    private void prepareTables(boolean isPartition) throws IOException {
+    private void prepareTables(boolean isPartition, Path tempSourceDir, Path tempSinkDir)
+            throws IOException {
         byte[] bytes = readBytes("ogg-data.txt");
         source = tempSourceDir.toFile();
         File file;
@@ -112,8 +109,8 @@ class OggJsonFileSystemITCase extends StreamingTestBase {
     }
 
     @Test
-    void testNonPartition() throws Exception {
-        prepareTables(false);
+    void testNonPartition(@TempDir Path tempSourceDir, @TempDir Path tempSinkDir) throws Exception {
+        prepareTables(true, tempSourceDir, tempSinkDir);
         createTable(false, source.toURI().toString(), false);
         createTable(true, sink.toURI().toString(), false);
 
@@ -133,8 +130,8 @@ class OggJsonFileSystemITCase extends StreamingTestBase {
     }
 
     @Test
-    void testPartition() throws Exception {
-        prepareTables(true);
+    void testPartition(@TempDir Path tempSourceDir, @TempDir Path tempSinkDir) throws Exception {
+        prepareTables(true, tempSourceDir, tempSinkDir);
         createTable(false, source.toURI().toString(), true);
         createTable(true, sink.toURI().toString(), true);
 

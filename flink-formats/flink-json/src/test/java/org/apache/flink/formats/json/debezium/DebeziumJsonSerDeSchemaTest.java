@@ -109,7 +109,7 @@ class DebeziumJsonSerDeSchemaTest {
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
-        assertThat(collector.list).isNullOrEmpty();
+        assertThat(collector.list).isEmpty();
     }
 
     @Test
@@ -307,7 +307,7 @@ class DebeziumJsonSerDeSchemaTest {
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
 
-        assertThat(collector.list.size()).isEqualTo(1);
+        assertThat(collector.list).hasSize(1);
         testConsumer.accept(collector.list.get(0));
     }
 

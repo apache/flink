@@ -84,7 +84,7 @@ class CanalJsonSerDeSchemaTest {
 
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[0], collector);
-        assertThat(0).isEqualTo(collector.list.size());
+        assertThat(collector.list).hasSize(0);
     }
 
     @Test
@@ -265,7 +265,7 @@ class CanalJsonSerDeSchemaTest {
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertThat(collector.list.size()).isEqualTo(9);
+        assertThat(collector.list).hasSize(9);
         testConsumer.accept(collector.list.get(0));
     }
 

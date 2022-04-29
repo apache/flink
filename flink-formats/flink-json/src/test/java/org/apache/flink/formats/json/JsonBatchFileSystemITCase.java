@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -54,7 +55,7 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Test
-    void testParseError(@TempDir java.nio.file.Path temporaryFolder) throws Exception {
+    void testParseError(@TempDir Path temporaryFolder) throws Exception {
         String sql =
                 String.format(
                         "create table nonPartitionedTable ("
@@ -74,7 +75,6 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         new File(path).mkdirs();
         File file = new File(path, "temp_file");
         file.createNewFile();
-
         FileUtils.writeFileUtf8(
                 file,
                 "{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n"
@@ -108,7 +108,7 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         List<String> elements = new ArrayList<>();
         result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
-        assertThat(elements.size()).isEqualTo(numRecords);
+        assertThat(elements).hasSize(numRecords);
         elements.sort(String::compareTo);
 
         List<String> expected = new ArrayList<>();
@@ -121,9 +121,7 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     private static File generateTestData(int numRecords) throws IOException {
-        File tempDir = temporaryFolder;
-
-        File root = new File(tempDir, "id=0");
+        File root = new File(temporaryFolder, "id=0");
         root.mkdir();
 
         File dataFile = new File(root, "testdata");
@@ -133,6 +131,6 @@ class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
             }
         }
 
-        return tempDir;
+        return temporaryFolder;
     }
 }

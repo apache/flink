@@ -47,7 +47,6 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSin
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link DebeziumJsonFormatFactory}. */
 class DebeziumJsonFormatFactoryTest {
@@ -110,21 +109,6 @@ class DebeziumJsonFormatFactoryTest {
     }
 
     @Test
-    void testInvalidOptionForTimestampFormat() {
-        final Map<String, String> tableOptions =
-                getModifiedOptions(
-                        opts -> opts.put("debezium-json.timestamp-format.standard", "test"));
-
-        assertThatThrownBy(() -> createTableSource(SCHEMA, tableOptions))
-                .isInstanceOf(ValidationException.class)
-                .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                "Unsupported value 'test' for timestamp-format.standard. "
-                                        + "Supported values are [SQL, ISO-8601]."));
-    }
-
-    @Test
     void testSchemaIncludeOption() {
         Map<String, String> options = getAllOptions();
         options.put("debezium-json.schema-include", "true");
@@ -150,16 +134,29 @@ class DebeziumJsonFormatFactoryTest {
                             final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
                             TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                                     (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
-                            // should fail
                             sinkMock.valueFormat.createRuntimeEncoder(
                                     new SinkRuntimeProviderContext(false), PHYSICAL_DATA_TYPE);
-                            fail();
                         })
                 .satisfies(
                         anyCauseMatches(
                                 RuntimeException.class,
                                 "Debezium JSON serialization doesn't support "
                                         + "'debezium-json.schema-include' option been set to true."));
+    }
+
+    @Test
+    void testInvalidOptionForTimestampFormat() {
+        final Map<String, String> tableOptions =
+                getModifiedOptions(
+                        opts -> opts.put("debezium-json.timestamp-format.standard", "test"));
+
+        assertThatThrownBy(() -> createTableSource(SCHEMA, tableOptions))
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'test' for timestamp-format.standard. "
+                                        + "Supported values are [SQL, ISO-8601]."));
     }
 
     @Test

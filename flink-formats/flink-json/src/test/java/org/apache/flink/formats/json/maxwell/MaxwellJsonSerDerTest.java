@@ -83,7 +83,7 @@ class MaxwellJsonSerDerTest {
                         TimestampFormat.ISO_8601);
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertThat(collector.list.size()).isEqualTo(1);
+        assertThat(collector.list).hasSize(1);
         Consumer<RowData> consumer =
                 row -> {
                     assertThat(row.getInt(0)).isEqualTo(101);

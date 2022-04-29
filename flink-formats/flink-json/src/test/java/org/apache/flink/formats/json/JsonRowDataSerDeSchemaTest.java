@@ -200,7 +200,7 @@ class JsonRowDataSerDeSchemaTest {
                         true);
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
-        assertThat(new String(actualBytes)).isEqualTo(new String(serializedJson));
+        assertThat(actualBytes).isIn(serializedJson);
     }
 
     /**
@@ -308,7 +308,7 @@ class JsonRowDataSerDeSchemaTest {
             byte[] serializedJson = objectMapper.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
-            assertThat(new String(actual)).isEqualTo(new String(serializedJson));
+            assertThat(actual).isIn(serializedJson);
         }
 
         // the second row
@@ -328,7 +328,7 @@ class JsonRowDataSerDeSchemaTest {
             byte[] serializedJson = objectMapper.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
-            assertThat(new String(actual)).isEqualTo(new String(serializedJson));
+            assertThat(actual).isIn(serializedJson);
         }
     }
 
@@ -440,7 +440,7 @@ class JsonRowDataSerDeSchemaTest {
 
         JsonRowDataDeserializationSchema finalDeserializationSchema = deserializationSchema;
         assertThatThrownBy(() -> finalDeserializationSchema.deserialize(serializedJson))
-                .hasMessageContaining(errorMessage);
+                .hasMessage(errorMessage);
 
         // ignore on parse error
         deserializationSchema =
@@ -459,7 +459,7 @@ class JsonRowDataSerDeSchemaTest {
                                         true,
                                         true,
                                         TimestampFormat.ISO_8601))
-                .hasMessageContaining(errorMessage);
+                .hasMessage(errorMessage);
     }
 
     @Test
@@ -652,7 +652,7 @@ class JsonRowDataSerDeSchemaTest {
         String errorMessage = "Fail to deserialize at field: f1.";
 
         assertThatThrownBy(() -> deserializationSchema.deserialize(json.getBytes()))
-                .satisfies(anyCauseMatches(RuntimeException.class, errorMessage));
+                .satisfies(anyCauseMatches(errorMessage));
     }
 
     private void testIgnoreParseErrors(TestSpec spec) throws Exception {
