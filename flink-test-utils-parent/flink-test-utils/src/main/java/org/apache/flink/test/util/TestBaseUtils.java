@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
@@ -54,8 +53,6 @@ import static org.junit.Assert.fail;
 public class TestBaseUtils extends TestLogger {
 
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
     // ------------------------------------------------------------------------
 
