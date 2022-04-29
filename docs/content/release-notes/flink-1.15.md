@@ -240,8 +240,9 @@ EXPLAIN STATEMENT SET BEGIN ... END;
 
 ##### [FLINK-24809](https://issues.apache.org/jira/browse/FLINK-24809)
 
-This changes the result of a decimal `SUM()` with retraction and `AVG()` between
-1.14.0 and 1.14.1. It restores the behavior of 1.13 to be consistent with Hive/Spark.
+This changes the result of a decimal `SUM()` with retraction and `AVG()`. Part of the behavior
+is restored back to be the same with 1.13 so that the behavior as a whole could be consistent 
+with Hive / Spark.
 
 #### Clarify semantics of DecodingFormat and its data type 
 
@@ -323,7 +324,8 @@ CONVERT_TZ
 
 ##### [FLINK-16501](https://issues.apache.org/jira/browse/FLINK-16501)
 
-`IS JSON` does not return `NULL` anymore but always `FALSE` (even if the argument is `NULL`).
+This issue added IS JSON for Table API. Notes that `IS JSON` does not return
+`NULL` anymore but always `FALSE` (even if the argument is `NULL`).
 
 #### Disable upsert into syntax in Flink SQL 
 
