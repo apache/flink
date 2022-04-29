@@ -23,8 +23,8 @@ import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -839,7 +839,7 @@ public abstract class YarnTestBase extends TestLogger {
                     "yes we are in tests"); // see YarnClusterDescriptor() for more infos
             map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
             map.put("MAX_LOG_FILE_NUMBER", "10");
-            TestBaseUtils.setEnv(map);
+            CommonTestUtils.setEnv(map);
 
             Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
 
@@ -1196,7 +1196,7 @@ public abstract class YarnTestBase extends TestLogger {
         map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
         map.remove("YARN_CONF_DIR");
         map.remove("IN_TESTS");
-        TestBaseUtils.setEnv(map);
+        CommonTestUtils.setEnv(map);
 
         if (tempConfPathForSecureRun != null) {
             FileUtil.fullyDelete(tempConfPathForSecureRun);

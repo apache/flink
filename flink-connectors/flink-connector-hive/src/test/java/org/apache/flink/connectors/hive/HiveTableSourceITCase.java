@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -48,7 +49,6 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
@@ -572,7 +572,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
             testSourceConfig(true, true);
             testSourceConfig(false, false);
         } finally {
-            TestBaseUtils.setEnv(env);
+            CommonTestUtils.setEnv(env);
             batchTableEnv.executeSql("drop database db1 cascade");
         }
     }

@@ -19,10 +19,8 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 
 import java.io.BufferedReader;
@@ -40,7 +38,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,8 +52,6 @@ public class TestBaseUtils extends TestLogger {
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
     // ------------------------------------------------------------------------
-
-    protected static File logDir;
 
     protected TestBaseUtils() {
         verifyJvmOptions();
@@ -81,7 +76,7 @@ public class TestBaseUtils extends TestLogger {
         return getResultReader(resultPath, new String[] {}, false);
     }
 
-    public static BufferedReader[] getResultReader(
+    private static BufferedReader[] getResultReader(
             String resultPath, String[] excludePrefixes, boolean inOrderOfFiles)
             throws IOException {
 
@@ -123,16 +118,10 @@ public class TestBaseUtils extends TestLogger {
 
     public static void readAllResultLines(List<String> target, String resultPath)
             throws IOException {
-        readAllResultLines(target, resultPath, new String[] {});
+        readAllResultLines(target, resultPath, new String[] {}, false);
     }
 
-    public static void readAllResultLines(
-            List<String> target, String resultPath, String[] excludePrefixes) throws IOException {
-
-        readAllResultLines(target, resultPath, excludePrefixes, false);
-    }
-
-    public static void readAllResultLines(
+    private static void readAllResultLines(
             List<String> target,
             String resultPath,
             String[] excludePrefixes,
@@ -192,15 +181,8 @@ public class TestBaseUtils extends TestLogger {
 
     public static void compareResultsByLinesInMemoryWithStrictOrder(
             String expectedResultStr, String resultPath) throws Exception {
-        compareResultsByLinesInMemoryWithStrictOrder(
-                expectedResultStr, resultPath, new String[] {});
-    }
-
-    public static void compareResultsByLinesInMemoryWithStrictOrder(
-            String expectedResultStr, String resultPath, String[] excludePrefixes)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, true);
+        readAllResultLines(list, resultPath, new String[] {}, true);
 
         String[] result = list.toArray(new String[list.size()]);
 
@@ -236,19 +218,8 @@ public class TestBaseUtils extends TestLogger {
     public static void compareKeyValuePairsWithDelta(
             String expectedLines, String resultPath, String delimiter, double maxDelta)
             throws Exception {
-        compareKeyValuePairsWithDelta(
-                expectedLines, resultPath, new String[] {}, delimiter, maxDelta);
-    }
-
-    public static void compareKeyValuePairsWithDelta(
-            String expectedLines,
-            String resultPath,
-            String[] excludePrefixes,
-            String delimiter,
-            double maxDelta)
-            throws Exception {
         ArrayList<String> list = new ArrayList<>();
-        readAllResultLines(list, resultPath, excludePrefixes, false);
+        readAllResultLines(list, resultPath, new String[] {}, false);
 
         String[] result = list.toArray(new String[list.size()]);
         String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
@@ -416,36 +387,6 @@ public class TestBaseUtils extends TestLogger {
         for (String element : resultStrings) {
             assertTrue(expectedStringList.contains(element));
         }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    //  Miscellaneous helper methods
-    // --------------------------------------------------------------------------------------------
-
-    public static void setEnv(Map<String, String> newenv) {
-        CommonTestUtils.setEnv(newenv);
-    }
-    // --------------------------------------------------------------------------------------------
-    //  File helper methods
-    // --------------------------------------------------------------------------------------------
-
-    protected static void deleteRecursively(File f) throws IOException {
-        if (f.isDirectory()) {
-            FileUtils.deleteDirectory(f);
-        } else if (!f.delete()) {
-            System.err.println("Failed to delete file " + f.getAbsolutePath());
-        }
-    }
-
-    public static String constructTestPath(Class<?> forClass, String folder) {
-        // we create test path that depends on class to prevent name clashes when two tests
-        // create temp files with the same name
-        String path = System.getProperty("java.io.tmpdir");
-        if (!(path.endsWith("/") || path.endsWith("\\"))) {
-            path += System.getProperty("file.separator");
-        }
-        path += (forClass.getName() + "-" + folder);
-        return path;
     }
 
     /**
