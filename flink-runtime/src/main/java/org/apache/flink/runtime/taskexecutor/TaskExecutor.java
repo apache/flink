@@ -54,7 +54,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
@@ -113,7 +112,6 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcGlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcInputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcKvStateRegistryListener;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
-import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshot;
@@ -684,8 +682,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
                     jobManagerConnection.getClassLoaderHandle();
-            ResultPartitionConsumableNotifier resultPartitionConsumableNotifier =
-                    jobManagerConnection.getResultPartitionConsumableNotifier();
             PartitionProducerStateChecker partitionStateChecker =
                     jobManagerConnection.getPartitionStateChecker();
 
@@ -751,7 +747,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             fileCache,
                             taskManagerConfiguration,
                             taskMetricGroup,
-                            resultPartitionConsumableNotifier,
                             partitionStateChecker,
                             getRpcService().getScheduledExecutor());
 
@@ -1729,12 +1724,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
         GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
 
-        ResultPartitionConsumableNotifier resultPartitionConsumableNotifier =
-                new RpcResultPartitionConsumableNotifier(
-                        jobMasterGateway,
-                        getRpcService().getScheduledExecutor(),
-                        taskManagerConfiguration.getRpcTimeout());
-
         PartitionProducerStateChecker partitionStateChecker =
                 new RpcPartitionStateChecker(jobMasterGateway);
 
@@ -1746,7 +1735,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskManagerActions,
                 checkpointResponder,
                 aggregateManager,
-                resultPartitionConsumableNotifier,
                 partitionStateChecker);
     }
 

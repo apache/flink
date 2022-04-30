@@ -1413,19 +1413,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
-        assertRunningInJobMasterMainThread();
-
-        final Execution execution = currentExecutions.get(partitionId.getProducerId());
-
-        checkState(
-                execution != null,
-                "Cannot find execution for execution Id " + partitionId.getPartitionId() + ".");
-
-        execution.getVertex().notifyPartitionDataAvailable(partitionId);
-    }
-
-    @Override
     public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
         return Collections.unmodifiableMap(currentExecutions);
     }

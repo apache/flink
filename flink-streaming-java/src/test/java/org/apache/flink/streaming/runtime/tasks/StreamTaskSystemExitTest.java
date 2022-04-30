@@ -38,7 +38,6 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -204,7 +203,6 @@ public class StreamTaskSystemExitTest extends TestLogger {
                 mock(FileCache.class),
                 taskManagerRuntimeInfo,
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-                new NoOpResultPartitionConsumableNotifier(),
                 mock(PartitionProducerStateChecker.class),
                 Executors.directExecutor());
     }

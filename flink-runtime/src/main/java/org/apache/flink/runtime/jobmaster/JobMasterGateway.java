@@ -29,8 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -103,23 +101,6 @@ public interface JobMasterGateway
      */
     CompletableFuture<ExecutionState> requestPartitionState(
             final IntermediateDataSetID intermediateResultId, final ResultPartitionID partitionId);
-
-    /**
-     * Notifies the JobManager about available data for a produced partition.
-     *
-     * <p>There is a call to this method for each {@link ExecutionVertex} instance once per produced
-     * {@link ResultPartition} instance, either when first producing data (for pipelined executions)
-     * or when all data has been produced (for staged executions).
-     *
-     * <p>The JobManager then can decide when to schedule the partition consumers of the given
-     * session.
-     *
-     * @param partitionID The partition which has already produced data
-     * @param timeout before the rpc call fails
-     * @return Future acknowledge of the notification
-     */
-    CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
-            final ResultPartitionID partitionID, @RpcTimeout final Time timeout);
 
     /**
      * Disconnects the given {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} from the

@@ -138,8 +138,7 @@ public class StreamTaskITCase extends TestLogger {
                 new ResultPartitionDeploymentDescriptor(
                         PartitionDescriptorBuilder.newBuilder().build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-                        1,
-                        false);
+                        1);
         return new TestTaskBuilder(shuffleEnvironment)
                 .setInvokable(NoOpStreamTask.class)
                 .setTaskConfig(taskConfiguration)

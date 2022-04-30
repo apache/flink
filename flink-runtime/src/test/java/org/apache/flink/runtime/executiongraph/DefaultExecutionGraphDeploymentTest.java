@@ -197,7 +197,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
 
         vertex.getCurrentExecutionAttempt()
-                .registerProducedPartitions(slot.getTaskManagerLocation(), true)
+                .registerProducedPartitions(slot.getTaskManagerLocation())
                 .get();
         vertex.deployToSlot(slot);
 

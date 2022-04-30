@@ -22,9 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -60,7 +58,6 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -86,7 +83,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -281,9 +277,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         TestingJobMasterGateway testingJobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setFencingTokenSupplier(() -> jobMasterId)
-                        .setNotifyPartitionDataAvailableFunction(
-                                resultPartitionID ->
-                                        CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
 
         try (TaskSubmissionTestEnvironment env =
@@ -543,76 +536,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         }
     }
 
-    /**
-     * Test that a failing notifyPartitionDataAvailable call leads to the failing of the respective
-     * task.
-     *
-     * <p>IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
-     * then the future is completed. We do this by not eagerly deploying consumer tasks and
-     * requiring the invokable to fill one memory segment. The completed memory segment will trigger
-     * the scheduling of the downstream operator since it is in pipeline mode. After we've filled
-     * the memory segment, we'll block the invokable and wait for the task failure due to the failed
-     * notifyPartitionDataAvailable call.
-     */
-    @Test
-    public void testFailingNotifyPartitionDataAvailable() throws Exception {
-        final Configuration configuration = new Configuration();
-
-        // set the memory segment to the smallest size possible, because we have to fill one
-        // memory buffer to trigger notifyPartitionDataAvailable to the downstream
-        // operators
-        configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
-
-        NettyShuffleDescriptor sdd =
-                createRemoteWithIdAndLocation(
-                        new IntermediateResultPartitionID(), ResourceID.generate());
-        TaskDeploymentDescriptor tdd =
-                createSender(sdd, TestingAbstractInvokables.TestInvokableRecordCancel.class);
-        ExecutionAttemptID eid = tdd.getExecutionAttemptId();
-
-        final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-
-        final Exception exception = new Exception("Failed notifyPartitionDataAvailable");
-
-        final JobMasterId jobMasterId = JobMasterId.generate();
-        TestingJobMasterGateway testingJobMasterGateway =
-                new TestingJobMasterGatewayBuilder()
-                        .setFencingTokenSupplier(() -> jobMasterId)
-                        .setNotifyPartitionDataAvailableFunction(
-                                resultPartitionID -> FutureUtils.completedExceptionally(exception))
-                        .build();
-
-        try (TaskSubmissionTestEnvironment env =
-                new TaskSubmissionTestEnvironment.Builder(jobId)
-                        .setSlotSize(1)
-                        .setConfiguration(configuration)
-                        .addTaskManagerActionListener(
-                                eid, ExecutionState.RUNNING, taskRunningFuture)
-                        .setJobMasterId(jobMasterId)
-                        .setJobMasterGateway(testingJobMasterGateway)
-                        .useRealNonMockShuffleEnvironment()
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
-            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-            TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
-
-            TestingAbstractInvokables.TestInvokableRecordCancel.resetGotCanceledFuture();
-
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-            tmGateway.submitTask(tdd, jobMasterId, timeout).get();
-            taskRunningFuture.get();
-
-            CompletableFuture<Boolean> cancelFuture =
-                    TestingAbstractInvokables.TestInvokableRecordCancel.gotCanceled();
-
-            assertTrue(cancelFuture.get());
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(
-                                    taskSlotTable.getTask(eid).getFailureCause(),
-                                    exception.getMessage())
-                            .isPresent());
-        }
-    }
-
     private TaskDeploymentDescriptor createSender(NettyShuffleDescriptor shuffleDescriptor)
             throws IOException {
         return createSender(shuffleDescriptor, TestingAbstractInvokables.Sender.class);
@@ -627,8 +550,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
                         .build();
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
-                new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, 1, true);
+                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
         return createTestTaskDeploymentDescriptor(
                 "Sender",
                 shuffleDescriptor.getResultPartitionID().getProducerId(),

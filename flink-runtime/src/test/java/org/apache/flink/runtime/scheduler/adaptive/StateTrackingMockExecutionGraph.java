@@ -46,7 +46,6 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -331,11 +330,6 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public void initFailureCause(Throwable t, long timestamp) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
         throw new UnsupportedOperationException();
     }
 

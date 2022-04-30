@@ -486,14 +486,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<Acknowledge> notifyPartitionDataAvailable(
-            final ResultPartitionID partitionID, final Time timeout) {
-
-        schedulerNG.notifyPartitionDataAvailable(partitionID);
-        return CompletableFuture.completedFuture(Acknowledge.get());
-    }
-
-    @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
         log.info(
