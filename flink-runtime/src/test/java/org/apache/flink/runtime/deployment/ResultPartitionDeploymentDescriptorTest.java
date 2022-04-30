@@ -108,7 +108,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
                     ShuffleDescriptor shuffleDescriptor) throws IOException {
         ResultPartitionDeploymentDescriptor orig =
                 new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions, true);
+                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions);
         ResultPartitionDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
         verifyResultPartitionDeploymentDescriptorCopy(copy);
         return copy;
@@ -121,6 +121,5 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
         assertThat(copy.getPartitionId(), is(partitionId));
         assertThat(copy.getPartitionType(), is(partitionType));
         assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));
-        assertThat(copy.notifyPartitionDataAvailable(), is(true));
     }
 }

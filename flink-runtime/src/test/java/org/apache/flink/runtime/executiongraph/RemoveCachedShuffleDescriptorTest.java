@@ -413,7 +413,7 @@ public class RemoveCachedShuffleDescriptorTest extends TestLogger {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
 
             Execution execution = vertex.getCurrentExecutionAttempt();
-            execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
+            execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
             execution.transitionState(ExecutionState.SCHEDULED);
 
             vertex.tryAssignResource(slot);

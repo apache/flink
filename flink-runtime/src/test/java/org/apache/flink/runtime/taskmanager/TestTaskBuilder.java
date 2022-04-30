@@ -36,8 +36,6 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
@@ -71,8 +69,6 @@ public final class TestTaskBuilder {
     private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
     private LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
             TestingClassLoaderLease.newBuilder().build();
-    private ResultPartitionConsumableNotifier consumableNotifier =
-            new NoOpResultPartitionConsumableNotifier();
     private PartitionProducerStateChecker partitionProducerStateChecker =
             new NoOpPartitionProducerStateChecker();
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
@@ -107,12 +103,6 @@ public final class TestTaskBuilder {
     public TestTaskBuilder setClassLoaderHandle(
             LibraryCacheManager.ClassLoaderHandle classLoaderHandle) {
         this.classLoaderHandle = classLoaderHandle;
-        return this;
-    }
-
-    public TestTaskBuilder setConsumableNotifier(
-            ResultPartitionConsumableNotifier consumableNotifier) {
-        this.consumableNotifier = consumableNotifier;
         return this;
     }
 
@@ -233,7 +223,6 @@ public final class TestTaskBuilder {
                 mock(FileCache.class),
                 new TestingTaskManagerRuntimeInfo(taskManagerConfig),
                 taskMetricGroup,
-                consumableNotifier,
                 partitionProducerStateChecker,
                 executor);
     }

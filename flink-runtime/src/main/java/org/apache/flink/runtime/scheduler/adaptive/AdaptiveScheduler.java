@@ -526,15 +526,6 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionID) {
-        state.tryRun(
-                StateWithExecutionGraph.class,
-                stateWithExecutionGraph ->
-                        stateWithExecutionGraph.notifyPartitionDataAvailable(partitionID),
-                "notifyPartitionDataAvailable");
-    }
-
-    @Override
     public ExecutionGraphInfo requestJob() {
         return new ExecutionGraphInfo(state.getJob(), exceptionHistory.toArrayList());
     }
@@ -998,8 +989,7 @@ public class AdaptiveScheduler
             final CompletableFuture<Void> registrationFuture =
                     executionVertex
                             .getCurrentExecutionAttempt()
-                            .registerProducedPartitions(
-                                    assignedSlot.getTaskManagerLocation(), false);
+                            .registerProducedPartitions(assignedSlot.getTaskManagerLocation());
             Preconditions.checkState(
                     registrationFuture.isDone(),
                     "Partition registration must be completed immediately for reactive mode");

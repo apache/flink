@@ -33,8 +33,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteChannelStateChecker;
@@ -295,8 +293,7 @@ public class TaskTest extends TestLogger {
         final ShuffleDescriptor shuffleDescriptor =
                 NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
         final ResultPartitionDeploymentDescriptor dummyPartition =
-                new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, 1, false);
+                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
         testExecutionFailsInNetworkRegistration(
                 Collections.singletonList(dummyPartition), Collections.emptyList());
     }
@@ -321,8 +318,6 @@ public class TaskTest extends TestLogger {
             throws Exception {
         final String errorMessage = "Network buffer pool has already been destroyed.";
 
-        final ResultPartitionConsumableNotifier consumableNotifier =
-                new NoOpResultPartitionConsumableNotifier();
         final PartitionProducerStateChecker partitionProducerStateChecker =
                 mock(PartitionProducerStateChecker.class);
 
@@ -330,7 +325,6 @@ public class TaskTest extends TestLogger {
         final Task task =
                 new TestTaskBuilder(shuffleEnvironment)
                         .setTaskManagerActions(taskManagerActions)
-                        .setConsumableNotifier(consumableNotifier)
                         .setPartitionProducerStateChecker(partitionProducerStateChecker)
                         .setResultPartitions(resultPartitions)
                         .setInputGates(inputGates)
@@ -762,9 +756,6 @@ public class TaskTest extends TestLogger {
         final PartitionProducerStateChecker partitionChecker =
                 mock(PartitionProducerStateChecker.class);
 
-        final ResultPartitionConsumableNotifier consumableNotifier =
-                new NoOpResultPartitionConsumableNotifier();
-
         AtomicInteger callCount = new AtomicInteger(0);
 
         RemoteChannelStateChecker remoteChannelStateChecker =
@@ -779,7 +770,6 @@ public class TaskTest extends TestLogger {
             final Task task =
                     createTaskBuilder()
                             .setInvokable(InvokableBlockingInInvoke.class)
-                            .setConsumableNotifier(consumableNotifier)
                             .setPartitionProducerStateChecker(partitionChecker)
                             .build(Executors.directExecutor());
             TestTaskBuilder.setTaskState(task, ExecutionState.RUNNING);
@@ -810,7 +800,6 @@ public class TaskTest extends TestLogger {
             final Task task =
                     createTaskBuilder()
                             .setInvokable(InvokableBlockingInInvoke.class)
-                            .setConsumableNotifier(consumableNotifier)
                             .setPartitionProducerStateChecker(partitionChecker)
                             .build(Executors.directExecutor());
             TestTaskBuilder.setTaskState(task, ExecutionState.RUNNING);
@@ -845,7 +834,6 @@ public class TaskTest extends TestLogger {
             final Task task =
                     createTaskBuilder()
                             .setInvokable(InvokableBlockingInInvoke.class)
-                            .setConsumableNotifier(consumableNotifier)
                             .setPartitionProducerStateChecker(partitionChecker)
                             .build(Executors.directExecutor());
 
@@ -889,7 +877,6 @@ public class TaskTest extends TestLogger {
             final Task task =
                     createTaskBuilder()
                             .setInvokable(InvokableBlockingInInvoke.class)
-                            .setConsumableNotifier(consumableNotifier)
                             .setPartitionProducerStateChecker(partitionChecker)
                             .build(Executors.directExecutor());
 

@@ -60,7 +60,6 @@ import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -791,18 +790,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         return executionGraphHandler.requestPartitionState(intermediateResultId, resultPartitionId);
     }
-
-    @Override
-    public final void notifyPartitionDataAvailable(final ResultPartitionID partitionId) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        executionGraph.notifyPartitionDataAvailable(partitionId);
-
-        notifyPartitionDataAvailableInternal(partitionId.getPartitionId());
-    }
-
-    protected void notifyPartitionDataAvailableInternal(
-            IntermediateResultPartitionID resultPartitionId) {}
 
     @VisibleForTesting
     Iterable<RootExceptionHistoryEntry> getExceptionHistory() {

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -50,8 +49,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several
@@ -464,20 +461,6 @@ public class ExecutionVertex
      */
     public void markFailed(Throwable t) {
         currentExecution.markFailed(t);
-    }
-
-    void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
-        checkArgument(partitionId.getProducerId().equals(currentExecution.getAttemptId()));
-
-        final IntermediateResultPartition partition =
-                resultPartitions.get(partitionId.getPartitionId());
-        checkState(partition != null, "Unknown partition " + partitionId + ".");
-        checkState(
-                partition.getResultType().isPipelined(),
-                "partition data available notification is "
-                        + "only valid for pipelined partitions.");
-
-        partition.markDataProduced();
     }
 
     void cachePartitionInfo(PartitionInfo partitionInfo) {

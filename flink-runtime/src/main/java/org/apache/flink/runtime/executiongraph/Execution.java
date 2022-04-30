@@ -405,14 +405,12 @@ public class Execution
     //  Actions
     // --------------------------------------------------------------------------------------------
 
-    public CompletableFuture<Void> registerProducedPartitions(
-            TaskManagerLocation location, boolean notifyPartitionDataAvailable) {
+    public CompletableFuture<Void> registerProducedPartitions(TaskManagerLocation location) {
 
         assertRunningInJobMasterMainThread();
 
         return FutureUtils.thenApplyAsyncIfNotDone(
-                registerProducedPartitions(
-                        vertex, location, attemptId, notifyPartitionDataAvailable),
+                registerProducedPartitions(vertex, location, attemptId),
                 vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor(),
                 producedPartitionsCache -> {
                     producedPartitions = producedPartitionsCache;
@@ -437,14 +435,12 @@ public class Execution
                 });
     }
 
-    @VisibleForTesting
-    static CompletableFuture<
+    private static CompletableFuture<
                     Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>>
             registerProducedPartitions(
                     ExecutionVertex vertex,
                     TaskManagerLocation location,
-                    ExecutionAttemptID attemptId,
-                    boolean notifyPartitionDataAvailable) {
+                    ExecutionAttemptID attemptId) {
 
         ProducerDescriptor producerDescriptor = ProducerDescriptor.create(location, attemptId);
 
@@ -468,8 +464,7 @@ public class Execution
                                     new ResultPartitionDeploymentDescriptor(
                                             partitionDescriptor,
                                             shuffleDescriptor,
-                                            maxParallelism,
-                                            notifyPartitionDataAvailable));
+                                            maxParallelism));
             partitionRegistrations.add(partitionRegistration);
         }
 

@@ -42,8 +42,6 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
@@ -224,8 +222,6 @@ public class SynchronousCheckpointITCase {
 
     private Task createTask(Class<? extends TaskInvokable> invokableClass) throws Exception {
 
-        ResultPartitionConsumableNotifier consumableNotifier =
-                new NoOpResultPartitionConsumableNotifier();
         PartitionProducerStateChecker partitionProducerStateChecker =
                 mock(PartitionProducerStateChecker.class);
         Executor executor = mock(Executor.class);
@@ -278,7 +274,6 @@ public class SynchronousCheckpointITCase {
                 mock(FileCache.class),
                 new TestingTaskManagerRuntimeInfo(),
                 taskMetricGroup,
-                consumableNotifier,
                 partitionProducerStateChecker,
                 executor);
     }

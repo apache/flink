@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
@@ -304,12 +303,12 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
         PipelinedRegionSchedulingStrategy schedulingStrategy = startScheduling(schedulingTopology);
 
         assertEquals(1, testingSchedulerOperation.getScheduledVertices().size());
-        final List<ExecutionVertexDeploymentOption> deploymentOptions1 =
+        final List<ExecutionVertexID> scheduledVertices1 =
                 testingSchedulerOperation.getScheduledVertices().get(0);
-        assertEquals(5, deploymentOptions1.size());
+        assertEquals(5, scheduledVertices1.size());
 
-        for (ExecutionVertexDeploymentOption deploymentOption : deploymentOptions1) {
-            assertTrue(region1.contains(deploymentOption.getExecutionVertexId()));
+        for (ExecutionVertexID vertexId : scheduledVertices1) {
+            assertTrue(region1.contains(vertexId));
         }
 
         // Test whether the region 2 is scheduled correctly when region 1 is finished
@@ -318,12 +317,12 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
 
         schedulingStrategy.onExecutionStateChange(v22.getID(), ExecutionState.FINISHED);
         assertEquals(2, testingSchedulerOperation.getScheduledVertices().size());
-        final List<ExecutionVertexDeploymentOption> deploymentOptions2 =
+        final List<ExecutionVertexID> scheduledVertices2 =
                 testingSchedulerOperation.getScheduledVertices().get(1);
-        assertEquals(4, deploymentOptions2.size());
+        assertEquals(4, scheduledVertices2.size());
 
-        for (ExecutionVertexDeploymentOption deploymentOption : deploymentOptions2) {
-            assertTrue(region2.contains(deploymentOption.getExecutionVertexId()));
+        for (ExecutionVertexID vertexId : scheduledVertices2) {
+            assertTrue(region2.contains(vertexId));
         }
     }
 

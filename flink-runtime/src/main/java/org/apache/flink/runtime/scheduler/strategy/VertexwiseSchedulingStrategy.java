@@ -20,8 +20,6 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.scheduler.DeploymentOption;
-import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.util.IterableUtils;
@@ -50,8 +48,6 @@ public class VertexwiseSchedulingStrategy
     private final SchedulerOperations schedulerOperations;
 
     private final SchedulingTopology schedulingTopology;
-
-    private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
     private final Set<ExecutionVertexID> newVertices = new HashSet<>();
 
@@ -141,14 +137,12 @@ public class VertexwiseSchedulingStrategy
         if (verticesToDeploy.isEmpty()) {
             return;
         }
-        final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-                SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
-                        schedulingTopology, verticesToDeploy, id -> deploymentOption);
+        final List<ExecutionVertexID> sortedVerticesToDeploy =
+                SchedulingStrategyUtils.sortExecutionVerticesInTopologicalOrder(
+                        schedulingTopology, verticesToDeploy);
 
-        vertexDeploymentOptions.forEach(
-                option ->
-                        schedulerOperations.allocateSlotsAndDeploy(
-                                Collections.singletonList(option)));
+        sortedVerticesToDeploy.forEach(
+                id -> schedulerOperations.allocateSlotsAndDeploy(Collections.singletonList(id)));
     }
 
     private boolean areVertexInputsAllConsumable(

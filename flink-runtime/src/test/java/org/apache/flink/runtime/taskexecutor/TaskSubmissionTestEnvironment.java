@@ -46,7 +46,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
-import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
@@ -194,20 +193,16 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         registerJobMasterConnection(
                 jobTable,
                 jobId,
-                testingRpcService,
                 jobMasterGateway,
                 taskManagerActions,
-                timeout,
                 taskExecutor.getMainThreadExecutableForTesting());
     }
 
     static void registerJobMasterConnection(
             JobTable jobTable,
             JobID jobId,
-            RpcService testingRpcService,
             JobMasterGateway jobMasterGateway,
             TaskManagerActions taskManagerActions,
-            Time timeout,
             MainThreadExecutable mainThreadExecutable) {
         mainThreadExecutable.runAsync(
                 () -> {
@@ -220,10 +215,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                             taskManagerActions,
                             new TestCheckpointResponder(),
                             new TestGlobalAggregateManager(),
-                            new RpcResultPartitionConsumableNotifier(
-                                    jobMasterGateway,
-                                    testingRpcService.getScheduledExecutor(),
-                                    timeout),
                             TestingPartitionProducerStateChecker.newBuilder()
                                     .setPartitionProducerStateFunction(
                                             (jobID, intermediateDataSetID, resultPartitionID) ->

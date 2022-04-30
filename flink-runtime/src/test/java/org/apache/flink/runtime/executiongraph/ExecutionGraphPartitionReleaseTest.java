@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -199,12 +198,6 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                             getCurrentExecution(operator1Vertex, executionGraph);
                     // finish o1 and schedule the consumers (o2,o3); this should not result in any
                     // release calls since not all operators of the pipelined region are finished
-                    for (final IntermediateResultPartitionID partitionId :
-                            operator1Execution.getVertex().getProducedPartitions().keySet()) {
-                        scheduler.notifyPartitionDataAvailable(
-                                new ResultPartitionID(
-                                        partitionId, operator1Execution.getAttemptId()));
-                    }
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     operator1Execution.getAttemptId(), ExecutionState.FINISHED));
