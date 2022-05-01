@@ -463,6 +463,9 @@ object BuiltInMethods {
   val SUBTRACT_MONTHS =
     Types.lookupMethod(classOf[DateTimeUtils], "subtractMonths", classOf[Long], classOf[Long])
 
+  val DATE_SUB_STRING_INT =
+    Types.lookupMethod(classOf[DateTimeUtils], "dateSub", classOf[String], classOf[Int])
+
   // JSON functions
 
   val JSON_EXISTS =

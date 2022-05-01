@@ -563,6 +563,27 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
+  def testDateSub(): Unit = {
+    testAllApis(
+      dateSub(
+        "2016-07-30",
+        1
+      ),
+      "date_sub('2016-07-30', 1)",
+      "2016-07-29"
+    )
+
+    testAllApis(
+      dateSub(
+        "2016-07-30",
+        -1
+      ),
+      "date_sub('2016-07-30', -1)",
+      "2016-07-31"
+    )
+  }
+
+  @Test
   def testDateFormatShanghai(): Unit = {
     tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 

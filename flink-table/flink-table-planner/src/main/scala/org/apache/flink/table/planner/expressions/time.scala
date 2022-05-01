@@ -226,6 +226,15 @@ case class DateFormat(timestamp: PlannerExpression, format: PlannerExpression)
   override private[flink] def resultType = STRING_TYPE_INFO
 }
 
+case class DateSub(startDate: PlannerExpression, numDays: PlannerExpression)
+  extends PlannerExpression {
+  override private[flink] def children = startDate :: numDays :: Nil
+
+  override def toString: String = s"$startDate.dateSub($numDays)"
+
+  override private[flink] def resultType = STRING_TYPE_INFO
+}
+
 case class TimestampDiff(
     timePointUnit: PlannerExpression,
     timePoint1: PlannerExpression,

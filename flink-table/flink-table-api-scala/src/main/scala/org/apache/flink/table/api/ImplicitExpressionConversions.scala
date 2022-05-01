@@ -524,6 +524,20 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the date numDays before startDate.
+   *
+   * @param startDate
+   *   A DATE expression.
+   * @param numDays
+   *   An INTEGER expression.
+   * @return
+   *   A DATE.
+   */
+  def dateSub(startDate: Expression, numDays: Expression): Expression = {
+    Expressions.dateSub(startDate, numDays)
+  }
+
+  /**
    * Returns the (signed) number of [[TimePointUnit]] between timePoint1 and timePoint2.
    *
    * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads to

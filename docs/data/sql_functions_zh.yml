@@ -584,6 +584,9 @@ temporal:
   - sql: DATE_FORMAT(timestamp, string)
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
+  - sql: DATE_SUB(string, integer)
+    table: dateSub(string, integer)
+    description: 返回一个日期前几天的日期值. 日期格式如 '2022-05-02'.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)

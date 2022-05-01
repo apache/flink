@@ -362,6 +362,27 @@ public final class Expressions {
     }
 
     /**
+     * Returns the date numDays before startDate.
+     *
+     * <p>If numDays is negative abs(num_days) are added to startDate. If the result date overflows
+     * the date range the function raises an error.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * > SELECT date_sub('2016-07-30', 1);
+     * 2016-07-29
+     * }</pre>
+     *
+     * @param startDate A DATE expression.
+     * @param numDays An INTEGER expression.
+     * @return A DATE.
+     */
+    public static ApiExpression dateSub(Object startDate, Object numDays) {
+        return apiCall(BuiltInFunctionDefinitions.DATE_SUB, startDate, numDays);
+    }
+
+    /**
      * Returns the (signed) number of {@link TimePointUnit} between timePoint1 and timePoint2.
      *
      * <p>For example, {@code timestampDiff(TimePointUnit.DAY, lit("2016-06-15").toDate(),
