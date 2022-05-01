@@ -35,7 +35,7 @@ This page describes the API calls available in Flink CEP. We start by presenting
 which allows you to specify the patterns that you want to detect in your stream, before presenting how you can
 [detect and act upon matching event sequences](#detecting-patterns). We then present the assumptions the CEP
 library makes when [dealing with lateness](#handling-lateness-in-event-time) in event time and how you can
-[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.3.
+[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.13.
 
 ## Getting Started
 
