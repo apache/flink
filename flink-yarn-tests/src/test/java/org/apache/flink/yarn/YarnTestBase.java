@@ -29,6 +29,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.commons.io.FileUtils;
@@ -395,11 +396,12 @@ public abstract class YarnTestBase {
     YarnClusterDescriptor createYarnClusterDescriptorWithoutLibDir(
             org.apache.flink.configuration.Configuration flinkConfiguration) {
         final YarnClusterDescriptor yarnClusterDescriptor =
-                YarnTestUtils.createClusterDescriptorWithLogging(
-                        tempConfPathForSecureRun.getAbsolutePath(),
-                        flinkConfiguration,
+                new YarnClusterDescriptor(
+                        YarnLogConfigUtil.setLogConfigFileInConfig(
+                                flinkConfiguration, tempConfPathForSecureRun.getAbsolutePath()),
                         YARN_CONFIGURATION,
                         yarnClient,
+                        YarnClientYarnClusterInformationRetriever.create(yarnClient),
                         true);
         yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
         return yarnClusterDescriptor;

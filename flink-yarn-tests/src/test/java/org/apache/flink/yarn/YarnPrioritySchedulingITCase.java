@@ -18,25 +18,19 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 
-import static org.apache.flink.yarn.YarnTestUtils.isHadoopVersionGreaterThanOrEquals;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests to Yarn's priority scheduling. */
 class YarnPrioritySchedulingITCase extends YarnTestBase {
 
     @BeforeAll
     public static void setup() {
-        assumeTrue(
-                isHadoopVersionGreaterThanOrEquals(2, 8),
-                "Priority scheduling is not supported by Hadoop: " + VersionInfo.getVersion());
 
         YARN_CONFIGURATION.setStrings("yarn.cluster.max-application-priority", "10");
         startYARNWithConfig(YARN_CONFIGURATION);
