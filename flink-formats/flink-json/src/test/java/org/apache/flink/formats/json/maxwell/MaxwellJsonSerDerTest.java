@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -84,18 +83,20 @@ class MaxwellJsonSerDerTest {
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
         assertThat(collector.list).hasSize(1);
-        Consumer<RowData> consumer =
-                row -> {
-                    assertThat(row.getInt(0)).isEqualTo(101);
-                    assertThat(row.getString(1).toString()).isEqualTo("scooter");
-                    assertThat(row.getString(2).toString()).isEqualTo("Small 2-wheel scooter");
-                    assertThat(row.getFloat(3)).isEqualTo(3.14f);
-                    assertThat(row.getString(4).toString()).isEqualTo("test");
-                    assertThat(row.getString(5).toString()).isEqualTo("product");
-                    assertThat(row.getArray(6).getString(0).toString()).isEqualTo("id");
-                    assertThat(row.getTimestamp(7, 3).getMillisecond()).isEqualTo(1596684883000L);
-                };
-        assertThat(collector.list.get(0)).satisfies(consumer);
+        assertThat(collector.list.get(0))
+                .satisfies(
+                        row -> {
+                            assertThat(row.getInt(0)).isEqualTo(101);
+                            assertThat(row.getString(1).toString()).isEqualTo("scooter");
+                            assertThat(row.getString(2).toString())
+                                    .isEqualTo("Small 2-wheel scooter");
+                            assertThat(row.getFloat(3)).isEqualTo(3.14f);
+                            assertThat(row.getString(4).toString()).isEqualTo("test");
+                            assertThat(row.getString(5).toString()).isEqualTo("product");
+                            assertThat(row.getArray(6).getString(0).toString()).isEqualTo("id");
+                            assertThat(row.getTimestamp(7, 3).getMillisecond())
+                                    .isEqualTo(1596684883000L);
+                        });
     }
 
     @Test

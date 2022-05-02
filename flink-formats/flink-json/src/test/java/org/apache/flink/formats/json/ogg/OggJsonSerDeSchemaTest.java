@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -117,20 +116,23 @@ class OggJsonSerDeSchemaTest {
         final SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
         assertThat(collector.list).hasSize(1);
-
-        Consumer<RowData> consumer =
-                row -> {
-                    assertThat(row.getInt(0)).isEqualTo(101);
-                    assertThat(row.getString(1).toString()).isEqualTo("scooter");
-                    assertThat(row.getString(2).toString()).isEqualTo("Small 2-wheel scooter");
-                    assertThat(row.getFloat(3))
-                            .isCloseTo(3.140000104904175f, Percentage.withPercentage(1e-15));
-                    assertThat(row.getString(4).toString()).isEqualTo("OGG.TBL_TEST");
-                    assertThat(row.getArray(5).getString(0).toString()).isEqualTo("id");
-                    assertThat(row.getTimestamp(6, 6).getMillisecond()).isEqualTo(1589377175766L);
-                    assertThat(row.getTimestamp(7, 6).getMillisecond()).isEqualTo(1589384406000L);
-                };
-        consumer.accept(collector.list.get(0));
+        assertThat(collector.list.get(0))
+                .satisfies(
+                        row -> {
+                            assertThat(row.getInt(0)).isEqualTo(101);
+                            assertThat(row.getString(1).toString()).isEqualTo("scooter");
+                            assertThat(row.getString(2).toString())
+                                    .isEqualTo("Small 2-wheel scooter");
+                            assertThat(row.getFloat(3))
+                                    .isCloseTo(
+                                            3.140000104904175f, Percentage.withPercentage(1e-15));
+                            assertThat(row.getString(4).toString()).isEqualTo("OGG.TBL_TEST");
+                            assertThat(row.getArray(5).getString(0).toString()).isEqualTo("id");
+                            assertThat(row.getTimestamp(6, 6).getMillisecond())
+                                    .isEqualTo(1589377175766L);
+                            assertThat(row.getTimestamp(7, 6).getMillisecond())
+                                    .isEqualTo(1589384406000L);
+                        });
     }
 
     private void testSerializationDeserialization(String resourceFile) throws Exception {
