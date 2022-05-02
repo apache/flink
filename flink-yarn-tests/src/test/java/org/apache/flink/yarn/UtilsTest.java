@@ -46,13 +46,10 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,12 +65,8 @@ class UtilsTest {
         assertThat(dir).isNotNull();
         assertThat(dir.getName()).endsWith(".jar");
         dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-        assertThat(dir.exists()).isTrue();
-        assertThat(dir.isDirectory()).isTrue();
-        List<String> files = Arrays.asList(Objects.requireNonNull(dir.list()));
-        assertThat(files).contains("lib");
-        assertThat(files).contains("bin");
-        assertThat(files).contains("conf");
+        assertThat(dir).exists().isDirectory();
+        assertThat(dir.list()).contains("lib", "bin", "conf");
     }
 
     @Test

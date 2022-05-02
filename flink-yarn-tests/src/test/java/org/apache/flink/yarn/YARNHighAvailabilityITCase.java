@@ -93,12 +93,12 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests that verify correct HA behavior. */
 class YARNHighAvailabilityITCase extends YarnTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(YARNHighAvailabilityITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(YARNHighAvailabilityITCase.class);
 
     private static final String LOG_DIR = "flink-yarn-tests-ha";
 
@@ -146,17 +146,19 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then
      * resume a persisted {@link JobGraph}.
      */
-    @Timeout(value = 1_000 * 60 * 30, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 60 * 30)
     @Test
     void testKillYarnSessionClusterEntrypoint() throws Exception {
         runTest(
                 () -> {
-                    assumeTrue(
-                            OperatingSystem.isLinux()
-                                    || OperatingSystem.isMac()
-                                    || OperatingSystem.isFreeBSD()
-                                    || OperatingSystem.isSolaris(),
-                            "This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.");
+                    assumeThat(
+                                    OperatingSystem.isLinux()
+                                            || OperatingSystem.isMac()
+                                            || OperatingSystem.isFreeBSD()
+                                            || OperatingSystem.isSolaris())
+                            .as(
+                                    "This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.")
+                            .isTrue();
 
                     final YarnClusterDescriptor yarnClusterDescriptor =
                             setupYarnClusterDescriptor();
@@ -182,7 +184,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
                 });
     }
 
-    @Timeout(value = 1_000 * 60 * 30, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 60 * 30)
     @Test
     void testJobRecoversAfterKillingTaskManager() throws Exception {
         runTest(
@@ -208,7 +210,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that we can retrieve an HA enabled cluster by only specifying the application id if no
      * other high-availability.cluster-id has been configured. See FLINK-20866.
      */
-    @Timeout(value = 1_000 * 60 * 30, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 60 * 30)
     @Test
     void testClusterClientRetrieval() throws Exception {
         runTest(
@@ -252,7 +254,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
                     return applicationReport.getCurrentApplicationAttemptId().getAttemptId()
                             >= attemptId;
                 });
-        log.info("Attempt {} id detected.", attemptId);
+        LOG.info("Attempt {} id detected.", attemptId);
     }
 
     /** Stops a container running {@link YarnTaskExecutorRunner}. */
@@ -313,7 +315,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
     private void waitForJobTermination(
             final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
             throws Exception {
-        log.info("Sending stop job signal");
+        LOG.info("Sending stop job signal");
         stopJobSignal.signal();
         final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
         jobResult.get(200, TimeUnit.SECONDS);

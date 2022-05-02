@@ -46,7 +46,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -125,8 +124,8 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         SecureTestEnvironment.cleanup();
     }
 
-    @Timeout(value = 60000, unit = TimeUnit.MILLISECONDS)
-    @Test // timeout after a minute.
+    @Timeout(value = 60)
+    @Test
     void testDetachedModeSecureWithPreInstallKeytab() throws Exception {
         runTest(
                 () -> {
@@ -154,8 +153,8 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 });
     }
 
-    @Timeout(value = 60000, unit = TimeUnit.MILLISECONDS)
-    @Test // timeout after a minute.
+    @Timeout(value = 60)
+    @Test
     @Override
     void testDetachedMode() throws Exception {
         runTest(

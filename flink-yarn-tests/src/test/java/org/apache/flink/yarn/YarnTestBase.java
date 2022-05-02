@@ -108,7 +108,7 @@ import static org.assertj.core.api.Fail.fail;
  */
 public abstract class YarnTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(YarnTestBase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
 
     protected static final PrintStream ORIGINAL_STDOUT = System.out;
     protected static final PrintStream ORIGINAL_STDERR = System.err;
@@ -236,7 +236,7 @@ public abstract class YarnTestBase {
             return FileUtils.readFileToString(
                     classPathFile); // potential NPE is supposed to be fatal
         } catch (Throwable t) {
-            log.error(
+            LOG.error(
                     "Error while getting YARN classpath in {}",
                     new File(start).getAbsoluteFile(),
                     t);
@@ -352,10 +352,10 @@ public abstract class YarnTestBase {
                 mostRecentNPE = e;
                 final String logMessage =
                         "NullPointerException was caught most likely being related to YARN-7007. The related discussion is happening in FLINK-15534. The exception is going to be ignored.";
-                if (log.isDebugEnabled()) {
-                    log.debug(logMessage, mostRecentNPE);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(logMessage, mostRecentNPE);
                 } else {
-                    log.warn(logMessage);
+                    LOG.warn(logMessage);
                 }
             }
         }
@@ -506,7 +506,7 @@ public abstract class YarnTestBase {
                                                     // logging in FATAL to see the actual message in
                                                     // CI tests.
                                                     Marker fatal = MarkerFactory.getMarker("FATAL");
-                                                    log.error(
+                                                    LOG.error(
                                                             fatal,
                                                             "Prohibited String '{}' in '{}:{}'",
                                                             aProhibited,
@@ -559,7 +559,7 @@ public abstract class YarnTestBase {
                                         }
                                     }
                                 } catch (FileNotFoundException e) {
-                                    log.warn(
+                                    LOG.warn(
                                             "Unable to locate file: "
                                                     + e.getMessage()
                                                     + " file: "
@@ -580,9 +580,9 @@ public abstract class YarnTestBase {
                                 + " file: "
                                 + foundFile.getAbsolutePath());
             }
-            log.warn("Found a file with a prohibited string. Printing contents:");
+            LOG.warn("Found a file with a prohibited string. Printing contents:");
             while (scanner.hasNextLine()) {
-                log.warn("LINE: " + scanner.nextLine());
+                LOG.warn("LINE: " + scanner.nextLine());
             }
             fail(
                     "Found a file "
@@ -619,7 +619,7 @@ public abstract class YarnTestBase {
                                         .noneMatch(p -> p.endsWith(applicationId.toString()))) {
                                     return false;
                                 }
-                                log.info("Searching in {}", f.getAbsolutePath());
+                                LOG.info("Searching in {}", f.getAbsolutePath());
                                 try (Scanner scanner = new Scanner(f)) {
                                     final Set<String> foundSet = new HashSet<>(mustHave.length);
                                     while (scanner.hasNextLine()) {
@@ -634,7 +634,7 @@ public abstract class YarnTestBase {
                                         }
                                     }
                                 } catch (FileNotFoundException e) {
-                                    log.warn(
+                                    LOG.warn(
                                             "Unable to locate file: "
                                                     + e.getMessage()
                                                     + " file: "
@@ -645,7 +645,7 @@ public abstract class YarnTestBase {
                         });
 
         if (foundFile != null) {
-            log.info(
+            LOG.info(
                     "Found string {} in {}.",
                     Arrays.toString(mustHave),
                     foundFile.getAbsolutePath());
@@ -673,7 +673,7 @@ public abstract class YarnTestBase {
                         });
 
         if (containerTokens != null) {
-            log.info("Verifying tokens in {}", containerTokens.getAbsolutePath());
+            LOG.info("Verifying tokens in {}", containerTokens.getAbsolutePath());
 
             Credentials tmCredentials =
                     Credentials.readTokenStorageFile(containerTokens, new Configuration());
@@ -686,7 +686,7 @@ public abstract class YarnTestBase {
 
             return tokenKinds.containsAll(tokens);
         } else {
-            log.warn("Unable to find credential file for container {}", containerId);
+            LOG.warn("Unable to find credential file for container {}", containerId);
             return false;
         }
     }
@@ -713,7 +713,7 @@ public abstract class YarnTestBase {
         try {
             Thread.sleep(time);
         } catch (InterruptedException e) {
-            log.warn("Interruped", e);
+            LOG.warn("Interruped", e);
         }
     }
 
@@ -758,21 +758,19 @@ public abstract class YarnTestBase {
         File homeDir = tmp;
         System.setProperty("user.home", homeDir.getAbsolutePath());
         String uberjarStartLoc = "..";
-        log.info("Trying to locate uberjar in {}", new File(uberjarStartLoc).getAbsolutePath());
+        LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc).getAbsolutePath());
         flinkUberjar = TestUtils.findFile(uberjarStartLoc, new TestUtils.RootDirFilenameFilter());
         assertThat(flinkUberjar).isNotNull();
         String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
         flinkLibFolder = flinkUberjar.getParentFile(); // the uberjar is located in lib/
-        assertThat(flinkLibFolder).isNotNull();
-        assertThat(flinkLibFolder).exists();
-        assertThat(flinkLibFolder).isDirectory();
+        assertThat(flinkLibFolder).isNotNull().exists().isDirectory();
 
         if (!flinkUberjar.exists()) {
             fail("Unable to locate yarn-uberjar.jar");
         }
 
         try {
-            log.info("Starting up MiniYARNCluster");
+            LOG.info("Starting up MiniYARNCluster");
             if (yarnCluster == null) {
                 final String testName = conf.get(YarnTestBase.TEST_CLUSTER_NAME_KEY);
                 yarnCluster =
@@ -809,7 +807,7 @@ public abstract class YarnTestBase {
 
             String configDir = tempConfPathForSecureRun.getAbsolutePath();
 
-            log.info(
+            LOG.info(
                     "Temporary Flink configuration directory to be used for secure test: {}",
                     configDir);
 
@@ -821,7 +819,7 @@ public abstract class YarnTestBase {
             writeYarnSiteConfigXML(conf, targetTestClassesFolder);
 
             if (withDFS) {
-                log.info("Starting up MiniDFSCluster");
+                LOG.info("Starting up MiniDFSCluster");
                 setMiniDFSCluster(targetTestClassesFolder);
             }
 
@@ -836,11 +834,11 @@ public abstract class YarnTestBase {
 
             // wait for the nodeManagers to connect
             while (!yarnCluster.waitForNodeManagersToConnect(500)) {
-                log.info("Waiting for Nodemanagers to connect");
+                LOG.info("Waiting for Nodemanagers to connect");
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            log.error("setup failure", ex);
+            LOG.error("setup failure", ex);
         }
     }
 
@@ -876,7 +874,7 @@ public abstract class YarnTestBase {
     /** This method returns once the "startedAfterString" has been seen. */
     protected Runner startWithArgs(String[] args, String startedAfterString, RunTypes type)
             throws IOException {
-        log.info("Running with args {}", Arrays.toString(args));
+        LOG.info("Running with args {}", Arrays.toString(args));
 
         outContent = new ByteArrayOutputStream();
         errContent = new ByteArrayOutputStream();
@@ -906,7 +904,7 @@ public abstract class YarnTestBase {
             // check output for correct TaskManager startup.
             if (outContent.toString().contains(startedAfterString)
                     || errContent.toString().contains(startedAfterString)) {
-                log.info("Found expected output in redirected streams");
+                LOG.info("Found expected output in redirected streams");
                 return runner;
             }
             // check if thread died
@@ -965,7 +963,7 @@ public abstract class YarnTestBase {
             int expectedReturnValue,
             Supplier<Collection<String>> logMessageSupplier)
             throws IOException {
-        log.info("Running with args {}", Arrays.toString(args));
+        LOG.info("Running with args {}", Arrays.toString(args));
 
         outContent = new ByteArrayOutputStream();
         errContent = new ByteArrayOutputStream();
@@ -1002,7 +1000,7 @@ public abstract class YarnTestBase {
                     Pattern pattern = Pattern.compile(failOnString);
                     if (pattern.matcher(outContentString).find()
                             || pattern.matcher(errContentString).find()) {
-                        log.warn(
+                        LOG.warn(
                                 "Failing test. Output contained illegal string '"
                                         + failOnString
                                         + "'");
@@ -1013,7 +1011,7 @@ public abstract class YarnTestBase {
                         try {
                             runner.join(shutdownTimeout);
                         } catch (InterruptedException e) {
-                            log.warn("Interrupted while stopping runner", e);
+                            LOG.warn("Interrupted while stopping runner", e);
                         }
                         fail("Output contained illegal string '" + failOnString + "'");
                     }
@@ -1023,7 +1021,7 @@ public abstract class YarnTestBase {
             for (String logMessage : logMessageSupplier.get()) {
                 if (logMessage.contains(terminateAfterString)) {
                     testPassedFromLog4j = true;
-                    log.info("Found expected output in logging event {}", logMessage);
+                    LOG.info("Found expected output in logging event {}", logMessage);
                 }
             }
 
@@ -1031,17 +1029,17 @@ public abstract class YarnTestBase {
                     || errContentString.contains(terminateAfterString)
                     || testPassedFromLog4j) {
                 expectedStringSeen = true;
-                log.info("Found expected output in redirected streams");
+                LOG.info("Found expected output in redirected streams");
                 // send "stop" command to command line interface
-                log.info("RunWithArgs: request runner to stop");
+                LOG.info("RunWithArgs: request runner to stop");
                 runner.sendStop();
                 // wait for the thread to stop
                 try {
                     runner.join(shutdownTimeout);
                 } catch (InterruptedException e) {
-                    log.warn("Interrupted while stopping runner", e);
+                    LOG.warn("Interrupted while stopping runner", e);
                 }
-                log.warn("RunWithArgs runner stopped.");
+                LOG.warn("RunWithArgs runner stopped.");
             } else {
                 // check if thread died
                 if (!runner.isAlive()) {
@@ -1059,9 +1057,17 @@ public abstract class YarnTestBase {
             // this lets the test fail.
             throw new RuntimeException("Runner failed", runner.getRunnerError());
         }
-        assertThat(expectedStringSeen).isTrue();
+        assertThat(expectedStringSeen)
+                .as(
+                        "During the timeout period of "
+                                + startTimeoutSeconds
+                                + " seconds the "
+                                + "expected string \""
+                                + terminateAfterString
+                                + "\" did not show up.")
+                .isTrue();
 
-        log.info("Test was successful");
+        LOG.info("Test was successful");
     }
 
     protected static void resetStreamsAndSendOutput() {
@@ -1069,8 +1075,8 @@ public abstract class YarnTestBase {
         System.setErr(ORIGINAL_STDERR);
         System.setIn(ORIGINAL_STDIN);
 
-        log.info("Sending stdout content through logger: \n\n{}\n\n", outContent.toString());
-        log.info("Sending stderr content through logger: \n\n{}\n\n", errContent.toString());
+        LOG.info("Sending stdout content through logger: \n\n{}\n\n", outContent.toString());
+        LOG.info("Sending stderr content through logger: \n\n{}\n\n", errContent.toString());
     }
 
     /** Utility class to run yarn jobs. */
@@ -1140,7 +1146,7 @@ public abstract class YarnTestBase {
                                     + expectedReturnValue);
                 }
             } catch (Throwable t) {
-                log.info("Runner stopped with exception", t);
+                LOG.info("Runner stopped with exception", t);
                 // save error.
                 this.runnerError = t;
             }
@@ -1162,13 +1168,13 @@ public abstract class YarnTestBase {
     public static void teardown() throws Exception {
 
         if (yarnCluster != null) {
-            log.info("Stopping MiniYarn Cluster");
+            LOG.info("Stopping MiniYarn Cluster");
             yarnCluster.stop();
             yarnCluster = null;
         }
 
         if (miniDFSCluster != null) {
-            log.info("Stopping MiniDFS Cluster");
+            LOG.info("Stopping MiniDFS Cluster");
             miniDFSCluster.shutdown();
             miniDFSCluster = null;
         }
@@ -1200,17 +1206,17 @@ public abstract class YarnTestBase {
         if (isOnCI()) {
             File target = new File("../target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
             if (!target.mkdirs()) {
-                log.warn("Error creating dirs to {}", target);
+                LOG.warn("Error creating dirs to {}", target);
             }
             File src = tmp;
-            log.info(
+            LOG.info(
                     "copying the final files from {} to {}",
                     src.getAbsolutePath(),
                     target.getAbsolutePath());
             try {
                 FileUtils.copyDirectoryToDirectory(src, target);
             } catch (IOException e) {
-                log.warn(
+                LOG.warn(
                         "Error copying the final files from {} to {}: msg: {}",
                         src.getAbsolutePath(),
                         target.getAbsolutePath(),

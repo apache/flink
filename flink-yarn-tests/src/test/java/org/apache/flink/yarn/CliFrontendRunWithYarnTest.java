@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
@@ -44,7 +43,7 @@ import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
  *
  * @see org.apache.flink.client.cli.CliFrontendRunTest
  */
-class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
+class CliFrontendRunWithYarnTest {
 
     @BeforeAll
     static void init() {

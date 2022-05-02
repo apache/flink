@@ -51,7 +51,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +62,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
     private static final Logger log = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
     @RegisterExtension
-    final LoggerAuditingExtension yarLoggerAuditingExtension =
+    protected final LoggerAuditingExtension yarLoggerAuditingExtension =
             new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
 
     /** Override init with FIFO scheduler. */
@@ -82,7 +81,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
         ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
     }
 
-    @Timeout(value = 60000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 60)
     @Test
     void testDetachedMode() throws Exception {
         runTest(() -> runDetachedModeTest(Collections.emptyMap()));
@@ -178,7 +177,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
             List<ApplicationReport> apps =
                     getApplicationReportWithRetryOnNPE(
                             yc, EnumSet.of(YarnApplicationState.RUNNING));
-            assertThat(apps.size()).isEqualTo(1); // Only one running
+            assertThat(apps).hasSize(1); // Only one running
             ApplicationReport app = apps.get(0);
 
             assertThat(app.getName()).isEqualTo("MyCustomName");

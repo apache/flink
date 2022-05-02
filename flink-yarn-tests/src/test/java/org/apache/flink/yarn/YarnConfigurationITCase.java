@@ -46,7 +46,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.assertj.core.data.Percentage;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -56,7 +56,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +66,7 @@ class YarnConfigurationITCase extends YarnTestBase {
     private static final Time TIMEOUT = Time.seconds(10L);
 
     /** Tests that the Flink components are started with the correct memory settings. */
-    @Timeout(value = 60000, unit = TimeUnit.MILLISECONDS)
+    @Timeout(value = 60)
     @Test
     void testFlinkContainerMemory() throws Exception {
         runTest(
@@ -201,7 +200,7 @@ class YarnConfigurationITCase extends YarnTestBase {
                                                                     .getHardwareDescription()
                                                                     .getSizeOfJvmHeap()
                                                     / (double) expectedHeapSizeBytes)
-                                    .isCloseTo(1.0, Percentage.withPercentage(15));
+                                    .isCloseTo(1.0, Offset.offset(0.15));
 
                             final int expectedManagedMemoryMB =
                                     tmResourceSpec.getManagedMemorySize().getMebiBytes();
