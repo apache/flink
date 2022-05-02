@@ -91,7 +91,7 @@ class OggJsonSerDeSchemaTest {
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
-        assertThat(collector.list).isNullOrEmpty();
+        assertThat(collector.list).isEmpty();
     }
 
     public void testDeserializationWithMetadata(String resourceFile) throws Exception {
@@ -202,7 +202,7 @@ class OggJsonSerDeSchemaTest {
                         "-D(111,scooter,Big 2-wheel scooter ,5.17)");
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
-        assertThat(actual).containsExactlyElementsOf(expected);
+        assertThat(expected).containsExactlyElementsOf(actual);
 
         OggJsonSerializationSchema serializationSchema =
                 new OggJsonSerializationSchema(
@@ -240,7 +240,7 @@ class OggJsonSerDeSchemaTest {
                         "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.18},\"after\":null,\"op_type\":\"D\"}",
                         "{\"before\":null,\"after\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"op_type\":\"I\"}",
                         "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"after\":null,\"op_type\":\"D\"}");
-        assertThat(actual).containsExactlyElementsOf(expected);
+        assertThat(expected).containsExactlyElementsOf(actual);
     }
 
     private static class SimpleCollector implements Collector<RowData> {

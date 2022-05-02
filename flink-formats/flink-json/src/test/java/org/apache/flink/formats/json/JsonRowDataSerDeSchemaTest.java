@@ -200,7 +200,7 @@ class JsonRowDataSerDeSchemaTest {
                         true);
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
-        assertThat(actualBytes).isIn(serializedJson);
+        assertThat(serializedJson).containsExactly(actualBytes);
     }
 
     /**
@@ -308,7 +308,7 @@ class JsonRowDataSerDeSchemaTest {
             byte[] serializedJson = objectMapper.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
-            assertThat(actual).isIn(serializedJson);
+            assertThat(serializedJson).containsExactly(actual);
         }
 
         // the second row
@@ -328,7 +328,7 @@ class JsonRowDataSerDeSchemaTest {
             byte[] serializedJson = objectMapper.writeValueAsBytes(root);
             RowData rowData = deserializationSchema.deserialize(serializedJson);
             byte[] actual = serializationSchema.serialize(rowData);
-            assertThat(actual).isIn(serializedJson);
+            assertThat(serializedJson).containsExactly(actual);
         }
     }
 
@@ -498,7 +498,7 @@ class JsonRowDataSerDeSchemaTest {
         byte[] serializedJson = objectMapper.writeValueAsBytes(root);
         RowData rowData = deserializationSchema.deserialize(serializedJson);
         byte[] actual = serializationSchema.serialize(rowData);
-        assertThat(new String(actual)).isEqualTo(new String(serializedJson));
+        assertThat(serializedJson).containsExactly(actual);
     }
 
     @Test

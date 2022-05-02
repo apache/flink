@@ -266,7 +266,7 @@ class CanalJsonSerDeSchemaTest {
 
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
         assertThat(collector.list).hasSize(9);
-        testConsumer.accept(collector.list.get(0));
+        assertThat(collector.list.get(0)).satisfies(testConsumer);
     }
 
     private CanalJsonDeserializationSchema createCanalJsonDeserializationSchema(

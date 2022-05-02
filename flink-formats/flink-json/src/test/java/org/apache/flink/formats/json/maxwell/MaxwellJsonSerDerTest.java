@@ -95,7 +95,7 @@ class MaxwellJsonSerDerTest {
                     assertThat(row.getArray(6).getString(0).toString()).isEqualTo("id");
                     assertThat(row.getTimestamp(7, 3).getMillisecond()).isEqualTo(1596684883000L);
                 };
-        consumer.accept(collector.list.get(0));
+        assertThat(collector.list.get(0)).satisfies(consumer);
     }
 
     @Test
