@@ -56,24 +56,6 @@ public class CliFrontendTestUtils {
         return f.getAbsolutePath();
     }
 
-    public static String getNonJarFilePath() {
-        return CliFrontendRunTest.class.getResource("/testconfig/flink-conf.yaml").getFile();
-    }
-
-    public static String getConfigDir() {
-        String confFile =
-                CliFrontendRunTest.class.getResource("/testconfig/flink-conf.yaml").getFile();
-        return new File(confFile).getAbsoluteFile().getParent();
-    }
-
-    public static String getInvalidConfigDir() {
-        String confFile =
-                CliFrontendRunTest.class
-                        .getResource("/invalidtestconfig/flink-conf.yaml")
-                        .getFile();
-        return new File(confFile).getAbsoluteFile().getParent();
-    }
-
     public static void pipeSystemOutToNull() {
         System.setOut(new PrintStream(new BlackholeOutputSteam()));
     }

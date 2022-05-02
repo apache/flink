@@ -35,15 +35,17 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
-import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -55,6 +57,8 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the RUN command with {@link PackagedProgram PackagedPrograms}. */
 public class CliFrontendPackageProgramTest extends TestLogger {
+
+    @ClassRule public static final TemporaryFolder TMP = new TemporaryFolder();
 
     private CliFrontend frontend;
 
@@ -89,8 +93,10 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
     @Test
     public void testFileNotJarFile() throws Exception {
+        final File someFile = TMP.newFile();
+
         ProgramOptions programOptions = mock(ProgramOptions.class);
-        when(programOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
+        when(programOptions.getJarFilePath()).thenReturn(someFile.toString());
         when(programOptions.getProgramArgs()).thenReturn(new String[0]);
         when(programOptions.getSavepointRestoreSettings())
                 .thenReturn(SavepointRestoreSettings.none());
