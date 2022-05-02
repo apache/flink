@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -52,17 +53,27 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     public void testRun() throws Exception {
-        final Configuration configuration = getConfiguration();
+        final Configuration configuration = new Configuration();
 
         // test without parallelism, should use parallelism default
         {
             String[] parameters = {"-v", getTestJarPath()};
-            verifyCliFrontend(configuration, getCli(), parameters, 4, false);
+            verifyCliFrontend(
+                    configuration,
+                    getCli(),
+                    parameters,
+                    CoreOptions.DEFAULT_PARALLELISM.defaultValue(),
+                    false);
         }
         //  test parallelism in detached mode, should use parallelism default
         {
             String[] parameters = {"-v", "-d", getTestJarPath()};
-            verifyCliFrontend(configuration, getCli(), parameters, 4, true);
+            verifyCliFrontend(
+                    configuration,
+                    getCli(),
+                    parameters,
+                    CoreOptions.DEFAULT_PARALLELISM.defaultValue(),
+                    true);
         }
 
         // test configure parallelism
@@ -182,7 +193,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
     public void testUnrecognizedOption() throws Exception {
         // test unrecognized option
         String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
@@ -192,7 +203,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
     public void testInvalidParallelismOption() throws Exception {
         // test configure parallelism with non integer value
         String[] parameters = {"-v", "-p", "text", getTestJarPath()};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);

@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 
 import org.junit.Test;
 
@@ -39,7 +40,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
     @Test(expected = CliArgsException.class)
     public void testMissingOption() throws Exception {
         String[] parameters = {};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
@@ -48,7 +49,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
     @Test(expected = CliArgsException.class)
     public void testUnrecognizedOption() throws Exception {
         String[] parameters = {"-v", "-l"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
@@ -63,11 +64,15 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
                     new String[] {
                         CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"
                     };
-            Configuration configuration = getConfiguration();
+            Configuration configuration = new Configuration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
             testFrontend.info(parameters);
-            assertTrue(buffer.toString().contains("\"parallelism\" : 4"));
+            assertTrue(
+                    buffer.toString()
+                            .contains(
+                                    "\"parallelism\" : "
+                                            + CoreOptions.DEFAULT_PARALLELISM.defaultValue()));
         } finally {
             restoreStdOut();
         }
@@ -80,7 +85,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
             String[] parameters = {
                 "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
             };
-            Configuration configuration = getConfiguration();
+            Configuration configuration = new Configuration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
             testFrontend.info(parameters);

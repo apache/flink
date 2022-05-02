@@ -76,7 +76,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
     @Test(expected = CliArgsException.class)
     public void testMissingJobId() throws Exception {
         String[] parameters = {};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
@@ -85,7 +85,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
     @Test(expected = CliArgsException.class)
     public void testUnrecognizedOption() throws Exception {
         String[] parameters = {"-v", "-l"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
@@ -160,7 +160,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
     public void testCancelWithSavepointWithoutJobId() throws Exception {
         // Cancel with savepoint (with target directory), but no job ID
         String[] parameters = {"-s", "targetDirectory"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
@@ -170,7 +170,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
     public void testCancelWithSavepointWithoutParameters() throws Exception {
         // Cancel with savepoint (no target directory) and no job ID
         String[] parameters = {"-s"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);

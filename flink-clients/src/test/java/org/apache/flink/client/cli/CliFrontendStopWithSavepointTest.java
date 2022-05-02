@@ -219,7 +219,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
     public void testUnrecognizedOption() throws Exception {
         // test unrecognized option
         String[] parameters = {"-v", "-l"};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.stop(parameters);
@@ -229,7 +229,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
     public void testMissingJobId() throws Exception {
         // test missing job id
         String[] parameters = {};
-        Configuration configuration = getConfiguration();
+        Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.stop(parameters);

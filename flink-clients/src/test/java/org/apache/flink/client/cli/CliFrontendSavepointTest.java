@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
@@ -132,11 +133,14 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
     public void testTriggerSavepointFailureIllegalJobID() throws Exception {
         replaceStdOutAndStdErr();
 
+        final Configuration configuration = new Configuration();
+        configuration.set(RestOptions.ADDRESS, "localhost");
+
         try {
             CliFrontend frontend =
                     new MockedCliFrontend(
                             new RestClusterClient<>(
-                                    getConfiguration(), StandaloneClusterId.getInstance()));
+                                    configuration, StandaloneClusterId.getInstance()));
 
             String[] parameters = {"invalid job id"};
             try {
@@ -231,10 +235,13 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
         String savepointPath = "expectedSavepointPath";
 
+        final Configuration configuration = new Configuration();
+        configuration.set(RestOptions.ADDRESS, "localhost");
+
         ClusterClient clusterClient =
                 new DisposeSavepointClusterClient(
                         (String path) -> CompletableFuture.completedFuture(Acknowledge.get()),
-                        getConfiguration());
+                        configuration);
 
         try {
 
@@ -259,13 +266,16 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
         final CompletableFuture<String> disposeSavepointFuture = new CompletableFuture<>();
 
+        final Configuration configuration = new Configuration();
+        configuration.set(RestOptions.ADDRESS, "localhost");
+
         final DisposeSavepointClusterClient clusterClient =
                 new DisposeSavepointClusterClient(
                         (String savepointPath) -> {
                             disposeSavepointFuture.complete(savepointPath);
                             return CompletableFuture.completedFuture(Acknowledge.get());
                         },
-                        getConfiguration());
+                        configuration);
 
         try {
             CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -297,10 +307,13 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
         Exception testException = new Exception("expectedTestException");
 
+        final Configuration configuration = new Configuration();
+        configuration.set(RestOptions.ADDRESS, "localhost");
+
         DisposeSavepointClusterClient clusterClient =
                 new DisposeSavepointClusterClient(
                         (String path) -> FutureUtils.completedExceptionally(testException),
-                        getConfiguration());
+                        configuration);
 
         try {
             CliFrontend frontend = new MockedCliFrontend(clusterClient);
