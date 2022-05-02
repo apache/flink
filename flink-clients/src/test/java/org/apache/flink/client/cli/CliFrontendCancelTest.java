@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -33,13 +34,14 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 /** Tests for the CANCEL command. */
-public class CliFrontendCancelTest extends CliFrontendTestBase {
+public class CliFrontendCancelTest extends TestLogger {
 
     @BeforeClass
     public static void init() {

@@ -24,6 +24,7 @@ import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -41,7 +43,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 /** Tests for the LIST command. */
-public class CliFrontendListTest extends CliFrontendTestBase {
+public class CliFrontendListTest extends TestLogger {
 
     @BeforeClass
     public static void init() {

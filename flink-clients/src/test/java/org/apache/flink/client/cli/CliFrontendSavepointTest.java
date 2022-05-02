@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matchers;
@@ -59,7 +60,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the SAVEPOINT command. */
-public class CliFrontendSavepointTest extends CliFrontendTestBase {
+public class CliFrontendSavepointTest extends TestLogger {
 
     private static PrintStream stdOut;
     private static PrintStream stdErr;

@@ -26,6 +26,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.AfterClass;
@@ -35,6 +36,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNull;
@@ -42,7 +44,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the STOP command. */
-public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
+public class CliFrontendStopWithSavepointTest extends TestLogger {
 
     @BeforeClass
     public static void setup() {

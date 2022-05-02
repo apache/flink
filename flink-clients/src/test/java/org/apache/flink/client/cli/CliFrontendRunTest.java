@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
@@ -33,13 +34,14 @@ import org.junit.Test;
 
 import java.util.Collections;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the RUN command. */
-public class CliFrontendRunTest extends CliFrontendTestBase {
+public class CliFrontendRunTest extends TestLogger {
 
     @BeforeClass
     public static void init() {

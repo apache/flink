@@ -64,6 +64,10 @@ public class CliFrontendTestUtils {
         System.setOut(previousSysout);
     }
 
+    public static AbstractCustomCommandLine getCli() {
+        return new DefaultCLI();
+    }
+
     private static final class BlackholeOutputSteam extends java.io.OutputStream {
         @Override
         public void write(int b) {}

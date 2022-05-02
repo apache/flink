@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 import org.apache.flink.util.ChildFirstClassLoader;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.Options;
 import org.junit.AfterClass;
@@ -39,7 +40,7 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for the RUN command with Dynamic Properties. */
-public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
+public class CliFrontendDynamicPropertiesTest extends TestLogger {
 
     private GenericCLI cliUnderTest;
     private Configuration configuration;

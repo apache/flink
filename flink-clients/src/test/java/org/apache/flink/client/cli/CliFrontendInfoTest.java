@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -27,11 +28,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.Collections;
 
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getCli;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the "info" command. */
-public class CliFrontendInfoTest extends CliFrontendTestBase {
+public class CliFrontendInfoTest extends TestLogger {
 
     private static PrintStream stdOut;
     private static PrintStream capture;
