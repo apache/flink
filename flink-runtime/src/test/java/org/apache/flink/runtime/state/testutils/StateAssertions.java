@@ -59,9 +59,7 @@ public final class StateAssertions {
         private final S state;
 
         private StateEntryWithEquals(StateEntry<K, N, S> entry) {
-            this.namespace = entry.getNamespace();
-            this.key = entry.getKey();
-            this.state = entry.getState();
+            this(entry.getNamespace(), entry.getKey(), entry.getState());
         }
 
         private StateEntryWithEquals(N namespace, K key, S state) {
