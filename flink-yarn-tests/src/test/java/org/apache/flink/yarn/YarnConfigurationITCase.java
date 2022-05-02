@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
@@ -88,11 +87,11 @@ class YarnConfigurationITCase extends YarnTestBase {
 
                     final YarnConfiguration yarnConfiguration = getYarnConfiguration();
                     final YarnClusterDescriptor clusterDescriptor =
-                            YarnTestUtils.createClusterDescriptorWithLogging(
-                                    CliFrontend.getConfigurationDirectoryFromEnv(),
+                            new YarnClusterDescriptor(
                                     configuration,
                                     yarnConfiguration,
                                     yarnClient,
+                                    YarnClientYarnClusterInformationRetriever.create(yarnClient),
                                     true);
 
                     clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
