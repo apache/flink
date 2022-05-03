@@ -62,6 +62,11 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             Executor ioExecutor)
             throws ConfigurationException {
 
+        final ResourceManagerMetricGroup resourceManagerMetricGroup =
+                ResourceManagerMetricGroup.create(metricRegistry, hostname);
+        final SlotManagerMetricGroup slotManagerMetricGroup =
+                SlotManagerMetricGroup.create(metricRegistry, hostname);
+
         final Configuration runtimeServicesAndRmConfig =
                 getEffectiveConfigurationForResourceManagerAndRuntimeServices(configuration);
 
@@ -81,8 +86,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 fatalErrorHandler,
                 clusterInformation,
                 webInterfaceUrl,
-                metricRegistry,
-                hostname,
+                resourceManagerMetricGroup,
+                slotManagerMetricGroup,
                 ioExecutor);
     }
 
@@ -94,8 +99,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                         context.getRmRuntimeServicesConfig(),
                         context.getRpcService(),
                         context.getHighAvailabilityServices(),
-                        SlotManagerMetricGroup.create(
-                                context.getMetricRegistry(), context.getHostname()));
+                        context.getSlotManagerMetricGroup());
 
         return createResourceManager(
                 context.getRmConfig(),
@@ -106,8 +110,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 context.getFatalErrorHandler(),
                 context.getClusterInformation(),
                 context.getWebInterfaceUrl(),
-                ResourceManagerMetricGroup.create(
-                        context.getMetricRegistry(), context.getHostname()),
+                context.getResourceManagerMetricGroup(),
                 resourceManagerRuntimeServices,
                 context.getIoExecutor());
     }
