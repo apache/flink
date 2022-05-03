@@ -307,6 +307,13 @@ For metrics of Kafka consumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumer_monitoring">Apache Kafka Documentation</a>
 for more details.
 
+In case you experience a warning with a stack trace containing
+`javax.management.InstanceAlreadyExistsException: kafka.consumer:[...]`, you are probably trying to
+register multiple ```KafkaConsumers``` with the same client.id. The warning indicates that not all
+available metrics are correctly forwarded to the metrics system. You must ensure that a different
+```client.id.prefix``` for every ```KafkaSource``` is configured and that no other
+```KafkaConsumer``` in your job uses the same ```client.id```.
+
 ### Behind the Scene
 {{< hint info >}}
 If you are interested in how Kafka source works under the design of new data source API, you may
