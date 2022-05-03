@@ -22,7 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -47,8 +48,8 @@ public class ResourceManagerProcessContext {
     private final FatalErrorHandler fatalErrorHandler;
     private final ClusterInformation clusterInformation;
     @Nullable private final String webInterfaceUrl;
-    private final MetricRegistry metricRegistry;
-    private final String hostname;
+    private final ResourceManagerMetricGroup resourceManagerMetricGroup;
+    private final SlotManagerMetricGroup slotManagerMetricGroup;
     private final Executor ioExecutor;
 
     public ResourceManagerProcessContext(
@@ -60,8 +61,8 @@ public class ResourceManagerProcessContext {
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
             @Nullable String webInterfaceUrl,
-            MetricRegistry metricRegistry,
-            String hostname,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            SlotManagerMetricGroup slotManagerMetricGroup,
             Executor ioExecutor) {
         this.rmConfig = checkNotNull(rmConfig);
         this.rmRuntimeServicesConfig = checkNotNull(rmRuntimeServicesConfig);
@@ -70,8 +71,8 @@ public class ResourceManagerProcessContext {
         this.heartbeatServices = checkNotNull(heartbeatServices);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.clusterInformation = checkNotNull(clusterInformation);
-        this.metricRegistry = checkNotNull(metricRegistry);
-        this.hostname = checkNotNull(hostname);
+        this.resourceManagerMetricGroup = checkNotNull(resourceManagerMetricGroup);
+        this.slotManagerMetricGroup = checkNotNull(slotManagerMetricGroup);
         this.ioExecutor = checkNotNull(ioExecutor);
 
         this.webInterfaceUrl = webInterfaceUrl;
@@ -110,12 +111,12 @@ public class ResourceManagerProcessContext {
         return webInterfaceUrl;
     }
 
-    public MetricRegistry getMetricRegistry() {
-        return metricRegistry;
+    public ResourceManagerMetricGroup getResourceManagerMetricGroup() {
+        return resourceManagerMetricGroup;
     }
 
-    public String getHostname() {
-        return hostname;
+    public SlotManagerMetricGroup getSlotManagerMetricGroup() {
+        return slotManagerMetricGroup;
     }
 
     public Executor getIoExecutor() {
