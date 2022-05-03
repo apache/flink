@@ -123,7 +123,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
     }
 
     @AfterAll
-    public static void teardown() throws Exception {
+    static void teardown() throws Exception {
         if (zkServer != null) {
             zkServer.stop();
             zkServer = null;
@@ -146,7 +146,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then
      * resume a persisted {@link JobGraph}.
      */
-    @Timeout(value = 60 * 30)
+    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testKillYarnSessionClusterEntrypoint() throws Exception {
         runTest(
@@ -184,7 +184,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
                 });
     }
 
-    @Timeout(value = 60 * 30)
+    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testJobRecoversAfterKillingTaskManager() throws Exception {
         runTest(
@@ -210,7 +210,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
      * Tests that we can retrieve an HA enabled cluster by only specifying the application id if no
      * other high-availability.cluster-id has been configured. See FLINK-20866.
      */
-    @Timeout(value = 60 * 30)
+    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     @Test
     void testClusterClientRetrieval() throws Exception {
         runTest(

@@ -35,7 +35,6 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
@@ -50,7 +49,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
-import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -81,6 +79,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,7 +116,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             new LoggerAuditingExtension(YarnClusterDescriptor.class, Level.WARN);
 
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         YARN_CONFIGURATION.setClass(
                 YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
         YARN_CONFIGURATION.set("yarn.scheduler.capacity.root.queues", "default,qa-team");
@@ -467,21 +466,14 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                                     RunTypes.YARN_SESSION,
                                                     1))
                             .isInstanceOf(Exception.class)
-                            .satisfies(
-                                    new Condition<Throwable>() {
-                                        @Override
-                                        public boolean matches(Throwable value) {
-                                            return ExceptionUtils.findThrowableWithMessage(
-                                                            value, "to unknown queue: doesntExist")
-                                                    .isPresent();
-                                        }
-                                    });
+                            .satisfies(anyCauseMatches("to unknown queue: doesntExist"));
 
                     assertThat(yarLoggerAuditingExtension.getMessages())
-                            .anyMatch(
+                            .anySatisfy(
                                     s ->
-                                            s.contains(
-                                                    "The specified queue 'doesntExist' does not exist. Available queues"));
+                                            assertThat(s)
+                                                    .contains(
+                                                            "The specified queue 'doesntExist' does not exist. Available queues"));
                     LOG.info("Finished testNonexistingQueueWARNmessage()");
                 });
     }

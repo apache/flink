@@ -172,7 +172,7 @@ public abstract class YarnTestBase {
     };
 
     // Temp directory which is deleted after the unit test.
-    @TempDir public static File tmp;
+    @TempDir protected static File tmp;
 
     // Temp directory for mini hdfs
     @TempDir public static File tmpHDFS;
@@ -264,7 +264,7 @@ public abstract class YarnTestBase {
     }
 
     @BeforeEach
-    public void setupYarnClient() {
+    void setupYarnClient() {
         if (yarnClient == null) {
             yarnClient = YarnClient.createYarnClient();
             yarnClient.init(getYarnConfiguration());
@@ -276,7 +276,7 @@ public abstract class YarnTestBase {
 
     /** Sleep a bit between the tests (we are re-using the YARN cluster for the tests). */
     @AfterEach
-    public void shutdownYarnClient() {
+    void shutdownYarnClient() {
         yarnClient.stop();
     }
 
@@ -839,6 +839,7 @@ public abstract class YarnTestBase {
         } catch (Exception ex) {
             ex.printStackTrace();
             LOG.error("setup failure", ex);
+            fail("");
         }
     }
 
@@ -857,7 +858,7 @@ public abstract class YarnTestBase {
 
     /** Default @BeforeClass impl. Overwrite this for passing a different configuration */
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         startYARNWithConfig(YARN_CONFIGURATION, false);
     }
 
@@ -1165,7 +1166,7 @@ public abstract class YarnTestBase {
     // -------------------------- Tear down -------------------------- //
 
     @AfterAll
-    public static void teardown() throws Exception {
+    static void teardown() throws Exception {
 
         if (yarnCluster != null) {
             LOG.info("Stopping MiniYarn Cluster");
