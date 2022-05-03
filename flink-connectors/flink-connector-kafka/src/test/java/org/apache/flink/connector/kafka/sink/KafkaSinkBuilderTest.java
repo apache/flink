@@ -79,6 +79,18 @@ public class KafkaSinkBuilderTest extends TestLogger {
                 });
     }
 
+    @Test
+    public void testBootstrapServerSetting() {
+        Properties testConf1 = new Properties();
+        testConf1.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "testServer");
+
+        validateProducerConfig(
+                getNoServerBuilder().setKafkaProducerConfig(testConf1),
+                p -> {
+                    Arrays.stream(DEFAULT_KEYS).forEach(k -> assertTrue(k, p.containsKey(k)));
+                });
+    }
+
     private void validateProducerConfig(
             KafkaSinkBuilder<?> builder, Consumer<Properties> validator) {
         validator.accept(builder.build().getKafkaProducerConfig());
@@ -87,6 +99,15 @@ public class KafkaSinkBuilderTest extends TestLogger {
     private KafkaSinkBuilder<String> getBasicBuilder() {
         return new KafkaSinkBuilder<String>()
                 .setBootstrapServers("testServer")
+                .setRecordSerializer(
+                        KafkaRecordSerializationSchema.builder()
+                                .setTopic("topic")
+                                .setValueSerializationSchema(new SimpleStringSchema())
+                                .build());
+    }
+
+    private KafkaSinkBuilder<String> getNoServerBuilder() {
+        return new KafkaSinkBuilder<String>()
                 .setRecordSerializer(
                         KafkaRecordSerializationSchema.builder()
                                 .setTopic("topic")

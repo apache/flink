@@ -74,7 +74,6 @@ public class KafkaSinkBuilder<IN> {
 
     private final Properties kafkaProducerConfig;
     private KafkaRecordSerializationSchema<IN> recordSerializer;
-    private String bootstrapServers;
 
     KafkaSinkBuilder() {
         kafkaProducerConfig = new Properties();
@@ -188,8 +187,19 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSinkBuilder}
      */
     public KafkaSinkBuilder<IN> setBootstrapServers(String bootstrapServers) {
-        this.bootstrapServers = checkNotNull(bootstrapServers);
-        return this;
+        return setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    }
+
+    private void sanityCheck() {
+        checkNotNull(
+                kafkaProducerConfig.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
+                "bootstrapServers");
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            checkState(
+                    transactionalIdPrefix != null,
+                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
+        }
+        checkNotNull(recordSerializer, "recordSerializer");
     }
 
     /**
@@ -198,17 +208,8 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSink}
      */
     public KafkaSink<IN> build() {
-        checkNotNull(bootstrapServers);
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
-            checkState(
-                    transactionalIdPrefix != null,
-                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
-        }
-        kafkaProducerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        sanityCheck();
         return new KafkaSink<>(
-                deliveryGuarantee,
-                kafkaProducerConfig,
-                transactionalIdPrefix,
-                checkNotNull(recordSerializer, "recordSerializer"));
+                deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, recordSerializer);
     }
 }
