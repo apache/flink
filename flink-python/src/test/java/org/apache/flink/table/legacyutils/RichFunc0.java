@@ -20,7 +20,7 @@ package org.apache.flink.table.legacyutils;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Testing scalar function to verify that lifecycle methods are called in the expected order and
@@ -36,21 +36,21 @@ public class RichFunc0 extends ScalarFunction {
     public void open(FunctionContext context) throws Exception {
         super.open(context);
         if (openCalled) {
-            Assert.fail("Open called more than once.");
+            fail("Open called more than once.");
         } else {
             openCalled = true;
         }
         if (closeCalled) {
-            Assert.fail("Close called before open.");
+            fail("Close called before open.");
         }
     }
 
     public void eval(int index) {
         if (!openCalled) {
-            Assert.fail("Open was not called before eval.");
+            fail("Open was not called before eval.");
         }
         if (closeCalled) {
-            Assert.fail("Close called before eval.");
+            fail("Close called before eval.");
         }
     }
 
@@ -58,12 +58,12 @@ public class RichFunc0 extends ScalarFunction {
     public void close() throws Exception {
         super.close();
         if (closeCalled) {
-            Assert.fail("Close called more than once.");
+            fail("Close called more than once.");
         } else {
             closeCalled = true;
         }
         if (!openCalled) {
-            Assert.fail("Open was not called before close.");
+            fail("Open was not called before close.");
         }
     }
 }

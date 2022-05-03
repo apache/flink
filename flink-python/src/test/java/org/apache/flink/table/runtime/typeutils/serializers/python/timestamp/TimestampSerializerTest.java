@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils.serializers.python;
+package org.apache.flink.table.runtime.typeutils.serializers.python.timestamp;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 
 import java.sql.Timestamp;
 

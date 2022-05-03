@@ -46,7 +46,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
  * PythonStreamGroupTableAggregateOperatorTest} and {@link
  * PythonStreamGroupWindowAggregateOperatorTest}.
  */
-public abstract class AbstractPythonStreamAggregateOperatorTest {
+abstract class AbstractPythonStreamAggregateOperatorTest {
 
     protected LogicalType[] getOutputLogicalType() {
         return new LogicalType[] {
