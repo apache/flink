@@ -32,13 +32,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OnHeapLevelIndexHeader}. */
-public class OnHeapLevelIndexHeaderTest {
+class OnHeapLevelIndexHeaderTest {
     private static final ThreadLocalRandom random = ThreadLocalRandom.current();
 
     private OnHeapLevelIndexHeader heapHeadIndex;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         heapHeadIndex = new OnHeapLevelIndexHeader();
     }
 

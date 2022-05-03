@@ -97,7 +97,7 @@ class CopyOnWriteSkipListStateMapComplexOpTest {
     private Map<Long, Map<Integer, String>> referenceStates;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         int maxAllocateSize = 256;
         spaceAllocator = new TestAllocator(maxAllocateSize);
         // do not remove states physically when get, put, remove and snapshot
