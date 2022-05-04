@@ -19,15 +19,15 @@ package org.apache.flink.table.codesplit;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JavaParser}. */
-public class JavaParserTest {
+class JavaParserTest {
 
     @Test
-    public void testConstructorCall() {
+    void testConstructorCall() {
         String code =
                 "public class A extends B {\n"
                         + "  private final int a, b;\n"

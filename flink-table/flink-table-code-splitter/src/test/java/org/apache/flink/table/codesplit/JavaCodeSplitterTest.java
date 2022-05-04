@@ -20,7 +20,8 @@ package org.apache.flink.table.codesplit;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
@@ -29,20 +30,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link JavaCodeSplitter}. */
-public class JavaCodeSplitterTest {
+class JavaCodeSplitterTest {
 
     @Test
-    public void testSplitJavaCode() {
+    void testSplitJavaCode() {
         runTest("TestSplitJavaCode", 100, 3);
     }
 
     @Test
-    public void testNotSplitJavaCode() {
+    void testNotSplitJavaCode() {
         runTest("TestNotSplitJavaCode", 4000, 10000);
     }
 
     @Test
-    public void testInvalidJavaCode() {
+    @Disabled("Disabled in because of https://issues.apache.org/jira/browse/FLINK-27702")
+    void testInvalidJavaCode() {
         try {
             JavaCodeSplitter.split("public class InvalidClass { return 1; }", 4000, 10000);
         } catch (Exception e) {

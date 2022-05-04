@@ -17,27 +17,27 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link IfStatementRewriter}. */
-public class IfStatementRewriterTest extends CodeRewriterTestBase<IfStatementRewriter> {
+class IfStatementRewriterTest extends CodeRewriterTestBase<IfStatementRewriter> {
 
     public IfStatementRewriterTest() {
         super("if", code -> new IfStatementRewriter(code, 20));
     }
 
     @Test
-    public void testIfStatementRewrite() {
+    void testIfStatementRewrite() {
         runTest("TestIfStatementRewrite");
     }
 
     @Test
-    public void testNotRewriteIfStatementInFunctionWithReturnValue() {
+    void testNotRewriteIfStatementInFunctionWithReturnValue() {
         runTest("TestNotRewriteIfStatementInFunctionWithReturnValue");
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
     }
 }
