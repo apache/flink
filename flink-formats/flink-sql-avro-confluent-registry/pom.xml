@@ -33,6 +33,13 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<repositories>
+		<repository>
+			<id>confluent</id>
+			<url>https://packages.confluent.io/maven/</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
