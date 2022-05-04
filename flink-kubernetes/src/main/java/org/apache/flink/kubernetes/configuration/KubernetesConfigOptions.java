@@ -498,6 +498,13 @@ public class KubernetesConfigOptions {
                             "Whether to enable HostNetwork mode. "
                                     + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
 
+    public static final ConfigOption<String> KUBERNETES_CLIENT_USER_AGENT =
+            key("kubernetes.client.user-agent")
+                    .stringType()
+                    .defaultValue("flink")
+                    .withDescription(
+                            "The user agent to be used for contacting with Kubernetes APIServer.");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.

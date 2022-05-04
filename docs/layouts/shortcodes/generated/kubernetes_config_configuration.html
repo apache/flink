@@ -21,6 +21,12 @@
             <td>The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations (e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). Increasing the pool size allows to run more IO operations concurrently.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.client.user-agent</h5></td>
+            <td style="word-wrap: break-word;">"flink"</td>
+            <td>String</td>
+            <td>The user agent to be used for contacting with Kubernetes APIServer.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
