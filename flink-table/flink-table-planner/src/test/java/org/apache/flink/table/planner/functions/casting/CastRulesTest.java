@@ -386,6 +386,7 @@ class CastRulesTest {
                         .fromCase(STRING(), fromString("1.234"), 1.234d)
                         .fromCase(STRING(), fromString("123"), 123.0d)
                         .fromCase(STRING(), fromString(" 123 "), 123.0d)
+                        .fromCase(STRING(), fromString(" .123 "), 0.123d)
                         .fromCase(STRING(), fromString("-3276913443134"), -3.276913443134E12d)
                         .fromCase(
                                 DECIMAL(4, 3), fromBigDecimal(new BigDecimal("9.87"), 4, 3), 9.87d)
@@ -1261,6 +1262,10 @@ class CastRulesTest {
                                 STRING(),
                                 fromString(" 1.2 "),
                                 fromBigDecimal(new BigDecimal("1.200"), 5, 3))
+                        .fromCase(
+                                STRING(),
+                                fromString(" .2 "),
+                                fromBigDecimal(new BigDecimal("0.200"), 5, 3))
                         .fromCase(
                                 DECIMAL(4, 3),
                                 fromBigDecimal(new BigDecimal("9.87"), 4, 3),
