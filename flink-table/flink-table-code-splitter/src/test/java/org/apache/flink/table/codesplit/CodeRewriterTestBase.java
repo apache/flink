@@ -25,7 +25,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for {@link CodeRewriter}. */
-public abstract class CodeRewriterTestBase<R extends CodeRewriter> {
+abstract class CodeRewriterTestBase<R extends CodeRewriter> {
 
     private final String resourceDir;
     private final Function<String, R> rewriterProvider;
