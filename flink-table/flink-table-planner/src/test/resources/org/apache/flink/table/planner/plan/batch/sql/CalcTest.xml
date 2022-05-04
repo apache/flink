@@ -33,6 +33,40 @@ Calc(select=[ARRAY('Hi', 'Hello', c) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCastMapValueInsideArray">
+	<Resource name="sql">
+		<![CDATA[select ARRAY[MAP['A', 'AA'],MAP['B', 'BB'],MAP['C', CAST(NULL AS STRING)]]]]>
+	</Resource>
+	<Resource name="ast">
+		<![CDATA[
+LogicalProject(EXPR$0=[ARRAY(CAST(MAP(_UTF-16LE'A', _UTF-16LE'AA')):(CHAR(1) CHARACTER SET "UTF-16LE" NOT NULL, VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP NOT NULL, CAST(MAP(_UTF-16LE'B', _UTF-16LE'BB')):(CHAR(1) CHARACTER SET "UTF-16LE" NOT NULL, VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP NOT NULL, MAP(_UTF-16LE'C', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+		<![CDATA[
+Calc(select=[ARRAY(CAST(MAP('A', 'AA') AS (CHAR(1), VARCHAR(2147483647)) MAP), CAST(MAP('B', 'BB') AS (CHAR(1), VARCHAR(2147483647)) MAP), MAP('C', null:VARCHAR(2147483647))) AS EXPR$0])
++- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testCastMapValueInsideArrayNumeric">
+	<Resource name="sql">
+		<![CDATA[select ARRAY[MAP[1, 10.1],MAP[2, 20.2],MAP[3, CAST(NULL AS FLOAT)]]]]>
+	</Resource>
+	<Resource name="ast">
+		<![CDATA[
+LogicalProject(EXPR$0=[ARRAY(CAST(MAP(1, 10.1:DECIMAL(3, 1))):(INTEGER NOT NULL, FLOAT) MAP NOT NULL, CAST(MAP(2, 20.2:DECIMAL(3, 1))):(INTEGER NOT NULL, FLOAT) MAP NOT NULL, MAP(3, null:FLOAT))])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+		<![CDATA[
+Calc(select=[ARRAY(CAST(MAP(1, 10.1) AS (INTEGER, FLOAT) MAP), CAST(MAP(2, 20.2) AS (INTEGER, FLOAT) MAP), MAP(3, null:FLOAT)) AS EXPR$0])
++- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+	</Resource>
+  </TestCase>
   <TestCase name="testCollationDeriveOnCalc">
     <Resource name="sql">
       <![CDATA[SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)]]>

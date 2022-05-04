@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.functions.utils;
 
+import org.apache.flink.sql.parser.type.SqlMapTypeNameSpec;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
@@ -76,9 +80,25 @@ public class SqlValidatorUtils {
     }
 
     private static SqlNode castTo(SqlNode node, RelDataType type) {
-        return SqlStdOperatorTable.CAST.createCall(
-                SqlParserPos.ZERO,
-                node,
-                SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable()));
+        final SqlDataTypeSpec dataTypeSpec;
+        if (SqlTypeUtil.isMap(type)) {
+            dataTypeSpec = getMapSqlDataTypeSpec(type);
+        } else {
+            dataTypeSpec = SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable());
+        }
+
+        return SqlStdOperatorTable.CAST.createCall(SqlParserPos.ZERO, node, dataTypeSpec);
+    }
+
+    private static SqlDataTypeSpec getMapSqlDataTypeSpec(RelDataType type) {
+        final RelDataType keyType = type.getKeyType();
+        final RelDataType valueType = type.getValueType();
+        final SqlTypeNameSpec sqlTypeNameSpec =
+                new SqlMapTypeNameSpec(
+                        SqlTypeUtil.convertTypeToSpec(keyType).withNullable(keyType.isNullable()),
+                        SqlTypeUtil.convertTypeToSpec(valueType)
+                                .withNullable(valueType.isNullable()),
+                        SqlParserPos.ZERO);
+        return new SqlDataTypeSpec(sqlTypeNameSpec, SqlParserPos.ZERO);
     }
 }

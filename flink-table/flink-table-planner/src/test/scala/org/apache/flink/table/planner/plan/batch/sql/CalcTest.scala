@@ -187,4 +187,22 @@ class CalcTest extends TableTestBase {
   def testDecimalMapWithDifferentPrecision(): Unit = {
     util.verifyExecPlan("SELECT MAP['a', 0.12, 'b', 0.5]")
   }
+
+  @Test
+  def testCastMapValueInsideArray(): Unit = {
+    util.verifyExecPlan(
+      "select ARRAY[" +
+        "MAP['A', 'AA']," +
+        "MAP['B', 'BB']," +
+        "MAP['C', CAST(NULL AS STRING)]]")
+  }
+
+  @Test
+  def testCastMapValueInsideArrayNumeric(): Unit = {
+    util.verifyExecPlan(
+      "select ARRAY[" +
+        "MAP[1, 10.1]," +
+        "MAP[2, 20.2]," +
+        "MAP[3, CAST(NULL AS FLOAT)]]")
+  }
 }
