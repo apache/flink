@@ -33,7 +33,7 @@ EOF
 echo "Created temporary file" $goModFileLocation/go.mod
 
 # Make Hugo retrieve modules which are used for externally hosted documentation
-currentBranch=$(git branch --show-current)
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ ! "$currentBranch" =~ ^release- ]] || [[ -z "$currentBranch" ]]; then
   # If the current branch is master or not provided, get the documentation from the main branch
