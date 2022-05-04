@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CliFrontendTestBase;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
@@ -29,11 +28,12 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
 
 import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
@@ -43,22 +43,20 @@ import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
  *
  * @see org.apache.flink.client.cli.CliFrontendRunTest
  */
-public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
+class CliFrontendRunWithYarnTest {
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
-
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterClass
-    public static void shutdown() {
+    @AfterAll
+    static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
     @Test
-    public void testRun() throws Exception {
+    void testRun(@TempDir File tempDir) throws Exception {
         String testJarPath = getTestJarPath("BatchWordCount.jar").getAbsolutePath();
 
         Configuration configuration = new Configuration();
@@ -73,7 +71,7 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
                 new FlinkYarnSessionCli(
                         configuration,
                         testServiceLoader,
-                        tmp.getRoot().getAbsolutePath(),
+                        tempDir.getAbsolutePath(),
                         "y",
                         "yarn",
                         true);
