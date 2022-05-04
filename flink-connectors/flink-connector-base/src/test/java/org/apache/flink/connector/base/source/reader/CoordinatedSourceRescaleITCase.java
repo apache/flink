@@ -26,12 +26,15 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -54,6 +57,14 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
 
     public static final String CREATED_CHECKPOINT = "successfully created checkpoint";
     public static final String RESTORED_CHECKPOINT = "successfully restored checkpoint";
+
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(7)
+                            .build());
 
     @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
@@ -115,7 +126,8 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
         conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, p);
 
         final StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.createLocalEnvironment(p, conf);
+                StreamExecutionEnvironment.getExecutionEnvironment(conf);
+        env.setParallelism(p);
         env.enableCheckpointing(100);
         env.getCheckpointConfig()
                 .setExternalizedCheckpointCleanup(
