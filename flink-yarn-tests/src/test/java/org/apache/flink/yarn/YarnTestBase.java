@@ -839,7 +839,7 @@ public abstract class YarnTestBase {
         } catch (Exception ex) {
             ex.printStackTrace();
             LOG.error("setup failure", ex);
-            fail("");
+            fail();
         }
     }
 
