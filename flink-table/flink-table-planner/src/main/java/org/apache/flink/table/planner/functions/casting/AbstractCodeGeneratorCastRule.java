@@ -71,7 +71,15 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                 new CastExecutorCodeGeneratorContext(castRuleContext);
         final CastCodeBlock codeBlock =
                 generateCodeBlock(
-                        ctx, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+                        ctx,
+                        inputTerm,
+                        inputIsNullTerm,
+                        inputLogicalType,
+                        targetLogicalType,
+                        c -> c.declareVariable("boolean", "isNull"),
+                        (c, t) ->
+                                c.declareVariable(
+                                        CodeGenUtils.primitiveTypeTermForType(t), "result"));
 
         // Class fields can contain type serializers
         final String classFieldDecls =

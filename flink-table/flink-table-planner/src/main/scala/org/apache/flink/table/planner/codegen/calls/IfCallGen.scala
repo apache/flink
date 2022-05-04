@@ -101,7 +101,9 @@ class IfCallGen() extends CallGenerator {
           expr.resultTerm,
           expr.nullTerm,
           expr.resultType,
-          targetType
+          targetType,
+          c => c.declareVariable("boolean", "isNull"),
+          (c, t) => c.declareVariable(primitiveTypeTermForType(t), "result")
         )
       case _ => null
     }

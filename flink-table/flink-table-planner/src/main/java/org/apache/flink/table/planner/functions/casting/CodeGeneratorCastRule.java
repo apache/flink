@@ -21,6 +21,9 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 /**
  * Cast rule that has code generation capabilities.
  *
@@ -40,7 +43,9 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
             String inputTerm,
             String inputIsNullTerm,
             LogicalType inputLogicalType,
-            LogicalType targetLogicalType);
+            LogicalType targetLogicalType,
+            Function<Context, String> nullTermDeclaration,
+            BiFunction<Context, LogicalType, String> resultTermDeclaration);
 
     /** Context for code generation. */
     interface Context {
@@ -59,7 +64,8 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
 
         /**
          * Declare a new variable accessible within the scope of the caller of {@link
-         * #generateCodeBlock(Context, String, String, LogicalType, LogicalType)}.
+         * #generateCodeBlock(Context, String, String, LogicalType, LogicalType, Function,
+         * BiFunction)}.
          *
          * @return the variable name
          */

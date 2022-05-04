@@ -22,6 +22,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 /**
  * Identity cast rule. For more details on when the rule is applied, check {@link
  * #isIdentityCast(LogicalType, LogicalType)}
@@ -71,7 +74,9 @@ class IdentityCastRule extends AbstractCodeGeneratorCastRule<Object, Object>
             String inputTerm,
             String inputIsNullTerm,
             LogicalType inputLogicalType,
-            LogicalType targetLogicalType) {
+            LogicalType targetLogicalType,
+            Function<CodeGeneratorCastRule.Context, String> nullTermDeclaration,
+            BiFunction<CodeGeneratorCastRule.Context, LogicalType, String> resultTermDeclaration) {
         return CastCodeBlock.withoutCode(inputTerm, inputIsNullTerm);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -36,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /** This class resolves {@link CastRule} using the input and the target type. */
@@ -147,7 +150,7 @@ public class CastRuleProvider {
      * CodeGeneratorCastRule}.
      *
      * @see CodeGeneratorCastRule#generateCodeBlock(CodeGeneratorCastRule.Context, String, String,
-     *     LogicalType, LogicalType)
+     *     LogicalType, LogicalType, Function, BiFunction)
      */
     @SuppressWarnings("rawtypes")
     public static @Nullable CastCodeBlock generateCodeBlock(
@@ -160,9 +163,17 @@ public class CastRuleProvider {
         if (!(rule instanceof CodeGeneratorCastRule)) {
             return null;
         }
-        return ((CodeGeneratorCastRule) rule)
+        return ((CodeGeneratorCastRule<?, ?>) rule)
                 .generateCodeBlock(
-                        context, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
+                        context,
+                        inputTerm,
+                        inputIsNullTerm,
+                        inputLogicalType,
+                        targetLogicalType,
+                        c -> c.declareVariable("boolean", "isNull"),
+                        (c, t) ->
+                                c.declareVariable(
+                                        CodeGenUtils.primitiveTypeTermForType(t), "result"));
     }
 
     /**
