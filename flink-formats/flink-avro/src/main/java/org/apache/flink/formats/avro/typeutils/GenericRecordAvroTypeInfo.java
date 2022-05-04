@@ -28,6 +28,7 @@ import org.apache.avro.generic.GenericRecord;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -104,10 +105,15 @@ public class GenericRecordAvroTypeInfo extends TypeInformation<GenericRecord> {
     }
 
     private void writeObject(ObjectOutputStream oos) throws IOException {
-        oos.writeUTF(schema.toString());
+        byte[] schemaStrInBytes = schema.toString(false).getBytes(StandardCharsets.UTF_8);
+        oos.writeInt(schemaStrInBytes.length);
+        oos.write(schemaStrInBytes);
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        this.schema = new Schema.Parser().parse(ois.readUTF());
+        int len = ois.readInt();
+        byte[] content = new byte[len];
+        ois.readFully(content);
+        this.schema = new Schema.Parser().parse(new String(content, StandardCharsets.UTF_8));
     }
 }

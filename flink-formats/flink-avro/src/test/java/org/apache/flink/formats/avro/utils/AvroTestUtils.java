@@ -24,9 +24,13 @@ import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.typeutils.AvroSerializerLargeGenericRecordTest;
 import org.apache.flink.types.Row;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -48,6 +52,8 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.function.BiFunction;
 
 /** Utilities for creating Avro Schemas. */
 public final class AvroTestUtils {
@@ -257,6 +263,51 @@ public final class AvroTestUtils {
         t.f2 = schema;
 
         return t;
+    }
+
+    /**
+     * Craft a large Avro Schema which contains more than 0xFFFF characters.
+     *
+     * <p>0xFFFF is the magical number that once a java string length is above it, then the
+     * serialization scheme changes
+     */
+    public static Schema getLargeSchema() {
+        SchemaBuilder.FieldAssembler<Schema> fields =
+                SchemaBuilder.record("LargeAvroSchema")
+                        .namespace(AvroSerializerLargeGenericRecordTest.class.getName())
+                        .fields();
+        int fieldIndex = 0;
+        List<
+                        BiFunction<
+                                SchemaBuilder.FieldAssembler<Schema>,
+                                String,
+                                SchemaBuilder.FieldAssembler<Schema>>>
+                fieldsToAssemble =
+                        ImmutableList.of(
+                                SchemaBuilder.FieldAssembler::optionalInt,
+                                SchemaBuilder.FieldAssembler::optionalString,
+                                SchemaBuilder.FieldAssembler::optionalDouble,
+                                SchemaBuilder.FieldAssembler::optionalLong,
+                                SchemaBuilder.FieldAssembler::optionalBytes);
+        while (fieldIndex < 10000) {
+            fields =
+                    fieldsToAssemble
+                            .get(fieldIndex % fieldsToAssemble.size())
+                            .apply(fields, "field" + fieldIndex);
+            ++fieldIndex;
+        }
+        Schema schema = fields.endRecord();
+
+        assert schema.toString().length() > 0xFFFF;
+        return schema;
+    }
+
+    /** Craft a small Avro Schema which contains less than 0xFFFF characters. */
+    public static Schema getSmallSchema() {
+        return new org.apache.avro.Schema.Parser()
+                .parse(
+                        "{\"type\":\"record\",\"name\":\"Dummy\",\"namespace\":\"dummy\",\"fields\": "
+                                + "[{\"name\":\"afield\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}]}");
     }
 
     /**
