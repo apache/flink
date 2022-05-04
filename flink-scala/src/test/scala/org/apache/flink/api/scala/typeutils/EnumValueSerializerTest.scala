@@ -21,7 +21,7 @@ import org.apache.flink.util.TestLogger
 
 import org.junit.Assert._
 import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.scalatestplus.junit.JUnitSuiteLike
 
 class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
 

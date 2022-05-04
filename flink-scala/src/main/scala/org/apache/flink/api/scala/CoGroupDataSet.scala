@@ -71,10 +71,10 @@ class CoGroupDataSet[L, R](
     rightKeys: Keys[R])
   extends DataSet(defaultCoGroup) {
 
-  private val groupSortKeyPositionsFirst = mutable.MutableList[Either[Int, String]]()
-  private val groupSortKeyPositionsSecond = mutable.MutableList[Either[Int, String]]()
-  private val groupSortOrdersFirst = mutable.MutableList[Order]()
-  private val groupSortOrdersSecond = mutable.MutableList[Order]()
+  private val groupSortKeyPositionsFirst = mutable.ListBuffer[Either[Int, String]]()
+  private val groupSortKeyPositionsSecond = mutable.ListBuffer[Either[Int, String]]()
+  private val groupSortOrdersFirst = mutable.ListBuffer[Order]()
+  private val groupSortOrdersSecond = mutable.ListBuffer[Order]()
 
   private var customPartitioner: Partitioner[_] = _
 
@@ -236,8 +236,8 @@ class CoGroupDataSet[L, R](
 
   private def buildGroupSortList[T](
       typeInfo: TypeInformation[T],
-      keys: mutable.MutableList[Either[Int, String]],
-      orders: mutable.MutableList[Order]): java.util.List[Pair[java.lang.Integer, Order]] = {
+      keys: mutable.ListBuffer[Either[Int, String]],
+      orders: mutable.ListBuffer[Order]): java.util.List[Pair[java.lang.Integer, Order]] = {
     if (keys.isEmpty) {
       null
     } else {

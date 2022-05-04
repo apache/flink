@@ -88,7 +88,7 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
         count = 0;
     }
 
-    public byte toByteArray()[] {
+    public byte[] toByteArray() {
         return Arrays.copyOf(buffer, count);
     }
 

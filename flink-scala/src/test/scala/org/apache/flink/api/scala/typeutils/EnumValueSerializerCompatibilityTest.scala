@@ -24,7 +24,7 @@ import org.apache.flink.util.TestLogger
 import org.junit.{Rule, Test}
 import org.junit.Assert._
 import org.junit.rules.TemporaryFolder
-import org.scalatest.junit.JUnitSuiteLike
+import org.scalatestplus.junit.JUnitSuiteLike
 
 import java.io._
 import java.net.{URL, URLClassLoader}
@@ -192,6 +192,6 @@ object EnumValueSerializerCompatibilityTest {
 
     run.compile(List(file.getAbsolutePath))
 
-    reporter.printSummary()
+    reporter.finish()
   }
 }

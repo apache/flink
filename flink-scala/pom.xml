@@ -71,6 +71,11 @@ under the License.
 			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.scalatestplus</groupId>
+			<artifactId>junit-4-13_${scala.binary.version}</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -185,7 +190,7 @@ under the License.
 							<goal>compile</goal>
 						</goals>
 					</execution>
- 
+
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
 						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
@@ -203,7 +208,7 @@ under the License.
 					</jvmArgs>
 				</configuration>
 			</plugin>
-			
+
 			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

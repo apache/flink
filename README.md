@@ -83,6 +83,29 @@ Flink is now installed in `build-target`.
 *NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
 To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
+### Documentation
+
+```
+git submodule init
+git submodule update
+```
+
+### Flink Scala
+
+```
+mvn -am -pl flink-test-utils-parent/flink-test-utils,flink-scala test
+
+mvn -DskipTests -am -P scala-2.13 -pl flink-test-utils-parent/flink-test-utils,flink-scala package
+```
+
+Errores
+```java
+Breaking the build because there is at least one incompatibility: 
+  org.apache.flink.api.scala.CoGroupDataSet.$anonfun$buildGroupSortList$1(org.apache.flink.api.common.typeinfo.TypeInformation,java.util.ArrayList,scala.Tuple2):                         METHOD_REMOVED,
+  org.apache.flink.api.scala.typeutils.CaseClassTypeInfo.$anonfun$getFlatFields$1(int,java.util.List,scala.runtime.IntRef,org.apache.flink.api.common.typeinfo.TypeInformation):          METHOD_REMOVED,
+  org.apache.flink.api.scala.typeutils.CaseClassTypeInfo.$anonfun$getFlatFields$1$adapted(int,java.util.List,scala.runtime.IntRef,org.apache.flink.api.common.typeinfo.TypeInformation):  METHOD_REMOVED
+```
+
 ## Developing Flink
 
 The Flink committers use IntelliJ IDEA to develop the Flink codebase.

@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.codegen
 import org.apache.flink.annotation.Internal
 
 import scala.language.implicitConversions
-import scala.reflect.macros.Context
+import scala.reflect.macros.whitebox.Context
 
 @Internal
 private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with TypeDescriptors[C] =>
@@ -59,10 +59,10 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
 
 //    def mkIdent(target: Symbol): Tree = Ident(target) setType target.tpe
   def mkSelect(rootModule: String, path: String*): Tree =
-    mkSelect(Ident(newTermName(rootModule)), path: _*)
+    mkSelect(Ident(TermName(rootModule)), path: _*)
 
   def mkSelect(source: Tree, path: String*): Tree =
-    path.foldLeft(source)((ret, item) => Select(ret, newTermName(item)))
+    path.foldLeft(source)((ret, item) => Select(ret, TermName(item)))
 
   def mkSelectSyms(source: Tree, path: Symbol*): Tree =
     path.foldLeft(source)((ret, item) => Select(ret, item))
@@ -79,7 +79,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
     Apply(mkSelect("_root_", "scala", "collection", "immutable", "Map", "apply"), items)
 
   def mkVal(name: String, flags: FlagSet, transient: Boolean, valTpe: Type, value: Tree): Tree = {
-    ValDef(Modifiers(flags), newTermName(name), TypeTree(valTpe), value)
+    ValDef(Modifiers(flags), TermName(name), TypeTree(valTpe), value)
   }
 
   def mkVar(name: String, flags: FlagSet, transient: Boolean, valTpe: Type, value: Tree): Tree = {
@@ -89,21 +89,21 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
   def mkValAndGetter(name: String, flags: FlagSet, valTpe: Type, value: Tree): List[Tree] = {
     val fieldName = name + " "
     val valDef = mkVal(fieldName, Flag.PRIVATE, false, valTpe, value)
-    val defDef = mkMethod(name, flags, Nil, valTpe, Ident(newTermName(fieldName)))
+    val defDef = mkMethod(name, flags, Nil, valTpe, Ident(TermName(fieldName)))
     List(valDef, defDef)
   }
 
   def mkVarAndLazyGetter(name: String, flags: FlagSet, valTpe: Type, value: Tree): (Tree, Tree) = {
     val fieldName = name + " "
     val field = mkVar(fieldName, NoFlags, false, valTpe, mkNull)
-    val fieldSel = Ident(newTermName(fieldName))
+    val fieldSel = Ident(TermName(fieldName))
 
     val getter = mkMethod(
       name,
       flags,
       Nil,
       valTpe, {
-        val eqeq = Select(fieldSel, newTermName("$eq$eq"))
+        val eqeq = Select(fieldSel, TermName("$eq$eq"))
         val chk = Apply(eqeq, List(mkNull))
         val init = Assign(fieldSel, value)
         Block(List(If(chk, init, EmptyTree)), fieldSel)
@@ -143,9 +143,9 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
       impl: Tree): Tree = {
     val valParams = args.map {
       case (`name`, tpe) =>
-        ValDef(Modifiers(Flag.PARAM), newTermName(name), TypeTree(tpe), EmptyTree)
+        ValDef(Modifiers(Flag.PARAM), TermName(name), TypeTree(tpe), EmptyTree)
     }
-    DefDef(Modifiers(flags), newTermName(name), Nil, List(valParams), TypeTree(ret), impl)
+    DefDef(Modifiers(flags), TermName(name), Nil, List(valParams), TypeTree(ret), impl)
   }
 
   def mkClass(
@@ -154,12 +154,12 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
       parents: List[Type],
       members: List[Tree]): ClassDef = {
     val parentTypeTrees = parents.map(TypeTree(_))
-    val selfType = ValDef(Modifiers(), nme.WILDCARD, TypeTree(NoType), EmptyTree)
+    val selfType = ValDef(Modifiers(), termNames.WILDCARD, TypeTree(NoType), EmptyTree)
     ClassDef(Modifiers(flags), name, Nil, Template(parentTypeTrees, selfType, members))
   }
 
   def mkThrow(tpe: Type, msg: Tree): Tree =
-    Throw(Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), List(msg)))
+    Throw(Apply(Select(New(TypeTree(tpe)), termNames.CONSTRUCTOR), List(msg)))
 
 //    def mkThrow(tpe: Type, msg: Tree): Tree = Throw(New(TypeTree(tpe)), List(List(msg))))
 
@@ -213,14 +213,15 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
   }
 
   def mkCtorCall(tpe: Type, args: List[Tree]) =
-    Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), args)
+    Apply(Select(New(TypeTree(tpe)), termNames.CONSTRUCTOR), args)
 
   def mkSuperCall(args: List[Tree] = List()) =
-    Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), args)
+    Apply(Select(Super(This(typeNames.EMPTY), typeNames.EMPTY), termNames.CONSTRUCTOR), args)
 
   def mkWhile(cond: Tree)(body: Tree): Tree = {
-    val lblName = c.fresh[TermName]("while")
-    val jump = Apply(Ident(lblName), Nil)
+    val lblName = c.freshName("while")
+    Ident(TermName(lblName))
+    val jump = Apply(Ident(TermName(lblName)), Nil)
     val block = body match {
       case Block(stats, expr) => Block(stats :+ expr, jump)
       case _ => Block(List(body), jump)
@@ -230,7 +231,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
 
   def typeCheck(classDef: ClassDef): (ClassDef, Type) = {
     val block = Block(List(classDef), EmptyTree)
-    val checkedBlock = c.typeCheck(block)
+    val checkedBlock = c.typecheck(block)
 
     // extract the class def from the block again
     val checkedDef = checkedBlock match {
@@ -246,7 +247,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
       case _ =>
         c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
     }
-    val uncheckedUdfBody = c.resetLocalAttrs(udfBody)
+    val uncheckedUdfBody = c.untypecheck(udfBody)
     (paramName, uncheckedUdfBody)
   }
 
@@ -257,7 +258,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
       case _ =>
         c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
     }
-    val uncheckedUdfBody = c.resetLocalAttrs(udfBody)
+    val uncheckedUdfBody = c.untypecheck(udfBody)
     (param1Name, param2Name, uncheckedUdfBody)
   }
 

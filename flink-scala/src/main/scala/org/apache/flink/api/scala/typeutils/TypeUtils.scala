@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.codegen.MacroContextHolder
 
-import scala.reflect.macros.Context
+import scala.reflect.macros.whitebox.Context
 
 @Internal
 private[flink] object TypeUtils {

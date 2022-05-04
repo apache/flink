@@ -22,7 +22,7 @@ import org.apache.flink.streaming.util.typeutils.{FieldAccessorFactory, FieldAcc
 import org.apache.flink.util.TestLogger
 
 import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.scalatestplus.junit.JUnitSuiteLike
 
 case class Outer(a: Int, i: Inner, b: Boolean)
 case class Inner(x: Long, b: Boolean)

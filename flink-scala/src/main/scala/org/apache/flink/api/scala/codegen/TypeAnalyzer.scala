@@ -20,9 +20,9 @@ package org.apache.flink.api.scala.codegen
 import org.apache.flink.annotation.Internal
 import org.apache.flink.types.{BooleanValue, ByteValue, CharValue, DoubleValue, FloatValue, IntValue, LongValue, ShortValue, StringValue}
 
-import scala.collection._
+import scala.collection.{mutable, BitSet, SortedMap, SortedSet}
 import scala.collection.generic.CanBuildFrom
-import scala.reflect.macros.Context
+import scala.reflect.macros.whitebox.Context
 import scala.util.DynamicVariable
 
 @Internal
@@ -37,8 +37,6 @@ private[flink] trait TypeAnalyzer[C <: Context] {
   private val mutableTypes = mutable.Set[Type]()
 
   def getUDTDescriptor(tpe: Type): UDTDescriptor = new UDTAnalyzerInstance().analyze(tpe)
-
-  private def typeArgs(tpe: Type) = tpe match { case TypeRef(_, _, args) => args }
 
   private class UDTAnalyzerInstance {
 
@@ -165,13 +163,14 @@ private[flink] trait TypeAnalyzer[C <: Context] {
         .map(_.asTerm)
         .filter(_.isVar)
         .filter(!_.isStatic)
-        .filterNot(_.annotations.exists(_.tpe <:< typeOf[scala.transient]))
+        .filterNot(_.annotations.exists(_.tree.tpe <:< typeOf[scala.transient]))
 
       if (fields.isEmpty) {
         c.warning(
           c.enclosingPosition,
           s"Type $tpe has no fields that are visible from Scala Type" +
-            " analysis. Falling back to Java Type Analysis (TypeExtractor).")
+            " analysis. Falling back to Java Type Analysis (TypeExtractor)."
+        )
         return GenericClassDescriptor(id, tpe)
       }
 
@@ -187,9 +186,9 @@ private[flink] trait TypeAnalyzer[C <: Context] {
       }
 
       // check whether we have a zero-parameter ctor
-      val hasZeroCtor = tpe.declarations.exists {
+      val hasZeroCtor = tpe.decls.exists {
         case m: MethodSymbol
-            if m.isConstructor && m.paramss.length == 1 && m.paramss(0).length == 0 =>
+            if m.isConstructor && m.paramLists.length == 1 && m.paramLists.head.length == 0 =>
           true
         case _ => false
       }
@@ -216,7 +215,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
           UnsupportedDescriptor(id, tpe, Seq("Case-to-case inheritance is not supported."))
 
         case false =>
-          val ctors = tpe.declarations.collect {
+          val ctors = tpe.decls.collect {
             case m: MethodSymbol if m.isPrimaryConstructor => m
           }
 
@@ -227,7 +226,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
                 tpe,
                 Seq("Multiple constructors found, this is not supported."))
             case ctor :: Nil =>
-              val caseFields = ctor.paramss.flatten.map {
+              val caseFields = ctor.paramLists.flatten.map {
                 sym =>
                   {
                     val methodSym = tpe.member(sym.name).asMethod
@@ -261,7 +260,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
                   }
                   UnsupportedDescriptor(id, tpe, msgs)
 
-                case Nil => CaseClassDescriptor(id, tpe, mutable, ctor, fields.toSeq)
+                case Nil => CaseClassDescriptor(id, tpe, mutable, ctor, fields)
               }
           }
       }
@@ -316,7 +315,8 @@ private[flink] trait TypeAnalyzer[C <: Context] {
               val cbfTpe = TypeRef(
                 typeOf[CanBuildFrom[_, _, _]],
                 typeOf[CanBuildFrom[_, _, _]].typeSymbol,
-                tpe :: elemTpe :: tpe :: Nil)
+                tpe :: elemTpe :: tpe :: Nil
+              )
 
               val cbf = c.inferImplicitValue(cbfTpe, silent = true)
 
@@ -371,7 +371,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
           // get fully-qualified type name, e.g. org.example.MyEnum.Value
           val fqn = tpe.normalize.toString.split('.')
           // get FQN parent
-          val owner = m.staticModule(fqn.slice(0, fqn.size - 1).mkString("."))
+          val owner = m.staticModule(fqn.slice(0, fqn.length - 1).mkString("."))
 
           val enumerationSymbol = typeOf[scala.Enumeration].typeSymbol
           if (owner.typeSignature.baseClasses.contains(enumerationSymbol)) {
@@ -450,7 +450,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
     private object FactoryType {
       def unapply(tpe: Type): Option[Type] = {
         val definingType = tpe.typeSymbol.asClass.baseClasses.find {
-          _.annotations.exists(_.tpe =:= typeOf[org.apache.flink.api.common.typeinfo.TypeInfo])
+          _.annotations.exists(_.tree.tpe =:= typeOf[org.apache.flink.api.common.typeinfo.TypeInfo])
         }
         definingType.map(tpe.baseType)
       }
@@ -461,7 +461,7 @@ private[flink] trait TypeAnalyzer[C <: Context] {
       private val caches = new DynamicVariable[Map[Type, RecursiveDescriptor]](Map())
       private val idGen = new Counter
 
-      def newId = idGen.next
+      def newId: Int = idGen.next
 
       def getOrElseUpdate(tpe: Type)(orElse: Int => UDTDescriptor): UDTDescriptor = {
 
@@ -498,17 +498,19 @@ private[flink] trait TypeAnalyzer[C <: Context] {
         t: Tree =>
           Apply(
             Select(
-              Select(Ident(newTermName("scala")), newTermName("Predef")),
-              newTermName(primName + "2" + boxName)),
-            List(t))
+              Select(Ident(TermName("scala")), TermName("Predef")),
+              TermName(primName + "2" + boxName)),
+            List(t)
+          )
       }
       val unbox = {
         t: Tree =>
           Apply(
             Select(
-              Select(Ident(newTermName("scala")), newTermName("Predef")),
-              newTermName(boxName + "2" + primName)),
-            List(t))
+              Select(Ident(TermName("scala")), TermName("Predef")),
+              TermName(boxName + "2" + primName)),
+            List(t)
+          )
       }
       (default, wrapper, box, unbox)
     }

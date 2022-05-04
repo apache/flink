@@ -53,7 +53,7 @@ private class JavaIterableWrapperSerializer extends KSerializer[JIterable[_]] {
   override def read(kryo: Kryo, in: Input, clz: Class[JIterable[_]]): JIterable[_] = {
     kryo.readClassAndObject(in) match {
       case scalaIterable: Iterable[_] =>
-        scala.collection.JavaConversions.asJavaIterable(scalaIterable)
+        scala.collection.JavaConverters.asJavaIterable(scalaIterable)
       case javaIterable: JIterable[_] =>
         javaIterable
     }
@@ -62,7 +62,7 @@ private class JavaIterableWrapperSerializer extends KSerializer[JIterable[_]] {
 
 private object JavaIterableWrapperSerializer {
   // The class returned by asJavaIterable (scala.collection.convert.Wrappers$IterableWrapper).
-  val wrapperClass = scala.collection.JavaConversions.asJavaIterable(Seq(1)).getClass
+  val wrapperClass = scala.collection.JavaConverters.asJavaIterable(Seq(1)).getClass
 
   // Get the underlying method so we can use it to get the Scala collection for serialization.
   private val underlyingMethodOpt = {

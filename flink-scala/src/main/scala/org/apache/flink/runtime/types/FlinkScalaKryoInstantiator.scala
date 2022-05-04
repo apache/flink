@@ -25,6 +25,7 @@ import com.twitter.chill._
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{BitSet, HashMap, HashSet, ListMap, ListSet, NumericRange, Queue, Range, SortedMap, SortedSet}
 import scala.collection.mutable.{BitSet => MBitSet, Buffer, HashMap => MHashMap, HashSet => MHashSet, ListBuffer, Map => MMap, Queue => MQueue, Set => MSet, WrappedArray}
+import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
 /*
@@ -179,7 +180,7 @@ class AllScalaRegistrar extends IKryoRegistrar {
       def write(k: Kryo, out: Output, obj: Symbol) { out.writeString(obj.name) }
       def read(k: Kryo, in: Input, cls: Class[Symbol]) = Symbol(in.readString)
     }).forSubclass[Regex](new RegexSerializer)
-      .forClass[ClassManifest[Any]](new ClassManifestSerializer[Any])
+      .forClass[ClassTag[Any]](new ClassManifestSerializer[Any])
       .forSubclass[Manifest[Any]](new ManifestSerializer[Any])
       .forSubclass[scala.Enumeration#Value](new EnumerationSerializer)
 

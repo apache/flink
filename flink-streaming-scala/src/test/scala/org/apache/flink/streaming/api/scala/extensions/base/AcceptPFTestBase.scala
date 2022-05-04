@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.util.TestLogger
 
-import org.scalatest.junit.JUnitSuiteLike
+import org.scalatestplus.junit.JUnitSuiteLike
 
 /** Common facilities to test the `acceptPartialFunctions` extension */
 abstract private[extensions] class AcceptPFTestBase extends TestLogger with JUnitSuiteLike {

@@ -48,8 +48,8 @@ class GroupedDataSet[T: ClassTag](private val set: DataSet[T], private val keys:
 
   // These are for optional secondary sort. They are only used
   // when using a group-at-a-time reduce function.
-  private val groupSortKeyPositions = mutable.MutableList[Either[Int, String]]()
-  private val groupSortOrders = mutable.MutableList[Order]()
+  private val groupSortKeyPositions = mutable.ListBuffer[Either[Int, String]]()
+  private val groupSortOrders = mutable.ListBuffer[Order]()
 
   private var partitioner: Partitioner[_] = _
 
@@ -138,19 +138,19 @@ class GroupedDataSet[T: ClassTag](private val set: DataSet[T], private val keys:
     groupSortKeySelector match {
       case Some(keySelector) =>
         if (partitioner == null) {
-          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders.head)
         } else {
-          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders.head)
             .withPartitioner(partitioner)
         }
       case None =>
         if (groupSortKeyPositions.nonEmpty) {
-          val grouping = groupSortKeyPositions(0) match {
+          val grouping = groupSortKeyPositions.head match {
             case Left(pos) =>
-              new SortedGrouping[T](set.javaSet, keys, pos, groupSortOrders(0))
+              new SortedGrouping[T](set.javaSet, keys, pos, groupSortOrders.head)
 
             case Right(field) =>
-              new SortedGrouping[T](set.javaSet, keys, field, groupSortOrders(0))
+              new SortedGrouping[T](set.javaSet, keys, field, groupSortOrders.head)
 
           }
           // now manually add the rest of the keys

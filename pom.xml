@@ -118,9 +118,9 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
-		<scala.version>2.12.7</scala.version>
+		<scala.version>2.12.15</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<chill.version>0.7.6</chill.version>
+		<chill.version>0.10.0</chill.version>
 		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
@@ -569,7 +569,7 @@ under the License.
 				<scope>import</scope>
 				<version>2.13.2.20220328</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
@@ -721,7 +721,13 @@ under the License.
 			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
-				<version>3.0.0</version>
+				<version>3.2.12</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.scalatestplus</groupId>
+				<artifactId>junit-4-13_${scala.binary.version}</artifactId>
+				<version>3.2.12.0</version>
 				<scope>test</scope>
 			</dependency>
 
@@ -863,7 +869,7 @@ under the License.
 		<profile>
 			<id>scala-2.12</id>
 			<properties>
-				<scala.version>2.12.7</scala.version>
+				<scala.version>2.12.15</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
 			</properties>
 			<activation>
@@ -892,6 +898,44 @@ under the License.
 												<exclude>*:*_2.10</exclude>
 											</excludes>
 											<message>Scala 2.10/2.11 dependencies are not allowed for Scala 2.12 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
+										</bannedDependencies>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>scala-2.13</id>
+			<properties>
+				<scala.version>2.13.8</scala.version>
+				<scala.binary.version>2.13</scala.binary.version>
+			</properties>
+			<build>
+				<plugins>
+					<!-- make sure we don't have any _2.11 or _2.12 dependencies when building
+					for Scala 2.13 -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>enforce-versions</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<bannedDependencies>
+											<excludes combine.children="append">
+												<exclude>*:*_2.12</exclude>
+												<exclude>*:*_2.11</exclude>
+												<exclude>*:*_2.10</exclude>
+											</excludes>
+											<message>Scala 2.11/2.12 dependencies are not allowed for Scala 2.13 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
 										</bannedDependencies>
 									</rules>
 								</configuration>
@@ -932,7 +976,7 @@ under the License.
 						<plugin>
 							<groupId>org.codehaus.mojo</groupId>
 							<artifactId>build-helper-maven-plugin</artifactId>
-							<version>1.7</version>
+							<version>3.3.0</version>
 						</plugin>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
@@ -1949,7 +1993,7 @@ under the License.
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
 							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
-							<version>8.14</version>
+							<version>8.32</version>
 						</dependency>
 					</dependencies>
 					<executions>
@@ -2017,7 +2061,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.0.0-M1</version>
+					<version>3.0.0</version>
 				</plugin>
 
 				<plugin>

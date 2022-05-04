@@ -85,7 +85,7 @@ object ClosureCleaner {
   private def getInnerClosureClasses(obj: AnyRef): List[Class[_]] = {
     val seen = Set[Class[_]](obj.getClass)
     val stack = mutable.Stack[Class[_]](obj.getClass)
-    while (!stack.isEmpty) {
+    while (stack.nonEmpty) {
       val cr = getClassReader(stack.pop())
       if (cr != null) {
         val set = Set.empty[Class[_]]
