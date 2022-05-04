@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Test for {@link AvroTypeInfo}. */
+/** Test for {@link GenericRecordAvroTypeInfo}. */
 public class AvroGenericRecordTypeInfoTest
         extends TypeInformationTestBase<GenericRecordAvroTypeInfo> {
 
