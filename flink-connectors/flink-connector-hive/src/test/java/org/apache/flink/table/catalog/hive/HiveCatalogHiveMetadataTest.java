@@ -267,9 +267,9 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 new CatalogTableImpl(builder.build(), getBatchTableProperties(), null),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
-        assertThat(catalogTable.getSchema().getPrimaryKey().isPresent())
+        assertThat(catalogTable.getSchema().getPrimaryKey())
                 .as("PK not present")
-                .isTrue();
+                .isPresent();
         UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
         assertThat(pk.getName()).isEqualTo("pk_name");
         assertThat(pk.getColumns()).isEqualTo(Collections.singletonList("x"));
