@@ -435,6 +435,34 @@ public class HiveDialectQueryITCase {
                 .hasMessage(expectedMessage);
     }
 
+    @Test
+    public void testMultiInsert() throws Exception {
+        tableEnv.executeSql("create table t1 (id bigint, name string)");
+        tableEnv.executeSql("create table t2 (id bigint, name string)");
+        tableEnv.executeSql("create table t3 (id bigint, name string, age int)");
+        try {
+            tableEnv.executeSql("insert into table t3 values (1, 'test1', 18 ), (2, 'test2', 28 )")
+                    .await();
+            tableEnv.executeSql(
+                            "from (select id, name, age from t3) t"
+                                    + " insert overwrite table t1 select id, name where age < 20"
+                                    + " insert overwrite table t2 select id, name where age > 20")
+                    .await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t1").collect());
+            assertThat(result.toString()).isEqualTo("[+I[1, test1]]");
+            result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from t2").collect());
+            assertThat(result.toString()).isEqualTo("[+I[2, test2]]");
+        } finally {
+            tableEnv.executeSql("drop table t1");
+            tableEnv.executeSql("drop table t2");
+            tableEnv.executeSql("drop table t3");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
