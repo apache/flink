@@ -50,7 +50,6 @@ import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -267,9 +266,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 new CatalogTableImpl(builder.build(), getBatchTableProperties(), null),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
-        assertThat(catalogTable.getSchema().getPrimaryKey())
-                .as("PK not present")
-                .isPresent();
+        assertThat(catalogTable.getSchema().getPrimaryKey()).as("PK not present").isPresent();
         UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
         assertThat(pk.getName()).isEqualTo("pk_name");
         assertThat(pk.getColumns()).isEqualTo(Collections.singletonList("x"));
@@ -290,8 +287,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.createTable(path1, createPartitionedTable(), false);
         catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 
-        assertThat(catalog.listPartitions(path1))
-                .isEqualTo(Collections.singletonList(createPartitionSpec()));
+        assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
         CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
         CatalogTestUtil.checkEquals(createPartition(), cp);
         assertThat(cp.getProperties().get("k")).isNull();
@@ -305,8 +301,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
-        assertThat(catalog.listPartitions(path1))
-                .isEqualTo(Collections.singletonList(createPartitionSpec()));
+        assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
 
         cp = catalog.getPartition(path1, createPartitionSpec());
 

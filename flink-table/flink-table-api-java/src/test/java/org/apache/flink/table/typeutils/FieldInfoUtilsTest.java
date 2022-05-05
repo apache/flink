@@ -25,11 +25,8 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.expressions.Expression;
 
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.sql.Timestamp;
@@ -42,55 +39,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test suite for {@link FieldInfoUtils}. */
 class FieldInfoUtilsTest {
 
-    /** Test for ByNameMode. */
-    @Nested
-    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-    class TestByNameMode {
+    static Stream<TypeInformation> parameters() throws Exception {
+        return Stream.of(
+                new RowTypeInfo(
+                        new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
+                        new String[] {"f0", "f1", "f2"}),
+                new PojoTypeInfo(
+                        MyPojo.class,
+                        Arrays.asList(
+                                new PojoField(MyPojo.class.getDeclaredField("f0"), Types.INT),
+                                new PojoField(MyPojo.class.getDeclaredField("f1"), Types.LONG),
+                                new PojoField(
+                                        MyPojo.class.getDeclaredField("f2"),
+                                        Types.SQL_TIMESTAMP))));
+    }
 
-        Stream<Arguments> parameters() throws Exception {
-            return Stream.of(
-                    Arguments.of(
-                            new RowTypeInfo(
-                                    new TypeInformation[] {
-                                        Types.INT, Types.LONG, Types.SQL_TIMESTAMP
-                                    },
-                                    new String[] {"f0", "f1", "f2"})),
-                    Arguments.of(
-                            new PojoTypeInfo(
-                                    MyPojo.class,
-                                    Arrays.asList(
-                                            new PojoField(
-                                                    MyPojo.class.getDeclaredField("f0"), Types.INT),
-                                            new PojoField(
-                                                    MyPojo.class.getDeclaredField("f1"),
-                                                    Types.LONG),
-                                            new PojoField(
-                                                    MyPojo.class.getDeclaredField("f2"),
-                                                    Types.SQL_TIMESTAMP)))));
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    void testByNameModeReorder(TypeInformation typeInfo) {
+        FieldInfoUtils.TypeInfoSchema schema =
+                FieldInfoUtils.getFieldsInfo(
+                        typeInfo, new Expression[] {$("f2"), $("f1"), $("f0")});
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("parameters")
-        void testByNameModeReorder(TypeInformation typeInfo) {
-            FieldInfoUtils.TypeInfoSchema schema =
-                    FieldInfoUtils.getFieldsInfo(
-                            typeInfo, new Expression[] {$("f2"), $("f1"), $("f0")});
+        assertThat(schema.getFieldNames()).isEqualTo(new String[] {"f2", "f1", "f0"});
+    }
 
-            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"f2", "f1", "f0"});
-        }
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    void testByNameModeReorderAndRename(TypeInformation typeInfo) {
+        FieldInfoUtils.TypeInfoSchema schema =
+                FieldInfoUtils.getFieldsInfo(
+                        typeInfo,
+                        new Expression[] {$("f1").as("aa"), $("f0").as("bb"), $("f2").as("cc")});
 
-        @ParameterizedTest(name = "{0}")
-        @MethodSource("parameters")
-        void testByNameModeReorderAndRename(TypeInformation typeInfo) {
-            FieldInfoUtils.TypeInfoSchema schema =
-                    FieldInfoUtils.getFieldsInfo(
-                            typeInfo,
-                            new Expression[] {
-                                $("f1").as("aa"), $("f0").as("bb"), $("f2").as("cc")
-                            });
-
-            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
-        }
+        assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
     }
 
     /** Test Pojo class. */
@@ -102,34 +84,29 @@ class FieldInfoUtilsTest {
         public MyPojo() {}
     }
 
-    /** Test for ByPositionMode. */
-    @Nested
-    public final class TestByPositionMode {
-        private final RowTypeInfo rowTypeInfo =
-                new RowTypeInfo(
-                        new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
-                        new String[] {"f0", "f1", "f2"});
+    private final RowTypeInfo rowTypeInfo =
+            new RowTypeInfo(
+                    new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
+                    new String[] {"f0", "f1", "f2"});
 
-        @Test
-        public void testByPositionMode() {
-            FieldInfoUtils.TypeInfoSchema schema =
-                    FieldInfoUtils.getFieldsInfo(
-                            rowTypeInfo, new Expression[] {$("aa"), $("bb"), $("cc")});
+    @Test
+    void testByPositionMode() {
+        FieldInfoUtils.TypeInfoSchema schema =
+                FieldInfoUtils.getFieldsInfo(
+                        rowTypeInfo, new Expression[] {$("aa"), $("bb"), $("cc")});
 
-            assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
-        }
+        assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc"});
+    }
 
-        @Test
-        public void testByPositionModeProcTime() {
-            FieldInfoUtils.TypeInfoSchema schema =
-                    FieldInfoUtils.getFieldsInfo(
-                            rowTypeInfo,
-                            new Expression[] {
-                                $("aa"), $("bb"), $("cc"), $("cc").proctime().as("proctime")
-                            });
+    @Test
+    void testByPositionModeProcTime() {
+        FieldInfoUtils.TypeInfoSchema schema =
+                FieldInfoUtils.getFieldsInfo(
+                        rowTypeInfo,
+                        new Expression[] {
+                            $("aa"), $("bb"), $("cc"), $("cc").proctime().as("proctime")
+                        });
 
-            assertThat(schema.getFieldNames())
-                    .isEqualTo(new String[] {"aa", "bb", "cc", "proctime"});
-        }
+        assertThat(schema.getFieldNames()).isEqualTo(new String[] {"aa", "bb", "cc", "proctime"});
     }
 }
