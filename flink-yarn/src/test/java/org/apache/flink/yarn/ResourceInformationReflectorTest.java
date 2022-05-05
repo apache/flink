@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link ResourceInformationReflector}. */
 class ResourceInformationReflectorTest {
@@ -62,9 +62,7 @@ class ResourceInformationReflectorTest {
 
         final Map<String, Long> externalResources =
                 resourceInformationReflector.getExternalResourcesUnSafe(resourceWithMethod);
-        assertThat(externalResources).hasSize(1);
-        assertThat(externalResources).containsKey(RESOURCE_NAME);
-        assertThat(externalResources.get(RESOURCE_NAME)).isEqualTo(RESOURCE_VALUE);
+        assertThat(externalResources).hasSize(1).containsEntry(RESOURCE_NAME, RESOURCE_VALUE);
     }
 
     @Test
@@ -97,7 +95,7 @@ class ResourceInformationReflectorTest {
 
     @Test
     void testDefaultTwoResourceTypeWithYarnSupport() {
-        assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 10)).isTrue();
 
         final Resource resource = Resource.newInstance(100, 1);
 
@@ -109,7 +107,7 @@ class ResourceInformationReflectorTest {
 
     @Test
     void testSetAndGetExtendedResourcesWithoutYarnSupport() {
-        assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 10));
+        assumeThat(HadoopUtils.isMaxHadoopVersion(2, 10)).isTrue();
 
         final Resource resource = Resource.newInstance(100, 1);
 

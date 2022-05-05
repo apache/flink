@@ -53,7 +53,6 @@ import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -69,13 +68,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
@@ -85,9 +84,9 @@ import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link YarnResourceManagerDriver}. */
 public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase<YarnWorkerNode> {
@@ -174,14 +173,9 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
                             Throwable throwable =
                                     throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
-                            assertThat(
-                                            ExceptionUtils.findThrowable(
-                                                    throwable, ResourceManagerException.class))
-                                    .isPresent();
-                            assertThat(
-                                            ExceptionUtils.findThrowableWithMessage(
-                                                    throwable, ERROR_MESSAGE_ON_SHUTDOWN_REQUEST))
-                                    .isPresent();
+                            assertThat(throwable)
+                                    .satisfies(anyCauseMatches(ResourceManagerException.class))
+                                    .satisfies(anyCauseMatches(ERROR_MESSAGE_ON_SHUTDOWN_REQUEST));
                         });
             }
         };
@@ -240,22 +234,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                 getDriver().terminate();
                                             });
 
-                            assertThat(driverHasTerminatedFuture)
-                                    .satisfies(
-                                            new Condition<CompletableFuture<?>>() {
-                                                @Override
-                                                public boolean matches(CompletableFuture<?> item) {
-                                                    try {
-                                                        item.get(20, TimeUnit.MILLISECONDS);
-                                                    } catch (TimeoutException timeoutException) {
-                                                        return true;
-                                                    } catch (InterruptedException
-                                                            | ExecutionException e) {
-                                                        return false;
-                                                    }
-                                                    return false;
-                                                }
-                                            });
+                            assertThatThrownBy(
+                                            () ->
+                                                    driverHasTerminatedFuture.get(
+                                                            20, TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
 
                             nodeManagerClientCallbackHandler.onContainerStopped(
                                     containerIdFuture.get());
@@ -303,23 +286,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                                                 getDriver().releaseResource(worker);
                                                 getDriver().terminate();
                                             });
-
-                            assertThat(driverHasTerminatedFuture)
-                                    .satisfies(
-                                            new Condition<CompletableFuture<?>>() {
-                                                @Override
-                                                public boolean matches(CompletableFuture<?> item) {
-                                                    try {
-                                                        item.get(20, TimeUnit.MILLISECONDS);
-                                                    } catch (TimeoutException timeoutException) {
-                                                        return true;
-                                                    } catch (InterruptedException
-                                                            | ExecutionException e) {
-                                                        return false;
-                                                    }
-                                                    return false;
-                                                }
-                                            });
+                            assertThatThrownBy(
+                                            () ->
+                                                    driverHasTerminatedFuture.get(
+                                                            20, TimeUnit.MILLISECONDS))
+                                    .isInstanceOf(TimeoutException.class);
 
                             nodeManagerClientCallbackHandler.onStopContainerError(
                                     containerIdFuture.get(), null);
@@ -578,7 +549,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
                             // Verify that only worker with spec1 is started.
                             verifyFutureCompleted(startContainerAsyncCommandFuture1);
-                            assertFalse(startContainerAsyncCommandFuture2.isDone());
+                            assertThat(startContainerAsyncCommandFuture2.isDone()).isFalse();
 
                             // Mock that container 1 is completed, while the worker is still pending
                             ContainerStatus testingContainerStatus =
@@ -590,7 +561,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                             verifyFutureCompleted(addContainerRequestFutures.get(2));
                             assertThat(addContainerRequestFutures.get(2).get().getCapability())
                                     .isEqualTo(containerResource1);
-                            assertFalse(addContainerRequestFutures.get(3).isDone());
+                            assertThat(addContainerRequestFutures.get(3).isDone()).isFalse();
                         });
             }
         };
@@ -767,11 +738,11 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         @Override
         protected void validateWorkersRecoveredFromPreviousAttempt(
                 Collection<YarnWorkerNode> workers) {
-            assumeTrue(HadoopUtils.isMinHadoopVersion(2, 2));
+            assumeThat(HadoopUtils.isMinHadoopVersion(2, 2)).isTrue();
             assertThat(workers).hasSize(1);
 
             final ResourceID resourceId = workers.iterator().next().getResourceID();
-            assertThat(resourceId.toString()).isEqualTo(testingContainer.getId().toString());
+            assertThat(resourceId).hasToString(testingContainer.getId().toString());
         }
 
         @Override
@@ -958,7 +929,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
             ContainerStatus containerStatus, String expectedCompletedCause) {
         final String containerCompletedCause =
                 YarnResourceManagerDriver.getContainerCompletedCause(containerStatus);
-        assertThat(containerCompletedCause).containsSequence(expectedCompletedCause);
-        assertThat(containerCompletedCause).containsSequence(containerStatus.getDiagnostics());
+        assertThat(containerCompletedCause)
+                .contains(expectedCompletedCause, containerStatus.getDiagnostics());
     }
 }

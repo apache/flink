@@ -62,7 +62,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link FlinkYarnSessionCli}. */
 class FlinkYarnSessionCliTest {
@@ -580,11 +579,7 @@ class FlinkYarnSessionCliTest {
 
         final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-        assertThatThrownBy(
-                        () -> {
-                            flinkYarnSessionCli.toConfiguration(commandLine);
-                            fail("Expected error for missing file");
-                        })
+        assertThatThrownBy(() -> flinkYarnSessionCli.toConfiguration(commandLine))
                 .isInstanceOf(ConfigurationException.class)
                 .hasMessage("Ship file missing.file does not exist");
     }
@@ -613,11 +608,6 @@ class FlinkYarnSessionCliTest {
 
     private FlinkYarnSessionCli createFlinkYarnSessionCli() throws FlinkException {
         return createFlinkYarnSessionCli(new Configuration());
-    }
-
-    private FlinkYarnSessionCli createFlinkYarnSessionCliWithJmAndTmTotalMemory(int totalMemory)
-            throws FlinkException {
-        return createFlinkYarnSessionCli(createConfigurationWithJmAndTmTotalMemory(totalMemory));
     }
 
     private Configuration createConfigurationWithJmAndTmTotalMemory(int totalMemory) {

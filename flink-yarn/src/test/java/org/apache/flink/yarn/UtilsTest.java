@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link Utils}. */
 class UtilsTest {
@@ -52,12 +51,12 @@ class UtilsTest {
             assertThat(files.count()).isEqualTo(1L);
         }
         try (Stream<Path> files = Files.list(applicationFilesDir)) {
-            assertThat(files.count()).isEqualTo(1L);
+            assertThat(files).hasSize(1);
         }
 
         Utils.deleteApplicationFiles(applicationFilesDir.toString());
         try (Stream<Path> files = Files.list(tempDir.toFile().toPath())) {
-            assertThat(files.count()).isEqualTo(0L);
+            assertThat(files).isEmpty();
         }
     }
 
@@ -101,7 +100,7 @@ class UtilsTest {
         final List<org.apache.hadoop.fs.Path> sharedLibs =
                 Utils.getQualifiedRemoteSharedPaths(flinkConfig, yarnConfig);
         assertThat(sharedLibs).hasSize(1);
-        assertThat(sharedLibs.get(0).toUri().toString()).isEqualTo(qualifiedPath);
+        assertThat(sharedLibs.get(0).toUri()).hasToString(qualifiedPath);
     }
 
     @Test
@@ -119,8 +118,6 @@ class UtilsTest {
                         () -> {
                             Utils.getQualifiedRemoteSharedPaths(
                                     flinkConfig, new YarnConfiguration());
-                            fail(
-                                    "We should throw an exception when the shared lib is set to local path.");
                         })
                 .isInstanceOf(FlinkException.class)
                 .hasMessageContaining(msg);

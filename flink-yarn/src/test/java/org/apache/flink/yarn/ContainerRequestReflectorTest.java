@@ -29,7 +29,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link ContainerRequestReflector}. */
 class ContainerRequestReflectorTest {
@@ -75,7 +75,7 @@ class ContainerRequestReflectorTest {
 
     @Test
     void testGetContainerRequestWithoutYarnSupport() {
-        assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 6));
+        assumeThat(HadoopUtils.isMaxHadoopVersion(2, 6)).isTrue();
 
         Resource resource = Resource.newInstance(100, 1);
         Priority priority = Priority.newInstance(1);
@@ -88,7 +88,7 @@ class ContainerRequestReflectorTest {
     @Test
     void testGetContainerRequestWithYarnSupport()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        assumeTrue(HadoopUtils.isMinHadoopVersion(2, 6));
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
 
         Resource resource = Resource.newInstance(100, 1);
         Priority priority = Priority.newInstance(1);

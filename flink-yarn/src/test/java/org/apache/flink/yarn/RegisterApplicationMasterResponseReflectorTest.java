@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,16 +27,13 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.yarn.YarnTestUtils.isHadoopVersionGreaterThanOrEquals;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests for {@link RegisterApplicationMasterResponseReflector}. */
 class RegisterApplicationMasterResponseReflectorTest {
@@ -80,10 +76,6 @@ class RegisterApplicationMasterResponseReflectorTest {
 
     @Test
     void testGetContainersFromPreviousAttemptsMethodReflectiveHadoop22() {
-        assumeTrue(
-                isHadoopVersionGreaterThanOrEquals(2, 2),
-                "Method getContainersFromPreviousAttempts is not supported by Hadoop: "
-                        + VersionInfo.getVersion());
 
         final RegisterApplicationMasterResponseReflector
                 registerApplicationMasterResponseReflector =
@@ -106,7 +98,7 @@ class RegisterApplicationMasterResponseReflectorTest {
                         new HasMethod());
 
         assertThat(schedulerResourceTypeNames).isPresent();
-        assertThat(schedulerResourceTypeNames.get()).containsAll(Arrays.asList("MEMORY", "CPU"));
+        assertThat(schedulerResourceTypeNames.get()).contains("MEMORY", "CPU");
     }
 
     @Test
@@ -124,10 +116,6 @@ class RegisterApplicationMasterResponseReflectorTest {
 
     @Test
     void testGetSchedulerResourceTypesMethodReflectiveHadoop26() {
-        assumeTrue(
-                isHadoopVersionGreaterThanOrEquals(2, 6),
-                "Method getSchedulerResourceTypes is not supported by Hadoop: "
-                        + VersionInfo.getVersion());
 
         final RegisterApplicationMasterResponseReflector
                 registerApplicationMasterResponseReflector =

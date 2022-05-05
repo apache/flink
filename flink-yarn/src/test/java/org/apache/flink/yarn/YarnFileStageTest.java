@@ -53,8 +53,7 @@ import java.util.Map;
 
 import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for verifying file staging during submission to YARN works. */
 public class YarnFileStageTest {
@@ -74,8 +73,8 @@ public class YarnFileStageTest {
     // ------------------------------------------------------------------------
 
     @BeforeAll
-    public static void createHDFS(@TempDir File hdfsTempDir) throws Exception {
-        assumeTrue(!OperatingSystem.isWindows());
+    static void createHDFS(@TempDir File hdfsTempDir) throws Exception {
+        assumeThat(!OperatingSystem.isWindows()).isTrue();
 
         org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
         hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, hdfsTempDir.getAbsolutePath());
@@ -86,7 +85,7 @@ public class YarnFileStageTest {
     }
 
     @AfterAll
-    public static void destroyHDFS() {
+    static void destroyHDFS() {
         if (hdfsCluster != null) {
             hdfsCluster.shutdown();
         }
@@ -95,7 +94,7 @@ public class YarnFileStageTest {
     }
 
     @BeforeEach
-    public void initConfig() {
+    void initConfig() {
         hadoopConfig = new org.apache.hadoop.conf.Configuration();
         hadoopConfig.set(
                 org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
@@ -303,8 +302,7 @@ public class YarnFileStageTest {
                             LocalResourceType.FILE);
 
             assertThat(classpath)
-                    .containsExactlyInAnyOrder(
-                            new Path(localResourceDirectory, localFile).toString());
+                    .containsExactly(new Path(localResourceDirectory, localFile).toString());
 
             final Map<String, LocalResource> localResources =
                     uploader.getRegisteredLocalResources();
@@ -419,9 +417,9 @@ public class YarnFileStageTest {
                     String relativePath = absolutePathString.substring(workDirPrefixLength);
                     targetFiles.put(relativePath, in.readUTF());
 
-                    if (in.read() != -1) {
-                        fail("extraneous data in file " + relativePath);
-                    }
+                    assertThat(in.read())
+                            .as("extraneous data in file " + relativePath)
+                            .isEqualTo(-1);
                     break;
                 } catch (FileNotFoundException e) {
                     // For S3, read-after-write may be eventually consistent, i.e. when trying

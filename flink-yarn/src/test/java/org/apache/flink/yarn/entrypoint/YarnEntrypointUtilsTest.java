@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link YarnEntrypointUtils}. */
 class YarnEntrypointUtilsTest {
 
-    @TempDir private Path tempBaseDir;
+    @TempDir private static Path tempBaseDir;
 
     /**
      * Tests that the REST ports are correctly set when loading a {@link Configuration} with
@@ -153,7 +153,7 @@ class YarnEntrypointUtilsTest {
     }
 
     @Nonnull
-    private Configuration loadConfiguration(
+    private static Configuration loadConfiguration(
             Configuration initialConfiguration,
             Configuration dynamicParameters,
             Map<String, String> env)

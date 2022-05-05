@@ -300,11 +300,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-						<configuration>
-							<excludes>
-								<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
-							</excludes>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>

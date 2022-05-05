@@ -613,8 +613,7 @@ class YarnClusterDescriptorTest {
                     Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                             .toFile();
 
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile);
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFolder);
+            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
 
             List<File> shipFiles = new ArrayList<>();
             shipFiles.add(libFile);
@@ -622,17 +621,14 @@ class YarnClusterDescriptorTest {
 
             descriptor.addShipFiles(shipFiles);
 
-            assertThat(descriptor.getShipFiles()).contains(libFile);
-            assertThat(descriptor.getShipFiles()).contains(libFolder);
+            assertThat(descriptor.getShipFiles()).contains(libFile, libFolder);
 
             // only execute part of the deployment to test for shipped files
             Set<File> effectiveShipFiles = new HashSet<>();
             descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
-            assertThat(effectiveShipFiles).hasSize(0);
-            assertThat(descriptor.getShipFiles()).hasSize(2);
-            assertThat(descriptor.getShipFiles()).contains(libFile);
-            assertThat(descriptor.getShipFiles()).contains(libFolder);
+            assertThat(effectiveShipFiles).isEmpty();
+            assertThat(descriptor.getShipFiles()).hasSize(2).contains(libFile, libFolder);
         }
     }
 
@@ -673,10 +669,8 @@ class YarnClusterDescriptorTest {
             }
 
             // only add the ship the folder, not the contents
-            assertThat(effectiveShipFiles).doesNotContain(libFile);
-            assertThat(effectiveShipFiles).contains(libFolder);
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile);
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFolder);
+            assertThat(effectiveShipFiles).doesNotContain(libFile).contains(libFolder);
+            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
         }
     }
 
@@ -862,18 +856,19 @@ class YarnClusterDescriptorTest {
                 getTestMasterEnv(
                         new Configuration(), flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
 
-        assertThat(masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR)).isEqualTo("./lib");
-        assertThat(masterEnv.get(YarnConfigKeys.ENV_APP_ID)).isEqualTo(appId.toString());
-        assertThat(masterEnv.get(YarnConfigKeys.FLINK_YARN_FILES))
-                .isEqualTo(
+        assertThat(masterEnv)
+                .containsEntry(ConfigConstants.ENV_FLINK_LIB_DIR, "./lib")
+                .containsEntry(YarnConfigKeys.ENV_APP_ID, appId.toString())
+                .containsEntry(
+                        YarnConfigKeys.FLINK_YARN_FILES,
                         YarnApplicationFileUploader.getApplicationDirPath(
                                         new Path(flinkHomeDir.getPath()), appId)
-                                .toString());
-        assertThat(masterEnv.get(YarnConfigKeys.ENV_FLINK_CLASSPATH)).isEqualTo(fakeClassPath);
+                                .toString())
+                .containsEntry(YarnConfigKeys.ENV_FLINK_CLASSPATH, fakeClassPath);
         assertThat(masterEnv.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES)).isEmpty();
-        assertThat(masterEnv.get(YarnConfigKeys.FLINK_DIST_JAR)).isEqualTo(fakeLocalFlinkJar);
-        assertThat(masterEnv.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR))
-                .isEqualTo(flinkHomeDir.getPath());
+        assertThat(masterEnv)
+                .containsEntry(YarnConfigKeys.FLINK_DIST_JAR, fakeLocalFlinkJar)
+                .containsEntry(YarnConfigKeys.ENV_CLIENT_HOME_DIR, flinkHomeDir.getPath());
     }
 
     @Test
@@ -891,7 +886,7 @@ class YarnClusterDescriptorTest {
                         "",
                         "./lib/flink_dist.jar",
                         ApplicationId.newInstance(0, 0));
-        assertThat(masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR)).isEqualTo("./lib");
+        assertThat(masterEnv).containsEntry(ConfigConstants.ENV_FLINK_LIB_DIR, "./lib");
     }
 
     private Map<String, String> getTestMasterEnv(

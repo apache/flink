@@ -69,8 +69,7 @@ class YarnApplicationFileUploaderTest {
             final Set<String> registeredResources =
                     yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
 
-            assertThat(registeredResources)
-                    .containsExactlyInAnyOrder(libJars.keySet().toArray(new String[0]));
+            assertThat(registeredResources).containsExactlyInAnyOrderElementsOf(libJars.keySet());
         }
     }
 
