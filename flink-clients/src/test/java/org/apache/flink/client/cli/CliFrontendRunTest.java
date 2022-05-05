@@ -18,10 +18,12 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -206,6 +208,37 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
+    }
+
+    @Test(expected = CliArgsException.class)
+    public void testInvalidNegativeParallelismOption() throws Exception {
+        String[] parameters = {"-p", "-2", getTestJarPath()};
+        Configuration configuration = new Configuration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.run(parameters);
+    }
+
+    @Test
+    public void testDefaultParallelismOption() throws Exception {
+        final Configuration configuration = getConfiguration();
+        String[] parameters = {
+            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+        };
+        verifyCliFrontend(
+                configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
+    }
+
+    @Test
+    public void testDefaultParallelismOptionOverridesConfiguration() throws Exception {
+        // The parallelism should be the same with Cli param -1 instead of config 1.
+        final Configuration configuration = getConfiguration();
+        configuration.set(CoreOptions.DEFAULT_PARALLELISM, 1);
+        String[] parameters = {
+            "-p", String.valueOf(ExecutionConfig.PARALLELISM_DEFAULT), getTestJarPath()
+        };
+        verifyCliFrontend(
+                configuration, getCli(), parameters, ExecutionConfig.PARALLELISM_DEFAULT, false);
     }
 
     // --------------------------------------------------------------------------------------------
