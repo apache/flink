@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test suite for {@link FieldInfoUtils}. */
 class FieldInfoUtilsTest {
 
-    static Stream<TypeInformation> parameters() throws Exception {
+    private static Stream<TypeInformation> parameters() throws Exception {
         return Stream.of(
                 new RowTypeInfo(
                         new TypeInformation[] {Types.INT, Types.LONG, Types.SQL_TIMESTAMP},
