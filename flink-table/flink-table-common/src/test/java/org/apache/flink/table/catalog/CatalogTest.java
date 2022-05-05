@@ -100,7 +100,7 @@ public abstract class CatalogTest {
     }
 
     @AfterAll
-    public static void closeup() {
+    static void closeup() {
         if (catalog != null) {
             catalog.close();
         }
