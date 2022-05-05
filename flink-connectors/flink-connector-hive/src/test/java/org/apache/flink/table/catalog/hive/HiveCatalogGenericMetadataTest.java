@@ -332,7 +332,7 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.createTable(path1, catalogTable, false);
         CatalogTable retrievedTable = (CatalogTable) catalog.getTable(path1);
         assertThat(retrievedTable.getSchema()).isEqualTo(tableSchema);
-        assertThat(retrievedTable.getOptions()).isEqualTo(Collections.emptyMap());
+        assertThat(retrievedTable.getOptions()).isEmpty();
     }
 
     // ------ functions ------
