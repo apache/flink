@@ -20,7 +20,22 @@ package org.apache.flink.streaming.connectors.dynamodb.util;
 
 import org.apache.flink.annotation.Internal;
 
-/** enum representing the dynamodb types. */
+/**
+ * enum representing the dynamodb types.
+ *
+ * <ul>
+ *   <li>String
+ *   <li>Number
+ *   <li>Boolean
+ *   <li>Null
+ *   <li>Binary
+ *   <li>String Set
+ *   <li>Number Set
+ *   <li>Binary Set
+ *   <li>List
+ *   <li>Map
+ * </ul>
+ */
 @Internal
 public enum DynamoDbType {
     STRING,

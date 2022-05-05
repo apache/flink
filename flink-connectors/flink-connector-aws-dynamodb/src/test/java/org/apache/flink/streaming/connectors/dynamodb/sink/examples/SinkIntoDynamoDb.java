@@ -18,19 +18,17 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.sink.examples;
 
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbAttributeValue;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbPutRequest;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbRequest;
+import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbRequestConverter;
 import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbSink;
-import org.apache.flink.streaming.connectors.dynamodb.sink.DynamoDbWriteRequest;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.PutRequest;
-import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.util.HashMap;
@@ -58,7 +56,7 @@ public class SinkIntoDynamoDb {
 
         DynamoDbSink<String> dynamoDbSink =
                 DynamoDbSink.<String>builder()
-                        .setElementConverter(new DummyElementConverter())
+                        .setDynamoDbRequestConverter(new DummyDynamoDbRequestConverter())
                         .setMaxBatchSize(20)
                         .setDynamoDbProperties(sinkProperties)
                         .build();
@@ -68,18 +66,16 @@ public class SinkIntoDynamoDb {
         env.execute("DynamoDb Async Sink Example Program");
     }
 
-    private static class DummyElementConverter
-            implements ElementConverter<String, DynamoDbWriteRequest> {
+    private static class DummyDynamoDbRequestConverter implements DynamoDbRequestConverter<String> {
 
         @Override
-        public DynamoDbWriteRequest apply(String element, SinkWriter.Context context) {
-            final Map<String, AttributeValue> map = new HashMap<>();
-            map.put("your-key", AttributeValue.builder().s(element).build());
-            return new DynamoDbWriteRequest(
-                    "your-table-name",
-                    WriteRequest.builder()
-                            .putRequest(PutRequest.builder().item(map).build())
-                            .build());
+        public DynamoDbRequest apply(String s) {
+            final Map<String, DynamoDbAttributeValue> item = new HashMap<>();
+            item.put("your-key", DynamoDbAttributeValue.builder().s(s).build());
+            return DynamoDbRequest.builder()
+                    .tableName("your-table-name")
+                    .putRequest(DynamoDbPutRequest.builder().item(item).build())
+                    .build();
         }
     }
 }
