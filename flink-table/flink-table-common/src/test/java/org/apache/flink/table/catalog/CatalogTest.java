@@ -75,7 +75,7 @@ public abstract class CatalogTest {
     protected static Catalog catalog;
 
     @AfterEach
-    public void cleanup() throws Exception {
+    void cleanup() throws Exception {
         if (catalog.tableExists(path1)) {
             catalog.dropTable(path1, true);
         }
