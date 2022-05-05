@@ -51,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Class for unit tests to run on catalogs. */
+@ExtendWith(TestLoggerExtension.class)
 public abstract class CatalogTest {
     protected static final String IS_STREAMING = "is_streaming";
 
