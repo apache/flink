@@ -22,9 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 
-import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 /** Test suite for the [[EitherSerializer]] */
 class EitherSerializerTest extends SerializerTestBase[Either[String, Integer]] {
@@ -78,8 +77,8 @@ class EitherSerializerTest extends SerializerTestBase[Either[String, Integer]] {
         StringSerializer.INSTANCE
       )
 
-    assertSame(serializerSS, serializerSS.duplicate())
-    assertNotSame(serializerSO, serializerSO.duplicate())
-    assertNotSame(serializerOS, serializerOS.duplicate())
+    assertThat(serializerSS.duplicate).isSameAs(serializerSS)
+    assertThat(serializerSO.duplicate).isNotSameAs(serializerSO)
+    assertThat(serializerOS.duplicate).isNotSameAs(serializerOS)
   }
 }

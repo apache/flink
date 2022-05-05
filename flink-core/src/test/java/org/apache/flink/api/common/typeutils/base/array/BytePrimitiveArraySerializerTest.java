@@ -27,7 +27,7 @@ import java.util.Random;
  * A test for the {@link
  * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
-public class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]> {
+class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]> {
 
     private final Random rnd = new Random(346283764872L);
 

@@ -34,7 +34,7 @@ import java.util.Objects;
 /**
  * Test for {@link org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer}.
  */
-public class RowDataSerializerTest extends SerializerTestBase<RowData> {
+class RowDataSerializerTest extends SerializerTestBase<RowData> {
     public RowDataSerializerTest() {
         super(
                 new DeeplyEqualsChecker()

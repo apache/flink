@@ -27,7 +27,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 
 /** Test for {@link AvroSerializer} that tests GenericRecord. */
-public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericRecord> {
+class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericRecord> {
 
     private static final Schema SCHEMA = AvroTestUtils.getSmallSchema();
 

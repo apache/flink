@@ -25,7 +25,7 @@ import org.apache.flink.types.ShortValue;
 import java.util.Random;
 
 /** A test for the {@link ShortValueArraySerializer}. */
-public class ShortValueArraySerializerTest extends ValueArraySerializerTestBase<ShortValueArray> {
+class ShortValueArraySerializerTest extends ValueArraySerializerTestBase<ShortValueArray> {
 
     @Override
     protected TypeSerializer<ShortValueArray> createSerializer() {

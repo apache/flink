@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.Random;
 
 /** A test for the {@link PojoSerializer}. */
-public class PojoSubclassSerializerTest
+class PojoSubclassSerializerTest
         extends SerializerTestBase<PojoSubclassSerializerTest.TestUserClassBase> {
     private TypeInformation<TestUserClassBase> type =
             TypeExtractor.getForClass(TestUserClassBase.class);

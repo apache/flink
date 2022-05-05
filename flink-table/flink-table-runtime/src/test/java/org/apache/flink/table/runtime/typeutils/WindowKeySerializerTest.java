@@ -26,7 +26,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 /** A test for the {@link WindowKeySerializer}. */
-public class WindowKeySerializerTest extends SerializerTestBase<WindowKey> {
+class WindowKeySerializerTest extends SerializerTestBase<WindowKey> {
 
     @Override
     protected TypeSerializer<WindowKey> createSerializer() {

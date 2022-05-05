@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * A test for the {@link
  * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
-public class IntPrimitiveArraySerializerTest extends SerializerTestBase<int[]> {
+class IntPrimitiveArraySerializerTest extends SerializerTestBase<int[]> {
 
     @Override
     protected TypeSerializer<int[]> createSerializer() {

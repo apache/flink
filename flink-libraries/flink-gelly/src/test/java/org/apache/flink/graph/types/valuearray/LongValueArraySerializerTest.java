@@ -24,7 +24,7 @@ import org.apache.flink.types.LongValue;
 import java.util.Random;
 
 /** A test for the {@link LongValueArraySerializer}. */
-public class LongValueArraySerializerTest extends ValueArraySerializerTestBase<LongValueArray> {
+class LongValueArraySerializerTest extends ValueArraySerializerTestBase<LongValueArray> {
 
     @Override
     protected TypeSerializer<LongValueArray> createSerializer() {
