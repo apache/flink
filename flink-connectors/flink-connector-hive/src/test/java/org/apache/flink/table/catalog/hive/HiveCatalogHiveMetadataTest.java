@@ -97,9 +97,9 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         String inputFormat = hiveTable.getSd().getInputFormat();
         String outputFormat = hiveTable.getSd().getOutputFormat();
         String serde = hiveTable.getSd().getSerdeInfo().getSerializationLib();
-        assertThat(StringUtils.isNullOrWhitespaceOnly(inputFormat)).isFalse();
-        assertThat(StringUtils.isNullOrWhitespaceOnly(outputFormat)).isFalse();
-        assertThat(StringUtils.isNullOrWhitespaceOnly(serde)).isFalse();
+        assertThat(inputFormat).isNotBlank();
+        assertThat(outputFormat).isNotBlank();
+        assertThat(serde).isNotBlank();
     }
 
     // ------ table and column stats ------
