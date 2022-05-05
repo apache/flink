@@ -63,6 +63,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hive.common.ObjectPair;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
@@ -2333,6 +2334,33 @@ public class HiveParserBaseSemanticAnalyzer {
 
         public String getNullFormat() {
             return nullFormat;
+        }
+
+        public void initFromStorageDescriptor(StorageDescriptor sd) {
+            Map<String, String> parameters = sd.getSerdeInfo().getParameters();
+            if (parameters.get(serdeConstants.FIELD_DELIM) != null) {
+                fieldDelim = parameters.get(serdeConstants.FIELD_DELIM);
+            }
+
+            if (parameters.get(serdeConstants.ESCAPE_CHAR) != null) {
+                fieldEscape = parameters.get(serdeConstants.ESCAPE_CHAR);
+            }
+
+            if (parameters.get(serdeConstants.COLLECTION_DELIM) != null) {
+                collItemDelim = parameters.get(serdeConstants.COLLECTION_DELIM);
+            }
+
+            if (parameters.get(serdeConstants.MAPKEY_DELIM) != null) {
+                mapKeyDelim = parameters.get(serdeConstants.MAPKEY_DELIM);
+            }
+
+            if (parameters.get(serdeConstants.LINE_DELIM) != null) {
+                lineDelim = parameters.get(serdeConstants.LINE_DELIM);
+            }
+
+            if (parameters.get(serdeConstants.SERIALIZATION_NULL_FORMAT) != null) {
+                nullFormat = parameters.get(serdeConstants.SERIALIZATION_NULL_FORMAT);
+            }
         }
 
         public void analyzeRowFormat(HiveParserASTNode child) throws SemanticException {

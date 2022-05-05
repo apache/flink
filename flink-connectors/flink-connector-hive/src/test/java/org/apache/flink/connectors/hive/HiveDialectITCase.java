@@ -63,7 +63,11 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.hadoop.mapred.TextInputFormat;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -323,6 +327,45 @@ public class HiveDialectITCase {
                 OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
         assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
         assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+    }
+
+    @Test
+    public void testCreateTableLike() throws Exception {
+        // test create table like table
+        tableEnv.executeSql(
+                "create table t(x int,y string) row format delimited fields terminated by '|' tblproperties('name'='src')");
+        tableEnv.executeSql("create table t1 like t");
+        Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "t1"));
+        assertEquals(2, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("y", hiveTable.getSd().getCols().get(1).getName());
+        assertEquals(
+                "|",
+                hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
+        assertEquals(
+                LazySimpleSerDe.class.getName(),
+                hiveTable.getSd().getSerdeInfo().getSerializationLib());
+        assertEquals(TextInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+        assertEquals(
+                "org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat",
+                hiveTable.getSd().getOutputFormat());
+        // the table properties won't be copied
+        assertFalse(hiveTable.getParameters().containsKey("name"));
+
+        // specific other properties in 'create table like'
+        tableEnv.executeSql(
+                "create table t2 like t1 stored as sequencefile tblproperties('name'='t2')");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "t2"));
+        assertEquals(SequenceFileInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+        assertEquals(SequenceFileOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+        assertEquals("t2", hiveTable.getParameters().get("name"));
+
+        // test create table like view
+        tableEnv.executeSql("create view t_v as select x from t");
+        tableEnv.executeSql("create table t_v_1 like t_v");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "t_v_1"));
+        assertEquals(1, hiveTable.getSd().getColsSize());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
     }
 
     @Test

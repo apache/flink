@@ -23,6 +23,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
@@ -45,6 +46,13 @@ public class HiveParserStorageFormat {
     public HiveParserStorageFormat(Configuration conf) {
         this.conf = conf;
         this.serdeProps = new HashMap<>();
+    }
+
+    public void initFromStorageDescriptor(StorageDescriptor sd) {
+        inputFormat = sd.getInputFormat();
+        outputFormat = sd.getOutputFormat();
+        serde = sd.getSerdeInfo().getSerializationLib();
+        serdeProps.putAll(sd.getSerdeInfo().getParameters());
     }
 
     /**

@@ -736,8 +736,7 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
-    @VisibleForTesting
-    CatalogBaseTable instantiateCatalogTable(Table hiveTable) {
+    public CatalogBaseTable instantiateCatalogTable(Table hiveTable) {
         boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
         // Table properties

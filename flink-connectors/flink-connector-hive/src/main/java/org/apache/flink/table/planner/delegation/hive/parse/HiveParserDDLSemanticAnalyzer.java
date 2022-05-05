@@ -113,14 +113,18 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.PrincipalDesc;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.Deserializer;
+import org.apache.hadoop.hive.serde2.SerDeSpec;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
+import org.apache.hive.common.util.AnnotationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -161,6 +165,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_E
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 /**
  * Ported hive's org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer, and also incorporated
@@ -656,7 +661,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         (HiveParserASTNode) ast.getChild(0));
         String dbDotTab = HiveParserBaseSemanticAnalyzer.getDotName(qualifiedTabName);
 
-        String likeTableName;
+        String likeTableName = null;
         List<FieldSchema> cols = new ArrayList<>();
         List<FieldSchema> partCols = new ArrayList<>();
         List<PrimaryKey> primaryKeys = new ArrayList<>();
@@ -672,6 +677,7 @@ public class HiveParserDDLSemanticAnalyzer {
         final int ctlt = 1; // CREATE TABLE LIKE ... (CTLT)
         final int ctas = 2; // CREATE TABLE AS SELECT ... (CTAS)
         int commandType = createTable;
+        boolean isUserStorageFormat = false;
 
         HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams rowFormatParams =
                 new HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams();
@@ -687,6 +693,7 @@ public class HiveParserDDLSemanticAnalyzer {
         for (int num = 1; num < numCh; num++) {
             HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
             if (storageFormat.fillStorageFormat(child)) {
+                isUserStorageFormat = true;
                 continue;
             }
             switch (child.getToken().getType()) {
@@ -702,8 +709,9 @@ public class HiveParserDDLSemanticAnalyzer {
                 case HiveASTParser.TOK_LIKETABLE:
                     if (child.getChildCount() > 0) {
                         likeTableName =
-                                HiveParserBaseSemanticAnalyzer.getUnescapedName(
-                                        (HiveParserASTNode) child.getChild(0));
+                                HiveParserBaseSemanticAnalyzer.getDotName(
+                                        HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                                                (HiveParserASTNode) child.getChild(0)));
                         if (likeTableName != null) {
                             if (commandType == ctas) {
                                 throw new ValidationException(
@@ -715,7 +723,6 @@ public class HiveParserDDLSemanticAnalyzer {
                             }
                         }
                         commandType = ctlt;
-                        handleUnsupportedOperation("CREATE TABLE LIKE is not supported");
                     }
                     break;
 
@@ -823,9 +830,16 @@ public class HiveParserDDLSemanticAnalyzer {
                         notNulls);
 
             case ctlt: // create table like <tbl_name>
-                tblProps = addDefaultProperties(tblProps);
-                throw new SemanticException("CREATE TABLE LIKE is not supported yet");
-
+                return convertCreateTableLike(
+                        dbDotTab,
+                        likeTableName,
+                        tblProps,
+                        isUserStorageFormat,
+                        storageFormat,
+                        isExt,
+                        ifNotExists,
+                        isTemporary,
+                        location);
             case ctas: // create table as select
                 tblProps = addDefaultProperties(tblProps);
 
@@ -872,6 +886,79 @@ public class HiveParserDDLSemanticAnalyzer {
             default:
                 throw new ValidationException("Unrecognized command.");
         }
+    }
+
+    private CreateTableOperation convertCreateTableLike(
+            String dbDotTab,
+            String likeTableName,
+            Map<String, String> tblProps,
+            boolean isUserStorageFormat,
+            HiveParserStorageFormat storageFormat,
+            boolean isExt,
+            boolean ifNotExists,
+            boolean isTemporary,
+            String location) {
+        tblProps = addDefaultProperties(tblProps);
+        Table likeTable = getTable(ObjectPath.fromString(likeTableName));
+        CatalogBaseTable catalogTable = hiveCatalog.instantiateCatalogTable(likeTable.getTTable());
+        List<FieldSchema> allCols;
+        List<FieldSchema> partitionCols;
+        if (likeTable.isView() || likeTable.isMaterializedView()) {
+            allCols = HiveTableUtil.createHiveColumns(catalogTable.getSchema());
+            // TODO: [FLINK-12398] Support partitioned view in catalog API
+            // the partition cols for view is always empty
+            partitionCols = new ArrayList<>();
+        } else {
+            allCols = likeTable.getAllCols();
+            partitionCols = likeTable.getPartCols();
+        }
+        if (!isUserStorageFormat) {
+            // if user doesn't specific storage format, get storage format from the src table
+            storageFormat.initFromStorageDescriptor(likeTable.getSd());
+        }
+        // following Hive, always get row format parameters from the src table
+        HiveParserRowFormatParams rowFormatParams = new HiveParserRowFormatParams();
+        rowFormatParams.initFromStorageDescriptor(likeTable.getSd());
+        Class<? extends Deserializer> serdeClass;
+        try {
+            serdeClass = likeTable.getDeserializerClass();
+        } catch (Exception e) {
+            throw new ValidationException(
+                    String.format(
+                            "'Create table like' is failed for failing to get deserializer class of the table `%s`.",
+                            likeTableName),
+                    e);
+        }
+        Map<String, String> params = likeTable.getParameters();
+        // We should copy only those table parameters that are specified in the config.
+        SerDeSpec spec = AnnotationUtils.getAnnotation(serdeClass, SerDeSpec.class);
+        String paramsStr = HiveConf.getVar(conf, HiveConf.ConfVars.DDL_CTL_PARAMETERS_WHITELIST);
+
+        Set<String> retainer = new HashSet<>();
+        // for non-native table, property storage_handler should be retained
+        retainer.add(META_TABLE_STORAGE);
+        if (spec != null && spec.schemaProps() != null) {
+            retainer.addAll(Arrays.asList(spec.schemaProps()));
+        }
+        if (paramsStr != null) {
+            retainer.addAll(Arrays.asList(paramsStr.split(",")));
+        }
+        params.keySet().retainAll(retainer);
+        params.putAll(tblProps);
+        return convertCreateTable(
+                dbDotTab,
+                isExt,
+                ifNotExists,
+                isTemporary,
+                allCols,
+                partitionCols,
+                null,
+                location,
+                params,
+                rowFormatParams,
+                storageFormat,
+                Collections.emptyList(),
+                Collections.emptyList());
     }
 
     private CreateTableOperation convertCreateTable(
