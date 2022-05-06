@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -34,9 +33,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import java.util
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[StreamTableSource]].
-  */
+ * Batch physical RelNode to read data from an external source defined by a bounded
+ * [[StreamTableSource]].
+ */
 class BatchPhysicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

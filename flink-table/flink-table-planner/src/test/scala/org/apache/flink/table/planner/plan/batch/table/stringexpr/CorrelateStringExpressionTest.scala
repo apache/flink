@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
@@ -34,33 +33,33 @@ class CorrelateStringExpressionTest extends TableTestBase {
   @Test
   def testCorrelateJoins1(): Unit = {
     // test cross join
-    util.verifyExecPlan(tab.joinLateral(func1('c) as 's).select('c, 's))
+    util.verifyExecPlan(tab.joinLateral(func1('c).as('s)).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins2(): Unit = {
     // test left outer join
-    util.verifyExecPlan(tab.leftOuterJoinLateral(func1('c) as 's).select('c, 's))
+    util.verifyExecPlan(tab.leftOuterJoinLateral(func1('c).as('s)).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins3(): Unit = {
     // test overloading
-    util.verifyExecPlan(tab.joinLateral(func1('c, "$") as 's).select('c, 's))
+    util.verifyExecPlan(tab.joinLateral(func1('c, "$").as('s)).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins4(): Unit = {
     // test custom result type
-    util.verifyExecPlan(tab.joinLateral(func2('c) as('name, 'len)).select('c, 'name, 'len))
+    util.verifyExecPlan(tab.joinLateral(func2('c).as('name, 'len)).select('c, 'name, 'len))
   }
 
   @Test
   def testCorrelateJoins5(): Unit = {
     // test hierarchy generic type
     val hierarchy = new HierarchyTableFunction
-    val scalaTable = tab.joinLateral(
-      hierarchy('c) as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
+    val scalaTable =
+      tab.joinLateral(hierarchy('c).as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
     util.verifyExecPlan(scalaTable)
   }
 
@@ -75,16 +74,15 @@ class CorrelateStringExpressionTest extends TableTestBase {
   @Test
   def testCorrelateJoins7(): Unit = {
     // test with filter
-    val scalaTable = tab.joinLateral(
-      func2('c) as('name, 'len)).select('c, 'name, 'len).filter('len > 2)
+    val scalaTable =
+      tab.joinLateral(func2('c).as('name, 'len)).select('c, 'name, 'len).filter('len > 2)
     util.verifyExecPlan(scalaTable)
   }
 
   @Test
   def testCorrelateJoins8(): Unit = {
     // test with scalar function
-    val scalaTable = tab.joinLateral(func1('c.substring(2)) as 's).select(
-      'a, 'c, 's)
+    val scalaTable = tab.joinLateral(func1('c.substring(2)).as('s)).select('a, 'c, 's)
     util.verifyExecPlan(scalaTable)
   }
 }

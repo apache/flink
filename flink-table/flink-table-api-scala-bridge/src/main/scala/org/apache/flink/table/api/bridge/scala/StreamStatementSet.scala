@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
@@ -48,8 +47,7 @@ trait StreamStatementSet extends StatementSet {
   override def addInsert(
       targetDescriptor: TableDescriptor,
       table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet
+      overwrite: Boolean): StreamStatementSet
 
   override def printExplain(extraDetails: ExplainDetail*): StreamStatementSet
 

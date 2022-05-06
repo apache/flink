@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
@@ -67,13 +66,15 @@ class TwoStageAggregateTest extends TableTestBase {
 
   @Test
   def testGroupAggregateWithExpressionInSelect(): Unit = {
-    util.verifyExecPlan("SELECT MIN(c), AVG(a) FROM " +
-      "(SELECT a, b + 3 AS d, c FROM MyTable) GROUP BY d")
+    util.verifyExecPlan(
+      "SELECT MIN(c), AVG(a) FROM " +
+        "(SELECT a, b + 3 AS d, c FROM MyTable) GROUP BY d")
   }
 
   @Test
   def testGroupAggregateWithConstant(): Unit = {
-    util.verifyExecPlan("SELECT four, SUM(a) FROM " +
-      "(SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four")
+    util.verifyExecPlan(
+      "SELECT four, SUM(a) FROM " +
+        "(SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four")
   }
 }

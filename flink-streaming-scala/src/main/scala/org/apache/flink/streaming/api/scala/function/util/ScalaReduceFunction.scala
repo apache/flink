@@ -15,17 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.function.util
 
 import org.apache.flink.api.common.functions.ReduceFunction
 
-/**
- * A wrapper function that exposes a Scala Function2 as a [[ReduceFunction]].
- */
+/** A wrapper function that exposes a Scala Function2 as a [[ReduceFunction]]. */
 final class ScalaReduceFunction[T](private[this] val function: (T, T) => T)
-    extends ReduceFunction[T] {
-  
+  extends ReduceFunction[T] {
+
   @throws(classOf[Exception])
   override def reduce(a: T, b: T): T = {
     function(a, b)

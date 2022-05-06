@@ -15,20 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.over
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GenerateUtils}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
 import org.apache.flink.table.types.logical.RowType
 
-/**
-  * RANGE allow the compound ORDER BY and the random type when the bound is current row.
-  */
+/** RANGE allow the compound ORDER BY and the random type when the bound is current row. */
 class MultiFieldRangeBoundComparatorCodeGenerator(
     tableConfig: TableConfig,
     inputType: RowType,
@@ -76,7 +73,9 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       """.stripMargin
 
     new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className,
+      code,
+      ctx.references.toArray,
+      ctx.tableConfig.getConfiguration)
   }
 }
-

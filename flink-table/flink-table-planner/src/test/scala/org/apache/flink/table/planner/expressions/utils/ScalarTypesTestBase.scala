@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, Types}
@@ -96,16 +95,16 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */  Types.STRING,
-      /* 1 */  Types.BOOLEAN,
-      /* 2 */  Types.BYTE,
-      /* 3 */  Types.SHORT,
-      /* 4 */  Types.LONG,
-      /* 5 */  Types.FLOAT,
-      /* 6 */  Types.DOUBLE,
-      /* 7 */  Types.INT,
-      /* 8 */  Types.STRING,
-      /* 9 */  Types.BYTE,
+      /* 0 */ Types.STRING,
+      /* 1 */ Types.BOOLEAN,
+      /* 2 */ Types.BYTE,
+      /* 3 */ Types.SHORT,
+      /* 4 */ Types.LONG,
+      /* 5 */ Types.FLOAT,
+      /* 6 */ Types.DOUBLE,
+      /* 7 */ Types.INT,
+      /* 8 */ Types.STRING,
+      /* 9 */ Types.BYTE,
       /* 10 */ Types.SHORT,
       /* 11 */ Types.LONG,
       /* 12 */ Types.FLOAT,

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
@@ -26,7 +25,6 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
 
 import java.sql.Timestamp
-
 
 class OverAggregateTest extends TableTestBase {
 
@@ -321,18 +319,14 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     util.addFunction("overAgg", new OverAgg0)
     util.verifyExecPlan("SELECT overAgg(b, a) FROM MyTable")
   }
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
+  /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation2(): Unit = {
     util.addTableSource[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)

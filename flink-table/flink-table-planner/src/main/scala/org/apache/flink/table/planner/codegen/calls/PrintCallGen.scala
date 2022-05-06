@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{newNames, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{newNames, primitiveTypeTermForType}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isBinaryString
 import org.apache.flink.table.types.logical.LogicalType
 
 import java.nio.charset.StandardCharsets
 
-/**
-  * Generates PRINT function call.
-  */
+/** Generates PRINT function call. */
 class PrintCallGen extends CallGenerator {
 
   override def generate(

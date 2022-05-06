@@ -15,15 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
@@ -53,17 +52,17 @@ class CorrelateStringExpressionTest extends TableTestBase {
     javaUtil.addFunction("func1", func1)
     scalaUtil.addFunction("func1", func1)
 
-    var scalaTable = sTab.joinLateral(call("func1", 'c) as 's).select('c, 's)
+    var scalaTable = sTab.joinLateral(call("func1", 'c).as('s)).select('c, 's)
     var javaTable = jTab.joinLateral(call("func1", $("c")).as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test left outer join
-    scalaTable = sTab.leftOuterJoinLateral(call("func1", 'c) as 's).select('c, 's)
+    scalaTable = sTab.leftOuterJoinLateral(call("func1", 'c).as('s)).select('c, 's)
     javaTable = jTab.leftOuterJoinLateral(call("func1", $("c")).as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test overloading
-    scalaTable = sTab.joinLateral(call("func1", 'c, "$") as 's).select('c, 's)
+    scalaTable = sTab.joinLateral(call("func1", 'c, "$").as('s)).select('c, 's)
     javaTable = jTab.joinLateral(call("func1", $("c"), "$").as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
@@ -71,7 +70,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val func2 = new TableFunc2
     javaUtil.addFunction("func2", func2)
     scalaUtil.addFunction("func2", func2)
-    scalaTable = sTab.joinLateral(call("func2", 'c) as ('name, 'len)).select('c, 'name, 'len)
+    scalaTable = sTab.joinLateral(call("func2", 'c).as('name, 'len)).select('c, 'name, 'len)
     javaTable = jTab
       .joinLateral(call("func2", $("c")).as("name", "len"))
       .select($("c"), $("name"), $("len"))
@@ -81,8 +80,9 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val hierarchy = new HierarchyTableFunction
     javaUtil.addFunction("hierarchy", hierarchy)
     scalaUtil.addFunction("hierarchy", hierarchy)
-    scalaTable = sTab.joinLateral(
-      call("hierarchy", 'c) as ('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
+    scalaTable = sTab
+      .joinLateral(call("hierarchy", 'c).as('name, 'adult, 'len))
+      .select('c, 'name, 'len, 'adult)
     javaTable = jTab
       .joinLateral(call("hierarchy", $("c")).as("name", "adult", "len"))
       .select($("c"), $("name"), $("len"), $("adult"))
@@ -97,10 +97,12 @@ class CorrelateStringExpressionTest extends TableTestBase {
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
-    scalaTable = sTab.joinLateral(
-      call("func2", 'c) as ('name, 'len)).select('c, 'name, 'len).filter('len > 2)
-    javaTable = jTab.joinLateral(call("func2", $("c")).as("name", "len"))
-      .select($("c"), $("name"), $("len")).filter($("len").isGreater(Int.box(2)))
+    scalaTable =
+      sTab.joinLateral(call("func2", 'c).as('name, 'len)).select('c, 'name, 'len).filter('len > 2)
+    javaTable = jTab
+      .joinLateral(call("func2", $("c")).as("name", "len"))
+      .select($("c"), $("name"), $("len"))
+      .filter($("len").isGreater(Int.box(2)))
     verifyTableEquals(scalaTable, javaTable)
   }
 
@@ -138,7 +140,8 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val hierarchy = new HierarchyTableFunction
     scalaUtil.addFunction("hierarchy", hierarchy)
     javaUtil.addFunction("hierarchy", hierarchy)
-    scalaTable = sTab.flatMap(call("hierarchy", 'c))
+    scalaTable = sTab
+      .flatMap(call("hierarchy", 'c))
       .as("name", "adult", "len")
       .select('name, 'len, 'adult)
     javaTable = jTab
@@ -156,7 +159,8 @@ class CorrelateStringExpressionTest extends TableTestBase {
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
-    scalaTable = sTab.flatMap(call("func2", 'c))
+    scalaTable = sTab
+      .flatMap(call("func2", 'c))
       .as("name", "len")
       .select('name, 'len)
       .filter('len > 2)

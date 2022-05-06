@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
@@ -23,9 +22,9 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import java.time.Duration
-
 import org.junit.{Before, Test}
+
+import java.time.Duration
 
 class DeduplicateTest extends TableTestBase {
 
@@ -35,7 +34,12 @@ class DeduplicateTest extends TableTestBase {
   def setUp(): Unit = {
     util = streamTestUtil()
     util.addDataStream[(Int, String, Long)](
-      "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+      "MyTable",
+      'a,
+      'b,
+      'c,
+      'proctime.proctime,
+      'rowtime.rowtime)
   }
 
   @Test
@@ -127,8 +131,7 @@ class DeduplicateTest extends TableTestBase {
   def testMiniBatchInferFirstRowOnRowtime(): Unit = {
     util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
-    util.tableEnv.getConfig.set(
-      TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val ddl =
       s"""
          |CREATE TABLE T (
@@ -177,8 +180,7 @@ class DeduplicateTest extends TableTestBase {
   def testMiniBatchInferLastRowOnRowtime(): Unit = {
     util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
-    util.tableEnv.getConfig.set(
-      TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val ddl =
       s"""
          |CREATE TABLE T (

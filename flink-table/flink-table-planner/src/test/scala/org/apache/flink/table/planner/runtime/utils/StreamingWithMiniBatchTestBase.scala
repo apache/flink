@@ -28,9 +28,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-abstract class StreamingWithMiniBatchTestBase(
-    miniBatch: MiniBatchMode,
-    state: StateBackendMode)
+abstract class StreamingWithMiniBatchTestBase(miniBatch: MiniBatchMode, state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
   override def before(): Unit = {

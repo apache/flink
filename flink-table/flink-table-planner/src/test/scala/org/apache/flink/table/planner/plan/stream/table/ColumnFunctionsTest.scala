@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
@@ -26,9 +25,7 @@ import org.apache.flink.table.planner.utils.{CountAggFunction, TableFunc0, Table
 
 import org.junit.Test
 
-/**
-  * Tests for column functions which includes tests for different column functions.
-  */
+/** Tests for column functions which includes tests for different column functions. */
 class ColumnFunctionsTest extends TableTestBase {
 
   private val util = streamTestUtil()
@@ -38,7 +35,7 @@ class ColumnFunctionsTest extends TableTestBase {
 
     val t = util.addTableSource[(Double, Long)]('double, 'long)
 
-   util.addFunction("TestFunc", TestFunc)
+    util.addFunction("TestFunc", TestFunc)
     val tab1 = t.select(call("TestFunc", withColumns('*)))
     val tab2 = t.select("TestFunc(withColumns(*))")
     verifyTableEquals(tab1, tab2)
@@ -105,7 +102,7 @@ class ColumnFunctionsTest extends TableTestBase {
   def testJoinLateral(): Unit = {
     val t = util.addTableSource[(Double, Long, String)]('int, 'long, 'string)
     val func0 = new TableFunc0
-   util.addFunction("func0", func0)
+    util.addFunction("func0", func0)
 
     val tab1 = t.joinLateral(func0(withColumns('string)))
     util.verifyExecPlan(tab1)
@@ -138,13 +135,14 @@ class ColumnFunctionsTest extends TableTestBase {
 
   @Test
   def testWindowGroupBy(): Unit = {
-    val t = util.addDataStream[(Int, Long, String, Int)]("T1",'a, 'rowtime.rowtime, 'c, 'd)
+    val t = util
+      .addDataStream[(Int, Long, String, Int)]("T1", 'a, 'rowtime.rowtime, 'c, 'd)
       .as("a", "b", "c", "d")
 
     val tab1 = t
-      .window(Slide over 3.milli every 10.milli on withColumns('b) as 'w)
+      .window(Slide.over(3.milli).every(10.milli).on(withColumns('b)).as('w))
       .groupBy(withColumns('a, 'b), 'w)
-      .select(withColumns(1 to 2), withColumns('c).count as 'c)
+      .select(withColumns(1 to 2), withColumns('c).count.as('c))
 
     val tab2 = t
       .window(Slide.over("3.milli").every("10.milli").on("withColumns(b)").as("w"))
@@ -162,22 +160,24 @@ class ColumnFunctionsTest extends TableTestBase {
     val weightAvgFun = new WeightedAvg
     val countDist = new CountDistinct
 
-   util.addFunction("countFun", countFun)
-   util.addTemporarySystemFunction("weightAvgFun", weightAvgFun)
-   util.addFunction("countDist", countDist)
+    util.addFunction("countFun", countFun)
+    util.addTemporarySystemFunction("weightAvgFun", weightAvgFun)
+    util.addFunction("countDist", countDist)
 
     val tab1 = table
-      .window(
-        Over partitionBy withColumns('c) orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
-      .select('c,
-        call("countFun", withColumns('b)) over 'w as 'mycount,
-        call("weightAvgFun", withColumns('a to 'b)) over 'w as 'wAvg,
-        call("countDist", 'a) over 'w as 'countDist)
+      .window(Over.partitionBy(withColumns('c)).orderBy('proctime).preceding(UNBOUNDED_ROW).as('w))
+      .select(
+        'c,
+        call("countFun", withColumns('b)).over('w).as('mycount),
+        call("weightAvgFun", withColumns('a to 'b)).over('w).as('wAvg),
+        call("countDist", 'a).over('w).as('countDist)
+      )
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val tab2 = table
       .window(
-        Over.partitionBy("withColumns(c)")
+        Over
+          .partitionBy("withColumns(c)")
           .orderBy("proctime")
           .preceding("UNBOUNDED_ROW")
           .as("w"))
@@ -192,8 +192,8 @@ class ColumnFunctionsTest extends TableTestBase {
   def testAddColumns(): Unit = {
     val t = util.addTableSource[(Double, Long, String)]('a, 'b, 'c)
 
-   util.addFunction("TestFunc", TestFunc)
-    val tab1 = t.addColumns(call("TestFunc", withColumns('a, 'b)) as 'd)
+    util.addFunction("TestFunc", TestFunc)
+    val tab1 = t.addColumns(call("TestFunc", withColumns('a, 'b)).as('d))
     val tab2 = t.addColumns("TestFunc(withColumns(a, b)) as d")
     verifyTableEquals(tab1, tab2)
     util.verifyExecPlan(tab1)
@@ -203,7 +203,7 @@ class ColumnFunctionsTest extends TableTestBase {
   def testRenameColumns(): Unit = {
     val t = util.addTableSource[(Double, Long, String)]('a, 'b, 'c)
 
-    val tab1 = t.renameColumns(withColumns('a) as 'd).select("d, b")
+    val tab1 = t.renameColumns(withColumns('a).as('d)).select("d, b")
     val tab2 = t.renameColumns("withColumns(a) as d").select('d, 'b)
     verifyTableEquals(tab1, tab2)
     util.verifyExecPlan(tab1)

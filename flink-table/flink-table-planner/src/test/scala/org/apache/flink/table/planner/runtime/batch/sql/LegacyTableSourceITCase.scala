@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestDataTypeTableSource, TestFileInputFormatTableSource, TestInputFormatTableSource, TestLegacyFilterableTableSource, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestTableSourceSinks}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
@@ -45,28 +44,29 @@ class LegacyTableSourceITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "MyTable", new TestLegacyProjectableTableSource(
-      true,
-      tableSchema,
-      new RowTypeInfo(
-        tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
-        tableSchema.getFieldNames),
-      TestData.smallData3)
-    )
+    val tableSchema = TableSchema
+      .builder()
+      .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
+      .build()
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "MyTable",
+        new TestLegacyProjectableTableSource(
+          true,
+          tableSchema,
+          new RowTypeInfo(
+            tableSchema.getFieldDataTypes.map(TypeInfoDataTypeConverter.fromDataTypeToTypeInfo),
+            tableSchema.getFieldNames),
+          TestData.smallData3)
+      )
   }
 
   @Test
   def testSimpleProject(): Unit = {
     checkResult(
       "SELECT a, c FROM MyTable",
-      Seq(
-        row(1, "Hi"),
-        row(2, "Hello"),
-        row(3, "Hello world"))
+      Seq(row(1, "Hi"), row(2, "Hello"), row(3, "Hello world"))
     )
   }
 
@@ -81,27 +81,31 @@ class LegacyTableSourceITCase extends BatchTestBase {
   @Test
   def testNestedProject(): Unit = {
     val data = Seq(
-      Row.of(new JLong(1),
+      Row.of(
+        new JLong(1),
         Row.of(
           Row.of("Sarah", new JInt(100)),
           Row.of(new JInt(1000), new JBool(true))
         ),
         Row.of("Peter", new JInt(10000)),
         "Mary"),
-      Row.of(new JLong(2),
+      Row.of(
+        new JLong(2),
         Row.of(
           Row.of("Rob", new JInt(200)),
           Row.of(new JInt(2000), new JBool(false))
         ),
         Row.of("Lucy", new JInt(20000)),
         "Bob"),
-      Row.of(new JLong(3),
+      Row.of(
+        new JLong(3),
         Row.of(
           Row.of("Mike", new JInt(300)),
           Row.of(new JInt(3000), new JBool(true))
         ),
         Row.of("Betty", new JInt(30000)),
-        "Liz"))
+        "Liz")
+    )
 
     val nested1 = new RowTypeInfo(
       Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
@@ -126,9 +130,11 @@ class LegacyTableSourceITCase extends BatchTestBase {
       Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestNestedProjectableTableSource(true, tableSchema, returnType, data))
+    tEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(
+        "T",
+        new TestNestedProjectableTableSource(true, tableSchema, returnType, data))
 
     checkResult(
       """
@@ -139,10 +145,10 @@ class LegacyTableSourceITCase extends BatchTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin,
-      Seq(row(1, "Sarah", 10000, true, 1000),
+      Seq(
+        row(1, "Sarah", 10000, true, 1000),
         row(2, "Rob", 20000, false, 2000),
-        row(3, "Mike", 30000, true, 3000)
-      )
+        row(3, "Mike", 30000, true, 3000))
     )
   }
 
@@ -155,11 +161,7 @@ class LegacyTableSourceITCase extends BatchTestBase {
       isBounded = true)
     checkResult(
       "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9",
-      Seq(
-        row(5, "Record_5"),
-        row(6, "Record_6"),
-        row(7, "Record_7"),
-        row(8, "Record_8"))
+      Seq(row(5, "Record_5"), row(6, "Record_6"), row(7, "Record_7"), row(8, "Record_8"))
     )
   }
 
@@ -174,8 +176,7 @@ class LegacyTableSourceITCase extends BatchTestBase {
     checkResult(
       "SELECT id, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
-      Seq(
-        row(5, "Record_5"))
+      Seq(row(5, "Record_5"))
     )
   }
 
@@ -233,37 +234,41 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
   @Test
   def testInputFormatSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+    val tableSchema = TableSchema
+      .builder()
+      .fields(Array("a", "b", "c"), Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING()))
+      .build()
     TestInputFormatTableSource.createTemporaryTable(
-      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
+      tEnv,
+      tableSchema,
+      TestData.smallData3,
+      "MyInputFormatTable")
     checkResult(
       "SELECT a, c FROM MyInputFormatTable",
-      Seq(
-        row(1, "Hi"),
-        row(2, "Hello"),
-        row(3, "Hello world"))
+      Seq(row(1, "Hi"), row(2, "Hello"), row(3, "Hello world"))
     )
   }
 
   @Test
   def testMultiTypeSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d", "e", "f"),
-      Array(
-        DataTypes.INT(),
-        DataTypes.DECIMAL(5, 2),
-        DataTypes.VARCHAR(5),
-        DataTypes.CHAR(5),
-        DataTypes.TIMESTAMP(9),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
+    val tableSchema = TableSchema
+      .builder()
+      .fields(
+        Array("a", "b", "c", "d", "e", "f"),
+        Array(
+          DataTypes.INT(),
+          DataTypes.DECIMAL(5, 2),
+          DataTypes.VARCHAR(5),
+          DataTypes.CHAR(5),
+          DataTypes.TIMESTAMP(9),
+          DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
+        )
       )
-    ).build()
+      .build()
 
     val ints = List(1, 2, 3, 4, null)
-    val decimals = List(
-      new JDecimal(5.1), new JDecimal(6.1), new JDecimal(7.1), new JDecimal(8.123), null)
+    val decimals =
+      List(new JDecimal(5.1), new JDecimal(6.1), new JDecimal(7.1), new JDecimal(8.123), null)
     val varchars = List("1", "12", "123", "1234", null)
     val chars = List("1", "12", "123", "1234", null)
     val datetimes = List(
@@ -271,7 +276,8 @@ class LegacyTableSourceITCase extends BatchTestBase {
       LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456000),
       LocalDateTime.of(1971, 1, 1, 0, 0, 0, 123000000),
       LocalDateTime.of(1972, 1, 1, 0, 0, 0, 0),
-      null)
+      null
+    )
 
     val instants = new mutable.MutableList[Instant]
     for (i <- datetimes.indices) {
@@ -286,8 +292,7 @@ class LegacyTableSourceITCase extends BatchTestBase {
     val data = new mutable.MutableList[Row]
 
     for (i <- ints.indices) {
-      data += row(
-        ints(i), decimals(i), varchars(i), chars(i), datetimes(i), instants(i))
+      data += row(ints(i), decimals(i), varchars(i), chars(i), datetimes(i), instants(i))
     }
 
     TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
@@ -295,19 +300,12 @@ class LegacyTableSourceITCase extends BatchTestBase {
     checkResult(
       "SELECT a, b, c, d, e, f FROM MyInputFormatTable",
       Seq(
-        row(1, "5.10", "1", "1",
-          "1969-01-01T00:00:00.123456789",
-          "1969-01-01T00:00:00.123456789Z"),
-        row(2, "6.10", "12", "12",
-          "1970-01-01T00:00:00.123456",
-          "1970-01-01T00:00:00.123456Z"),
-        row(3, "7.10", "123", "123",
-          "1971-01-01T00:00:00.123",
-          "1971-01-01T00:00:00.123Z"),
-        row(4, "8.12", "1234", "1234",
-          "1972-01-01T00:00",
-          "1972-01-01T00:00:00Z"),
-        row(null, null, null, null, null, null))
+        row(1, "5.10", "1", "1", "1969-01-01T00:00:00.123456789", "1969-01-01T00:00:00.123456789Z"),
+        row(2, "6.10", "12", "12", "1970-01-01T00:00:00.123456", "1970-01-01T00:00:00.123456Z"),
+        row(3, "7.10", "123", "123", "1971-01-01T00:00:00.123", "1971-01-01T00:00:00.123Z"),
+        row(4, "8.12", "1234", "1234", "1972-01-01T00:00", "1972-01-01T00:00:00Z"),
+        row(null, null, null, null, null, null)
+      )
     )
   }
 
@@ -350,30 +348,27 @@ class LegacyTableSourceITCase extends BatchTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
     val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` BIGINT,
-         |  `b` INT,
-         |  `c` DOUBLE
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '$resultPath'
-         |)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE MySink (
+                       |  `a` BIGINT,
+                       |  `b` INT,
+                       |  `c` DOUBLE
+                       |) WITH (
+                       |  'connector' = 'filesystem',
+                       |  'format' = 'testcsv',
+                       |  'path' = '$resultPath'
+                       |)
        """.stripMargin)
 
-    val stmtSet= tEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable1
-        |  /*+ OPTIONS('source.num-element-to-skip'='31') */
-        |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable1
-        |  /*+ OPTIONS('source.num-element-to-skip'='32') */
-        |""".stripMargin)
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable1
+                           |  /*+ OPTIONS('source.num-element-to-skip'='31') */
+                           |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable1
+                           |  /*+ OPTIONS('source.num-element-to-skip'='32') */
+                           |""".stripMargin)
     stmtSet.execute().await()
 
     val result = TableTestUtil.readFromFile(resultPath)

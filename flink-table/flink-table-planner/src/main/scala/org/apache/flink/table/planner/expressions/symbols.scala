@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -25,9 +24,7 @@ import org.apache.calcite.sql.fun.SqlTrimFunction
 
 import scala.language.{existentials, implicitConversions}
 
-/**
-  * General expression class to represent a symbol.
-  */
+/** General expression class to represent a symbol. */
 case class SymbolPlannerExpression(symbol: PlannerSymbol) extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
@@ -39,18 +36,14 @@ case class SymbolPlannerExpression(symbol: PlannerSymbol) extends LeafExpression
 
 }
 
-/**
-  * Symbol that wraps a Calcite symbol in form of a Java enum.
-  */
+/** Symbol that wraps a Calcite symbol in form of a Java enum. */
 trait PlannerSymbol {
   def symbols: PlannerSymbols
   def name: String
   def enum: Enum[_]
 }
 
-/**
-  * Enumeration of symbols.
-  */
+/** Enumeration of symbols. */
 abstract class PlannerSymbols extends Enumeration {
 
   class PlannerSymbolValue(e: Enum[_]) extends Val(e.name()) with PlannerSymbol {
@@ -61,16 +54,14 @@ abstract class PlannerSymbols extends Enumeration {
     override def name: String = toString()
   }
 
-  protected final def Value(enum: Enum[_]): PlannerSymbolValue = new PlannerSymbolValue(enum)
+  final protected def Value(enum: Enum[_]): PlannerSymbolValue = new PlannerSymbolValue(enum)
 
   implicit def symbolToExpression(symbol: PlannerSymbolValue): SymbolPlannerExpression =
     SymbolPlannerExpression(symbol)
 
 }
 
-/**
-  * Units for working with time intervals.
-  */
+/** Units for working with time intervals. */
 object PlannerTimeIntervalUnit extends PlannerSymbols {
 
   type PlannerTimeIntervalUnit = PlannerSymbolValue
@@ -93,9 +84,7 @@ object PlannerTimeIntervalUnit extends PlannerSymbols {
 
 }
 
-/**
-  * Units for working with time points.
-  */
+/** Units for working with time points. */
 object PlannerTimePointUnit extends PlannerSymbols {
 
   type PlannerTimePointUnit = PlannerSymbolValue
@@ -113,9 +102,7 @@ object PlannerTimePointUnit extends PlannerSymbols {
 
 }
 
-/**
-  * Modes for trimming strings.
-  */
+/** Modes for trimming strings. */
 object PlannerTrimMode extends PlannerSymbols {
 
   type PlannerTrimMode = PlannerSymbolValue

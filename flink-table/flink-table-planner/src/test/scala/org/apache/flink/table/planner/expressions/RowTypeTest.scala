@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
@@ -30,11 +29,7 @@ class RowTypeTest extends RowTypeTestBase {
   def testRowLiteral(): Unit = {
 
     // primitive literal
-    testAllApis(
-      row(1, "foo", true),
-      "row(1, 'foo', true)",
-      "ROW(1, 'foo', true)",
-      "(1, foo, TRUE)")
+    testAllApis(row(1, "foo", true), "row(1, 'foo', true)", "ROW(1, 'foo', true)", "(1, foo, TRUE)")
 
     // special literal
     testTableApi(
@@ -45,17 +40,21 @@ class RowTypeTest extends RowTypeTestBase {
         BigDecimal("0.1").bigDecimal,
         array(1, 2, 3),
         map("foo", "bar"),
-        row(1, true)),
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
+        row(1, true)
+      ),
+      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))"
+    )
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-          "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
+        "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
+      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))"
+    )
 
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16.123456', " +
         "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
-      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16.123456, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
+      "(1985-04-11, 14:15:16, 1985-04-11 14:15:16.123456, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))"
+    )
 
     testAllApis(
       row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),

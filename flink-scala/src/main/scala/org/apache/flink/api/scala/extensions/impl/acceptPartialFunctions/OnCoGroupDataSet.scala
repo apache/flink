@@ -24,28 +24,31 @@ import org.apache.flink.api.scala.{CoGroupDataSet, DataSet}
 import scala.reflect.ClassTag
 
 /**
-  * Wraps a co-group data set, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param ds The wrapped co-group data set
-  * @tparam L The type of the left data set items
-  * @tparam R The type of the right data set items
-  */
+ * Wraps a co-group data set, allowing to use anonymous partial functions to perform extraction of
+ * items in a tuple, case class instance or collection
+ *
+ * @param ds
+ *   The wrapped co-group data set
+ * @tparam L
+ *   The type of the left data set items
+ * @tparam R
+ *   The type of the right data set items
+ */
 class OnCoGroupDataSet[L, R](ds: CoGroupDataSet[L, R]) {
 
   /**
-    * Co-groups the data sets using the function `fun` to project elements from both in
-    * the resulting data set
-    *
-    * @param fun The function that defines the projection of the co-group operation
-    * @tparam O The return type of the projection, for which type information must be known
-    * @return A fully co-grouped data set of Os
-    */
+   * Co-groups the data sets using the function `fun` to project elements from both in the resulting
+   * data set
+   *
+   * @param fun
+   *   The function that defines the projection of the co-group operation
+   * @tparam O
+   *   The return type of the projection, for which type information must be known
+   * @return
+   *   A fully co-grouped data set of Os
+   */
   @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (Stream[L], Stream[R]) => O): DataSet[O] =
-    ds {
-      (left, right) =>
-        fun(left.toStream, right.toStream)
-    }
+    ds((left, right) => fun(left.toStream, right.toStream))
 
 }

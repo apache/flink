@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -34,9 +33,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import java.util
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[org.apache.flink.table.connector.source.ScanTableSource]].
-  */
+ * Batch physical RelNode to read data from an external source defined by a bounded
+ * [[org.apache.flink.table.connector.source.ScanTableSource]].
+ */
 class BatchPhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -50,8 +49,8 @@ class BatchPhysicalTableSourceScan(
   }
 
   def copy(
-            traitSet: RelTraitSet,
-            tableSourceTable: TableSourceTable): BatchPhysicalTableSourceScan = {
+      traitSet: RelTraitSet,
+      tableSourceTable: TableSourceTable): BatchPhysicalTableSourceScan = {
     new BatchPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 

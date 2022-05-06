@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
@@ -32,7 +31,7 @@ class SortStringExpressionTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3")
 
-    val t1 = t.select('_1 as 'a, '_2 as 'b, '_3 as 'c).orderBy('a)
+    val t1 = t.select('_1.as('a), '_2.as('b), '_3.as('c)).orderBy('a)
     val t2 = t.select("_1 as a, _2 as b, _3 as c").orderBy("a")
 
     verifyTableEquals(t1, t2)

@@ -15,26 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 
-/**
-  * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
-  */
+/** A FlinkOptimizeContext allows to obtain table environment information when optimizing. */
 trait FlinkOptimizeContext extends FlinkContext {
 
-  /**
-   * Gets the [[FlinkRelBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
-   */
+  /** Gets the [[FlinkRelBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]]. */
   def getFlinkRelBuilder: FlinkRelBuilder
 
   /**
-    * Returns true if the output node needs final TimeIndicator conversion
-    * defined in [[org.apache.flink.table.api.TableEnvironment#optimize]].
-    */
+   * Returns true if the output node needs final TimeIndicator conversion defined in
+   * [[org.apache.flink.table.api.TableEnvironment#optimize]].
+   */
   def needFinalTimeIndicatorConversion: Boolean
 
 }

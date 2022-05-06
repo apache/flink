@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchIntervalTraitDef
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -48,15 +47,13 @@ class StreamPhysicalMiniBatchAssigner(
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalMiniBatchAssigner(
-      cluster,
-      traitSet,
-      inputs.get(0))
+    new StreamPhysicalMiniBatchAssigner(cluster, traitSet, inputs.get(0))
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val miniBatchInterval = traits.getTrait(MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("interval", miniBatchInterval.getInterval + "ms")
       .item("mode", miniBatchInterval.getMode.toString)
   }

@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
@@ -32,9 +31,7 @@ import org.apache.calcite.rel.core.Window
 
 import scala.collection.JavaConversions._
 
-/**
- * Batch physical RelNode for sort-based over [[Window]] aggregate.
- */
+/** Batch physical RelNode for sort-based over [[Window]] aggregate. */
 class BatchPhysicalOverAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

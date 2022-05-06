@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.`match`
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
@@ -40,9 +39,9 @@ import org.apache.flink.util.TestLogger
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
+import org.junit.{ComparisonFailure, Rule}
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
-import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
 abstract class PatternTranslatorTestBase extends TestLogger {
@@ -60,8 +59,8 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   private val calcitePlanner: FlinkPlannerImpl = context._2.createFlinkPlanner
   private val parser = context._2.plannerContext.createCalciteParser()
 
-  private def prepareContext(typeInfo: TypeInformation[Row])
-  : (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
+  private def prepareContext(
+      typeInfo: TypeInformation[Row]): (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
     // create DataStreamTable
     val dataStreamMock = mock(classOf[DataStream[Row]])
     val jDataStreamMock = mock(classOf[JDataStream[Row]])
@@ -72,7 +71,10 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     TableTestUtil.createTemporaryView(
-      tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
+      tEnv,
+      tableName,
+      dataStreamMock.javaStream,
+      Some(Array[Expression]('f0, 'proctime.proctime)))
 
     // prepare RelBuilder
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
@@ -84,12 +86,11 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
   def verifyPattern(matchRecognize: String, expected: Pattern[RowData, _ <: RowData]): Unit = {
     // create RelNode from SQL expression
-    val parsed = parser.parse(
-      s"""
-         |SELECT *
-         |FROM $tableName
-         |$matchRecognize
-         |""".stripMargin)
+    val parsed = parser.parse(s"""
+                                 |SELECT *
+                                 |FROM $tableName
+                                 |$matchRecognize
+                                 |""".stripMargin)
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
 
@@ -103,11 +104,13 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     }
 
     val dataMatch = optimized.asInstanceOf[StreamPhysicalMatch]
-    val p = StreamExecMatch.translatePattern(
-      MatchUtil.createMatchSpec(dataMatch.logicalMatch),
-      new TableConfig,
-      context._1,
-      testTableRowType).f0
+    val p = StreamExecMatch
+      .translatePattern(
+        MatchUtil.createMatchSpec(dataMatch.logicalMatch),
+        new TableConfig,
+        context._1,
+        testTableRowType)
+      .f0
 
     compare(expected, p)
   }
@@ -134,7 +137,8 @@ abstract class PatternTranslatorTestBase extends TestLogger {
       currentRight = currentRight.getPrevious
 
       if (!sameName || !sameQuantifier || !sameTimes || !sameSkipStrategy || !sameTimeWindow) {
-        throw new ComparisonFailure("Compiled different pattern.",
+        throw new ComparisonFailure(
+          "Compiled different pattern.",
           expected.toString,
           actual.toString)
       }

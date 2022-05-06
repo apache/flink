@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, TimestampType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeFactoryImpl, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 
-/**
-  * Custom type system for Flink.
-  */
+/** Custom type system for Flink. */
 class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
   // set the maximum precision of a NUMERIC or DECIMAL type to DecimalType.MAX_PRECISION.
@@ -78,8 +75,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
   override def deriveAvgAggType(
       typeFactory: RelDataTypeFactory,
-      argRelDataType: RelDataType)
-    : RelDataType = {
+      argRelDataType: RelDataType): RelDataType = {
     val argType = FlinkTypeFactory.toLogicalType(argRelDataType)
     val resultType = LogicalTypeMerging.findAvgAggType(argType)
     unwrapTypeFactory(typeFactory).createFieldTypeFromLogicalType(resultType)
@@ -87,8 +83,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
 
   override def deriveSumType(
       typeFactory: RelDataTypeFactory,
-      argRelDataType: RelDataType)
-    : RelDataType = {
+      argRelDataType: RelDataType): RelDataType = {
     val argType = FlinkTypeFactory.toLogicalType(argRelDataType)
     val resultType = LogicalTypeMerging.findSumAggType(argType)
     unwrapTypeFactory(typeFactory).createFieldTypeFromLogicalType(resultType)
@@ -98,7 +93,10 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType): RelDataType = {
-    deriveDecimalType(typeFactory, type1, type2,
+    deriveDecimalType(
+      typeFactory,
+      type1,
+      type2,
       (p1, s1, p2, s2) => LogicalTypeMerging.findAdditionDecimalType(p1, s1, p2, s2))
   }
 
@@ -106,7 +104,10 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType): RelDataType = {
-    deriveDecimalType(typeFactory, type1, type2,
+    deriveDecimalType(
+      typeFactory,
+      type1,
+      type2,
       (p1, s1, p2, s2) => {
         if (s1 == 0 && s2 == 0) {
           return type2
@@ -119,7 +120,10 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType): RelDataType = {
-    deriveDecimalType(typeFactory, type1, type2,
+    deriveDecimalType(
+      typeFactory,
+      type1,
+      type2,
       (p1, s1, p2, s2) => LogicalTypeMerging.findDivisionDecimalType(p1, s1, p2, s2))
   }
 
@@ -127,24 +131,30 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType): RelDataType = {
-    deriveDecimalType(typeFactory, type1, type2,
+    deriveDecimalType(
+      typeFactory,
+      type1,
+      type2,
       (p1, s1, p2, s2) => LogicalTypeMerging.findMultiplicationDecimalType(p1, s1, p2, s2))
   }
 
-  /**
-   * Use derivation from [[LogicalTypeMerging]] to derive decimal type.
-   */
+  /** Use derivation from [[LogicalTypeMerging]] to derive decimal type. */
   private def deriveDecimalType(
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType,
       deriveImpl: (Int, Int, Int, Int) => DecimalType): RelDataType = {
-    if (SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
-        (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
+    if (
+      SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
+      (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))
+    ) {
       val decType1 = adjustType(typeFactory, type1)
       val decType2 = adjustType(typeFactory, type2)
       val result = deriveImpl(
-        decType1.getPrecision, decType1.getScale, decType2.getPrecision, decType2.getScale)
+        decType1.getPrecision,
+        decType1.getScale,
+        decType2.getPrecision,
+        decType2.getScale)
       typeFactory.createSqlType(SqlTypeName.DECIMAL, result.getPrecision, result.getScale)
     } else {
       null
@@ -152,12 +162,10 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   }
 
   /**
-   * Java numeric will always have invalid precision/scale,
-   * use its default decimal precision/scale instead.
+   * Java numeric will always have invalid precision/scale, use its default decimal precision/scale
+   * instead.
    */
-  private def adjustType(
-      typeFactory: RelDataTypeFactory,
-      relDataType: RelDataType): RelDataType = {
+  private def adjustType(typeFactory: RelDataTypeFactory, relDataType: RelDataType): RelDataType = {
     if (RelDataTypeFactoryImpl.isJavaType(relDataType)) {
       typeFactory.decimalOf(relDataType)
     } else {

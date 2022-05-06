@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -29,9 +29,7 @@ import org.apache.calcite.rex.RexNode
 
 import java.util
 
-/**
- * Stream physical RelNode for [[Expand]].
- */
+/** Stream physical RelNode for [[Expand]]. */
 class StreamPhysicalExpand(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -44,8 +42,7 @@ class StreamPhysicalExpand(
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalExpand(
-      cluster, traitSet, inputs.get(0), projects, expandIdIndex)
+    new StreamPhysicalExpand(cluster, traitSet, inputs.get(0), projects, expandIdIndex)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

@@ -15,49 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.functions.SqlLikeUtils
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, qualifyMethod}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
-import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.runtime.functions.SqlLikeChainChecker
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 
 import java.util.regex.Pattern
 
-/**
-  * Generates Like function call.
-  */
+/** Generates Like function call. */
 class LikeCallGen extends CallGenerator {
 
-  /**
-    * Accepts simple LIKE patterns like "abc%".
-    */
+  /** Accepts simple LIKE patterns like "abc%". */
   private val BEGIN_PATTERN = Pattern.compile("([^%]+)%")
 
-  /**
-    * Accepts simple LIKE patterns like "%abc".
-    */
+  /** Accepts simple LIKE patterns like "%abc". */
   private val END_PATTERN = Pattern.compile("%([^%]+)")
 
-  /**
-    * Accepts simple LIKE patterns like "%abc%".
-    */
+  /** Accepts simple LIKE patterns like "%abc%". */
   private val MIDDLE_PATTERN = Pattern.compile("%([^%]+)%")
 
-  /**
-    * Accepts simple LIKE patterns like "abc".
-    */
+  /** Accepts simple LIKE patterns like "abc". */
   private val NONE_PATTERN = Pattern.compile("[^%]+")
 
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
-    if ((operands.size == 2 && operands(1).literal) ||
-        (operands.size == 3 && operands(1).literal && operands(2).literal)) {
+    if (
+      (operands.size == 2 && operands(1).literal) ||
+      (operands.size == 3 && operands(1).literal && operands(2).literal)
+    ) {
       generateCallIfArgsNotNull(ctx, returnType, operands) {
         terms =>
           val pattern = operands(1).literalValue.get.toString

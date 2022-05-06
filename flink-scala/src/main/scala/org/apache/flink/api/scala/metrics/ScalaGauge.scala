@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.metrics
 
 import org.apache.flink.metrics.Gauge
 
-/**
-  * This class allows the concise definition of a gauge from Scala using function references.
-  */
+/** This class allows the concise definition of a gauge from Scala using function references. */
 class ScalaGauge[T](func: () => T) extends Gauge[T] {
   override def getValue: T = {
     func()

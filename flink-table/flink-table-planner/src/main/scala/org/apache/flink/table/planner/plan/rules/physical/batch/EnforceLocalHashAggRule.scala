@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalHashAggregate}
@@ -26,8 +25,7 @@ import org.apache.calcite.plan.RelOptRuleCall
 /**
  * An [[EnforceLocalAggRuleBase]] that matches [[BatchPhysicalHashAggregate]]
  *
- * for example: select count(*) from t group by rollup (a, b)
- * The physical plan
+ * for example: select count(*) from t group by rollup (a, b) The physical plan
  *
  * {{{
  * HashAggregate(isMerge=[false], groupBy=[a, b, $e], select=[a, b, $e, COUNT(*)])
@@ -48,11 +46,12 @@ import org.apache.calcite.plan.RelOptRuleCall
  *                           {a=[null], b=[null], $e=[3]}])
  * }}}
  */
-class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
-  operand(classOf[BatchPhysicalHashAggregate],
-    operand(classOf[BatchPhysicalExchange],
-      operand(classOf[BatchPhysicalExpand], any))),
-  "EnforceLocalHashAggRule") {
+class EnforceLocalHashAggRule
+  extends EnforceLocalAggRuleBase(
+    operand(
+      classOf[BatchPhysicalHashAggregate],
+      operand(classOf[BatchPhysicalExchange], operand(classOf[BatchPhysicalExpand], any))),
+    "EnforceLocalHashAggRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: BatchPhysicalHashAggregate = call.rel(0)

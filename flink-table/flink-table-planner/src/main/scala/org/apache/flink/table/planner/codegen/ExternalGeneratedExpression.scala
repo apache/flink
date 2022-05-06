@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.types.DataType
@@ -23,24 +22,30 @@ import org.apache.flink.table.types.DataType
 /**
  * Describes a external generated expression.
  *
- * @param dataType type of the resultTerm
- * @param internalTerm term to access the internal result of the expression
- * @param externalTerm term to access the external result of the expression
- * @param nullTerm boolean term that indicates if expression is null
- * @param internalCode code necessary to produce internalTerm and nullTerm
- * @param externalCode code necessary to produce externalTerm
- * @param literalValue None if the expression is not literal. Otherwise it represent the
- *                     original object of the literal.
- *
+ * @param dataType
+ *   type of the resultTerm
+ * @param internalTerm
+ *   term to access the internal result of the expression
+ * @param externalTerm
+ *   term to access the external result of the expression
+ * @param nullTerm
+ *   boolean term that indicates if expression is null
+ * @param internalCode
+ *   code necessary to produce internalTerm and nullTerm
+ * @param externalCode
+ *   code necessary to produce externalTerm
+ * @param literalValue
+ *   None if the expression is not literal. Otherwise it represent the original object of the
+ *   literal.
  */
 class ExternalGeneratedExpression(
-  dataType: DataType,
-  internalTerm: String,
-  externalTerm: String,
-  nullTerm: String,
-  internalCode: String,
-  externalCode: String,
-  literalValue: Option[Any] = None)
+    dataType: DataType,
+    internalTerm: String,
+    externalTerm: String,
+    nullTerm: String,
+    internalCode: String,
+    externalCode: String,
+    literalValue: Option[Any] = None)
   extends GeneratedExpression(
     internalTerm,
     nullTerm,
@@ -59,17 +64,17 @@ class ExternalGeneratedExpression(
 object ExternalGeneratedExpression {
 
   def fromGeneratedExpression(
-    dataType: DataType,
-    externalTerm: String,
-    externalCode: String,
-    generatedExpression: GeneratedExpression)
-  : ExternalGeneratedExpression = {
+      dataType: DataType,
+      externalTerm: String,
+      externalCode: String,
+      generatedExpression: GeneratedExpression): ExternalGeneratedExpression = {
     new ExternalGeneratedExpression(
       dataType,
       generatedExpression.resultTerm,
       externalTerm,
       generatedExpression.nullTerm,
-      generatedExpression.code, externalCode,
+      generatedExpression.code,
+      externalCode,
       generatedExpression.literalValue)
   }
 }

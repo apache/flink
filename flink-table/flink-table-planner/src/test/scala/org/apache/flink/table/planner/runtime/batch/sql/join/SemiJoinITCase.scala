@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -24,9 +23,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.util
 
@@ -69,27 +68,31 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testSingleUniqueConditionLeftAnti(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE NOT EXISTS " +
-          "(SELECT * FROM (SELECT DISTINCT c FROM rightT) WHERE a = c)",
-      Seq(row(1, 2.0), row(1, 2.0), row(null, null), row(null, 5.0)))
+        "(SELECT * FROM (SELECT DISTINCT c FROM rightT) WHERE a = c)",
+      Seq(row(1, 2.0), row(1, 2.0), row(null, null), row(null, 5.0))
+    )
   }
 
   @Test
   def testComposedConditionLeftAnti(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c AND b < d)",
-      Seq(row(1, 2.0), row(1, 2.0), row(3, 3.0), row(6, null), row(null, 5.0), row(null, null)))
+      Seq(row(1, 2.0), row(1, 2.0), row(3, 3.0), row(6, null), row(null, 5.0), row(null, null))
+    )
   }
 
   @Test
   def testComposedUniqueConditionLeftAnti(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightUniqueKeyT WHERE a = c AND b < d)",
-      Seq(row(1, 2.0), row(1, 2.0), row(3, 3.0), row(null, null), row(null, 5.0), row(6, null)))
+      Seq(row(1, 2.0), row(1, 2.0), row(3, 3.0), row(null, null), row(null, 5.0), row(6, null))
+    )
   }
 
   @Test
   def testSemiJoinTranspose(): Unit = {
-    checkResult("SELECT a, b FROM " +
+    checkResult(
+      "SELECT a, b FROM " +
         "(SELECT a, b, c FROM leftT, rightT WHERE a = c) lr " +
         "WHERE lr.a > 0 AND lr.c IN (SELECT c FROM rightUniqueKeyT WHERE d > 1)",
       Seq(row(2, 1.0), row(2, 1.0), row(2, 1.0), row(2, 1.0), row(3, 3.0))
@@ -116,8 +119,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testFilterPushDownLeftSemi3(): Unit = {
     checkResult(
       "SELECT * FROM " +
-          "(SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c)) T " +
-          "WHERE T.b > 2",
+        "(SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c)) T " +
+        "WHERE T.b > 2",
       Seq(row(3, 3.0)))
   }
 
@@ -149,8 +152,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType eq JoinType.NestedLoopJoin) {
       checkResult(
         "SELECT * FROM " +
-            "(SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE c < 3)) T " +
-            "WHERE T.b > 2",
+          "(SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE c < 3)) T " +
+          "WHERE T.b > 2",
         Seq(row(3, 3.0)))
     }
   }
@@ -160,8 +163,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType eq JoinType.NestedLoopJoin) {
       checkResult(
         "SELECT * FROM " +
-            "(SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT where c > 10)) T " +
-            "WHERE T.b > 2",
+          "(SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT where c > 10)) T " +
+          "WHERE T.b > 2",
         Seq(row(3, 3.0), row(null, 5.0)))
     }
   }
@@ -170,8 +173,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testFilterPushDownLeftAnti3(): Unit = {
     checkResult(
       "SELECT * FROM " +
-          "(SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND c < 3)) T " +
-          "WHERE T.b > 2",
+        "(SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND c < 3)) T " +
+        "WHERE T.b > 2",
       Seq(row(3, 3.0), row(null, 5.0)))
   }
 
@@ -179,8 +182,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testFilterPushDownLeftAnti4(): Unit = {
     checkResult(
       "SELECT * FROM " +
-          "(SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c)) T " +
-          "WHERE T.b > 2",
+        "(SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c)) T " +
+        "WHERE T.b > 2",
       Seq(row(null, 5.0)))
   }
 
@@ -206,16 +209,30 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testJoinConditionPushDownLeftAnti3(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND b > 1)",
-      Seq(row(1, 2.0), row(1, 2.0), row(2, 1.0), row(2, 1.0),
-        row(3, 3.0), row(null, null), row(6, null)))
+      Seq(
+        row(1, 2.0),
+        row(1, 2.0),
+        row(2, 1.0),
+        row(2, 1.0),
+        row(3, 3.0),
+        row(null, null),
+        row(6, null))
+    )
   }
 
   @Test
   def testJoinConditionPushDownLeftAnti4(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)",
-      Seq(row(1, 2.0), row(1, 2.0), row(2, 1.0), row(2, 1.0),
-        row(null, null), row(null, 5.0), row(6, null)))
+      Seq(
+        row(1, 2.0),
+        row(1, 2.0),
+        row(2, 1.0),
+        row(2, 1.0),
+        row(null, null),
+        row(null, 5.0),
+        row(6, null))
+    )
   }
 
   @Test
@@ -246,8 +263,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testInWithOver1(): Unit = {
     checkResult(
       "SELECT * FROM rightT WHERE c IN (SELECT SUM(a) OVER " +
-          "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
-          "FROM leftT)",
+        "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+        "FROM leftT)",
       Seq(row(2, 3.0), row(2, 3.0), row(3, 2.0), row(4, 1.0), row(6, null))
     )
   }
@@ -256,8 +273,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testInWithOver2(): Unit = {
     checkResult(
       "SELECT * FROM rightT WHERE c IN (SELECT SUM(a) OVER" +
-          "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
-          "FROM leftT GROUP BY a, b)",
+        "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+        "FROM leftT GROUP BY a, b)",
       Seq(row(2, 3.0), row(2, 3.0), row(3, 2.0), row(6, null))
     )
   }
@@ -266,8 +283,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testInWithOver3(): Unit = {
     checkResult(
       "SELECT * FROM rightT WHERE c IN (SELECT SUM(a) OVER " +
-          "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
-          "FROM leftT WHERE b = d)",
+        "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+        "FROM leftT WHERE b = d)",
       Seq(row(4, 1.0))
     )
   }
@@ -276,8 +293,8 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testInWithOver4(): Unit = {
     checkResult(
       "SELECT * FROM rightT WHERE c IN (SELECT SUM(a) OVER" +
-          "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
-          "FROM leftT WHERE b = d GROUP BY a, b)",
+        "(PARTITION BY b ORDER BY a ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+        "FROM leftT WHERE b = d GROUP BY a, b)",
       Seq()
     )
   }
@@ -330,7 +347,7 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testInWithNonEqualityCorrelationCondition2(): Unit = {
     checkResult(
       "SELECT * FROM leftT WHERE a IN " +
-          "(SELECT c FROM (SELECT MAX(c) AS c, d FROM rightT GROUP BY d) r WHERE leftT.b > r.d)",
+        "(SELECT c FROM (SELECT MAX(c) AS c, d FROM rightT GROUP BY d) r WHERE leftT.b > r.d)",
       Seq(row(3, 3.0))
     )
   }
@@ -340,7 +357,7 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType eq NestedLoopJoin) {
       checkResult(
         "SELECT * FROM leftT WHERE a IN " +
-            "(SELECT c FROM (SELECT MIN(c) OVER() AS c, d FROM rightT) r WHERE leftT.b <> r.d)",
+          "(SELECT c FROM (SELECT MIN(c) OVER() AS c, d FROM rightT) r WHERE leftT.b <> r.d)",
         Seq(row(2, 1.0), row(2, 1.0))
       )
     }
@@ -351,7 +368,7 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     if (expectedJoinType eq NestedLoopJoin) {
       checkResult(
         "SELECT * FROM leftT WHERE a IN (SELECT c FROM " +
-            "(SELECT MIN(c) OVER() AS c, d FROM rightT GROUP BY c, d) r WHERE leftT.b <> r.d)",
+          "(SELECT MIN(c) OVER() AS c, d FROM rightT GROUP BY c, d) r WHERE leftT.b <> r.d)",
         Seq(row(2, 1.0), row(2, 1.0))
       )
     }

@@ -27,14 +27,14 @@ import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rex.RexProgram
 
 /**
-  * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]]
-  * into [[BatchPhysicalLookupJoin]].
-  *
-  * There are 2 conditions for this rule:
-  * 1. the root parent of [[FlinkLogicalSnapshot]] should be a TableSource which implements
-  *   [[org.apache.flink.table.sources.LookupableTableSource]].
-  * 2. the period of [[FlinkLogicalSnapshot]] must be left table's proctime attribute.
-  */
+ * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]] into
+ * [[BatchPhysicalLookupJoin]].
+ *
+ * There are 2 conditions for this rule:
+ *   1. the root parent of [[FlinkLogicalSnapshot]] should be a TableSource which implements
+ *      [[org.apache.flink.table.sources.LookupableTableSource]]. 2. the period of
+ *      [[FlinkLogicalSnapshot]] must be left table's proctime attribute.
+ */
 object BatchPhysicalLookupJoinRule {
   val SNAPSHOT_ON_TABLESCAN: RelOptRule = new SnapshotOnTableScanRule
   val SNAPSHOT_ON_CALC_TABLESCAN: RelOptRule = new SnapshotOnCalcTableScanRule
