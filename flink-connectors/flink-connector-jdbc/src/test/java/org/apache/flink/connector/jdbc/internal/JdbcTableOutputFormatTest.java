@@ -47,8 +47,7 @@ import java.util.List;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 
 /** Tests for the {@link JdbcOutputFormat}. */
@@ -165,10 +164,10 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
         format.writeRecord(Tuple2.of(false /* false = delete*/, toRow(TEST_DATA[0])));
         format.flush();
 
-        assertTrue("Delete should be executed", deleteExecuted[0]);
-        assertTrue(
-                "Delete executor should be prepared" + exceptionThrown[0],
-                deleteExecutorPrepared[0]);
+        assertThat(deleteExecuted[0]).as("Delete should be executed").isTrue();
+        assertThat(deleteExecutorPrepared[0])
+                .as("Delete executor should be prepared" + exceptionThrown[0])
+                .isTrue();
     }
 
     @Test
@@ -243,7 +242,7 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
             String[] sortedResult = results.toArray(new String[0]);
             Arrays.sort(sortedExpect);
             Arrays.sort(sortedResult);
-            assertArrayEquals(sortedExpect, sortedResult);
+            assertThat(sortedResult).isEqualTo(sortedExpect);
         }
     }
 

@@ -29,8 +29,7 @@ import java.sql.Connection;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test deals with sql driver class loading issues; run as an ITCase so it won't be interfered
@@ -55,8 +54,8 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingITCase {
     public void testDriverClassConcurrentLoading() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
-        assertFalse(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
+        assertThat(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME)).isFalse();
+        assertThat(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME)).isFalse();
 
         JdbcConnectionOptions connectionOptions1 =
                 new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
@@ -103,7 +102,7 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingITCase {
         connectionThread1.sync();
         connectionThread2.sync();
 
-        assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME));
-        assertTrue(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME));
+        assertThat(isClassLoaded(classLoader, FakeDBUtils.DRIVER1_CLASS_NAME)).isTrue();
+        assertThat(isClassLoaded(classLoader, FakeDBUtils.DRIVER2_CLASS_NAME)).isTrue();
     }
 }

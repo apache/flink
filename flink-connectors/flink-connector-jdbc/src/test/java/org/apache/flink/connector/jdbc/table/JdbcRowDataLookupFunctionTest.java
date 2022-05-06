@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test suite for {@link JdbcRowDataLookupFunction}. */
 public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
@@ -81,7 +81,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
         expected.add("+I(2,3,null,23-c2)");
         Collections.sort(expected);
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
         Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
 
         // empty data should cache
-        assertEquals(cache.getIfPresent(keyRow), Collections.<RowData>emptyList());
+        assertThat(cache.getIfPresent(keyRow)).isEmpty();
 
         // put db entry for keyRow
         // final cache output should also be empty till TTL expires
@@ -117,7 +117,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
                         + " (id1, id2, comment1, comment2) VALUES (4, '9', '49-c1', '49-c2')");
 
         lookupFunction.eval(4, StringData.fromString("9"));
-        assertEquals(cache.getIfPresent(keyRow), Collections.<RowData>emptyList());
+        assertThat(cache.getIfPresent(keyRow)).isEmpty();
     }
 
     @Test
@@ -143,7 +143,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
         Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
 
         // empty data should not get cached
-        assert cache.getIfPresent(keyRow) == null;
+        assertThat(cache.getIfPresent(keyRow)).isNull();
 
         // put db entry for keyRow
         // final cache output should contain data
@@ -160,7 +160,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
                         StringData.fromString("1"),
                         StringData.fromString("51-c1"),
                         StringData.fromString("51-c2")));
-        assertEquals(cache.getIfPresent(keyRow), expectedOutput);
+        assertThat(cache.getIfPresent(keyRow)).isEqualTo(expectedOutput);
     }
 
     private JdbcRowDataLookupFunction buildRowDataLookupFunction(JdbcLookupOptions lookupOptions) {
