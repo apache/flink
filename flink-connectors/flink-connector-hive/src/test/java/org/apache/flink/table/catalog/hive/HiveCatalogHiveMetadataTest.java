@@ -63,17 +63,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for HiveCatalog on Hive metadata. */
 public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
@@ -100,9 +96,9 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         String inputFormat = hiveTable.getSd().getInputFormat();
         String outputFormat = hiveTable.getSd().getOutputFormat();
         String serde = hiveTable.getSd().getSerdeInfo().getSerializationLib();
-        assertFalse(StringUtils.isNullOrWhitespaceOnly(inputFormat));
-        assertFalse(StringUtils.isNullOrWhitespaceOnly(outputFormat));
-        assertFalse(StringUtils.isNullOrWhitespaceOnly(serde));
+        assertThat(StringUtils.isNullOrWhitespaceOnly(inputFormat)).isFalse();
+        assertThat(StringUtils.isNullOrWhitespaceOnly(outputFormat)).isFalse();
+        assertThat(StringUtils.isNullOrWhitespaceOnly(serde)).isFalse();
     }
 
     // ------ table and column stats ------
@@ -144,12 +140,12 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         ((HiveCatalog) catalog).client.createTable(hiveView);
         CatalogBaseTable baseTable = catalog.getTable(path1);
-        assertTrue(baseTable instanceof CatalogView);
+        assertThat(baseTable).isInstanceOf(CatalogView.class);
         CatalogView catalogView = (CatalogView) baseTable;
-        assertEquals(schema, catalogView.getUnresolvedSchema());
-        assertEquals(originQuery, catalogView.getOriginalQuery());
-        assertEquals(expandedQuery, catalogView.getExpandedQuery());
-        assertEquals("v1", catalogView.getOptions().get("k1"));
+        assertThat(catalogView.getUnresolvedSchema()).isEqualTo(schema);
+        assertThat(catalogView.getOriginalQuery()).isEqualTo(originQuery);
+        assertThat(catalogView.getExpandedQuery()).isEqualTo(expandedQuery);
+        assertThat(catalogView.getOptions().get("k1")).isEqualTo("v1");
 
         // test mark as non-generic with connector
         hiveView.setDbName(path3.getDatabaseName());
@@ -159,12 +155,12 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         ((HiveCatalog) catalog).client.createTable(hiveView);
         baseTable = catalog.getTable(path3);
-        assertTrue(baseTable instanceof CatalogView);
+        assertThat(baseTable).isInstanceOf(CatalogView.class);
         catalogView = (CatalogView) baseTable;
-        assertEquals(schema, catalogView.getUnresolvedSchema());
-        assertEquals(originQuery, catalogView.getOriginalQuery());
-        assertEquals(expandedQuery, catalogView.getExpandedQuery());
-        assertEquals("v1", catalogView.getOptions().get("k1"));
+        assertThat(catalogView.getUnresolvedSchema()).isEqualTo(schema);
+        assertThat(catalogView.getOriginalQuery()).isEqualTo(originQuery);
+        assertThat(catalogView.getExpandedQuery()).isEqualTo(expandedQuery);
+        assertThat(catalogView.getOptions().get("k1")).isEqualTo("v1");
     }
 
     @Test
@@ -270,13 +266,16 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 new CatalogTableImpl(builder.build(), getBatchTableProperties(), null),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
-        assertTrue("PK not present", catalogTable.getSchema().getPrimaryKey().isPresent());
+        assertThat(catalogTable.getSchema().getPrimaryKey()).as("PK not present").isPresent();
         UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
-        assertEquals("pk_name", pk.getName());
-        assertEquals(Collections.singletonList("x"), pk.getColumns());
-        assertFalse(catalogTable.getSchema().getFieldDataTypes()[0].getLogicalType().isNullable());
-        assertFalse(catalogTable.getSchema().getFieldDataTypes()[1].getLogicalType().isNullable());
-        assertTrue(catalogTable.getSchema().getFieldDataTypes()[2].getLogicalType().isNullable());
+        assertThat(pk.getName()).isEqualTo("pk_name");
+        assertThat(pk.getColumns()).containsExactly("x");
+        assertThat(catalogTable.getSchema().getFieldDataTypes()[0].getLogicalType().isNullable())
+                .isFalse();
+        assertThat(catalogTable.getSchema().getFieldDataTypes()[1].getLogicalType().isNullable())
+                .isFalse();
+        assertThat(catalogTable.getSchema().getFieldDataTypes()[2].getLogicalType().isNullable())
+                .isTrue();
 
         hiveCatalog.dropDatabase(db1, false, true);
     }
@@ -288,11 +287,10 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.createTable(path1, createPartitionedTable(), false);
         catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 
-        assertEquals(
-                Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+        assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
         CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
         CatalogTestUtil.checkEquals(createPartition(), cp);
-        assertNull(cp.getProperties().get("k"));
+        assertThat(cp.getProperties().get("k")).isNull();
 
         CatalogPartition another = createPartition();
         another.getProperties().put("k", "v");
@@ -303,13 +301,12 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
-        assertEquals(
-                Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+        assertThat(catalog.listPartitions(path1)).containsExactly(createPartitionSpec());
 
         cp = catalog.getPartition(path1, createPartitionSpec());
 
         CatalogTestUtil.checkEquals(another, cp);
-        assertEquals("v", cp.getProperties().get("k"));
+        assertThat(cp.getProperties().get("k")).isEqualTo("v");
     }
 
     private void checkStatistics(int inputStat, int expectStat) throws Exception {
@@ -327,10 +324,10 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.createTable(path1, catalogTable, false);
 
         CatalogTableStatistics statistics = catalog.getTableStatistics(path1);
-        assertEquals(expectStat, statistics.getRowCount());
-        assertEquals(expectStat, statistics.getFileCount());
-        assertEquals(expectStat, statistics.getRawDataSize());
-        assertEquals(expectStat, statistics.getTotalSize());
+        assertThat(statistics.getRowCount()).isEqualTo(expectStat);
+        assertThat(statistics.getFileCount()).isEqualTo(expectStat);
+        assertThat(statistics.getRawDataSize()).isEqualTo(expectStat);
+        assertThat(statistics.getTotalSize()).isEqualTo(expectStat);
     }
 
     // ------ utils ------

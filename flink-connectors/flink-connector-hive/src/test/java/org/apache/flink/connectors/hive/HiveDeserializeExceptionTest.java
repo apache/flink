@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized;
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
