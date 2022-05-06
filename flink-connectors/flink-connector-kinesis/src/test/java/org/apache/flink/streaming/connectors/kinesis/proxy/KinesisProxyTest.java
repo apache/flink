@@ -42,7 +42,6 @@ import org.apache.http.HttpHost;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -62,12 +61,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -90,7 +88,7 @@ public class KinesisProxyTest {
                                 InetAddress.getByAddress(
                                         "kinesis.us-east-1.amazonaws.com",
                                         new byte[] {3, 91, (byte) 171, (byte) 253})));
-        assertTrue(kinesisProxy.isRecoverableSdkClientException(ex));
+        assertThat(kinesisProxy.isRecoverableSdkClientException(ex)).isTrue();
     }
 
     @Test
@@ -98,28 +96,28 @@ public class KinesisProxyTest {
         final ProvisionedThroughputExceededException ex =
                 new ProvisionedThroughputExceededException("asdf");
         ex.setErrorType(ErrorType.Client);
-        assertTrue(KinesisProxy.isRecoverableException(ex));
+        assertThat(KinesisProxy.isRecoverableException(ex)).isTrue();
     }
 
     @Test
     public void testIsRecoverableExceptionWithServiceException() {
         final AmazonServiceException ex = new AmazonServiceException("asdf");
         ex.setErrorType(ErrorType.Service);
-        assertTrue(KinesisProxy.isRecoverableException(ex));
+        assertThat(KinesisProxy.isRecoverableException(ex)).isTrue();
     }
 
     @Test
     public void testIsRecoverableExceptionWithExpiredIteratorException() {
         final ExpiredIteratorException ex = new ExpiredIteratorException("asdf");
         ex.setErrorType(ErrorType.Client);
-        assertFalse(KinesisProxy.isRecoverableException(ex));
+        assertThat(KinesisProxy.isRecoverableException(ex)).isFalse();
     }
 
     @Test
     public void testIsRecoverableExceptionWithNullErrorType() {
         final AmazonServiceException ex = new AmazonServiceException("asdf");
         ex.setErrorType(null);
-        assertFalse(KinesisProxy.isRecoverableException(ex));
+        assertThat(KinesisProxy.isRecoverableException(ex)).isFalse();
     }
 
     @Test
@@ -153,8 +151,8 @@ public class KinesisProxyTest {
         Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
 
         GetRecordsResult result = kinesisProxy.getRecords("fakeShardIterator", 1);
-        assertEquals(retriableExceptions.length, retries.intValue());
-        assertEquals(expectedResult, result);
+        assertThat(retries.intValue()).isEqualTo(retriableExceptions.length);
+        assertThat(result).isEqualTo(expectedResult);
     }
 
     @Test
@@ -191,15 +189,15 @@ public class KinesisProxyTest {
                         Arrays.asList(fakeStreamName));
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
-        Assert.assertEquals(shardListResult.hasRetrievedShards(), true);
+        assertThat(true).isEqualTo(shardListResult.hasRetrievedShards());
 
         Set<String> expectedStreams = new HashSet<>();
         expectedStreams.add(fakeStreamName);
-        Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        assertThat(expectedStreams).isEqualTo(shardListResult.getStreamsWithRetrievedShards());
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
         List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
-        assertThat(actualShardList, hasSize(4));
+        assertThat(actualShardList).satisfies(matching(hasSize(4)));
         for (int i = 0; i < 4; i++) {
             StreamShardHandle shardHandle =
                     new StreamShardHandle(
@@ -210,11 +208,12 @@ public class KinesisProxyTest {
             expectedStreamShard.add(shardHandle);
         }
 
-        Assert.assertThat(
-                actualShardList,
-                containsInAnyOrder(
-                        expectedStreamShard.toArray(
-                                new StreamShardHandle[actualShardList.size()])));
+        assertThat(actualShardList)
+                .satisfies(
+                        matching(
+                                containsInAnyOrder(
+                                        expectedStreamShard.toArray(
+                                                new StreamShardHandle[actualShardList.size()]))));
     }
 
     @Test
@@ -246,15 +245,15 @@ public class KinesisProxyTest {
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then
-        Assert.assertTrue(shardListResult.hasRetrievedShards());
+        assertThat(shardListResult.hasRetrievedShards()).isTrue();
 
         Set<String> expectedStreams = new HashSet<>();
         expectedStreams.add(fakeStreamName);
-        Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        assertThat(expectedStreams).isEqualTo(shardListResult.getStreamsWithRetrievedShards());
 
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        Assert.assertThat(actualShardList, hasSize(2));
+        assertThat(actualShardList).satisfies(matching(hasSize(2)));
 
         List<StreamShardHandle> expectedStreamShard =
                 IntStream.range(0, actualShardList.size())
@@ -269,11 +268,12 @@ public class KinesisProxyTest {
                                                                                 i))))
                         .collect(Collectors.toList());
 
-        Assert.assertThat(
-                actualShardList,
-                containsInAnyOrder(
-                        expectedStreamShard.toArray(
-                                new StreamShardHandle[actualShardList.size()])));
+        assertThat(actualShardList)
+                .satisfies(
+                        matching(
+                                containsInAnyOrder(
+                                        expectedStreamShard.toArray(
+                                                new StreamShardHandle[actualShardList.size()]))));
 
         // given new shards
         ListShardsResult responseSecond =
@@ -291,12 +291,12 @@ public class KinesisProxyTest {
         GetShardListResult newShardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then new shards
-        Assert.assertTrue(newShardListResult.hasRetrievedShards());
-        Assert.assertEquals(newShardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        assertThat(newShardListResult.hasRetrievedShards()).isTrue();
+        assertThat(expectedStreams).isEqualTo(newShardListResult.getStreamsWithRetrievedShards());
 
         List<StreamShardHandle> newActualShardList =
                 newShardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        Assert.assertThat(newActualShardList, hasSize(1));
+        assertThat(newActualShardList).satisfies(matching(hasSize(1)));
 
         List<StreamShardHandle> newExpectedStreamShard =
                 Collections.singletonList(
@@ -307,11 +307,13 @@ public class KinesisProxyTest {
                                                 KinesisShardIdGenerator.generateFromShardOrder(
                                                         2))));
 
-        Assert.assertThat(
-                newActualShardList,
-                containsInAnyOrder(
-                        newExpectedStreamShard.toArray(
-                                new StreamShardHandle[newActualShardList.size()])));
+        assertThat(newActualShardList)
+                .satisfies(
+                        matching(
+                                containsInAnyOrder(
+                                        newExpectedStreamShard.toArray(
+                                                new StreamShardHandle
+                                                        [newActualShardList.size()]))));
     }
 
     @Test
@@ -337,7 +339,7 @@ public class KinesisProxyTest {
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then
-        Assert.assertFalse(shardListResult.hasRetrievedShards());
+        assertThat(shardListResult.hasRetrievedShards()).isFalse();
     }
 
     @Test
@@ -378,11 +380,10 @@ public class KinesisProxyTest {
         HashMap<String, String> streamNames = new HashMap();
         streamNames.put("fake-stream", null);
         GetShardListResult result = kinesisProxy.getShardList(streamNames);
-        assertEquals(retriableExceptions.length, exceptionCount.intValue());
-        assertEquals(true, result.hasRetrievedShards());
-        assertEquals(
-                shard.getShardId(),
-                result.getLastSeenShardOfStream("fake-stream").getShard().getShardId());
+        assertThat(exceptionCount.intValue()).isEqualTo(retriableExceptions.length);
+        assertThat(result.hasRetrievedShards()).isTrue();
+        assertThat(result.getLastSeenShardOfStream("fake-stream").getShard().getShardId())
+                .isEqualTo(shard.getShardId());
 
         // test max attempt count exceeded
         int maxRetries = 1;
@@ -393,11 +394,11 @@ public class KinesisProxyTest {
         Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
         try {
             kinesisProxy.getShardList(streamNames);
-            Assert.fail("exception expected");
+            fail("exception expected");
         } catch (SdkClientException ex) {
-            assertEquals(retriableExceptions[maxRetries], ex);
+            assertThat(ex).isEqualTo(retriableExceptions[maxRetries]);
         }
-        assertEquals(maxRetries + 1, exceptionCount.intValue());
+        assertThat(exceptionCount.intValue()).isEqualTo(maxRetries + 1);
     }
 
     @Test
@@ -417,7 +418,7 @@ public class KinesisProxyTest {
         AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
         ClientConfiguration clientConfiguration =
                 Whitebox.getInternalState(kinesisClient, "clientConfiguration");
-        assertEquals(10000, clientConfiguration.getSocketTimeout());
+        assertThat(clientConfiguration.getSocketTimeout()).isEqualTo(10000);
     }
 
     @Test
@@ -432,7 +433,7 @@ public class KinesisProxyTest {
         AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
         ClientConfiguration clientConfiguration =
                 Whitebox.getInternalState(kinesisClient, "clientConfiguration");
-        assertEquals(9999, clientConfiguration.getSocketTimeout());
+        assertThat(clientConfiguration.getSocketTimeout()).isEqualTo(9999);
     }
 
     protected static HashMap<String, String>
