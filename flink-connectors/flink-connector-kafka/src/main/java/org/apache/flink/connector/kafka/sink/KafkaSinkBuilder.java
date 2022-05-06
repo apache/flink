@@ -180,26 +180,33 @@ public class KafkaSinkBuilder<IN> {
         return this;
     }
 
+    private void sanityCheck() {
+        if (kafkaProducerConfig == null) {
+            setKafkaProducerConfig(new Properties());
+        }
+        if (bootstrapServers != null) {
+            kafkaProducerConfig.setProperty(
+                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        }
+        checkNotNull(
+                kafkaProducerConfig.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
+                "bootstrapServers");
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            checkState(
+                    transactionalIdPrefix != null,
+                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
+        }
+        checkNotNull(recordSerializer, "recordSerializer");
+    }
+
     /**
      * Constructs the {@link KafkaSink} with the configured properties.
      *
      * @return {@link KafkaSink}
      */
     public KafkaSink<IN> build() {
-        if (kafkaProducerConfig == null) {
-            setKafkaProducerConfig(new Properties());
-        }
-        checkNotNull(bootstrapServers);
-        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
-            checkState(
-                    transactionalIdPrefix != null,
-                    "EXACTLY_ONCE delivery guarantee requires a transactionIdPrefix to be set to provide unique transaction names across multiple KafkaSinks writing to the same Kafka cluster.");
-        }
-        kafkaProducerConfig.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        sanityCheck();
         return new KafkaSink<>(
-                deliveryGuarantee,
-                kafkaProducerConfig,
-                transactionalIdPrefix,
-                checkNotNull(recordSerializer, "recordSerializer"));
+                deliveryGuarantee, kafkaProducerConfig, transactionalIdPrefix, recordSerializer);
     }
 }
