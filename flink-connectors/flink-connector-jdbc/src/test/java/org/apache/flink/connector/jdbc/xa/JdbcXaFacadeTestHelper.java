@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class JdbcXaFacadeTestHelper implements AutoCloseable {
     private final String table;
@@ -54,7 +54,7 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
     }
 
     void assertPreparedTxCountEquals(int expected) {
-        assertEquals(expected, xaFacade.recover().size());
+        assertThat(xaFacade.recover()).hasSize(expected);
     }
 
     void assertDbContentsEquals(JdbcTestCheckpoint... checkpoints) throws SQLException {
@@ -68,7 +68,7 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
     }
 
     void assertDbContentsEquals(List<Integer> expected) throws SQLException {
-        assertEquals(expected, getInsertedIds());
+        assertThat(getInsertedIds()).isEqualTo(expected);
     }
 
     private List<Integer> getInsertedIds() throws SQLException {

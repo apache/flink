@@ -38,15 +38,12 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** E2E test for {@link MySqlCatalog}. */
 public class MySqlCatalogITCase extends MySqlCatalogTestBase {
@@ -179,14 +176,14 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
     @Test
     public void testListDatabases() {
         List<String> actual = catalog.listDatabases();
-        assertEquals(Collections.singletonList(TEST_DB), actual);
+        assertThat(actual).containsExactly(TEST_DB);
     }
 
     @Test
     public void testDbExists() throws Exception {
         String databaseNotExist = "nonexistent";
-        assertFalse(catalog.databaseExists(databaseNotExist));
-        assertTrue(catalog.databaseExists(TEST_DB));
+        assertThat(catalog.databaseExists(databaseNotExist)).isFalse();
+        assertThat(catalog.databaseExists(TEST_DB)).isTrue();
     }
 
     // ------ tables ------
@@ -194,12 +191,12 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
     @Test
     public void testListTables() throws DatabaseNotExistException {
         List<String> actual = catalog.listTables(TEST_DB);
-        assertEquals(
-                Arrays.asList(
-                        TEST_TABLE_ALL_TYPES,
-                        TEST_SINK_TABLE_ALL_TYPES,
-                        TEST_TABLE_SINK_FROM_GROUPED_BY),
-                actual);
+        assertThat(actual)
+                .isEqualTo(
+                        Arrays.asList(
+                                TEST_TABLE_ALL_TYPES,
+                                TEST_SINK_TABLE_ALL_TYPES,
+                                TEST_TABLE_SINK_FROM_GROUPED_BY));
     }
 
     @Test
@@ -216,8 +213,8 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
     @Test
     public void testTableExists() {
         String tableNotExist = "nonexist";
-        assertFalse(catalog.tableExists(new ObjectPath(TEST_DB, tableNotExist)));
-        assertTrue(catalog.tableExists(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES)));
+        assertThat(catalog.tableExists(new ObjectPath(TEST_DB, tableNotExist))).isFalse();
+        assertThat(catalog.tableExists(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES))).isTrue();
     }
 
     @Test
@@ -248,7 +245,7 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
     @Test
     public void testGetTable() throws TableNotExistException {
         CatalogBaseTable table = catalog.getTable(new ObjectPath(TEST_DB, TEST_TABLE_ALL_TYPES));
-        assertEquals(TABLE_SCHEMA, table.getUnresolvedSchema());
+        assertThat(table.getUnresolvedSchema()).isEqualTo(TABLE_SCHEMA);
     }
 
     // ------ test select query. ------
@@ -260,9 +257,10 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                         tEnv.sqlQuery(String.format("select pid from %s", TEST_TABLE_ALL_TYPES))
                                 .execute()
                                 .collect());
-        assertEquals(
-                Lists.newArrayList(Row.ofKind(RowKind.INSERT, 1L), Row.ofKind(RowKind.INSERT, 2L)),
-                results);
+        assertThat(results)
+                .isEqualTo(
+                        Lists.newArrayList(
+                                Row.ofKind(RowKind.INSERT, 1L), Row.ofKind(RowKind.INSERT, 2L)));
     }
 
     @Test
@@ -273,7 +271,7 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                                 .execute()
                                 .collect());
 
-        assertEquals(ALL_TYPES_ROWS, results);
+        assertThat(results).isEqualTo(ALL_TYPES_ROWS);
     }
 
     @Test
@@ -286,7 +284,7 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                                                 TEST_DB, TEST_TABLE_ALL_TYPES))
                                 .execute()
                                 .collect());
-        assertEquals(ALL_TYPES_ROWS, results);
+        assertThat(results).isEqualTo(ALL_TYPES_ROWS);
     }
 
     @Test
@@ -301,7 +299,7 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                                                 TEST_TABLE_ALL_TYPES))
                                 .execute()
                                 .collect());
-        assertEquals(ALL_TYPES_ROWS, results);
+        assertThat(results).isEqualTo(ALL_TYPES_ROWS);
     }
 
     @Test
@@ -318,7 +316,7 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                         tEnv.sqlQuery(String.format("select * from %s", TEST_SINK_TABLE_ALL_TYPES))
                                 .execute()
                                 .collect());
-        assertEquals(ALL_TYPES_ROWS, results);
+        assertThat(results).isEqualTo(ALL_TYPES_ROWS);
     }
 
     @Test
@@ -339,6 +337,6 @@ public class MySqlCatalogITCase extends MySqlCatalogTestBase {
                                                 TEST_TABLE_SINK_FROM_GROUPED_BY))
                                 .execute()
                                 .collect());
-        assertEquals(Lists.newArrayList(Row.ofKind(RowKind.INSERT, 2L, -1L)), results);
+        assertThat(results).isEqualTo(Lists.newArrayList(Row.ofKind(RowKind.INSERT, 2L, -1L)));
     }
 }
