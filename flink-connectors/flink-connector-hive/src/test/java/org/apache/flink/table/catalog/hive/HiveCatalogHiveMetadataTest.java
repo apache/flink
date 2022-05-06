@@ -61,7 +61,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -269,7 +268,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         assertThat(catalogTable.getSchema().getPrimaryKey()).as("PK not present").isPresent();
         UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
         assertThat(pk.getName()).isEqualTo("pk_name");
-        assertThat(pk.getColumns()).isEqualTo(Collections.singletonList("x"));
+        assertThat(pk.getColumns()).containsExactly("x");
         assertThat(catalogTable.getSchema().getFieldDataTypes()[0].getLogicalType().isNullable())
                 .isFalse();
         assertThat(catalogTable.getSchema().getFieldDataTypes()[1].getLogicalType().isNullable())

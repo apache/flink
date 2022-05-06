@@ -36,7 +36,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for HiveInputFormatPartitionReader. */
 public class HiveInputFormatPartitionReaderITCase {
@@ -86,11 +86,11 @@ public class HiveInputFormatPartitionReaderITCase {
         while (partitionReader.read(reuse) != null) {
             count++;
         }
-        assertEquals(
-                CollectionUtil.iteratorToList(
-                                tableEnv.executeSql("select * from " + tableName).collect())
-                        .size(),
-                count);
+        assertThat(count)
+                .isEqualTo(
+                        CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql("select * from " + tableName).collect())
+                                .size());
     }
 
     private String prepareData(TableEnvironment tableEnv, String format) throws Exception {

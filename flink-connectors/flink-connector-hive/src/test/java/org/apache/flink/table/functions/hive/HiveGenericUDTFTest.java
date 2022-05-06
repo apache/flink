@@ -44,7 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveGenericUDTF}. */
 public class HiveGenericUDTFTest {
@@ -62,7 +62,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval(5, 4);
 
-        assertEquals(Arrays.asList(Row.of(9), Row.of(9)), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(9), Row.of(9)));
 
         // Test empty input and empty output
         constantArgs = new Object[] {};
@@ -73,7 +73,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval();
 
-        assertEquals(Arrays.asList(), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList());
     }
 
     @Test
@@ -86,9 +86,8 @@ public class HiveGenericUDTFTest {
 
         udf.eval("1,2,3,5");
 
-        assertEquals(
-                Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")),
-                collector.result);
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of("1"), Row.of("2"), Row.of("3"), Row.of("5")));
     }
 
     @Test
@@ -108,7 +107,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval(2, "a", "b", "c", "d");
 
-        assertEquals(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")));
     }
 
     @Test
@@ -121,7 +120,8 @@ public class HiveGenericUDTFTest {
 
         udf.eval(new Integer[] {1, 2, 3});
 
-        assertEquals(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)), collector.result);
+        assertThat(collector.result)
+                .isEqualTo(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)));
     }
 
     @Test
@@ -140,7 +140,7 @@ public class HiveGenericUDTFTest {
 
         udf.eval(new Row[] {Row.of(1, 2.2d), Row.of(3, 4.4d)});
 
-        assertEquals(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)), collector.result);
+        assertThat(collector.result).isEqualTo(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)));
     }
 
     private static HiveGenericUDTF init(
