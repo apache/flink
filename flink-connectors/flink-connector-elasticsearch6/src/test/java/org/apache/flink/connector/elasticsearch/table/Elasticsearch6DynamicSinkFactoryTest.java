@@ -18,9 +18,12 @@
 
 package org.apache.flink.connector.elasticsearch.table;
 
+import org.apache.flink.table.api.ValidationException;
+
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.connector.elasticsearch.table.TestContext.context;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for validation in {@link Elasticsearch6DynamicSinkFactory}. */
 public class Elasticsearch6DynamicSinkFactoryTest extends ElasticsearchDynamicSinkFactoryBaseTest {
@@ -42,14 +45,15 @@ public class Elasticsearch6DynamicSinkFactoryTest extends ElasticsearchDynamicSi
     public void validateEmptyConfiguration() {
         ElasticsearchDynamicSinkFactoryBase sinkFactory = createSinkFactory();
 
-        assertValidationException(
-                "One or more required options are missing.\n"
-                        + "\n"
-                        + "Missing required options are:\n"
-                        + "\n"
-                        + "document-type\n"
-                        + "hosts\n"
-                        + "index",
-                () -> sinkFactory.createDynamicTableSink(context().build()));
+        assertThatThrownBy(() -> sinkFactory.createDynamicTableSink(context().build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "One or more required options are missing.\n"
+                                + "\n"
+                                + "Missing required options are:\n"
+                                + "\n"
+                                + "document-type\n"
+                                + "hosts\n"
+                                + "index");
     }
 }

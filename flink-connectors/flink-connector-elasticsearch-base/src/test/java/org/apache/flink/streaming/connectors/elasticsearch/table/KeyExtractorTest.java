@@ -33,9 +33,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KeyExtractor}. */
 public class KeyExtractorTest {
@@ -51,7 +49,7 @@ public class KeyExtractorTest {
         Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        assertThat(key, equalTo("12"));
+        assertThat(key).isEqualTo("12");
     }
 
     @Test
@@ -65,7 +63,7 @@ public class KeyExtractorTest {
         Function<RowData, String> keyExtractor = KeyExtractor.createKeyExtractor(schema, "_");
 
         String key = keyExtractor.apply(GenericRowData.of(12L, StringData.fromString("ABCD")));
-        assertThat(key, nullValue());
+        assertThat(key).isNull();
     }
 
     @Test
@@ -87,7 +85,7 @@ public class KeyExtractorTest {
                                 StringData.fromString("ABCD"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.parse("2012-12-12T12:12:12"))));
-        assertThat(key, equalTo("12_2012-12-12T12:12:12"));
+        assertThat(key).isEqualTo("12_2012-12-12T12:12:12");
     }
 
     @Test
@@ -127,9 +125,8 @@ public class KeyExtractorTest {
                                 TimestampData.fromInstant(Instant.parse("2013-01-13T13:13:13Z")),
                                 (int) (LocalTime.parse("14:14:14").toNanoOfDay() / 1_000_000),
                                 (int) LocalDate.parse("2015-05-15").toEpochDay()));
-        assertThat(
-                key,
-                equalTo(
-                        "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15"));
+        assertThat(key)
+                .isEqualTo(
+                        "1_2_3_4_true_1.0_2.0_ABCD_2012-12-12T12:12:12_2013-01-13T13:13:13_14:14:14_2015-05-15");
     }
 }
