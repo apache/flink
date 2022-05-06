@@ -23,8 +23,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class TestClientBase {
 
@@ -42,10 +41,11 @@ abstract class TestClientBase {
         for (final int id : ids) {
             try {
                 final GetResponse response = getResponse(index, id);
-                assertFalse(
-                        response.isExists(), String.format("Id %s is unexpectedly present.", id));
+                assertThat(response.isExists())
+                        .as(String.format("Id %s is unexpectedly present.", id))
+                        .isFalse();
             } catch (ElasticsearchStatusException e) {
-                assertEquals(404, e.status().getStatus());
+                assertThat(e.status().getStatus()).isEqualTo(404);
             }
         }
     }
@@ -58,7 +58,7 @@ abstract class TestClientBase {
                 response = getResponse(index, id);
                 Thread.sleep(10);
             } while (response.isSourceEmpty());
-            assertEquals(buildMessage(id), response.getSource().get(DATA_FIELD_NAME));
+            assertThat(response.getSource().get(DATA_FIELD_NAME)).isEqualTo(buildMessage(id));
         }
     }
 
