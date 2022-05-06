@@ -43,7 +43,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for the {@link Source} with a coordinator. */
 public class CoordinatedSourceITCase extends AbstractTestBase {
@@ -116,9 +116,9 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
                 });
         List<Integer> result = env.execute().getAccumulatorResult("result");
         Collections.sort(result);
-        assertEquals(numRecords, result.size());
-        assertEquals(0, (int) result.get(0));
-        assertEquals(numRecords - 1, (int) result.get(result.size() - 1));
+        assertThat(result).hasSize(numRecords);
+        assertThat((int) result.get(0)).isEqualTo(0);
+        assertThat((int) result.get(result.size() - 1)).isEqualTo(numRecords - 1);
     }
 
     // ------------------------------------------------------------------------
