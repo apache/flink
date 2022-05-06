@@ -26,15 +26,14 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KafkaSourceBuilder}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -44,69 +43,67 @@ public class KafkaSourceBuilderTest {
     public void testBuildSourceWithGroupId() {
         final KafkaSource<String> kafkaSource = getBasicBuilder().setGroupId("groupId").build();
         // Commit on checkpoint should be enabled by default
-        Assertions.assertTrue(
-                kafkaSource
-                        .getConfiguration()
-                        .get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT));
+        assertThat(
+                        kafkaSource
+                                .getConfiguration()
+                                .get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT))
+                .isTrue();
         // Auto commit should be disabled by default
-        Assertions.assertFalse(
-                kafkaSource
-                        .getConfiguration()
-                        .get(
-                                ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
-                                        .booleanType()
-                                        .noDefaultValue()));
+        assertThat(
+                        kafkaSource
+                                .getConfiguration()
+                                .get(
+                                        ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+                                                .booleanType()
+                                                .noDefaultValue()))
+                .isFalse();
     }
 
     @Test
     public void testBuildSourceWithoutGroupId() {
         final KafkaSource<String> kafkaSource = getBasicBuilder().build();
         // Commit on checkpoint and auto commit should be disabled because group.id is not specified
-        Assertions.assertFalse(
-                kafkaSource
-                        .getConfiguration()
-                        .get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT));
-        Assertions.assertFalse(
-                kafkaSource
-                        .getConfiguration()
-                        .get(
-                                ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
-                                        .booleanType()
-                                        .noDefaultValue()));
+        assertThat(
+                        kafkaSource
+                                .getConfiguration()
+                                .get(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT))
+                .isFalse();
+        assertThat(
+                        kafkaSource
+                                .getConfiguration()
+                                .get(
+                                        ConfigOptions.key(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+                                                .booleanType()
+                                                .noDefaultValue()))
+                .isFalse();
     }
 
     @Test
     public void testEnableCommitOnCheckpointWithoutGroupId() {
-        final IllegalStateException exception =
-                Assert.assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 getBasicBuilder()
                                         .setProperty(
                                                 KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT
                                                         .key(),
                                                 "true")
-                                        .build());
-        MatcherAssert.assertThat(
-                exception.getMessage(),
-                CoreMatchers.containsString(
-                        "Property group.id is required when offset commit is enabled"));
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Property group.id is required when offset commit is enabled");
     }
 
     @Test
     public void testEnableAutoCommitWithoutGroupId() {
-        final IllegalStateException exception =
-                Assertions.assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 getBasicBuilder()
                                         .setProperty(
                                                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true")
-                                        .build());
-        MatcherAssert.assertThat(
-                exception.getMessage(),
-                CoreMatchers.containsString(
-                        "Property group.id is required when offset commit is enabled"));
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Property group.id is required when offset commit is enabled");
     }
 
     @Test
@@ -120,35 +117,27 @@ public class KafkaSourceBuilderTest {
     @Test
     public void testUsingCommittedOffsetsInitializerWithoutGroupId() {
         // Using OffsetsInitializer#committedOffsets as starting offsets
-        final IllegalStateException startingOffsetException =
-                Assertions.assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 getBasicBuilder()
                                         .setStartingOffsets(OffsetsInitializer.committedOffsets())
-                                        .build());
-        MatcherAssert.assertThat(
-                startingOffsetException.getMessage(),
-                CoreMatchers.containsString(
-                        "Property group.id is required when using committed offset for offsets initializer"));
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Property group.id is required when using committed offset for offsets initializer");
 
         // Using OffsetsInitializer#committedOffsets as stopping offsets
-        final IllegalStateException stoppingOffsetException =
-                Assertions.assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 getBasicBuilder()
                                         .setBounded(OffsetsInitializer.committedOffsets())
-                                        .build());
-        MatcherAssert.assertThat(
-                stoppingOffsetException.getMessage(),
-                CoreMatchers.containsString(
-                        "Property group.id is required when using committed offset for offsets initializer"));
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Property group.id is required when using committed offset for offsets initializer");
 
         // Using OffsetsInitializer#offsets to manually specify committed offset as starting offset
-        final IllegalStateException specificStartingOffsetException =
-                Assertions.assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () -> {
                             final Map<TopicPartition, Long> offsetMap = new HashMap<>();
                             offsetMap.put(
@@ -157,11 +146,10 @@ public class KafkaSourceBuilderTest {
                             getBasicBuilder()
                                     .setStartingOffsets(OffsetsInitializer.offsets(offsetMap))
                                     .build();
-                        });
-        MatcherAssert.assertThat(
-                specificStartingOffsetException.getMessage(),
-                CoreMatchers.containsString(
-                        "Property group.id is required because partition topic-0 is initialized with committed offset"));
+                        })
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Property group.id is required because partition topic-0 is initialized with committed offset");
     }
 
     private KafkaSourceBuilder<String> getBasicBuilder() {

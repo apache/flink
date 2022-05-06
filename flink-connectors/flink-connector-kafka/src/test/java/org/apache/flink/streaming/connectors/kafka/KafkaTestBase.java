@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * The base for the Kafka tests. It brings up:

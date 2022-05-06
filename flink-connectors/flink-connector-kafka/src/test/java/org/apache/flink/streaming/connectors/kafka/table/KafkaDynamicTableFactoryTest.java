@@ -690,7 +690,7 @@ public class KafkaDynamicTableFactoryTest {
         }
 
         if (avroFormats.contains(keyFormat)) {
-            assert sink.keyEncodingFormat != null;
+            assertThat(sink.keyEncodingFormat).isNotNull();
             SerializationSchema<RowData> actualKeyEncoder =
                     sink.keyEncodingFormat.createRuntimeEncoder(
                             new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
