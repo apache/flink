@@ -34,11 +34,8 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link KafkaConnectorOptionsUtil}. */
 public class KafkaConnectorOptionsUtilTest {
@@ -58,8 +55,8 @@ public class KafkaConnectorOptionsUtilTest {
 
         final Configuration config = Configuration.fromMap(options);
 
-        assertArrayEquals(new int[] {3, 1}, createKeyFormatProjection(config, dataType));
-        assertArrayEquals(new int[] {0, 2}, createValueFormatProjection(config, dataType));
+        assertThat(createKeyFormatProjection(config, dataType)).isEqualTo(new int[] {3, 1});
+        assertThat(createValueFormatProjection(config, dataType)).isEqualTo(new int[] {0, 2});
     }
 
     @Test
@@ -69,17 +66,11 @@ public class KafkaConnectorOptionsUtilTest {
 
         final Configuration config = Configuration.fromMap(options);
 
-        try {
-            createKeyFormatProjection(config, dataType);
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "A key format 'key.format' requires the declaration of one or more "
-                                            + "of key fields using 'key.fields'.")));
-        }
+        assertThatThrownBy(() -> createKeyFormatProjection(config, dataType))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A key format 'key.format' requires the declaration of one or more "
+                                + "of key fields using 'key.fields'.");
     }
 
     @Test
@@ -90,20 +81,14 @@ public class KafkaConnectorOptionsUtilTest {
 
         final Configuration config = Configuration.fromMap(options);
 
-        try {
-            createKeyFormatProjection(config, dataType);
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "Could not find the field 'non_existing' in the table schema for "
-                                            + "usage in the key format. A key field must be a regular, "
-                                            + "physical column. The following columns can be selected "
-                                            + "in the 'key.fields' option:\n"
-                                            + "[id, name]")));
-        }
+        assertThatThrownBy(() -> createKeyFormatProjection(config, dataType))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not find the field 'non_existing' in the table schema for "
+                                + "usage in the key format. A key field must be a regular, "
+                                + "physical column. The following columns can be selected "
+                                + "in the 'key.fields' option:\n"
+                                + "[id, name]");
     }
 
     @Test
@@ -116,17 +101,11 @@ public class KafkaConnectorOptionsUtilTest {
 
         final Configuration config = Configuration.fromMap(options);
 
-        try {
-            createKeyFormatProjection(config, dataType);
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "All fields in 'key.fields' must be prefixed with 'k_' when option "
-                                            + "'key.fields-prefix' is set but field 'part_2' is not prefixed.")));
-        }
+        assertThatThrownBy(() -> createKeyFormatProjection(config, dataType))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "All fields in 'key.fields' must be prefixed with 'k_' when option "
+                                + "'key.fields-prefix' is set but field 'part_2' is not prefixed.");
     }
 
     @Test
@@ -138,17 +117,11 @@ public class KafkaConnectorOptionsUtilTest {
 
         final Configuration config = Configuration.fromMap(options);
 
-        try {
-            createValueFormatProjection(config, dataType);
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "A key prefix is not allowed when option 'value.fields-include' "
-                                            + "is set to 'ALL'. Set it to 'EXCEPT_KEY' instead to avoid field overlaps.")));
-        }
+        assertThatThrownBy(() -> createValueFormatProjection(config, dataType))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "A key prefix is not allowed when option 'value.fields-include' "
+                                + "is set to 'ALL'. Set it to 'EXCEPT_KEY' instead to avoid field overlaps.");
     }
 
     // --------------------------------------------------------------------------------------------

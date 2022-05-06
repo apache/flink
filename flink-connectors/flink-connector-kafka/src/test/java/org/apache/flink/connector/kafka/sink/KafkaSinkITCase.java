@@ -109,13 +109,8 @@ import java.util.stream.LongStream;
 
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for using KafkaSink writing to a Kafka cluster. */
 public class KafkaSinkITCase extends TestLogger {
@@ -223,8 +218,7 @@ public class KafkaSinkITCase extends TestLogger {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.AT_LEAST_ONCE,
                 1,
-                (records) ->
-                        assertThat(records, hasItems(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)));
+                (records) -> assertThat(records).contains(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L));
     }
 
     @Test
@@ -233,12 +227,11 @@ public class KafkaSinkITCase extends TestLogger {
                 DeliveryGuarantee.EXACTLY_ONCE,
                 1,
                 (records) ->
-                        assertThat(
-                                records,
-                                contains(
-                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                        assertThat(records)
+                                .contains(
+                                        (LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                                 .boxed()
-                                                .toArray())));
+                                                .toArray(Long[]::new))));
     }
 
     @Test
@@ -247,12 +240,11 @@ public class KafkaSinkITCase extends TestLogger {
                 DeliveryGuarantee.EXACTLY_ONCE,
                 2,
                 (records) ->
-                        assertThat(
-                                records,
-                                contains(
+                        assertThat(records)
+                                .contains(
                                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                                 .boxed()
-                                                .toArray())));
+                                                .toArray(Long[]::new)));
     }
 
     @Test
@@ -271,9 +263,8 @@ public class KafkaSinkITCase extends TestLogger {
         try {
             executeWithMapper(new FailAsyncCheckpointMapper(1), config, "firstPrefix");
         } catch (Exception e) {
-            assertThat(
-                    e.getCause().getCause().getMessage(),
-                    containsString("Exceeded checkpoint tolerable failure"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("Exceeded checkpoint tolerable failure");
         }
         final File completedCheckpoint = TestUtils.getMostRecentCompletedCheckpoint(checkpointDir);
 
@@ -286,12 +277,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, "newPrefix");
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(
+        assertThat(deserializeValues(collectedRecords))
+                .contains(
                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                 .boxed()
-                                .toArray()));
+                                .toArray(Long[]::new));
     }
 
     @Test
@@ -302,11 +292,10 @@ public class KafkaSinkITCase extends TestLogger {
         try {
             executeWithMapper(new FailAsyncCheckpointMapper(0), config, null);
         } catch (Exception e) {
-            assertThat(
-                    e.getCause().getCause().getMessage(),
-                    containsString("Exceeded checkpoint tolerable failure"));
+            assertThat(e.getCause().getCause().getMessage())
+                    .contains("Exceeded checkpoint tolerable failure");
         }
-        assertTrue(deserializeValues(drainAllRecordsFromTopic(topic, true)).isEmpty());
+        assertThat(deserializeValues(drainAllRecordsFromTopic(topic, true))).isEmpty();
 
         // Second job aborts all transactions from previous runs with higher parallelism
         config.set(CoreOptions.DEFAULT_PARALLELISM, 1);
@@ -315,12 +304,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new FailingCheckpointMapper(failed, lastCheckpointedRecord), config, null);
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(
+        assertThat(deserializeValues(collectedRecords))
+                .contains(
                         LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                                 .boxed()
-                                .toArray()));
+                                .toArray(Long[]::new));
     }
 
     private void executeWithMapper(
@@ -408,10 +396,9 @@ public class KafkaSinkITCase extends TestLogger {
                 drainAllRecordsFromTopic(
                         topic, deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE);
         final long recordsCount = expectedRecords.get().get();
-        assertEquals(collectedRecords.size(), recordsCount);
-        assertThat(
-                deserializeValues(collectedRecords),
-                contains(LongStream.range(1, recordsCount + 1).boxed().toArray()));
+        assertThat(recordsCount).isEqualTo(collectedRecords.size());
+        assertThat(deserializeValues(collectedRecords))
+                .contains(LongStream.range(1, recordsCount + 1).boxed().toArray(Long[]::new));
         checkProducerLeak();
     }
 
