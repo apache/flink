@@ -20,11 +20,12 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link WatermarkTracker}. */
 public class WatermarkTrackerTest {
@@ -89,17 +90,17 @@ public class WatermarkTrackerTest {
         long watermark = 0;
         TestWatermarkTracker ws = new TestWatermarkTracker();
         ws.open(new MockStreamingRuntimeContext(false, 1, 0));
-        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(Long.MIN_VALUE));
-        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(watermark));
+        assertThat(ws.updateWatermark(Long.MIN_VALUE)).isEqualTo(Long.MIN_VALUE);
+        assertThat(ws.updateWatermark(watermark)).isEqualTo(Long.MIN_VALUE);
         // timeout wm1
         clock.add(WatermarkTracker.DEFAULT_UPDATE_TIMEOUT_MILLIS + 1);
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark - 1));
+        assertThat(ws.updateWatermark(watermark)).isEqualTo(watermark);
+        assertThat(ws.updateWatermark(watermark - 1)).isEqualTo(watermark);
 
         // min watermark
         wm1.watermark = watermark + 1;
         wm1.lastUpdated = clock.longValue();
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-        Assert.assertEquals(watermark + 1, ws.updateWatermark(watermark + 1));
+        assertThat(ws.updateWatermark(watermark)).isEqualTo(watermark);
+        assertThat(ws.updateWatermark(watermark + 1)).isEqualTo(watermark + 1);
     }
 }
