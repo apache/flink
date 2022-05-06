@@ -61,8 +61,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for {@link OperationTreeBuilder#values}. */
 public class ValuesOperationTreeBuilderTest {
 
-    // @Parameterized.Parameters(name = "{0}")
-
     static Stream<TestSpec> parameters() {
         return Stream.of(
                 TestSpec.test("Flattening row constructor")
