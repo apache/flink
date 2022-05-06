@@ -46,7 +46,8 @@ import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.Transact
 import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.PrepareCommit;
 import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaContainer;
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for {@link KafkaTransactionLog} to retrieve abortable Kafka transactions. */
@@ -77,21 +78,26 @@ public class KafkaTransactionLogITCase extends TestLogger {
         final KafkaTransactionLog transactionLog =
                 new KafkaTransactionLog(getKafkaClientConfiguration());
         final List<TransactionRecord> transactions = transactionLog.getTransactions();
-        assertThat(
-                transactions,
-                containsInAnyOrder(
-                        new TransactionRecord(buildTransactionalId(1), Empty),
-                        new TransactionRecord(buildTransactionalId(1), Ongoing),
-                        new TransactionRecord(buildTransactionalId(1), PrepareCommit),
-                        new TransactionRecord(buildTransactionalId(1), CompleteCommit),
-                        new TransactionRecord(buildTransactionalId(2), Empty),
-                        new TransactionRecord(buildTransactionalId(2), Ongoing),
-                        new TransactionRecord(buildTransactionalId(2), PrepareAbort),
-                        new TransactionRecord(buildTransactionalId(2), CompleteAbort),
-                        new TransactionRecord(buildTransactionalId(3), Empty),
-                        new TransactionRecord(buildTransactionalId(3), Ongoing),
-                        new TransactionRecord(buildTransactionalId(4), Empty),
-                        new TransactionRecord(buildTransactionalId(4), Ongoing)));
+        assertThat(transactions)
+                .satisfies(
+                        matching(
+                                containsInAnyOrder(
+                                        new TransactionRecord(buildTransactionalId(1), Empty),
+                                        new TransactionRecord(buildTransactionalId(1), Ongoing),
+                                        new TransactionRecord(
+                                                buildTransactionalId(1), PrepareCommit),
+                                        new TransactionRecord(
+                                                buildTransactionalId(1), CompleteCommit),
+                                        new TransactionRecord(buildTransactionalId(2), Empty),
+                                        new TransactionRecord(buildTransactionalId(2), Ongoing),
+                                        new TransactionRecord(
+                                                buildTransactionalId(2), PrepareAbort),
+                                        new TransactionRecord(
+                                                buildTransactionalId(2), CompleteAbort),
+                                        new TransactionRecord(buildTransactionalId(3), Empty),
+                                        new TransactionRecord(buildTransactionalId(3), Ongoing),
+                                        new TransactionRecord(buildTransactionalId(4), Empty),
+                                        new TransactionRecord(buildTransactionalId(4), Ongoing))));
     }
 
     private void committedTransaction(long id) {

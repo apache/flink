@@ -23,7 +23,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
@@ -37,6 +37,6 @@ public class KafkaWriterStateSerializerTest extends TestLogger {
     public void testStateSerDe() throws IOException {
         final KafkaWriterState state = new KafkaWriterState("idPrefix");
         final byte[] serialized = SERIALIZER.serialize(state);
-        assertEquals(state, SERIALIZER.deserialize(1, serialized));
+        assertThat(SERIALIZER.deserialize(1, serialized)).isEqualTo(state);
     }
 }

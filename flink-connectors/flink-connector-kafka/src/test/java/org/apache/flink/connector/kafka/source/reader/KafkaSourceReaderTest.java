@@ -50,7 +50,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -81,6 +80,7 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Unit tests for {@link KafkaSourceReader}. */
 public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
@@ -349,9 +349,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
             // Metric "commit-total" of KafkaConsumer should be greater than 0
             // It's hard to know the exactly number of commit because of the retry
-            MatcherAssert.assertThat(
-                    getKafkaConsumerMetric("commit-total", metricListener),
-                    Matchers.greaterThan(0L));
+            assertThat(getKafkaConsumerMetric("commit-total", metricListener)).isGreaterThan(0L);
 
             // Committed offset should be NUM_RECORD_PER_SPLIT
             assertThat(getCommittedOffsetMetric(tp0, metricListener))
@@ -364,7 +362,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     metricListener.getCounter(
                             KAFKA_SOURCE_READER_METRIC_GROUP, COMMITS_SUCCEEDED_METRIC_COUNTER);
             assertThat(commitsSucceeded).isPresent();
-            MatcherAssert.assertThat(commitsSucceeded.get().getCount(), Matchers.greaterThan(0L));
+            assertThat(commitsSucceeded.get().getCount()).isGreaterThan(0L);
         }
     }
 
@@ -395,11 +393,14 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     new TestingReaderOutput<>(),
                     () -> reader.getNumAliveFetchers() == 0,
                     "The split fetcher did not exit before timeout.");
-            MatcherAssert.assertThat(
-                    finishedSplits,
-                    Matchers.containsInAnyOrder(
-                            KafkaPartitionSplit.toSplitId(normalSplit.getTopicPartition()),
-                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition())));
+            assertThat(finishedSplits)
+                    .satisfies(
+                            matching(
+                                    Matchers.containsInAnyOrder(
+                                            KafkaPartitionSplit.toSplitId(
+                                                    normalSplit.getTopicPartition()),
+                                            KafkaPartitionSplit.toSplitId(
+                                                    emptySplit.getTopicPartition()))));
         }
     }
 
