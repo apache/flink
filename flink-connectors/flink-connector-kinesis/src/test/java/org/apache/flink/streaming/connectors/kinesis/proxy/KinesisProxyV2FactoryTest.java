@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
-import org.junit.Assert;
 import org.junit.Test;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.internal.NettyConfiguration;
@@ -30,7 +29,7 @@ import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_READ_TIMEOUT_MILLIS;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for methods in the {@link KinesisProxyV2Factory} class. */
 public class KinesisProxyV2FactoryTest {
@@ -42,9 +41,8 @@ public class KinesisProxyV2FactoryTest {
         KinesisProxyV2Interface proxy = KinesisProxyV2Factory.createKinesisProxyV2(properties);
         NettyConfiguration nettyConfiguration = getNettyConfiguration(proxy);
 
-        assertEquals(
-                DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT.toMillis(),
-                nettyConfiguration.readTimeoutMillis());
+        assertThat(nettyConfiguration.readTimeoutMillis())
+                .isEqualTo(DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT.toMillis());
     }
 
     @Test
@@ -55,7 +53,7 @@ public class KinesisProxyV2FactoryTest {
         KinesisProxyV2Interface proxy = KinesisProxyV2Factory.createKinesisProxyV2(properties);
         NettyConfiguration nettyConfiguration = getNettyConfiguration(proxy);
 
-        assertEquals(12345, nettyConfiguration.readTimeoutMillis());
+        assertThat(nettyConfiguration.readTimeoutMillis()).isEqualTo(12345);
     }
 
     @Test
@@ -65,7 +63,7 @@ public class KinesisProxyV2FactoryTest {
         KinesisProxyV2Interface proxy = KinesisProxyV2Factory.createKinesisProxyV2(properties);
         NettyConfiguration nettyConfiguration = getNettyConfiguration(proxy);
 
-        Assert.assertTrue(nettyConfiguration.tcpKeepAlive());
+        assertThat(nettyConfiguration.tcpKeepAlive()).isTrue();
     }
 
     private NettyConfiguration getNettyConfiguration(final KinesisProxyV2Interface kinesis)
