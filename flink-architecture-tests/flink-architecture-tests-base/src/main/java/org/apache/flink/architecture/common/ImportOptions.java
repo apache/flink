@@ -26,6 +26,16 @@ import java.util.regex.Pattern;
 /** Provide the most used {@link ImportOption}. */
 public class ImportOptions {
 
+    /** Only import class files residing in maven main classes target directory. */
+    public static final class MavenMainClassesOnly implements ImportOption {
+        private static final Pattern MAVEN = Pattern.compile(".*/target/classes/.*");
+
+        @Override
+        public boolean includes(Location location) {
+            return location.matches(MAVEN);
+        }
+    }
+
     /**
      * Excludes Scala classes on a best-effort basis.
      *
