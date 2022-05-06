@@ -45,14 +45,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.HashMap;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_230_OR_LATER;
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_310_OR_LATER;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveGenericUDF}. */
 public class HiveGenericUDFTest {
@@ -63,15 +60,15 @@ public class HiveGenericUDFTest {
         HiveGenericUDF udf =
                 init(GenericUDFAbs.class, new Object[] {null}, new DataType[] {DataTypes.DOUBLE()});
 
-        assertEquals(10.0d, udf.eval(-10.0d));
+        assertThat(udf.eval(-10.0d)).isEqualTo(10.0d);
 
         udf = init(GenericUDFAbs.class, new Object[] {null}, new DataType[] {DataTypes.INT()});
 
-        assertEquals(10, udf.eval(-10));
+        assertThat(udf.eval(-10)).isEqualTo(10);
 
         udf = init(GenericUDFAbs.class, new Object[] {null}, new DataType[] {DataTypes.STRING()});
 
-        assertEquals(10.0, udf.eval("-10.0"));
+        assertThat(udf.eval("-10.0")).isEqualTo(10.0);
     }
 
     @Test
@@ -83,8 +80,8 @@ public class HiveGenericUDFTest {
                         new Object[] {null, 1},
                         new DataType[] {DataTypes.STRING(), DataTypes.INT()});
 
-        assertEquals("2009-09-30", udf.eval("2009-08-31", 1));
-        assertEquals("2009-09-30", udf.eval("2009-08-31 11:11:11", 1));
+        assertThat(udf.eval("2009-08-31", 1)).isEqualTo("2009-09-30");
+        assertThat(udf.eval("2009-08-31 11:11:11", 1)).isEqualTo("2009-09-30");
     }
 
     @Test
@@ -99,7 +96,7 @@ public class HiveGenericUDFTest {
                         new Object[] {null, constYear},
                         new DataType[] {DataTypes.STRING(), DataTypes.STRING()});
 
-        assertEquals("2009", udf.eval("2009-08-31", constYear));
+        assertThat(udf.eval("2009-08-31", constYear)).isEqualTo("2009");
 
         udf =
                 init(
@@ -107,7 +104,7 @@ public class HiveGenericUDFTest {
                         new Object[] {null, constMonth},
                         new DataType[] {DataTypes.DATE(), DataTypes.STRING()});
 
-        assertEquals("8", udf.eval(Date.valueOf("2019-08-31"), constMonth));
+        assertThat(udf.eval(Date.valueOf("2019-08-31"), constMonth)).isEqualTo("8");
     }
 
     @Test
@@ -123,7 +120,7 @@ public class HiveGenericUDFTest {
         HiveSimpleUDF simpleUDF =
                 HiveSimpleUDFTest.init(UDFUnhex.class, new DataType[] {DataTypes.STRING()});
 
-        assertEquals("MySQL", udf.eval(simpleUDF.eval("4D7953514C"), constDecoding));
+        assertThat(udf.eval(simpleUDF.eval("4D7953514C"), constDecoding)).isEqualTo("MySQL");
     }
 
     @Test
@@ -139,8 +136,8 @@ public class HiveGenericUDFTest {
                             DataTypes.STRING()
                         });
 
-        assertEquals("a", udf.eval("1", "1", "a", "b"));
-        assertEquals("b", udf.eval("2", "1", "a", "b"));
+        assertThat(udf.eval("1", "1", "a", "b")).isEqualTo("a");
+        assertThat(udf.eval("2", "1", "a", "b")).isEqualTo("b");
     }
 
     @Test
@@ -151,7 +148,7 @@ public class HiveGenericUDFTest {
                         new Object[] {null},
                         new DataType[] {DataTypes.DOUBLE()});
 
-        assertEquals(0L, udf.eval(-0.1d));
+        assertThat(udf.eval(-0.1d)).isEqualTo(0L);
 
         udf =
                 init(
@@ -159,7 +156,7 @@ public class HiveGenericUDFTest {
                         new Object[] {null},
                         new DataType[] {DataTypes.DECIMAL(2, 1)});
 
-        assertEquals(BigDecimal.valueOf(4), udf.eval(BigDecimal.valueOf(3.1d)));
+        assertThat(udf.eval(BigDecimal.valueOf(3.1d))).isEqualTo(BigDecimal.valueOf(4));
     }
 
     @Test
@@ -170,7 +167,7 @@ public class HiveGenericUDFTest {
                         new Object[] {null, 1, null},
                         new DataType[] {DataTypes.INT(), DataTypes.INT(), DataTypes.INT()});
 
-        assertEquals(1, udf.eval(null, 1, null));
+        assertThat(udf.eval(null, 1, null)).isEqualTo(1);
     }
 
     @Test
@@ -189,7 +186,7 @@ public class HiveGenericUDFTest {
                             DataTypes.VARCHAR(20), DataTypes.CHAR(20),
                         });
 
-        assertEquals(-4182, udf.eval(t1, t2));
+        assertThat(udf.eval(t1, t2)).isEqualTo(-4182);
 
         udf =
                 init(
@@ -199,7 +196,7 @@ public class HiveGenericUDFTest {
                             DataTypes.DATE(), DataTypes.TIMESTAMP(),
                         });
 
-        assertEquals(-4182, udf.eval(Date.valueOf(d), Timestamp.valueOf(t2)));
+        assertThat(udf.eval(Date.valueOf(d), Timestamp.valueOf(t2))).isEqualTo(-4182);
 
         // Test invalid char length
         udf =
@@ -210,7 +207,7 @@ public class HiveGenericUDFTest {
                             DataTypes.CHAR(2), DataTypes.VARCHAR(2),
                         });
 
-        assertEquals(null, udf.eval(t1, t2));
+        assertThat(udf.eval(t1, t2)).isNull();
     }
 
     @Test
@@ -221,8 +218,8 @@ public class HiveGenericUDFTest {
                         new Object[] {null},
                         new DataType[] {DataTypes.ARRAY(DataTypes.INT())});
 
-        assertEquals(6, udf.eval(1, 2, 3));
-        assertEquals(6, udf.eval(new Integer[] {1, 2, 3}));
+        assertThat(udf.eval(1, 2, 3)).isEqualTo(6);
+        assertThat(udf.eval(new Integer[] {1, 2, 3})).isEqualTo(6);
     }
 
     @Test
@@ -236,15 +233,16 @@ public class HiveGenericUDFTest {
                         new Object[] {null},
                         new DataType[] {DataTypes.VARCHAR(testInput.length())});
 
-        assertEquals(
-                new HashMap<String, String>() {
-                    {
-                        put("1", "1");
-                        put("2", "2");
-                        put("3", "3");
-                    }
-                },
-                udf.eval(testInput));
+        assertThat(udf.eval(testInput))
+                .isEqualTo(
+                        new HashMap<String, String>() {
+
+                            {
+                                put("1", "1");
+                                put("2", "2");
+                                put("3", "3");
+                            }
+                        });
 
         // test input as map and nested functions
         HiveGenericUDF udf2 =
@@ -255,8 +253,7 @@ public class HiveGenericUDFTest {
 
         Object[] result = (Object[]) udf2.eval(udf.eval(testInput));
 
-        assertEquals(3, result.length);
-        assertThat(Arrays.asList(result), containsInAnyOrder("1", "2", "3"));
+        assertThat(result).hasSize(3).containsExactlyInAnyOrder("1", "2", "3");
     }
 
     @Test
@@ -269,7 +266,7 @@ public class HiveGenericUDFTest {
 
         Row result = (Row) udf.eval(1, "222", "3");
 
-        assertEquals(Row.of(1, "22", "3"), result);
+        assertThat(result).isEqualTo(Row.of(1, "22", "3"));
 
         udf =
                 init(
@@ -282,7 +279,7 @@ public class HiveGenericUDFTest {
                                     DataTypes.FIELD("3", DataTypes.VARCHAR(10)))
                         });
 
-        assertEquals(3, udf.eval(result));
+        assertThat(udf.eval(result)).isEqualTo(3);
     }
 
     private static HiveGenericUDF init(

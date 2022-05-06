@@ -43,8 +43,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ContinuousHiveSplitEnumerator.PartitionMonitor}. */
 public class PartitionMonitorTest {
@@ -80,10 +79,9 @@ public class PartitionMonitorTest {
 
     private void assertPartitionEquals(
             Collection<List<String>> expected, Collection<List<String>> actual) {
-        assertTrue(expected != null && actual != null && expected.size() == actual.size());
-        assertArrayEquals(
-                expected.stream().map(Object::toString).sorted().toArray(),
-                actual.stream().map(Object::toString).sorted().toArray());
+        assertThat(expected != null && actual != null && expected.size() == actual.size()).isTrue();
+        assertThat(actual.stream().map(Object::toString).sorted().toArray())
+                .isEqualTo(expected.stream().map(Object::toString).sorted().toArray());
     }
 
     private void commitPartitionWithGivenCreateTime(

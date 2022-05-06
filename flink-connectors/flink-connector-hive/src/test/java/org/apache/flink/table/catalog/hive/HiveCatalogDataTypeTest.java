@@ -42,7 +42,7 @@ import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for data type mappings in HiveCatalog. */
 public class HiveCatalogDataTypeTest {
@@ -212,7 +212,7 @@ public class HiveCatalogDataTypeTest {
         catalog.createDatabase(db1, createDb(), false);
         catalog.createTable(path1, table, false);
 
-        assertEquals(table.getSchema(), catalog.getTable(path1).getSchema());
+        assertThat(catalog.getTable(path1).getSchema()).isEqualTo(table.getSchema());
     }
 
     private static CatalogDatabase createDb() {

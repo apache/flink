@@ -76,15 +76,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
@@ -123,14 +116,14 @@ public class HiveDialectITCase {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         Parser parser = tableEnvInternal.getParser();
         // hive dialect should use HiveParser
-        assertTrue(parser instanceof HiveParser);
+        assertThat(parser).isInstanceOf(HiveParser.class);
         // execute some sql and verify the parser instance is reused
         tableEnvInternal.executeSql("show databases");
-        assertSame(parser, tableEnvInternal.getParser());
+        assertThat(tableEnvInternal.getParser()).isSameAs(parser);
         // switching dialect will result in a new parser
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
-        assertNotEquals(
-                parser.getClass().getName(), tableEnvInternal.getParser().getClass().getName());
+        assertThat(tableEnvInternal.getParser().getClass().getName())
+                .isNotEqualTo(parser.getClass().getName());
     }
 
     @Test
@@ -139,19 +132,19 @@ public class HiveDialectITCase {
         Parser parser = tableEnvInternal.getParser();
 
         // hive dialect should use HiveParser
-        assertTrue(parser instanceof HiveParser);
-        assertThat(parser.parse("HELP").get(0), instanceOf(HelpOperation.class));
-        assertThat(parser.parse("clear").get(0), instanceOf(ClearOperation.class));
-        assertThat(parser.parse("SET").get(0), instanceOf(SetOperation.class));
-        assertThat(parser.parse("ResET").get(0), instanceOf(ResetOperation.class));
-        assertThat(parser.parse("Exit").get(0), instanceOf(QuitOperation.class));
+        assertThat(parser).isInstanceOf(HiveParser.class);
+        assertThat(parser.parse("HELP").get(0)).isInstanceOf(HelpOperation.class);
+        assertThat(parser.parse("clear").get(0)).isInstanceOf(ClearOperation.class);
+        assertThat(parser.parse("SET").get(0)).isInstanceOf(SetOperation.class);
+        assertThat(parser.parse("ResET").get(0)).isInstanceOf(ResetOperation.class);
+        assertThat(parser.parse("Exit").get(0)).isInstanceOf(QuitOperation.class);
     }
 
     @Test
     public void testCreateDatabase() throws Exception {
         tableEnv.executeSql("create database db1 comment 'db1 comment'");
         Database db = hiveCatalog.getHiveDatabase("db1");
-        assertEquals("db1 comment", db.getDescription());
+        assertThat(db.getDescription()).isEqualTo("db1 comment");
 
         String db2Location = warehouse + "/db2_location";
         tableEnv.executeSql(
@@ -159,8 +152,8 @@ public class HiveDialectITCase {
                         "create database db2 location '%s' with dbproperties('k1'='v1')",
                         db2Location));
         db = hiveCatalog.getHiveDatabase("db2");
-        assertEquals(db2Location, locationPath(db.getLocationUri()));
-        assertEquals("v1", db.getParameters().get("k1"));
+        assertThat(locationPath(db.getLocationUri())).isEqualTo(db2Location);
+        assertThat(db.getParameters().get("k1")).isEqualTo("v1");
     }
 
     @Test
@@ -169,26 +162,26 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create database db1 with dbproperties('k1'='v1')");
         tableEnv.executeSql("alter database db1 set dbproperties ('k1'='v11','k2'='v2')");
         Database db = hiveCatalog.getHiveDatabase("db1");
-        assertEquals("v11", db.getParameters().get("k1"));
-        assertEquals("v2", db.getParameters().get("k2"));
+        assertThat(db.getParameters().get("k1")).isEqualTo("v11");
+        assertThat(db.getParameters().get("k2")).isEqualTo("v2");
 
         // alter owner
         tableEnv.executeSql("alter database db1 set owner user user1");
         db = hiveCatalog.getHiveDatabase("db1");
-        assertEquals("user1", db.getOwnerName());
-        assertEquals(PrincipalType.USER, db.getOwnerType());
+        assertThat(db.getOwnerName()).isEqualTo("user1");
+        assertThat(db.getOwnerType()).isEqualTo(PrincipalType.USER);
 
         tableEnv.executeSql("alter database db1 set owner role role1");
         db = hiveCatalog.getHiveDatabase("db1");
-        assertEquals("role1", db.getOwnerName());
-        assertEquals(PrincipalType.ROLE, db.getOwnerType());
+        assertThat(db.getOwnerName()).isEqualTo("role1");
+        assertThat(db.getOwnerType()).isEqualTo(PrincipalType.ROLE);
 
         // alter location
         if (hiveCatalog.getHiveVersion().compareTo("2.4.0") >= 0) {
             String newLocation = warehouse + "/db1_new_location";
             tableEnv.executeSql(String.format("alter database db1 set location '%s'", newLocation));
             db = hiveCatalog.getHiveDatabase("db1");
-            assertEquals(newLocation, locationPath(db.getLocationUri()));
+            assertThat(locationPath(db.getLocationUri())).isEqualTo(newLocation);
         }
     }
 
@@ -200,86 +193,85 @@ public class HiveDialectITCase {
                         "create external table tbl1 (d decimal(10,0),ts timestamp) partitioned by (p string) location '%s' tblproperties('k1'='v1')",
                         location));
         Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
-        assertEquals(TableType.EXTERNAL_TABLE.toString(), hiveTable.getTableType());
-        assertEquals(1, hiveTable.getPartitionKeysSize());
-        assertEquals(location, locationPath(hiveTable.getSd().getLocation()));
-        assertEquals("v1", hiveTable.getParameters().get("k1"));
-        assertFalse(hiveTable.getParameters().containsKey(SqlCreateHiveTable.TABLE_LOCATION_URI));
+        assertThat(hiveTable.getTableType()).isEqualTo(TableType.EXTERNAL_TABLE.toString());
+        assertThat(hiveTable.getPartitionKeysSize()).isEqualTo(1);
+        assertThat(locationPath(hiveTable.getSd().getLocation())).isEqualTo(location);
+        assertThat(hiveTable.getParameters().get("k1")).isEqualTo("v1");
+        assertThat(hiveTable.getParameters())
+                .doesNotContainKey(SqlCreateHiveTable.TABLE_LOCATION_URI);
 
         tableEnv.executeSql("create table tbl2 (s struct<ts:timestamp,bin:binary>) stored as orc");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
-        assertEquals(TableType.MANAGED_TABLE.toString(), hiveTable.getTableType());
-        assertEquals(
-                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
-        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+        assertThat(hiveTable.getTableType()).isEqualTo(TableType.MANAGED_TABLE.toString());
+        assertThat(hiveTable.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(OrcSerde.class.getName());
+        assertThat(hiveTable.getSd().getInputFormat()).isEqualTo(OrcInputFormat.class.getName());
+        assertThat(hiveTable.getSd().getOutputFormat()).isEqualTo(OrcOutputFormat.class.getName());
 
         tableEnv.executeSql(
                 "create table tbl3 (m map<timestamp,binary>) partitioned by (p1 bigint,p2 tinyint) "
                         + "row format serde 'org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe'");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl3"));
-        assertEquals(2, hiveTable.getPartitionKeysSize());
-        assertEquals(
-                LazyBinarySerDe.class.getName(),
-                hiveTable.getSd().getSerdeInfo().getSerializationLib());
+        assertThat(hiveTable.getPartitionKeysSize()).isEqualTo(2);
+        assertThat(hiveTable.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(LazyBinarySerDe.class.getName());
 
         tableEnv.executeSql(
                 "create table tbl4 (x int,y smallint) row format delimited fields terminated by '|' lines terminated by '\n'");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl4"));
-        assertEquals(
-                "|",
-                hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
-        assertEquals(
-                "|",
-                hiveTable
-                        .getSd()
-                        .getSerdeInfo()
-                        .getParameters()
-                        .get(serdeConstants.SERIALIZATION_FORMAT));
-        assertEquals(
-                "\n",
-                hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
+        assertThat(hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM))
+                .isEqualTo("|");
+        assertThat(
+                        hiveTable
+                                .getSd()
+                                .getSerdeInfo()
+                                .getParameters()
+                                .get(serdeConstants.SERIALIZATION_FORMAT))
+                .isEqualTo("|");
+        assertThat(hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM))
+                .isEqualTo("\n");
 
         tableEnv.executeSql(
                 "create table tbl5 (m map<bigint,string>) row format delimited collection items terminated by ';' "
                         + "map keys terminated by ':'");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
-        assertEquals(
-                ";",
-                hiveTable
-                        .getSd()
-                        .getSerdeInfo()
-                        .getParameters()
-                        .get(serdeConstants.COLLECTION_DELIM));
-        assertEquals(
-                ":",
-                hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
+        assertThat(
+                        hiveTable
+                                .getSd()
+                                .getSerdeInfo()
+                                .getParameters()
+                                .get(serdeConstants.COLLECTION_DELIM))
+                .isEqualTo(";");
+        assertThat(
+                        hiveTable
+                                .getSd()
+                                .getSerdeInfo()
+                                .getParameters()
+                                .get(serdeConstants.MAPKEY_DELIM))
+                .isEqualTo(":");
 
         int createdTimeForTableExists = hiveTable.getCreateTime();
         tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
-        assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
+        assertThat(hiveTable.getCreateTime()).isEqualTo(createdTimeForTableExists);
 
         // test describe table
         Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
         DescribeTableOperation operation =
                 (DescribeTableOperation) parser.parse("desc tbl1").get(0);
-        assertFalse(operation.isExtended());
-        assertEquals(
-                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl1"),
-                operation.getSqlIdentifier());
+        assertThat(operation.isExtended()).isFalse();
+        assertThat(operation.getSqlIdentifier())
+                .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl1"));
 
         operation = (DescribeTableOperation) parser.parse("describe default.tbl2").get(0);
-        assertFalse(operation.isExtended());
-        assertEquals(
-                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl2"),
-                operation.getSqlIdentifier());
+        assertThat(operation.isExtended()).isFalse();
+        assertThat(operation.getSqlIdentifier())
+                .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl2"));
 
         operation = (DescribeTableOperation) parser.parse("describe extended tbl3").get(0);
-        assertTrue(operation.isExtended());
-        assertEquals(
-                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl3"),
-                operation.getSqlIdentifier());
+        assertThat(operation.isExtended()).isTrue();
+        assertThat(operation.getSqlIdentifier())
+                .isEqualTo(ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl3"));
     }
 
     @Test
@@ -291,17 +283,17 @@ public class HiveDialectITCase {
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
         TableSchema tableSchema = catalogTable.getSchema();
-        assertTrue("PK not present", tableSchema.getPrimaryKey().isPresent());
-        assertEquals("pk_name", tableSchema.getPrimaryKey().get().getName());
-        assertFalse(
-                "PK cannot be null",
-                tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
-        assertFalse(
-                "RELY NOT NULL should be reflected in schema",
-                tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
-        assertTrue(
-                "NORELY NOT NULL shouldn't be reflected in schema",
-                tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+        assertThat(tableSchema.getPrimaryKey()).as("PK not present").isPresent();
+        assertThat(tableSchema.getPrimaryKey().get().getName()).isEqualTo("pk_name");
+        assertThat(tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable())
+                .as("PK cannot be null")
+                .isFalse();
+        assertThat(tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable())
+                .as("RELY NOT NULL should be reflected in schema")
+                .isFalse();
+        assertThat(tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable())
+                .as("NORELY NOT NULL shouldn't be reflected in schema")
+                .isTrue();
     }
 
     @Test
@@ -309,20 +301,20 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table src (x int,y string)");
         tableEnv.executeSql("create table tbl1 as select x from src group by x").await();
         Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
-        assertEquals(1, hiveTable.getSd().getCols().size());
-        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
-        assertEquals("int", hiveTable.getSd().getCols().get(0).getType());
+        assertThat(hiveTable.getSd().getCols()).hasSize(1);
+        assertThat(hiveTable.getSd().getCols().get(0).getName()).isEqualTo("x");
+        assertThat(hiveTable.getSd().getCols().get(0).getType()).isEqualTo("int");
         tableEnv.executeSql(
                         "create table default.tbl2 stored as orc as select x,max(y) as m from src group by x order by x limit 1")
                 .await();
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
-        assertEquals(2, hiveTable.getSd().getCols().size());
-        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
-        assertEquals("m", hiveTable.getSd().getCols().get(1).getName());
-        assertEquals(
-                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
-        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+        assertThat(hiveTable.getSd().getCols()).hasSize(2);
+        assertThat(hiveTable.getSd().getCols().get(0).getName()).isEqualTo("x");
+        assertThat(hiveTable.getSd().getCols().get(1).getName()).isEqualTo("m");
+        assertThat(hiveTable.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(OrcSerde.class.getName());
+        assertThat(hiveTable.getSd().getInputFormat()).isEqualTo(OrcInputFormat.class.getName());
+        assertThat(hiveTable.getSd().getOutputFormat()).isEqualTo(OrcOutputFormat.class.getName());
     }
 
     @Test
@@ -335,28 +327,29 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table dest (x int)");
         tableEnv.executeSql("insert into dest select x from src").await();
         List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest"));
-        assertEquals("[+I[1], +I[2], +I[3]]", results.toString());
+        assertThat(results.toString()).isEqualTo("[+I[1], +I[2], +I[3]]");
         tableEnv.executeSql("insert overwrite dest values (3),(4),(5)").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest"));
-        assertEquals("[+I[3], +I[4], +I[5]]", results.toString());
+        assertThat(results.toString()).isEqualTo("[+I[3], +I[4], +I[5]]");
 
         // partitioned dest table
         tableEnv.executeSql("create table dest2 (x int) partitioned by (p1 int,p2 string)");
         tableEnv.executeSql("insert into dest2 partition (p1=0,p2='static') select x from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
-        assertEquals("[+I[1, 0, static], +I[2, 0, static], +I[3, 0, static]]", results.toString());
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, 0, static], +I[2, 0, static], +I[3, 0, static]]");
         tableEnv.executeSql("insert into dest2 partition (p1=1,p2) select x,y from src").await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
-        assertEquals(
-                "[+I[1, 0, static], +I[1, 1, a], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]",
-                results.toString());
+        assertThat(results.toString())
+                .isEqualTo(
+                        "[+I[1, 0, static], +I[1, 1, a], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
         tableEnv.executeSql("insert overwrite dest2 partition (p1,p2) select 1,x,y from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest2 order by x,p1,p2"));
-        assertEquals(
-                "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]",
-                results.toString());
+        assertThat(results.toString())
+                .isEqualTo(
+                        "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
     }
 
     @Test
@@ -369,23 +362,23 @@ public class HiveDialectITCase {
         // change properties
         tableEnv.executeSql("alter table `default`.tbl1 set tblproperties ('k2'='v2')");
         Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals("v1", hiveTable.getParameters().get("k1"));
-        assertEquals("v2", hiveTable.getParameters().get("k2"));
+        assertThat(hiveTable.getParameters().get("k1")).isEqualTo("v1");
+        assertThat(hiveTable.getParameters().get("k2")).isEqualTo("v2");
 
         // change location
         String newLocation = warehouse + "/tbl1_new_location";
         tableEnv.executeSql(
                 String.format("alter table default.tbl1 set location '%s'", newLocation));
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(newLocation, locationPath(hiveTable.getSd().getLocation()));
+        assertThat(locationPath(hiveTable.getSd().getLocation())).isEqualTo(newLocation);
 
         // change file format
         tableEnv.executeSql("alter table tbl1 set fileformat orc");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(
-                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
-        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+        assertThat(hiveTable.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(OrcSerde.class.getName());
+        assertThat(hiveTable.getSd().getInputFormat()).isEqualTo(OrcInputFormat.class.getName());
+        assertThat(hiveTable.getSd().getOutputFormat()).isEqualTo(OrcOutputFormat.class.getName());
 
         // change serde
         tableEnv.executeSql(
@@ -393,58 +386,54 @@ public class HiveDialectITCase {
                         "alter table tbl1 set serde '%s' with serdeproperties('%s'='%s')",
                         LazyBinarySerDe.class.getName(), serdeConstants.FIELD_DELIM, "\u0001"));
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(
-                LazyBinarySerDe.class.getName(),
-                hiveTable.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(
-                "\u0001",
-                hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
+        assertThat(hiveTable.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(LazyBinarySerDe.class.getName());
+        assertThat(hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM))
+                .isEqualTo("\u0001");
 
         // replace columns
         tableEnv.executeSql(
                 "alter table tbl1 replace columns (t tinyint,s smallint,i int,b bigint,f float,d double,num decimal,"
                         + "ts timestamp,dt date,str string,var varchar(10),ch char(123),bool boolean,bin binary)");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(14, hiveTable.getSd().getColsSize());
-        assertEquals("varchar(10)", hiveTable.getSd().getCols().get(10).getType());
-        assertEquals("char(123)", hiveTable.getSd().getCols().get(11).getType());
+        assertThat(hiveTable.getSd().getColsSize()).isEqualTo(14);
+        assertThat(hiveTable.getSd().getCols().get(10).getType()).isEqualTo("varchar(10)");
+        assertThat(hiveTable.getSd().getCols().get(11).getType()).isEqualTo("char(123)");
 
         tableEnv.executeSql(
                 "alter table tbl1 replace columns (a array<array<int>>,s struct<f1:struct<f11:int,f12:binary>, f2:map<double,date>>,"
                         + "m map<char(5),map<timestamp,decimal(20,10)>>)");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals("array<array<int>>", hiveTable.getSd().getCols().get(0).getType());
-        assertEquals(
-                "struct<f1:struct<f11:int,f12:binary>,f2:map<double,date>>",
-                hiveTable.getSd().getCols().get(1).getType());
-        assertEquals(
-                "map<char(5),map<timestamp,decimal(20,10)>>",
-                hiveTable.getSd().getCols().get(2).getType());
+        assertThat(hiveTable.getSd().getCols().get(0).getType()).isEqualTo("array<array<int>>");
+        assertThat(hiveTable.getSd().getCols().get(1).getType())
+                .isEqualTo("struct<f1:struct<f11:int,f12:binary>,f2:map<double,date>>");
+        assertThat(hiveTable.getSd().getCols().get(2).getType())
+                .isEqualTo("map<char(5),map<timestamp,decimal(20,10)>>");
 
         // add columns
         tableEnv.executeSql("alter table tbl1 add columns (x int,y int)");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(5, hiveTable.getSd().getColsSize());
+        assertThat(hiveTable.getSd().getColsSize()).isEqualTo(5);
 
         // change column
         tableEnv.executeSql("alter table tbl1 change column x x1 string comment 'new x col'");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertEquals(5, hiveTable.getSd().getColsSize());
+        assertThat(hiveTable.getSd().getColsSize()).isEqualTo(5);
         FieldSchema newField = hiveTable.getSd().getCols().get(3);
-        assertEquals("x1", newField.getName());
-        assertEquals("string", newField.getType());
+        assertThat(newField.getName()).isEqualTo("x1");
+        assertThat(newField.getType()).isEqualTo("string");
 
         tableEnv.executeSql("alter table tbl1 change column y y int first");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
         newField = hiveTable.getSd().getCols().get(0);
-        assertEquals("y", newField.getName());
-        assertEquals("int", newField.getType());
+        assertThat(newField.getName()).isEqualTo("y");
+        assertThat(newField.getType()).isEqualTo("int");
 
         tableEnv.executeSql("alter table tbl1 change column x1 x2 timestamp after y");
         hiveTable = hiveCatalog.getHiveTable(tablePath);
         newField = hiveTable.getSd().getCols().get(1);
-        assertEquals("x2", newField.getName());
-        assertEquals("timestamp", newField.getType());
+        assertThat(newField.getName()).isEqualTo("x2");
+        assertThat(newField.getType()).isEqualTo("timestamp");
 
         // add/replace columns cascade
         tableEnv.executeSql("create table tbl2 (x int) partitioned by (dt date,id bigint)");
@@ -470,28 +459,28 @@ public class HiveDialectITCase {
         ObjectPath tablePath2 = new ObjectPath("default", "tbl2");
         hiveTable = hiveCatalog.getHiveTable(tablePath2);
         Partition hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
-        assertEquals(2, hivePartition.getSd().getColsSize());
+        assertThat(hivePartition.getSd().getColsSize()).isEqualTo(2);
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
-        assertEquals(2, hivePartition.getSd().getColsSize());
+        assertThat(hivePartition.getSd().getColsSize()).isEqualTo(2);
 
         tableEnv.executeSql("alter table tbl2 add columns (ch char(5),vch varchar(9)) cascade");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
-        assertEquals(4, hivePartition.getSd().getColsSize());
+        assertThat(hivePartition.getSd().getColsSize()).isEqualTo(4);
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
-        assertEquals(4, hivePartition.getSd().getColsSize());
+        assertThat(hivePartition.getSd().getColsSize()).isEqualTo(4);
 
         // change column cascade
         tableEnv.executeSql("alter table tbl2 change column ch ch char(10) cascade");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
-        assertEquals("char(10)", hivePartition.getSd().getCols().get(2).getType());
+        assertThat(hivePartition.getSd().getCols().get(2).getType()).isEqualTo("char(10)");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
-        assertEquals("char(10)", hivePartition.getSd().getCols().get(2).getType());
+        assertThat(hivePartition.getSd().getCols().get(2).getType()).isEqualTo("char(10)");
 
         tableEnv.executeSql("alter table tbl2 change column vch str string first cascade");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
-        assertEquals("str", hivePartition.getSd().getCols().get(0).getName());
+        assertThat(hivePartition.getSd().getCols().get(0).getName()).isEqualTo("str");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
-        assertEquals("str", hivePartition.getSd().getCols().get(0).getName());
+        assertThat(hivePartition.getSd().getCols().get(0).getName()).isEqualTo("str");
     }
 
     @Test
@@ -527,17 +516,17 @@ public class HiveDialectITCase {
                         "alter table tbl partition (p1=1000,p2='2020-05-01') set location '%s'",
                         location));
         Partition partition = hiveCatalog.getHivePartition(hiveTable, spec1);
-        assertEquals(location, locationPath(partition.getSd().getLocation()));
+        assertThat(locationPath(partition.getSd().getLocation())).isEqualTo(location);
 
         // change file format
         tableEnv.executeSql(
                 "alter table tbl partition (p1=2000,p2='2020-01-01') set fileformat rcfile");
         partition = hiveCatalog.getHivePartition(hiveTable, spec2);
-        assertEquals(
-                LazyBinaryColumnarSerDe.class.getName(),
-                partition.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(RCFileInputFormat.class.getName(), partition.getSd().getInputFormat());
-        assertEquals(RCFileOutputFormat.class.getName(), partition.getSd().getOutputFormat());
+        assertThat(partition.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(LazyBinaryColumnarSerDe.class.getName());
+        assertThat(partition.getSd().getInputFormat()).isEqualTo(RCFileInputFormat.class.getName());
+        assertThat(partition.getSd().getOutputFormat())
+                .isEqualTo(RCFileOutputFormat.class.getName());
 
         // change serde
         tableEnv.executeSql(
@@ -545,12 +534,10 @@ public class HiveDialectITCase {
                         "alter table tbl partition (p1=1000,p2='2020-05-01') set serde '%s' with serdeproperties('%s'='%s')",
                         LazyBinarySerDe.class.getName(), serdeConstants.LINE_DELIM, "\n"));
         partition = hiveCatalog.getHivePartition(hiveTable, spec1);
-        assertEquals(
-                LazyBinarySerDe.class.getName(),
-                partition.getSd().getSerdeInfo().getSerializationLib());
-        assertEquals(
-                "\n",
-                partition.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
+        assertThat(partition.getSd().getSerdeInfo().getSerializationLib())
+                .isEqualTo(LazyBinarySerDe.class.getName());
+        assertThat(partition.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM))
+                .isEqualTo("\n");
     }
 
     @Test
@@ -562,28 +549,30 @@ public class HiveDialectITCase {
                 "create view v(vx) comment 'v comment' tblproperties ('k1'='v1') as select x from tbl");
         ObjectPath viewPath = new ObjectPath("default", "v");
         CatalogBaseTable catalogBaseTable = hiveCatalog.getTable(viewPath);
-        assertTrue(catalogBaseTable instanceof CatalogView);
-        assertEquals("vx", catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName());
-        assertEquals("v1", catalogBaseTable.getOptions().get("k1"));
+        assertThat(catalogBaseTable).isInstanceOf(CatalogView.class);
+        assertThat(catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName())
+                .isEqualTo("vx");
+        assertThat(catalogBaseTable.getOptions().get("k1")).isEqualTo("v1");
 
         // change properties
         tableEnv.executeSql("alter view v set tblproperties ('k1'='v11')");
         catalogBaseTable = hiveCatalog.getTable(viewPath);
-        assertEquals("v11", catalogBaseTable.getOptions().get("k1"));
+        assertThat(catalogBaseTable.getOptions().get("k1")).isEqualTo("v11");
 
         // change query
         tableEnv.executeSql("alter view v as select y from tbl");
         catalogBaseTable = hiveCatalog.getTable(viewPath);
-        assertEquals("y", catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName());
+        assertThat(catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName())
+                .isEqualTo("y");
 
         // rename
         tableEnv.executeSql("alter view v rename to v1");
         viewPath = new ObjectPath("default", "v1");
-        assertTrue(hiveCatalog.tableExists(viewPath));
+        assertThat(hiveCatalog.tableExists(viewPath)).isTrue();
 
         // drop
         tableEnv.executeSql("drop view v1");
-        assertFalse(hiveCatalog.tableExists(viewPath));
+        assertThat(hiveCatalog.tableExists(viewPath)).isFalse();
     }
 
     @Test
@@ -594,16 +583,15 @@ public class HiveDialectITCase {
                         "create function default.my_abs as '%s'", GenericUDFAbs.class.getName()));
         List<Row> functions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
-        assertTrue(functions.toString().contains("my_abs"));
+        assertThat(functions.toString()).contains("my_abs");
         // call the function
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1),(-1)").await();
-        assertEquals(
-                "[+I[1], +I[1]]",
-                queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
+        assertThat(queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString())
+                .isEqualTo("[+I[1], +I[1]]");
         // drop the function
         tableEnv.executeSql("drop function my_abs");
-        assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
+        assertThat(hiveCatalog.functionExists(new ObjectPath("default", "my_abs"))).isFalse();
         tableEnv.executeSql("drop function if exists foo");
     }
 
@@ -615,23 +603,23 @@ public class HiveDialectITCase {
                         "create temporary function temp_abs as '%s'",
                         GenericUDFAbs.class.getName()));
         String[] functions = tableEnv.listUserDefinedFunctions();
-        assertArrayEquals(new String[] {"temp_abs"}, functions);
+        assertThat(functions).isEqualTo(new String[] {"temp_abs"});
         // call the function
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1),(-1)").await();
-        assertEquals(
-                "[+I[1], +I[1]]",
-                queryResult(tableEnv.sqlQuery("select temp_abs(x) from src")).toString());
+        assertThat(queryResult(tableEnv.sqlQuery("select temp_abs(x) from src")).toString())
+                .isEqualTo("[+I[1], +I[1]]");
         // switch DB and the temp function can still be used
         tableEnv.executeSql("create database db1");
         tableEnv.useDatabase("db1");
-        assertEquals(
-                "[+I[1], +I[1]]",
-                queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src")).toString());
+        assertThat(
+                        queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src"))
+                                .toString())
+                .isEqualTo("[+I[1], +I[1]]");
         // drop the function
         tableEnv.executeSql("drop temporary function temp_abs");
         functions = tableEnv.listUserDefinedFunctions();
-        assertEquals(0, functions.length);
+        assertThat(functions).isEmpty();
         tableEnv.executeSql("drop temporary function if exists foo");
     }
 
@@ -643,24 +631,23 @@ public class HiveDialectITCase {
                         "create temporary function temp_count as '%s'",
                         GenericUDAFCount.class.getName()));
         String[] functions = tableEnv.listUserDefinedFunctions();
-        assertArrayEquals(new String[] {"temp_count"}, functions);
+        assertThat(functions).isEqualTo(new String[] {"temp_count"});
         // call the function
         tableEnv.executeSql("create table src(x int)");
         tableEnv.executeSql("insert into src values (1),(-1)").await();
-        assertEquals(
-                "[+I[2]]",
-                queryResult(tableEnv.sqlQuery("select temp_count(x) from src")).toString());
+        assertThat(queryResult(tableEnv.sqlQuery("select temp_count(x) from src")).toString())
+                .isEqualTo("[+I[2]]");
         // switch DB and the temp function can still be used
         tableEnv.executeSql("create database db1");
         tableEnv.useDatabase("db1");
-        assertEquals(
-                "[+I[2]]",
-                queryResult(tableEnv.sqlQuery("select temp_count(x) from `default`.src"))
-                        .toString());
+        assertThat(
+                        queryResult(tableEnv.sqlQuery("select temp_count(x) from `default`.src"))
+                                .toString())
+                .isEqualTo("[+I[2]]");
         // drop the function
         tableEnv.executeSql("drop temporary function temp_count");
         functions = tableEnv.listUserDefinedFunctions();
-        assertEquals(0, functions.length);
+        assertThat(functions).isEmpty();
         tableEnv.executeSql("drop temporary function if exists foo");
     }
 
@@ -668,19 +655,19 @@ public class HiveDialectITCase {
     public void testCatalog() {
         List<Row> catalogs =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
-        assertEquals(2, catalogs.size());
+        assertThat(catalogs).hasSize(2);
         tableEnv.executeSql("use catalog " + CatalogManagerMocks.DEFAULT_CATALOG);
         List<Row> databases =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
-        assertEquals(1, databases.size());
-        assertEquals(
-                "+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databases.get(0).toString());
+        assertThat(databases).hasSize(1);
+        assertThat(databases.get(0).toString())
+                .isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]");
         String catalogName =
                 tableEnv.executeSql("show current catalog").collect().next().toString();
-        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_CATALOG + "]", catalogName);
+        assertThat(catalogName).isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_CATALOG + "]");
         String databaseName =
                 tableEnv.executeSql("show current database").collect().next().toString();
-        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databaseName);
+        assertThat(databaseName).isEqualTo("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]");
     }
 
     @Test
@@ -691,7 +678,7 @@ public class HiveDialectITCase {
                 "alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
 
         ObjectPath tablePath = new ObjectPath("default", "tbl");
-        assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
+        assertThat(hiveCatalog.listPartitions(tablePath)).hasSize(2);
 
         String partLocation = warehouse + "/part3_location";
         tableEnv.executeSql(
@@ -708,11 +695,11 @@ public class HiveDialectITCase {
                             }
                         });
         Partition hivePartition = hiveCatalog.getHivePartition(hiveTable, spec);
-        assertEquals(partLocation, locationPath(hivePartition.getSd().getLocation()));
+        assertThat(locationPath(hivePartition.getSd().getLocation())).isEqualTo(partLocation);
 
         tableEnv.executeSql(
                 "alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-05-01',country='belgium')");
-        assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
+        assertThat(hiveCatalog.listPartitions(tablePath)).hasSize(1);
     }
 
     @Test
@@ -723,55 +710,55 @@ public class HiveDialectITCase {
                 "alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
 
         ObjectPath tablePath = new ObjectPath("default", "tbl");
-        assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
+        assertThat(hiveCatalog.listPartitions(tablePath)).hasSize(2);
 
         List<Row> partitions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl").collect());
-        assertEquals(2, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+        assertThat(partitions).hasSize(2);
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=china");
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=us");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')")
                                 .collect());
-        assertEquals(2, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+        assertThat(partitions).hasSize(2);
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=china");
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=us");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("show partitions tbl partition (country='china')")
                                 .collect());
-        assertEquals(1, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=china");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "show partitions tbl partition (dt='2020-04-30',country='china')")
                                 .collect());
-        assertEquals(1, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2020-04-30/country=china");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "show partitions tbl partition (dt='2020-05-01',country='japan')")
                                 .collect());
-        assertEquals(0, partitions.size());
-        try {
-            CollectionUtil.iteratorToList(
-                    tableEnv.executeSql(
-                                    "show partitions tbl partition (de='2020-04-30',city='china')")
-                            .collect());
-        } catch (TableException e) {
-            assertEquals(
-                    String.format(
-                            "Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)",
-                            hiveCatalog.getName(), tablePath),
-                    e.getMessage());
-        }
+        assertThat(partitions).isEmpty();
+
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql(
+                                                        "show partitions tbl partition (de='2020-04-30',city='china')")
+                                                .collect()))
+                .isInstanceOf(TableException.class)
+                .hasMessage(
+                        String.format(
+                                "Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)",
+                                hiveCatalog.getName(), tablePath));
 
         tableEnv.executeSql(
                 "alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
-        assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
+        assertThat(hiveCatalog.listPartitions(tablePath)).isEmpty();
 
         tableEnv.executeSql("drop table tbl");
         tableEnv.executeSql(
@@ -781,30 +768,30 @@ public class HiveDialectITCase {
 
         partitions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions tbl").collect());
-        assertEquals(2, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
-        assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+        assertThat(partitions).hasSize(2);
+        assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
+        assertThat(partitions.toString()).contains("dt=2020-04-30 04:05:06/country=us");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "show partitions tbl partition (dt='2020-04-30 01:02:03')")
                                 .collect());
-        assertEquals(1, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "show partitions tbl partition (dt='2020-04-30 04:05:06')")
                                 .collect());
-        assertEquals(1, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2020-04-30 04:05:06/country=us");
         partitions =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql(
                                         "show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')")
                                 .collect());
-        assertEquals(1, partitions.size());
-        assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+        assertThat(partitions).hasSize(1);
+        assertThat(partitions.toString()).contains("dt=2020-04-30 01:02:03/country=china");
     }
 
     @Test
@@ -830,15 +817,10 @@ public class HiveDialectITCase {
     }
 
     private void verifyUnsupportedOperation(String ddl) {
-        try {
-            tableEnv.executeSql(ddl);
-            fail("We don't support " + ddl);
-        } catch (ValidationException e) {
-            // expected
-            assertTrue(
-                    "Expect UnsupportedOperationException for " + ddl,
-                    e.getCause() instanceof UnsupportedOperationException);
-        }
+        assertThatThrownBy(() -> tableEnv.executeSql(ddl))
+                .isInstanceOf(ValidationException.class)
+                .getCause()
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     private static String locationPath(String locationURI) throws URISyntaxException {
