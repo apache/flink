@@ -84,7 +84,8 @@ public class ContinuousFileProcessingMigrationTest {
                 Tuple2.of(FlinkVersion.v1_11, 1594561663000L),
                 Tuple2.of(FlinkVersion.v1_12, 1613720148000L),
                 Tuple2.of(FlinkVersion.v1_13, 1627550216000L),
-                Tuple2.of(FlinkVersion.v1_14, 1633938795000L));
+                Tuple2.of(FlinkVersion.v1_14, 1633938795000L),
+                Tuple2.of(FlinkVersion.v1_15, 1651918450000L));
     }
 
     /**
