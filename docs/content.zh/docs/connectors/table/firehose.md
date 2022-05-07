@@ -277,7 +277,7 @@ WITH (
 ## 身份验证
 
 根据您的部署，您可以选择不同的凭证提供程序以允许访问 Kinesis Data Firehose 。
-默认情况下，降使用 AUTO 凭证提供程序。
+默认情况下，将使用 AUTO 凭证提供程序。
 如果访问密钥 ID 和密钥设置在部署文件中，这种情况将会使用 BASIC 凭证提供程序。
 
 使用 `aws.credentials.provider` 时是一种特殊情况，[AWSCredentialsProvider](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/auth/AWSCredentialsProvider.html) 可以是**可选的**。  
