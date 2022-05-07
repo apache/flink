@@ -28,7 +28,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -43,14 +42,7 @@ import java.util.Properties;
 public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
     @Parameterized.Parameters(name = "Migration Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
-        return Arrays.asList(
-                FlinkVersion.v1_8,
-                FlinkVersion.v1_9,
-                FlinkVersion.v1_10,
-                FlinkVersion.v1_11,
-                FlinkVersion.v1_12,
-                FlinkVersion.v1_13,
-                FlinkVersion.v1_14);
+        return FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_15);
     }
 
     public FlinkKafkaProducerMigrationTest(FlinkVersion testMigrateVersion) {
