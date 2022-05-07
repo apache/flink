@@ -29,7 +29,7 @@ under the License.
 
 {{< label "数据 sink: 流追加模式" >}}
 
-Kinesis Data Firehose 连接器允许将数据写入 Amazon Kinesis Data Firehose [Amazon Kinesis Data Firehose (KDF)](https://aws.amazon.com/kinesis/data-firehose/)。
+Kinesis Data Firehose 连接器允许将数据写入 Amazon Kinesis Data Firehose [Amazon Kinesis Data Firehose (KDF)] (https://aws.amazon.com/kinesis/data-firehose/)。
 
 依赖
 ------------
@@ -64,8 +64,8 @@ WITH (
     <thead>
     <tr>
       <th class="text-left" style="width: 25%">选项</th>
-      <th class="text-center" style="width: 8%">是否必须配置</th>
-      <th class="text-center" style="width: 7%">缺省值</th>
+      <th class="text-center" style="width: 8%">是否必选</th>
+      <th class="text-center" style="width: 7%">默认值</th>
       <th class="text-center" style="width: 10%">类型</th>
       <th class="text-center" style="width: 50%">描述</th>
     </tr>
@@ -79,7 +79,7 @@ WITH (
       <td>是</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>指定要使用的连接器。 使用 Kinesis Data Firehose 则配置为 <code>'firehose'</code>.</td>
+      <td>指定要使用的连接器。使用 Kinesis Data Firehose 则配置为 <code>'firehose'</code>。</td>
     </tr>
     <tr>
       <td><h5>delivery-stream</h5></td>
@@ -278,14 +278,14 @@ WITH (
 
 根据您的部署，您可以选择不同的凭证提供程序以允许访问 Kinesis Data Firehose 。
 默认情况下，降使用 AUTO 凭证提供程序。
-如果访问 key 和 密钥 key 设置在部署文件中，这种情况将会使用 BASIC 凭证提供程序。
+如果访问密钥 ID 和密钥设置在部署文件中，这种情况将会使用 BASIC 凭证提供程序。
 
 使用 `aws.credentials.provider` 时是一种特殊情况，[AWSCredentialsProvider](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/index.html?com/amazonaws/auth/AWSCredentialsProvider.html) 可以是**可选的**。  
 支持的值如下:
 
 - `AUTO` - 使用默认的 AWS 凭据提供程序链，按以下顺序搜索凭据：ENV_VARS、SYS_PROPS、WEB_IDENTITY_TOKEN、PROFILE和EC2/ECS 凭据提供程序。
-- `BASIC` - 使用访问 key ID 和密钥 key 作为配置。
-- `ENV_VAR` - 使用 `AWS_ACCESS_KEY_ID` 和 `AWS_SECRET_ACCESS_KEY` 作为环境变量.
+- `BASIC` - 使用访问密钥 ID 和密钥作为配置。
+- `ENV_VAR` - 使用 `AWS_ACCESS_KEY_ID` 和 `AWS_SECRET_ACCESS_KEY` 作为环境变量。
 - `SYS_PROP` - 使用 Java 系统属性：`aws.accessKeyId` 和 `aws.secretKey`。
 - `PROFILE` - 使用 AWS 凭据配置文件创建 AWS 凭据。
 - `ASSUME_ROLE` - 通过扮演角色创建 AWS 凭据。必须提供担任该角色的凭据。
@@ -305,7 +305,7 @@ Kinesis Data Firehose SQL 连接器的当前实现仅支持 Kinesis Data Firehos
 ```sql
 SELECT * FROM FirehoseTable;
 ```
-将得到类似如下的错误提示：  
+将得到类似如下的错误提示：
 ```
 Connector firehose can only be used as a sink. It cannot be used as a source.
 ```
