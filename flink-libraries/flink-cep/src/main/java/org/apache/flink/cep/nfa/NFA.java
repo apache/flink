@@ -35,6 +35,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.pattern.conditions.AccumulateStateCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
@@ -283,6 +284,8 @@ public class NFA<T> {
                 sharedBufferAccessor.releaseNode(
                         computationState.getPreviousBufferEntry(), computationState.getVersion());
 
+                sharedBufferAccessor.removeAccumulator(computationState);
+
                 nfaState.setStateChanged();
             } else {
                 newPartialMatches.add(computationState);
@@ -331,7 +334,13 @@ public class NFA<T> {
             final Collection<ComputationState> statesToRetain = new ArrayList<>();
             // if stop state reached in this path
             boolean shouldDiscardPath = false;
+            boolean shouldDiscardUserAccumulator = true;
+
             for (final ComputationState newComputationState : newComputationStates) {
+
+                if (newComputationState.equals(computationState)) {
+                    shouldDiscardUserAccumulator = false;
+                }
 
                 if (isFinalState(newComputationState)) {
                     potentialMatches.add(newComputationState);
@@ -345,6 +354,10 @@ public class NFA<T> {
                     // add new computation state; it will be processed once the next event arrives
                     statesToRetain.add(newComputationState);
                 }
+            }
+
+            if (shouldDiscardUserAccumulator || shouldDiscardPath) {
+                sharedBufferAccessor.removeAccumulator(computationState);
             }
 
             if (shouldDiscardPath) {
@@ -385,6 +398,7 @@ public class NFA<T> {
                 result.add(materializedMatch);
                 sharedBufferAccessor.releaseNode(
                         match.getPreviousBufferEntry(), match.getVersion());
+                sharedBufferAccessor.removeAccumulator(match);
             }
         }
 
@@ -770,6 +784,8 @@ public class NFA<T> {
         final Stack<State<T>> states = new Stack<>();
         states.push(state);
 
+        boolean accumulated = false;
+
         // First create all outgoing edges, so to be able to reason about the Dewey version
         while (!states.isEmpty()) {
             State<T> currentState = states.pop();
@@ -778,6 +794,13 @@ public class NFA<T> {
             // check all state transitions for each state
             for (StateTransition<T> stateTransition : stateTransitions) {
                 try {
+
+                    IterativeCondition<T> condition = stateTransition.getCondition();
+                    if (!accumulated && condition instanceof AccumulateStateCondition) {
+                        ((AccumulateStateCondition<T>) condition).accumulate(event, context);
+                        accumulated = true;
+                    }
+
                     if (checkFilterCondition(context, stateTransition.getCondition(), event)) {
                         // filter condition is true
                         switch (stateTransition.getAction()) {
@@ -866,6 +889,19 @@ public class NFA<T> {
             this.sharedBufferAccessor = sharedBufferAccessor;
             this.timerService = timerService;
             this.eventTimestamp = eventTimestamp;
+        }
+
+        @Override
+        public <ACC> ACC getAccumulator(String stateKey, TypeSerializer<ACC> serializer)
+                throws Exception {
+            return sharedBufferAccessor.getAccumulator(stateKey, computationState, serializer);
+        }
+
+        @Override
+        public <ACC> void putAccumulator(
+                String stateKey, ACC accumulator, TypeSerializer<ACC> serializer) throws Exception {
+            sharedBufferAccessor.putAccumulator(
+                    stateKey, computationState, accumulator, serializer);
         }
 
         @Override

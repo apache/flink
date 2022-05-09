@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.cep.nfa.NFAState;
@@ -77,12 +78,15 @@ public class SharedBuffer<V> {
     private static final String ENTRIES_STATE_NAME = "sharedBuffer-entries-with-lockable-edges";
     private static final String EVENTS_STATE_NAME = "sharedBuffer-events";
     private static final String EVENTS_COUNT_STATE_NAME = "sharedBuffer-events-count";
+    private static final String userAccumulatorStateName = "user-acc";
 
     private final MapState<EventId, Lockable<V>> eventsBuffer;
     /** The number of events seen so far in the stream per timestamp. */
     private final MapState<Long, Integer> eventsCount;
 
     private final MapState<NodeId, Lockable<SharedBufferNode>> entries;
+
+    private MapState<UserAccumulatorId, byte[]> userAccumulator;
 
     /** The cache of eventsBuffer State. */
     private final Cache<EventId, Lockable<V>> eventsBufferCache;
@@ -122,6 +126,14 @@ public class SharedBuffer<V> {
                                 EVENTS_COUNT_STATE_NAME,
                                 LongSerializer.INSTANCE,
                                 IntSerializer.INSTANCE));
+
+        final MapStateDescriptor<UserAccumulatorId, byte[]> userAccumulatorDescriptor =
+                new MapStateDescriptor<>(
+                        userAccumulatorStateName,
+                        UserAccumulatorId.UserAccumulatorIdSerializer.INSTANCE,
+                        BytePrimitiveArraySerializer.INSTANCE);
+
+        this.userAccumulator = stateStore.getMapState(userAccumulatorDescriptor);
 
         // set the events buffer cache and strategy of exchanging out
         this.eventsBufferCache =
@@ -403,6 +415,18 @@ public class SharedBuffer<V> {
             eventsBuffer.putAll(eventsBufferCache.asMap());
             eventsBufferCache.invalidateAll();
         }
+    }
+
+    public Iterator<UserAccumulatorId> getAccumulatorIdIterator() throws Exception {
+        return userAccumulator.keys().iterator();
+    }
+
+    public byte[] getAccumulator(UserAccumulatorId userAccumulatorId) throws Exception {
+        return userAccumulator.get(userAccumulatorId);
+    }
+
+    public void putAccumulator(UserAccumulatorId userAccumulatorId, byte[] data) throws Exception {
+        userAccumulator.put(userAccumulatorId, data);
     }
 
     @VisibleForTesting

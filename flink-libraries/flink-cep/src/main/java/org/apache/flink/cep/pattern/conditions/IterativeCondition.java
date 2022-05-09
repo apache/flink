@@ -20,6 +20,7 @@ package org.apache.flink.cep.pattern.conditions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.time.TimeContext;
 
 import java.io.Serializable;
@@ -94,5 +95,10 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
          * @param name The name of the pattern.
          */
         Iterable<T> getEventsForPattern(String name) throws Exception;
+
+        <ACC> ACC getAccumulator(String stateKey, TypeSerializer<ACC> serializer) throws Exception;
+
+        <ACC> void putAccumulator(String stateKey, ACC accumulator, TypeSerializer<ACC> serializer)
+                throws Exception;
     }
 }

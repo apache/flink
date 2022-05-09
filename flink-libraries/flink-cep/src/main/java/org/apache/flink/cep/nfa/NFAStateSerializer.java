@@ -43,6 +43,8 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
     private static final long serialVersionUID = 2098282423980597010L;
 
+    public static final NFAStateSerializer INSTANCE = new NFAStateSerializer();
+
     /**
      * NOTE: this field should actually be final. The reason that it isn't final is due to backward
      * compatible deserialization paths. See {@link #readObject(ObjectInputStream)}.
@@ -163,7 +165,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
     De/serialization methods
     */
 
-    private void serializeComputationStates(Queue<ComputationState> states, DataOutputView target)
+    public void serializeComputationStates(Queue<ComputationState> states, DataOutputView target)
             throws IOException {
         target.writeInt(states.size());
         for (ComputationState computationState : states) {
@@ -171,7 +173,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         }
     }
 
-    private PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source)
+    public PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source)
             throws IOException {
         PriorityQueue<ComputationState> computationStates =
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
@@ -184,7 +186,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         return computationStates;
     }
 
-    private void serializeSingleComputationState(
+    public void serializeSingleComputationState(
             ComputationState computationState, DataOutputView target) throws IOException {
 
         StringValue.writeString(computationState.getCurrentStateName(), target);
@@ -194,7 +196,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
         serializeStartEvent(computationState.getStartEventID(), target);
     }
 
-    private ComputationState deserializeSingleComputationState(DataInputView source)
+    public ComputationState deserializeSingleComputationState(DataInputView source)
             throws IOException {
         String stateName = StringValue.readString(source);
         NodeId prevState = nodeIdSerializer.deserialize(source);

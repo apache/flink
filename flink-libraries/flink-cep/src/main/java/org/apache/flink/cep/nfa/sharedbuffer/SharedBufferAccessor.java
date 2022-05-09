@@ -18,8 +18,12 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.ComputationState;
 import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -45,8 +49,14 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
     /** The sharedBuffer to store the partial matched events. */
     private SharedBuffer<V> sharedBuffer;
 
+    private final DataInputDeserializer dataInputView;
+
+    private final DataOutputSerializer dataOutputView;
+
     SharedBufferAccessor(SharedBuffer<V> sharedBuffer) {
         this.sharedBuffer = sharedBuffer;
+        this.dataInputView = new DataInputDeserializer();
+        this.dataOutputView = new DataOutputSerializer(128);
     }
 
     /**
@@ -329,6 +339,45 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
      */
     public void close() throws Exception {
         sharedBuffer.flushCache();
+    }
+
+    public <ACC> ACC getAccumulator(
+            String stateKey, ComputationState computationState, TypeSerializer<ACC> serializer)
+            throws Exception {
+        UserAccumulatorId userAccumulatorId = new UserAccumulatorId(computationState, stateKey);
+        byte[] accBytes = sharedBuffer.getAccumulator(userAccumulatorId);
+        if (accBytes == null) {
+            return null;
+        }
+
+        // deserialize bytes
+        dataInputView.setBuffer(accBytes);
+        return serializer.deserialize(dataInputView);
+    }
+
+    public <ACC> void putAccumulator(
+            String stateKey,
+            ComputationState computationState,
+            ACC accumulator,
+            TypeSerializer<ACC> serializer)
+            throws Exception {
+        UserAccumulatorId userAccumulatorId = new UserAccumulatorId(computationState, stateKey);
+
+        // serialize accumulator
+        dataOutputView.clear();
+        serializer.serialize(accumulator, dataOutputView);
+        sharedBuffer.putAccumulator(userAccumulatorId, dataOutputView.getCopyOfBuffer());
+    }
+
+    public void removeAccumulator(ComputationState computationState) throws Exception {
+        Iterator<UserAccumulatorId> iter = sharedBuffer.getAccumulatorIdIterator();
+        while (iter.hasNext()) {
+            UserAccumulatorId userAccumulatorId = iter.next();
+            if (userAccumulatorId.getComputationState().equals(computationState)) {
+                iter.remove();
+                return;
+            }
+        }
     }
 
     /**
