@@ -125,7 +125,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
     @Override
     public void open(MetricConfig config) {
-        String apiKey = config.getString(API_KEY, null);
+        String apiKey = config.getString(API_KEY, System.getenv("DD_API_KEY"));
         String proxyHost = config.getString(PROXY_HOST, null);
         Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
         String rawDataCenter = config.getString(DATA_CENTER, "US");
