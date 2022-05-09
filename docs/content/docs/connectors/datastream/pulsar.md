@@ -768,6 +768,51 @@ you to reuse the same Flink job after certain "allowed" data model changes, like
 a field in a AVRO-based Pojo class. Please note that you can specify Pulsar schema validation rules
 and define an auto schema update. For details, refer to [Pulsar Schema Evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/).
 
+### Python API Usage
+
+Python API supports part of the functionality of Java API.
+
+```python
+data_stream = env.from_source( ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_producer_name('fo') \
+    .set_topics(['ada', 'beta']) \
+    .set_serialization_schema(
+        PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
+    .enable_schema_evolution() \
+    .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
+    .set_config('pulsar.producer.chunkingEnabled', True) \
+    .set_properties({'pulsar.producer.batchingMaxMessages': '100'}) \
+    .build()
+
+data_stream.sink_to(pulsar_sink).name('pulsar sink')
+```
+
+#### Producing to topics
+
+You can provide a list of topics or one topic.
+
+```python
+PulsarSink.builder().set_topics('ada')
+
+PulsarSink.builder().set_topics(['ada', 'beta'])
+```
+
+#### Serializer
+
+Only support Flink’s DeserializationSchema, don't support Pulsar’s Schema.
+
+```python
+PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+
+PulsarSerializationSchema.flink_schema(JsonRowSerializationSchema())
+```
+
 ## Upgrading to the Latest Connector Version
 
 The generic upgrade steps are outlined in [upgrading jobs and Flink versions guide]({{< ref "docs/ops/upgrading" >}}).

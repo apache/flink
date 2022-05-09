@@ -637,6 +637,51 @@ Pulsar Sink 遵循 [FLIP-191](https://cwiki.apache.org/confluence/display/FLINK/
 
 可以在 Pulsar 集群内指定哪些类型的数据模型的改变是被允许的，详情请参阅 [Pulsar Schema Evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/)。
 
+### Python API 用例
+
+Python API 支持部分 Java API 功能。
+
+```python
+data_stream = env.from_source( ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_producer_name('fo') \
+    .set_topics(['ada', 'beta']) \
+    .set_serialization_schema(
+        PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
+    .enable_schema_evolution() \
+    .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
+    .set_config('pulsar.producer.chunkingEnabled', True) \
+    .set_properties({'pulsar.producer.batchingMaxMessages': '100'}) \
+    .build()
+
+data_stream.sink_to(pulsar_sink).name('pulsar sink')
+```
+
+#### Producing to topics
+
+可以设置 topic 列表或者单个 topic 。
+
+```python
+PulsarSink.builder().set_topics('ada')
+
+PulsarSink.builder().set_topics(['ada', 'beta'])
+```
+
+#### Serializer
+
+仅支持 Flink 的 SerializationSchema，不支持 Pulsar 的 Schema。
+
+```python
+PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+
+PulsarSerializationSchema.flink_schema(JsonRowSerializationSchema())
+```
+
 ## 升级至最新的连接器
 
 常见的升级步骤，请参阅[升级应用程序和 Flink 版本]({{< ref "docs/ops/upgrading" >}})。Pulsar 连接器没有在 Flink 端存储消费的状态，所有的消费信息都推送到了 Pulsar。所以需要注意下面的事项：
