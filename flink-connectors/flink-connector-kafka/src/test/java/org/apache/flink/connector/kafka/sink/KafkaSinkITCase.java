@@ -335,7 +335,7 @@ public class KafkaSinkITCase extends TestLogger {
         final DataStream<Long> stream = source.map(mapper);
         final KafkaSinkBuilder<Long> builder =
                 new KafkaSinkBuilder<Long>()
-                        .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
+                        .setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
@@ -365,7 +365,7 @@ public class KafkaSinkITCase extends TestLogger {
 
         stream.sinkTo(
                 new KafkaSinkBuilder<Long>()
-                        .setDeliverGuarantee(guarantee)
+                        .setDeliveryGuarantee(guarantee)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
@@ -394,7 +394,7 @@ public class KafkaSinkITCase extends TestLogger {
         source.sinkTo(
                 new KafkaSinkBuilder<Long>()
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setDeliverGuarantee(deliveryGuarantee)
+                        .setDeliveryGuarantee(deliveryGuarantee)
                         .setRecordSerializer(
                                 KafkaRecordSerializationSchema.builder()
                                         .setTopic(topic)

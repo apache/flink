@@ -141,7 +141,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
         properties.put(
                 ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, DEFAULT_TRANSACTION_TIMEOUT_IN_MS);
         builder.setBootstrapServers(bootstrapServers)
-                .setDeliverGuarantee(toDeliveryGuarantee(sinkSettings.getCheckpointingMode()))
+                .setDeliveryGuarantee(toDeliveryGuarantee(sinkSettings.getCheckpointingMode()))
                 .setTransactionalIdPrefix("testingFramework")
                 .setKafkaProducerConfig(properties)
                 .setRecordSerializer(
