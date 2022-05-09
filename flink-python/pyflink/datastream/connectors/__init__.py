@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.datastream.connectors.base import Sink, Source
+from pyflink.datastream.connectors.base import Sink, Source, DeliveryGuarantee
 from pyflink.datastream.connectors.file_system import (FileEnumeratorProvider, FileSink, FileSource,
                                                        BucketAssigner, FileSourceBuilder,
                                                        FileSplitAssignerProvider, OutputFileConfig,
@@ -25,13 +25,15 @@ from pyflink.datastream.connectors.jdbc import JdbcSink, JdbcConnectionOptions, 
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer, Semantic
 from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, PulsarSource, \
-    PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor
+    PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
+    PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode
 from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
 
 
 __all__ = [
     'Sink',
     'Source',
+    'DeliveryGuarantee',
     'FileEnumeratorProvider',
     'FileSink',
     'FileSource',
@@ -50,6 +52,11 @@ __all__ = [
     'PulsarSource',
     'PulsarSourceBuilder',
     'SubscriptionType',
+    'PulsarSerializationSchema',
+    'PulsarSink',
+    'PulsarSinkBuilder',
+    'MessageDelayer',
+    'TopicRoutingMode',
     'RMQConnectionConfig',
     'RMQSource',
     'RMQSink',

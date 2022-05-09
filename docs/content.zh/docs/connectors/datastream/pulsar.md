@@ -344,6 +344,9 @@ Pulsar Sink 使用 builder 类来创建 `PulsarSink` 实例。
 
 下面示例展示了如何通过 Pulsar Sink 以“至少一次”的语义将字符串类型的数据发送给 topic1。
 
+{{< tabs "46e225b1-1e34-4ff3-890c-aa06a2b99c0a" >}}
+{{< tab "Java" >}}
+
 ```java
 DataStream<String> stream = ...
 
@@ -358,6 +361,26 @@ PulsarSink<String> sink = PulsarSink.builder()
 stream.sinkTo(sink);
 ```
 
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+stream = ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_topics("topic1") \
+    .set_serialization_schema(PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .build()
+
+stream.sink_to(pulsar_sink)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 下列为创建一个 `PulsarSink` 实例必需的属性：
 
 - Pulsar 数据消费的地址，使用 `setServiceUrl(String)` 方法提供。
@@ -371,16 +394,36 @@ stream.sinkTo(sink);
 
 `PulsarSink` 指定写入 Topic 的方式和 Pulsar Source [指定消费的 Topic 或者 Topic 分区](#指定消费的-topic-或者-topic-分区)的方式类似。`PulsarSink` 支持以 mixin 风格指定写入的 Topic 或分区。因此，可以指定一组 Topic 或者分区或者是两者都有。
 
+{{< tabs "3d452e6b-bffd-42f7-bb91-974b306262ca" >}}
+{{< tab "Java" >}}
+
 ```java
 // Topic "some-topic1" 和 "some-topic2"
 PulsarSink.builder().setTopics("some-topic1", "some-topic2")
 
-// Topic "topic-a" 的分区 0 和 2 
+// Topic "topic-a" 的分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 
-// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2 
+// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# Topic "some-topic1" 和 "some-topic2"
+PulsarSink.builder().set_topics(["some-topic1", "some-topic2"])
+
+# Topic "topic-a" 的分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2"])
+
+# Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2", "some-topic2"])
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 动态分区发现默认处于开启状态，这意味着 `PulsarSink` 将会周期性地从 Pulsar 集群中查询 Topic 的元数据来获取可能有的分区数量变更信息。使用 `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` 配置项来指定查询的间隔时间。
 
@@ -410,9 +453,23 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "so
   PulsarSerializationSchema.pulsarSchema(Schema, Class, Class)
   ```
 - 使用 Flink 的 `SerializationSchema` 来序列化数据。
+
+  {{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d8" >}}
+  {{< tab "Java" >}}
+
   ```java
   PulsarSerializationSchema.flinkSchema(SerializationSchema)
   ```
+
+  {{< /tab >}}
+  {{< tab "Python" >}}
+
+  ```python
+  PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+  ```
+
+  {{< /tab >}}
+  {{< /tabs >}}
 
 同时使用 `PulsarSerializationSchema.pulsarSchema()` 以及在 builder 中指定 `PulsarSinkBuilder.enableSchemaEvolution()` 可以启用 [Schema evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/#schema-evolution) 特性。该特性会使用 Pulsar Broker 端提供的 Schema 版本兼容性检测以及 Schema 版本演进。下列示例展示了如何启用 Schema Evolution。
 
@@ -619,7 +676,22 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
 
 默认情况下，Pulsar 生产者每隔 60 秒才会刷新一次监控数据，然而 Pulsar Sink 每 500 毫秒就会从 Pulsar 生产者中获得最新的监控数据。因此 `numRecordsOut`、`numBytesOut`、`numAcksReceived` 以及 `numRecordsOutErrors` 4 个指标实际上每 60 秒才会刷新一次。
 
-如果想要更高地刷新评率，可以通过 `builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS. 1L)` 来将 Pulsar 生产者的监控数据刷新频率调整至相应值（最低为1s）。
+如果想要更高地刷新评率，可以通过如下方式来将 Pulsar 生产者的监控数据刷新频率调整至相应值（最低为1s）：
+{{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d1" >}}
+
+{{< tab "Java" >}}
+```java
+builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS, 1L);
+```
+{{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+builder.set_config("pulsar.client.statsIntervalSeconds", "1")
+```
+{{< /tab >}}
+
+{{< /tabs >}}
 
 `numBytesOutRate` 和 `numRecordsOutRate` 指标是 Flink 内部通过 `numBytesOut` 和 `numRecordsOut` 计数器，在一个 60 秒的窗口内计算得到的。
 
