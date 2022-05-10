@@ -69,6 +69,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                 environmentManager,
                 flinkMetricContainer,
                 keyedStateBackend,
+                null,
                 keySerializer,
                 namespaceSerializer,
                 null,

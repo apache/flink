@@ -156,6 +156,7 @@ public class PythonKeyedProcessOperator<OUT>
                         config.get(MAP_STATE_WRITE_CACHE_SIZE)),
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
+                getOperatorStateBackend(),
                 keyTypeSerializer,
                 namespaceSerializer,
                 new TimerRegistration(
