@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.Nullable;
 
 import java.io.IOException;
@@ -63,7 +64,7 @@ final class SerializableAvroSchema implements Serializable {
             int len = ois.readInt();
             byte[] content = new byte[len];
             ois.readFully(content);
-            this.schema = new Schema.Parser().parse(new String(content, StandardCharsets.UTF_8));
+            this.schema = new Parser().parse(new String(content, StandardCharsets.UTF_8));
         } else {
             this.schema = null;
         }
