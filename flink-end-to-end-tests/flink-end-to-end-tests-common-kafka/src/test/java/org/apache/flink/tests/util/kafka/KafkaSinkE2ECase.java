@@ -27,7 +27,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SinkTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainerTestEnvironment;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.testcontainers.containers.KafkaContainer;
