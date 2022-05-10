@@ -107,7 +107,7 @@ Kafka message value as string:
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 KafkaSource.<String>builder()
-        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
 ### Starting Offset
