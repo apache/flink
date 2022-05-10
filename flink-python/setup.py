@@ -280,7 +280,8 @@ try:
                 'pyflink.conf',
                 'pyflink.log',
                 'pyflink.examples',
-                'pyflink.bin']
+                'pyflink.bin',
+                'pyflink.testing']
 
     PACKAGE_DIR = {
         'pyflink.conf': TEMP_PATH + '/conf',
