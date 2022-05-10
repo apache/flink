@@ -84,6 +84,7 @@ public class PythonProcessOperator<IN, OUT>
                         config.get(MAP_STATE_WRITE_CACHE_SIZE)),
                 getFlinkMetricContainer(),
                 null,
+                getOperatorStateBackend(),
                 null,
                 null,
                 null,

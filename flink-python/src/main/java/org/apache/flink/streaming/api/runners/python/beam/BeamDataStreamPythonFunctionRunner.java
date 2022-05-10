@@ -25,6 +25,7 @@ import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.util.Preconditions;
@@ -73,7 +74,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             String headOperatorFunctionUrn,
             List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
-            @Nullable KeyedStateBackend<?> stateBackend,
+            @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
             @Nullable TypeSerializer<?> namespaceSerializer,
             @Nullable TimerRegistration timerRegistration,
@@ -87,7 +89,8 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 taskName,
                 environmentManager,
                 flinkMetricContainer,
-                stateBackend,
+                keyedStateBackend,
+                operatorStateBackend,
                 keySerializer,
                 namespaceSerializer,
                 timerRegistration,

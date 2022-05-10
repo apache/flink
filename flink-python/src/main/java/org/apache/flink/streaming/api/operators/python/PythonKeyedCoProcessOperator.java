@@ -126,6 +126,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                         config.get(MAP_STATE_WRITE_CACHE_SIZE)),
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
+                getOperatorStateBackend(),
                 keyTypeSerializer,
                 null,
                 new TimerRegistration(
