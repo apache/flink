@@ -26,13 +26,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedReader;
@@ -49,7 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} and
  * Hadoop Compression Codecs.
  */
-class CompressionFactoryITCase extends AbstractTestBase {
+@ExtendWith(MiniClusterExtension.class)
+class CompressionFactoryITCase {
 
     private final Configuration configuration = new Configuration();
 
