@@ -23,7 +23,7 @@ import unittest
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
-from pyflink.common import RowKind, WatermarkStrategy
+from pyflink.common import RowKind, WatermarkStrategy, Configuration
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner
@@ -237,12 +237,12 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         from pyflink.datastream import StreamExecutionEnvironment
 
         super(DataStreamConversionTestCases, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+        config = Configuration()
+        config.set_string("akka.ask.timeout", "20 s")
+        self.env = StreamExecutionEnvironment.get_execution_environment(config)
         self.t_env = StreamTableEnvironment.create(self.env)
 
         self.env.set_parallelism(2)
-        config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("akka.ask.timeout", "20 s")
         self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
         self.test_sink = DataStreamTestSinkFunction()
