@@ -142,7 +142,11 @@ class ReducingUpsertWriter<WriterState>
 
     private void flush() throws IOException, InterruptedException {
         for (Tuple2<RowData, Long> value : reduceBuffer.values()) {
-            wrappedContext.setTimestamp(value.f1);
+            // TODO(ziga): We're getting NullPointerExceptions here.  The null check fixes it,
+            // but we probably can't rely on sink.buffer-flush.interval working correctly.
+            if (value.f1 != null) {
+                wrappedContext.setTimestamp(value.f1);
+            }
             wrappedWriter.write(value.f0, wrappedContext);
         }
         lastFlush = System.currentTimeMillis();
