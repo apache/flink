@@ -2171,17 +2171,15 @@ class BroadcastConnectedStream(object):
             func_type = UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS  # type: ignore
             func_name = "Co-Process-Broadcast"
 
-        jvm = get_gateway().jvm
+        # TODO: temporarily use ConnectedStream
+        j_connected_stream = self.non_broadcast_stream._j_data_stream.connect(
+            self.broadcast_stream.input_stream._j_data_stream
+        )
         j_operator, j_output_type = _get_two_input_stream_operator(
             self, func, func_type, output_type
         )
-        j_transformation = None
 
-        return DataStream(
-            jvm.org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator(
-                self.non_broadcast_stream._j_data_stream.getExecutionEnvironment(), j_transformation
-            )
-        )
+        return DataStream(j_connected_stream.transform(func_name, j_output_type, j_operator))
 
     def _is_keyed_stream(self):
         return isinstance(self.non_broadcast_stream, KeyedStream)
@@ -2263,10 +2261,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     return j_python_function_operator, j_output_type_info
 
 
-def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
-                                   func: Union[Function, FunctionWrapper],
-                                   func_type: int,
-                                   type_info: TypeInformation):
+def _get_two_input_stream_operator(
+    connected_streams: Union[ConnectedStreams, BroadcastConnectedStream],
+    func: Union[Function, FunctionWrapper],
+    func_type: int,
+    type_info: TypeInformation,
+):
     """
     Create a Java two input stream operator.
 
@@ -2280,8 +2280,24 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
     import cloudpickle
     serialized_func = cloudpickle.dumps(func)
 
-    j_input_types1 = connected_streams.stream1._j_data_stream.getTransformation().getOutputType()
-    j_input_types2 = connected_streams.stream2._j_data_stream.getTransformation().getOutputType()
+    if isinstance(connected_streams, ConnectedStreams):
+        j_input_types1 = (
+            connected_streams.stream1._j_data_stream.getTransformation().getOutputType()
+        )
+        j_input_types2 = (
+            connected_streams.stream2._j_data_stream.getTransformation().getOutputType()
+        )
+    elif isinstance(connected_streams, BroadcastConnectedStream):
+        j_input_types1 = (
+            connected_streams.non_broadcast_stream._j_data_stream.
+                getTransformation().getOutputType()
+        )
+        j_input_types2 = (
+            connected_streams.broadcast_stream.input_stream._j_data_stream.
+                getTransformation().getOutputType()
+        )
+    else:
+        raise TypeError("connected_streams must be ConnectedStreams or BroadcastConnectedStream")
 
     if type_info is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
@@ -2300,7 +2316,11 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
         func_type)
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-    if func_type == UserDefinedDataStreamFunction.CO_PROCESS:  # type: ignore
+
+    if (
+        func_type == UserDefinedDataStreamFunction.CO_PROCESS
+        or func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS
+    ):  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonKeyedCoProcessOperator

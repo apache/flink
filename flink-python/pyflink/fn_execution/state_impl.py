@@ -1286,8 +1286,9 @@ class RemoteOperatorStateBackend(OperatorStateStore):
     ):
         self._state_handler = state_handler
         self._state_cache_size = state_cache_size
-        # TODO: if user stores a state into a class member, that state actually won't be evicted
-        self._state_cache = LRUCache(state_cache_size)
+        # TODO: if user stores a state into a class member, that state actually won't be actually
+        # evicted from memory ('cause its counter > 0)
+        self._state_cache = LRUCache(state_cache_size, None)
         self._state_cache.set_on_evict(lambda _, state: state.commit())
         self._map_state_read_cache_size = map_state_read_cache_size
         self._map_state_write_cache_size = map_state_write_cache_size
@@ -1305,6 +1306,7 @@ class RemoteOperatorStateBackend(OperatorStateStore):
 
         state_proto = proto_StateDescriptor()
         state_proto.state_name = state_name
+        # Currently, MultimapKeysSideInput is used for BroadcastState
         state_key = beam_fn_api_pb2.StateKey(
             multimap_keys_side_input=beam_fn_api_pb2.StateKey.MultimapKeysSideInput(
                 transform_id="",

@@ -114,6 +114,9 @@ class InternalBroadcastProcessFunctionContext(BroadcastProcessFunction.Context):
         self._timestamp = None
         self._operator_state_store = operator_state_store
 
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
     def timestamp(self) -> int:
         return self._timestamp
 
@@ -135,6 +138,9 @@ class InternalReadOnlyBroadcastProcessFunctionContext(BroadcastProcessFunction.R
         self._timer_service = timer_server
         self._timestamp = None
         self._operator_state_store = operator_state_store
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
 
     def timestamp(self) -> int:
         return self._timestamp

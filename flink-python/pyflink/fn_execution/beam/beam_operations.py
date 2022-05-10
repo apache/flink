@@ -15,18 +15,21 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import pyflink.fn_execution.datastream.operations as datastream_operations
+import pyflink.fn_execution.table.operations as table_operations
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor, operation_specs
 from apache_beam.utils import proto_utils
-
 from pyflink.fn_execution import flink_fn_execution_pb2
-from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
-    CountWindowCoder, FlattenRowCoder
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-
-import pyflink.fn_execution.datastream.operations as datastream_operations
-import pyflink.fn_execution.table.operations as table_operations
+from pyflink.fn_execution.coders import (
+    CountWindowCoder,
+    FlattenRowCoder,
+    TimeWindowCoder,
+    from_proto,
+    from_type_info_proto,
+)
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend
 
 try:
     import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
@@ -152,6 +155,13 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         output_coders=[output_coders[tag] for tag in output_tags])
 
     serialized_fn = spec.serialized_fn
+    operator_state_store = RemoteOperatorStateBackend(
+        factory.state_handler,
+        serialized_fn.state_cache_size,
+        serialized_fn.map_state_read_cache_size,
+        serialized_fn.map_state_write_cache_size,
+    )
+
     if hasattr(serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.
         row_schema = serialized_fn.key_type.row_schema
@@ -178,7 +188,9 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_sampler,
             consumers,
             internal_operation_cls,
-            keyed_state_backend)
+            keyed_state_backend,
+            operator_state_store,
+        )
     elif internal_operation_cls == datastream_operations.StatefulOperation:
         key_row_coder = from_type_info_proto(serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
@@ -195,7 +207,9 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_sampler,
             consumers,
             internal_operation_cls,
-            keyed_state_backend)
+            keyed_state_backend,
+            operator_state_store,
+        )
     else:
         return beam_operation_cls(
             transform_proto.unique_name,
@@ -203,4 +217,6 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.counter_factory,
             factory.state_sampler,
             consumers,
-            internal_operation_cls)
+            internal_operation_cls,
+            operator_state_store,
+        )

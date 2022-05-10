@@ -251,17 +251,21 @@ def extract_stateless_function(
 
             def wrapped_func(value):
                 # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK,
-                #   [isBroadcast, broadcastInput, normalInput]]
+                #   [isNormal, broadcastInput, normalInput]]
                 timestamp = value[0]
                 watermark = value[1]
-                ctx.set_timestamp(timestamp)
-                ctx.timer_service().advance_watermark(watermark)
+                broadcast_ctx.set_timestamp(timestamp)
+                broadcast_ctx.timer_service().advance_watermark(watermark)
+                read_only_broadcast_ctx.set_timestamp(timestamp)
+                read_only_broadcast_ctx.timer_service().advance_watermark(watermark)
 
                 data = value[2]
                 if data[0]:
-                    results = process_broadcast_element(data[1], broadcast_ctx)
+                    results = process_element(data[1], read_only_broadcast_ctx)
                 else:
-                    results = process_element(data[2], read_only_broadcast_ctx)
+                    # process_broadcast_element does not produce any results
+                    process_broadcast_element(data[2], broadcast_ctx)
+                    results = []
 
                 yield from _emit_results(timestamp, watermark, results, has_side_output)
 

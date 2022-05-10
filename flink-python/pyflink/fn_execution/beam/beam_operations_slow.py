@@ -71,12 +71,15 @@ class FunctionOperation(Operation):
     each input element.
     """
 
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
+    def __init__(
+        self, name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_store
+    ):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self._output_processors = self._create_output_processors(
             consumers
         )  # type: Dict[str, List[OutputProcessor]]
         self.operation_cls = operation_cls
+        self.operator_state_store = operator_state_store
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
@@ -176,13 +179,15 @@ class FunctionOperation(Operation):
 
 
 class StatelessFunctionOperation(FunctionOperation):
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
+    def __init__(
+        self, name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_store
+    ):
         super(StatelessFunctionOperation, self).__init__(
-            name, spec, counter_factory, sampler, consumers, operation_cls
+            name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_store
         )
 
     def generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn)
+        return self.operation_cls(self.spec.serialized_fn, self.operator_state_store)
 
 
 class StatefulFunctionOperation(FunctionOperation):
@@ -195,15 +200,18 @@ class StatefulFunctionOperation(FunctionOperation):
         consumers,
         operation_cls,
         keyed_state_backend,
+        operator_state_store,
     ):
         self._keyed_state_backend = keyed_state_backend
         self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
-            name, spec, counter_factory, sampler, consumers, operation_cls
+            name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_store
         )
 
     def generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
+        return self.operation_cls(
+            self.spec.serialized_fn, self._keyed_state_backend, self.operator_state_store
+        )
 
     def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
         # ignore timer_family_id
