@@ -18,38 +18,33 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
+import org.junit.jupiter.api.Test;
 
-/** Test for {@link AvroSerializer} that tests GenericRecord. */
-public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericRecord> {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    private static final Schema SCHEMA = AvroTestUtils.getSmallSchema();
-
-    @Override
-    protected TypeSerializer<GenericRecord> createSerializer() {
-        return new AvroSerializer<>(GenericRecord.class, SCHEMA);
-    }
+/** Test for {@link GenericRecordAvroTypeInfo}. */
+public class AvroGenericRecordTypeInfoTest
+        extends TypeInformationTestBase<GenericRecordAvroTypeInfo> {
 
     @Override
-    protected int getLength() {
-        return -1;
-    }
-
-    @Override
-    protected Class<GenericRecord> getTypeClass() {
-        return GenericRecord.class;
-    }
-
-    @Override
-    protected GenericRecord[] getTestData() {
-        return new GenericRecord[] {
-            new GenericRecordBuilder(SCHEMA).set("afield", "foo bar").build()
+    protected GenericRecordAvroTypeInfo[] getTestData() {
+        return new GenericRecordAvroTypeInfo[] {
+            new GenericRecordAvroTypeInfo(AvroTestUtils.getSmallSchema()),
+            new GenericRecordAvroTypeInfo(AvroTestUtils.getLargeSchema())
         };
+    }
+
+    @Test
+    void testAvroByDefault() {
+        final TypeSerializer<GenericRecord> serializer =
+                new GenericRecordAvroTypeInfo(AvroTestUtils.getLargeSchema())
+                        .createSerializer(new ExecutionConfig());
+        assertThat(serializer).isInstanceOf(AvroSerializer.class);
     }
 }
