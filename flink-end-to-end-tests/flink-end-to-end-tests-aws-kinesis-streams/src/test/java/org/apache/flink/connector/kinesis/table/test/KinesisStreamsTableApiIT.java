@@ -25,6 +25,7 @@ import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
+import org.apache.flink.tests.util.flink.container.TestcontainersSettings;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -91,16 +92,19 @@ public class KinesisStreamsTableApiIT {
                     .withNetwork(network)
                     .withNetworkAliases(INTER_CONTAINER_KINESALITE_ALIAS);
 
-    public static final FlinkContainers FLINK =
-            FlinkContainers.builder()
-                    .setEnvironmentVariable("AWS_CBOR_DISABLE", "1")
-                    .setEnvironmentVariable(
+    public static final TestcontainersSettings TESTCONTAINERS_SETTINGS =
+            TestcontainersSettings.builder()
+                    .environmentVariable("AWS_CBOR_DISABLE", "1")
+                    .environmentVariable(
                             "FLINK_ENV_JAVA_OPTS",
                             "-Dorg.apache.flink.kinesis-streams.shaded.com.amazonaws.sdk.disableCertChecking -Daws.cborEnabled=false")
-                    .setNetwork(network)
-                    .setLogger(LOGGER)
+                    .network(network)
+                    .logger(LOGGER)
                     .dependsOn(KINESALITE)
                     .build();
+
+    public static final FlinkContainers FLINK =
+            FlinkContainers.builder().withTestcontainersSettings(TESTCONTAINERS_SETTINGS).build();
 
     @BeforeClass
     public static void setupFlink() throws Exception {

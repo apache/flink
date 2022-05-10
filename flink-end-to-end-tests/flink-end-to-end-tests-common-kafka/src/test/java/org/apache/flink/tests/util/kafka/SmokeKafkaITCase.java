@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
+import org.apache.flink.tests.util.flink.container.FlinkContainersSettings;
+import org.apache.flink.tests.util.flink.container.TestcontainersSettings;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -85,12 +87,15 @@ public class SmokeKafkaITCase {
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
+    public static final TestcontainersSettings TESTCONTAINERS_SETTINGS =
+            TestcontainersSettings.builder().logger(LOG).dependsOn(KAFKA_CONTAINER).build();
+
     @RegisterExtension
     public static final FlinkContainers FLINK =
             FlinkContainers.builder()
-                    .setConfiguration(getConfiguration())
-                    .setLogger(LOG)
-                    .dependsOn(KAFKA_CONTAINER)
+                    .withFlinkContainersSettings(
+                            FlinkContainersSettings.basedOn(getConfiguration()))
+                    .withTestcontainersSettings(TESTCONTAINERS_SETTINGS)
                     .build();
 
     private static AdminClient admin;

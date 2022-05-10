@@ -79,32 +79,54 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <pre>{@code
  * public class E2ETest {
  *     // Create a Flink cluster using default configurations.
- *     // Remember to declare it as "static" as required by JUnit 5.
+ *     // Remember to declare it as "static" as required by
+ *     // JUnit 5.
  *     @RegisterExtension
- *     static FlinkContainers flink = FlinkContainers.builder().build();
+ *     static FlinkContainers flink =
+ *          FlinkContainers.builder().build();
+ *
+ * ---
  *
  *     // To work together with other containers
- *     @RegisterExtension
- *     static FlinkContainers flink =
- *         FlinkContainers.builder()
- *             .dependsOn(kafkaContainer)
- *             .build();
+ *     static TestcontainersSettings testcontainersSettings =
+ *          TestcontainersSettings.builder()
+ *                 .dependsOn(kafkaContainer)
+ *                 .build());
  *
- *     // Customize a Flink cluster
- *     // Remember to declare it as "static" as required by JUnit 5.
  *     @RegisterExtension
  *     static FlinkContainers flink =
- *         FlinkContainers.builder()
- *             .setNumTaskManagers(3)
- *             .setConfiguration(TaskManagerOptions.NUM_TASK_SLOTS, 6)
- *             .setLogger(LoggerFactory.getLogger(E2ETest.class))
+ *             FlinkContainers.builder()
+ *              .withTestcontainersSettings(testcontainersSettings)
+ *              .build();
+ *
+ * ---
+ *     // Customize a Flink cluster
+ *     static FlinkContainersSettings flinkContainersSettings =
+ *          FlinkContainersSettings.builder()
+ *             .numTaskManagers(3)
+ *             .numSlotsPerTaskManager(6)
+ *             .baseImage(
+ *               "ghcr.io/apache/flink-docker:1.16-snapshot-scala_2.12-java11-debian")
  *             .enableZookeeperHA()
  *             .build();
+ *
+ *     static TestcontainersSettings testcontainersSettings =
+ *          TestcontainersSettings.builder()
+ *                 .setLogger(
+ *                      LoggerFactory.getLogger(E2ETest.class))
+ *                 .build());
+ *
+ *     @RegisterExtension
+ *     static FlinkContainers flink =
+ *         FlinkContainers.builder()
+ *           .withFlinkContainersSettings(flinkContainersSettings)
+ *           .withTestcontainersSettings(testcontainersSettings)
+ *           .build();
  *     ...
  * }
  * }</pre>
  *
- * <p>Detailed usages can be found in the JavaDoc of {@link FlinkContainersBuilder}.
+ * <p>See {@link FlinkContainersSettings} and {@link TestcontainersSettings} for available options.
  *
  * <h2>Prerequisites</h2>
  *
@@ -128,9 +150,57 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
     @Nullable private RestClusterClient<StandaloneClusterId> restClusterClient;
     private boolean isStarted = false;
 
+    /** The {@link FlinkContainers} builder. */
+    public static final class Builder {
+        private FlinkContainersSettings flinkContainersSettings =
+                FlinkContainersSettings.defaultConfig();
+        private TestcontainersSettings testcontainersSettings =
+                TestcontainersSettings.defaultSettings();
+
+        private Builder() {}
+
+        /**
+         * Allows to optionally provide Flink containers settings. {@link FlinkContainersSettings}
+         * based on defaults will be used otherwise.
+         *
+         * @param flinkContainersSettings The Flink containers settings.
+         * @return A reference to this Builder.
+         */
+        public Builder withFlinkContainersSettings(
+                FlinkContainersSettings flinkContainersSettings) {
+            this.flinkContainersSettings = flinkContainersSettings;
+            return this;
+        }
+
+        /**
+         * Allows to optionally provide Testcontainers settings. {@link TestcontainersSettings}
+         * based on defaults will be used otherwise.
+         *
+         * @param testcontainersSettings The Testcontainers settings.
+         * @return A reference to this Builder.
+         */
+        public Builder withTestcontainersSettings(TestcontainersSettings testcontainersSettings) {
+            this.testcontainersSettings = testcontainersSettings;
+            return this;
+        }
+
+        /**
+         * Returns {@code FlinkContainers} built from the provided settings.
+         *
+         * @return {@code FlinkContainers} built with parameters of this {@code
+         *     FlinkContainers.Builder}.
+         */
+        public FlinkContainers build() {
+            FlinkTestcontainersConfigurator configurator =
+                    new FlinkTestcontainersConfigurator(
+                            flinkContainersSettings, testcontainersSettings);
+            return configurator.configure();
+        }
+    }
+
     /** Creates a builder for {@link FlinkContainers}. */
-    public static FlinkContainersBuilder builder() {
-        return new FlinkContainersBuilder();
+    public static Builder builder() {
+        return new Builder();
     }
 
     FlinkContainers(
@@ -243,7 +313,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
 
         // Construct SQL client command
         commands.add("cat /tmp/script.sql | ");
-        commands.add("flink/bin/sql-client.sh");
+        commands.add("bin/sql-client.sh");
         for (String jar : job.getJars()) {
             commands.add("--jar");
             Path path = Paths.get(jar);
@@ -269,7 +339,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
      */
     public JobID submitJob(JobSubmission job) throws IOException, InterruptedException {
         final List<String> commands = new ArrayList<>();
-        commands.add("flink/bin/flink");
+        commands.add("bin/flink");
         commands.add("run");
 
         if (job.isDetached()) {
