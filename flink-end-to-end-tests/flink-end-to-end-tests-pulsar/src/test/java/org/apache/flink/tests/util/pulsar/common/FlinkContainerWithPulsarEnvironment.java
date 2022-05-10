@@ -23,7 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainerTestEnvironment;
 
 /** A Flink Container which would bundles pulsar connector in its classpath. */
 public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvironment {

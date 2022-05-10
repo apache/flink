@@ -25,7 +25,8 @@ import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SinkTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainerTestEnvironment;
+import org.apache.flink.tests.util.flink.container.FlinkContainersConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +56,18 @@ public abstract class ElasticsearchSinkE2ECaseBase<T extends Comparable<T>>
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
 
     // Defines TestEnvironment
+    // TODO: Extract base image name
     @TestEnv
-    protected FlinkContainerTestEnvironment flink = new FlinkContainerTestEnvironment(1, 6);
+    protected FlinkContainerTestEnvironment flink =
+            FlinkContainerTestEnvironment.fromConfig(
+                    FlinkContainersConfig.builder()
+                            .numTaskManagers(1)
+                            .numSlotsPerTaskManager(6)
+                            .baseImage(
+                                    "ghcr.io/afedulov/flink-docker:1.16-snapshot-scala_2.12-java8-debian")
+                            .enableZookeeperHA() // TODO: verify if this is really needed for these
+                            // tests.
+                            .build());
 
     // Defines ConnectorExternalSystem
     @TestExternalSystem

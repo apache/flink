@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
+import org.apache.flink.tests.util.flink.container.FlinkContainersConfig;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -87,8 +88,7 @@ public class SmokeKafkaITCase {
 
     @RegisterExtension
     public static final FlinkContainers FLINK =
-            FlinkContainers.builder()
-                    .setConfiguration(getConfiguration())
+            FlinkContainers.builder(FlinkContainersConfig.basedOn(getConfiguration()))
                     .setLogger(LOG)
                     .dependsOn(KAFKA_CONTAINER)
                     .build();

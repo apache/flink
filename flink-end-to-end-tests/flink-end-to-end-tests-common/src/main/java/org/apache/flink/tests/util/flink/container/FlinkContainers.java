@@ -130,7 +130,11 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
 
     /** Creates a builder for {@link FlinkContainers}. */
     public static FlinkContainersBuilder builder() {
-        return new FlinkContainersBuilder();
+        return new FlinkContainersBuilder(FlinkContainersConfig.defaultConfig());
+    }
+
+    public static FlinkContainersBuilder builder(FlinkContainersConfig config) {
+        return new FlinkContainersBuilder(config);
     }
 
     FlinkContainers(

@@ -28,10 +28,8 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,8 +49,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class FlinkImageBuilder {
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkImageBuilder.class);
-    private static final String FLINK_BASE_IMAGE_NAME = "flink-dist-base";
-    private static final String DEFAULT_IMAGE_NAME = "flink-dist-configured";
+    private static final String FLINK_BASE_IMAGE_BUILD_NAME = "flink-base";
+    private static final String DEFAULT_IMAGE_NAME_BUILD_PREFIX = "flink-configured";
     private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(5);
     private static final String LOG4J_PROPERTIES_FILENAME = "log4j-console.properties";
 
@@ -60,13 +58,15 @@ public class FlinkImageBuilder {
     private final Properties logProperties = new Properties();
 
     private Path tempDirectory;
-    private String imageName = DEFAULT_IMAGE_NAME;
+    private String imageName = DEFAULT_IMAGE_NAME_BUILD_PREFIX;
     private String imageNameSuffix;
-    private Path flinkDist = FileUtils.findFlinkDist();
+    private Path flinkDist;
     private String javaVersion;
     private Configuration conf;
     private Duration timeout = DEFAULT_TIMEOUT;
     private String startupCommand;
+    private String baseImage;
+    private String flinkHome = FlinkContainersConfig.getDefaultFlinkHome();
 
     /**
      * Sets temporary path for holding temp files when building the image.
@@ -80,9 +80,20 @@ public class FlinkImageBuilder {
     }
 
     /**
+     * Sets flink home.
+     *
+     * @param flinkHome The flink home.
+     * @return The flink home.
+     */
+    public FlinkImageBuilder setFlinkHome(String flinkHome) {
+        this.flinkHome = flinkHome;
+        return this;
+    }
+
+    /**
      * Sets the name of building image.
      *
-     * <p>If the name is not specified, {@link #DEFAULT_IMAGE_NAME} will be used.
+     * <p>If the name is not specified, {@link #DEFAULT_IMAGE_NAME_BUILD_PREFIX} will be used.
      */
     public FlinkImageBuilder setImageName(String imageName) {
         this.imageName = imageName;
@@ -149,7 +160,7 @@ public class FlinkImageBuilder {
     /** Use this image for building a JobManager. */
     public FlinkImageBuilder asJobManager() {
         checkStartupCommandNotSet();
-        this.startupCommand = "flink/bin/jobmanager.sh start-foreground && tail -f /dev/null";
+        this.startupCommand = "bin/jobmanager.sh start-foreground && tail -f /dev/null";
         this.imageNameSuffix = "jobmanager";
         return this;
     }
@@ -157,7 +168,7 @@ public class FlinkImageBuilder {
     /** Use this image for building a TaskManager. */
     public FlinkImageBuilder asTaskManager() {
         checkStartupCommandNotSet();
-        this.startupCommand = "flink/bin/taskmanager.sh start-foreground && tail -f /dev/null";
+        this.startupCommand = "bin/taskmanager.sh start-foreground && tail -f /dev/null";
         this.imageNameSuffix = "taskmanager";
         return this;
     }
@@ -170,32 +181,52 @@ public class FlinkImageBuilder {
         return this;
     }
 
+    /**
+     * Sets base image.
+     *
+     * @param baseImage The base image.
+     * @return A reference to this Builder.
+     */
+    public FlinkImageBuilder setBaseImage(String baseImage) {
+        this.baseImage = baseImage;
+        return this;
+    }
+
     /** Build the image. */
     public ImageFromDockerfile build() throws ImageBuildException {
         sanityCheck();
         final String finalImageName = imageName + "-" + imageNameSuffix;
         try {
-            // Build base image first
-            buildBaseImage(flinkDist);
-            final Path flinkConfFile = createTemporaryFlinkConfFile(tempDirectory);
+            if (baseImage == null) {
+                baseImage = FLINK_BASE_IMAGE_BUILD_NAME;
+                if (flinkDist == null) {
+                    flinkDist = FileUtils.findFlinkDist();
+                }
+                // Build base image first
+                buildBaseImage(flinkDist);
+            }
+
+            final Path flinkConfFile = createTemporaryFlinkConfFile(conf, tempDirectory);
+
             final Path log4jPropertiesFile = createTemporaryLog4jPropertiesFile(tempDirectory);
             // Copy flink-conf.yaml into image
             filesToCopy.put(
                     flinkConfFile,
-                    Paths.get("flink", "conf", GlobalConfiguration.FLINK_CONF_FILENAME));
+                    Paths.get(flinkHome, "conf", GlobalConfiguration.FLINK_CONF_FILENAME));
             filesToCopy.put(
-                    log4jPropertiesFile, Paths.get("flink", "conf", LOG4J_PROPERTIES_FILENAME));
+                    log4jPropertiesFile, Paths.get(flinkHome, "conf", LOG4J_PROPERTIES_FILENAME));
 
             final ImageFromDockerfile image =
                     new ImageFromDockerfile(finalImageName)
                             .withDockerfileFromBuilder(
                                     builder -> {
                                         // Build from base image
-                                        builder.from(FLINK_BASE_IMAGE_NAME);
+                                        builder.from(baseImage);
                                         // Copy files into image
                                         filesToCopy.forEach(
                                                 (from, to) ->
                                                         builder.copy(to.toString(), to.toString()));
+                                        builder.user("1000");
                                         builder.cmd(startupCommand);
                                     });
             filesToCopy.forEach((from, to) -> image.withFileFromPath(to.toString(), from));
@@ -212,19 +243,22 @@ public class FlinkImageBuilder {
             return;
         }
         LOG.info("Building Flink base image with flink-dist at {}", flinkDist);
-        new ImageFromDockerfile(FLINK_BASE_IMAGE_NAME)
+        new ImageFromDockerfile(FLINK_BASE_IMAGE_BUILD_NAME)
                 .withDockerfileFromBuilder(
                         builder ->
                                 builder.from("openjdk:" + getJavaVersionSuffix())
-                                        .copy("flink", "flink")
+                                        .copy(flinkHome, flinkHome)
                                         .build())
-                .withFileFromPath("flink", flinkDist)
+                .withFileFromPath(flinkHome, flinkDist)
                 .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private boolean baseImageExists() {
         try {
-            DockerClientFactory.instance().client().inspectImageCmd(FLINK_BASE_IMAGE_NAME).exec();
+            DockerClientFactory.instance()
+                    .client()
+                    .inspectImageCmd(FLINK_BASE_IMAGE_BUILD_NAME)
+                    .exec();
             return true;
         } catch (NotFoundException e) {
             return false;
@@ -250,17 +284,8 @@ public class FlinkImageBuilder {
         }
     }
 
-    private Path createTemporaryFlinkConfFile(Path tempDirectory) throws IOException {
-        // Load flink-conf.yaml under flink-dist as a base configuration
-        final Configuration finalConfiguration =
-                GlobalConfiguration.loadConfiguration(
-                        flinkDist.resolve("conf").toAbsolutePath().toString());
-
-        // Merge user specific configurations in builder
-        if (this.conf != null) {
-            finalConfiguration.addAll(this.conf);
-        }
-
+    private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
+            throws IOException {
         // Create a temporary flink-conf.yaml file and write merged configurations into it
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
@@ -273,19 +298,10 @@ public class FlinkImageBuilder {
     }
 
     private Path createTemporaryLog4jPropertiesFile(Path tempDirectory) throws IOException {
-        // Load log4j-console.properties under flink-dist as base properties
-        final Path logPropertiesPath = flinkDist.resolve("conf").resolve(LOG4J_PROPERTIES_FILENAME);
-        final Properties mergedLogProperties = new Properties();
-        try (InputStream input = new FileInputStream(logPropertiesPath.toFile())) {
-            mergedLogProperties.load(input);
-            // Merge all log properties
-            mergedLogProperties.putAll(this.logProperties);
-        }
-
         // Create a temporary log4j.properties file and write merged properties into it
         Path log4jPropFile = tempDirectory.resolve(LOG4J_PROPERTIES_FILENAME);
         try (OutputStream output = new FileOutputStream(log4jPropFile.toFile())) {
-            mergedLogProperties.store(output, null);
+            logProperties.store(output, null);
         }
 
         return log4jPropFile;
