@@ -235,8 +235,8 @@ public class SplitFetcherTest {
             }
 
             assertThat(recordsRead).hasSize(numTotalRecords);
-            assertThat((int) recordsRead.first()).isEqualTo(0);
-            assertThat((int) recordsRead.last()).isEqualTo(numTotalRecords - 1);
+            assertThat(recordsRead.first()).isEqualTo(0);
+            assertThat(recordsRead.last()).isEqualTo(numTotalRecords - 1);
             assertThat(wakeupTimes.get()).isGreaterThan(0);
         } finally {
             stop.set(true);

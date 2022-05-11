@@ -38,7 +38,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSourceSplitEnumerator}. */
 public class HybridSourceSplitEnumeratorTest {
@@ -152,11 +152,8 @@ public class HybridSourceSplitEnumeratorTest {
 
         // handleSplitRequest invalid during reset
         enumerator.addSplitsBack(Collections.singletonList(splitFromSource0), SUBTASK0);
-        try {
-            enumerator.handleSplitRequest(SUBTASK0, "fakehostname");
-            fail("expected exception");
-        } catch (IllegalStateException ex) {
-        }
+        assertThatThrownBy(() -> enumerator.handleSplitRequest(SUBTASK0, "fakehostname"))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

@@ -45,8 +45,8 @@ import java.util.Map;
 import java.util.concurrent.CyclicBarrier;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.metrics.testutils.MetricMatchers.isCounter;
-import static org.apache.flink.metrics.testutils.MetricMatchers.isGauge;
+import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatCounter;
+import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGauge;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -140,29 +140,18 @@ public class SinkMetricsITCase extends TestLogger {
             }
             subtaskWithMetrics++;
             // SinkWriterMetricGroup metrics
-            assertThat(
-                    metrics.get(MetricNames.NUM_RECORDS_SEND),
-                    isCounter(equalTo(processedRecordsPerSubtask)));
-            assertThat(
-                    metrics.get(MetricNames.NUM_BYTES_SEND),
-                    isCounter(
-                            equalTo(
-                                    processedRecordsPerSubtask
-                                            * MetricWriter.RECORD_SIZE_IN_BYTES)));
+            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_SEND))
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(metrics.get(MetricNames.NUM_BYTES_SEND))
+                    .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
             // MetricWriter is just incrementing errors every even record
-            assertThat(
-                    metrics.get(MetricNames.NUM_RECORDS_OUT_ERRORS),
-                    isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
-            assertThat(
-                    metrics.get(MetricNames.NUM_RECORDS_SEND_ERRORS),
-                    isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
+            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_OUT_ERRORS))
+                    .isEqualTo((processedRecordsPerSubtask + 1) / 2);
+            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_SEND_ERRORS))
+                    .isEqualTo((processedRecordsPerSubtask + 1) / 2);
             // check if the latest send time is fetched
-            assertThat(
-                    metrics.get(MetricNames.CURRENT_SEND_TIME),
-                    isGauge(
-                            equalTo(
-                                    (processedRecordsPerSubtask - 1)
-                                            * MetricWriter.BASE_SEND_TIME)));
+            assertThatGauge(metrics.get(MetricNames.CURRENT_SEND_TIME))
+                    .isEqualTo((processedRecordsPerSubtask - 1) * MetricWriter.BASE_SEND_TIME);
         }
         assertThat(subtaskWithMetrics, equalTo(numSplits));
     }

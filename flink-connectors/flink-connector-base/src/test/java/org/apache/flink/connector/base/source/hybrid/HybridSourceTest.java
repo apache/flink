@@ -30,7 +30,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link HybridSource}. */
 public class HybridSourceTest {
@@ -51,14 +51,16 @@ public class HybridSourceTest {
                         .build();
         assertThat(source.getBoundedness()).isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
 
-        try {
-            HybridSource.builder(new MockBaseSource(1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
-                    .addSource(new MockBaseSource(1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
-                    .build();
-            fail("expected exception");
-        } catch (IllegalArgumentException e) {
-            // boundedness check to fail
-        }
+        assertThatThrownBy(
+                        () ->
+                                HybridSource.builder(
+                                                new MockBaseSource(
+                                                        1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
+                                        .addSource(
+                                                new MockBaseSource(
+                                                        1, 1, Boundedness.CONTINUOUS_UNBOUNDED))
+                                        .build())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
