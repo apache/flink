@@ -266,7 +266,9 @@ Please refer to the [metrics system documentation]({{< ref "docs/ops/metrics" >}
 ### RocksDB Native Metrics
 
 Flink can report metrics from RocksDB's native code, for applications using the RocksDB state backend.
-The metrics here are scoped to the operators and then further broken down by column family; values are reported as unsigned longs. 
+The metrics here are scoped to the operators with unsigned longs and have two kinds of types：
+1. RocksDB property-based metrics, which is broken down by column family, e.g. number of currently running compactions of one specific column family.
+2. RocksDB statistics-based metrics, which holds at the database level, e.g. total block cache hit count within the DB.
 
 {{< hint warning >}}
 Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
