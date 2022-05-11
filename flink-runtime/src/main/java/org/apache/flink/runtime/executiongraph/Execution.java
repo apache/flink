@@ -205,7 +205,11 @@ public class Execution
 
         this.executor = checkNotNull(executor);
         this.vertex = checkNotNull(vertex);
-        this.attemptId = new ExecutionAttemptID();
+        this.attemptId =
+                new ExecutionAttemptID(
+                        vertex.getExecutionGraphAccessor().getExecutionGraphID(),
+                        vertex.getID(),
+                        attemptNumber);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.attemptNumber = attemptNumber;

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -109,7 +111,9 @@ public class SavepointEnvironment implements Environment {
             PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
         this.jobID = new JobID();
         this.vertexID = new JobVertexID();
-        this.attemptID = new ExecutionAttemptID();
+        this.attemptID =
+                new ExecutionAttemptID(
+                        new ExecutionGraphID(), new ExecutionVertexID(vertexID, indexOfSubtask), 0);
         this.ctx = Preconditions.checkNotNull(ctx);
         this.configuration = Preconditions.checkNotNull(configuration);
 
