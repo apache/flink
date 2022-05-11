@@ -1024,25 +1024,6 @@ under the License.
 	<profiles>
 		<!-- Activate these profiles with -Phive-x.x.x to build and test against different Hive versions -->
 		<profile>
-			<id>hive-2.3.9</id>
-			<properties>
-				<hive.version>2.3.9</hive.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.orc</groupId>
-					<artifactId>orc-core</artifactId>
-					<version>${hive-2.3.9-orc-version}</version>
-					<exclusions>
-						<exclusion>
-							<groupId>org.apache.hadoop</groupId>
-							<artifactId>hadoop-common</artifactId>
-						</exclusion>
-					</exclusions>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
 			<id>hive-3.1.1</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
