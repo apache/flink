@@ -36,7 +36,7 @@ import org.junit.Test;
 
 import java.util.List;
 
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_4;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -73,7 +73,7 @@ public class HiveModuleTest {
 
     private void verifyNumBuiltInFunctions(String hiveVersion, HiveModule hiveModule) {
         switch (hiveVersion) {
-            case HIVE_VERSION_V2_3_4:
+            case HIVE_VERSION_V2_3_9:
                 assertEquals(275, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V3_1_1:
