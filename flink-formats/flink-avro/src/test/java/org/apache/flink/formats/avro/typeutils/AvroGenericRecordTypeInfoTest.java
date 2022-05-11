@@ -26,7 +26,7 @@ import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link GenericRecordAvroTypeInfo}. */
 public class AvroGenericRecordTypeInfoTest
@@ -45,6 +45,6 @@ public class AvroGenericRecordTypeInfoTest
         final TypeSerializer<GenericRecord> serializer =
                 new GenericRecordAvroTypeInfo(AvroTestUtils.getLargeSchema())
                         .createSerializer(new ExecutionConfig());
-        assertThat(serializer).isInstanceOf(AvroSerializer.class);
+        assertTrue(serializer instanceof AvroSerializer);
     }
 }
