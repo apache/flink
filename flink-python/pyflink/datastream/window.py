@@ -33,6 +33,7 @@ from pyflink.metrics import MetricGroup
 __all__ = ['Window',
            'TimeWindow',
            'CountWindow',
+           'GlobalWindow',
            'TumblingProcessingTimeWindows',
            'TumblingEventTimeWindows',
            'SlidingProcessingTimeWindows',
@@ -51,11 +52,13 @@ __all__ = ['Window',
            'ProcessingTimeTrigger',
            'ContinuousEventTimeTrigger',
            'ContinuousProcessingTimeTrigger',
+           'NeverTrigger',
            'PurgingTrigger',
            'CountTrigger',
            'TimeWindowSerializer',
            'CountWindowSerializer',
-           'SessionWindowTimeGapExtractor']
+           'SessionWindowTimeGapExtractor',
+           'GlobalWindows']
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:
@@ -197,6 +200,31 @@ class CountWindow(Window):
         return "CountWindow(id={})".format(self.id)
 
 
+class GlobalWindow(Window):
+    """
+    The default window into which all data is placed (via org.apache.flink.streaming.api.windowing.
+    assigners.GlobalWindows).
+    """
+    def __init__(self):
+        super(GlobalWindow, self).__init__()
+
+    @staticmethod
+    def get() -> 'GlobalWindow':
+        return GlobalWindow()
+
+    def max_timestamp(self) -> int:
+        return MAX_LONG_VALUE
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
+    def __hash__(self):
+        return 0
+
+    def __repr__(self):
+        return "GlobalWindow"
+
+
 class TimeWindowSerializer(TypeSerializer[TimeWindow]):
     """
     The serializer used to write the TimeWindow type.
@@ -242,6 +270,31 @@ class CountWindowSerializer(TypeSerializer[CountWindow]):
     def _get_coder(self):
         from pyflink.fn_execution import coders
         return coders.CountWindowCoder()
+
+
+class GlobalWindowSerializer(TypeSerializer[GlobalWindow]):
+    """
+    A TypeSerializer for GlobalWindow.
+    """
+
+    def __init__(self) -> None:
+        self._underlying_coder = None
+
+    def serialize(self, element: GlobalWindow, stream: BytesIO) -> None:
+        if self._underlying_coder is None:
+            self._underlying_coder = self._get_coder().get_impl()
+        bytes_data = self._underlying_coder.encode(element)
+        stream.write(bytes_data)
+
+    def deserialize(self, stream: BytesIO) -> GlobalWindow:
+        if self._underlying_coder is None:
+            self._underlying_coder = self._get_coder().get_impl()
+        bytes_data = stream.read(8)
+        return self._underlying_coder.decode(bytes_data)
+
+    def _get_coder(self):
+        from pyflink.fn_execution import coders
+        return coders.GlobalWindowCoder()
 
 
 T = TypeVar('T')
@@ -965,6 +1018,41 @@ class CountTrigger(Trigger[T, CountWindow]):
         count_state.clear()
 
 
+class NeverTrigger(Trigger[T, GlobalWindow]):
+    """
+    A trigger that never fires, as default Trigger for GlobalWindows.
+    """
+
+    def on_element(self,
+                   element: T,
+                   timestamp: int,
+                   window: GlobalWindow,
+                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_processing_time(self,
+                           time: int,
+                           window: GlobalWindow,
+                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_event_time(self,
+                      time: int,
+                      window: GlobalWindow,
+                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
+        return TriggerResult.CONTINUE
+
+    def on_merge(self,
+                 window: GlobalWindow,
+                 ctx: 'Trigger.OnMergeContext') -> None:
+        pass
+
+    def clear(self,
+              window: GlobalWindow,
+              ctx: 'Trigger.TriggerContext') -> None:
+        pass
+
+
 class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
     """
     A WindowAssigner that windows elements into fixed-size windows based on the count number
@@ -1589,3 +1677,38 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def __repr__(self):
         return "DynamicEventTimeSessionWindows(%s)" % self._session_gap
+
+
+class GlobalWindows(WindowAssigner[T, GlobalWindow]):
+    """
+    A WindowAssigner that assigns all elements to the same GlobalWindow.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def assign_windows(self,
+                       element: T,
+                       timestamp: int,
+                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[GlobalWindow]:
+        return [GlobalWindow.get()]
+
+    @staticmethod
+    def create() -> 'GlobalWindows':
+        """
+        Creates a new GlobalWindows WindowAssigner that assigns all elements to the
+        same GlobalWindow.
+        """
+        return GlobalWindows()
+
+    def get_default_trigger(self, env) -> Trigger[T, GlobalWindow]:
+        return NeverTrigger()
+
+    def get_window_serializer(self) -> TypeSerializer[GlobalWindow]:
+        return GlobalWindowSerializer()
+
+    def is_event_time(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return "GlobalWindows()"

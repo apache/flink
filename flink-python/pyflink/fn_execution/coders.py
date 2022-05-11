@@ -585,6 +585,15 @@ class CountWindowCoder(FieldCoder):
         return coder_impl.CountWindowCoderImpl()
 
 
+class GlobalWindowCoder(FieldCoder):
+    """
+    Coder for GlobalWindow.
+    """
+
+    def get_impl(self):
+        return coder_impl.GlobalWindowCoderImpl()
+
+
 class DataViewFilterCoder(FieldCoder):
     """
     Coder for data view filter.
