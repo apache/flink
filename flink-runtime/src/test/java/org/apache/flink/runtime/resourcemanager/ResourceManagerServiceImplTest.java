@@ -517,7 +517,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
                         rpcService,
                         haService,
                         heartbeatServices,
-                        delegationTokenManager,
                         fatalErrorHandler,
                         clusterInformation,
                         null,
