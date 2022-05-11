@@ -826,10 +826,10 @@ class StreamExecutionEnvironment(object):
             .StreamExecutionEnvironment
 
         if configuration:
-            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment()
-        else:
             j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment(
                 configuration._j_configuration)
+        else:
+            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment()
 
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
