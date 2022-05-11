@@ -27,7 +27,8 @@ from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
-                                       CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow)
+                                       CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
+                                       GlobalWindows, CountTrigger)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
@@ -409,6 +410,36 @@ class WindowTests(PyFlinkStreamingTestCase):
         self.assert_equals_sorted(main_expected, main_sink.get_results())
         side_expected = ['+I[a, 4]']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
+
+    def test_global_window_with_purging_trigger(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyProcessFunction(ProcessWindowFunction):
+
+            def clear(self, context: ProcessWindowFunction.Context) -> None:
+                pass
+
+            def process(self, key, context: ProcessWindowFunction.Context,
+                        elements: Iterable[Tuple[str, int]]) -> Iterable[tuple]:
+                return [(key, len([e for e in elements]))]
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(GlobalWindows.create()) \
+            .trigger(PurgingTrigger.of(CountTrigger.of(2))) \
+            .process(MyProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_global_window_with_purging_trigger')
+        results = self.test_sink.get_results()
+        expected = ['(hi,2)', '(hi,2)', '(hi,2)']
+        self.assert_equals_sorted(expected, results)
 
 
 class SecondColumnTimestampAssigner(TimestampAssigner):

@@ -800,6 +800,19 @@ class CountWindowCoderImpl(FieldCoderImpl):
         return CountWindow(in_stream.read_int64())
 
 
+class GlobalWindowCoderImpl(FieldCoderImpl):
+    """
+    A coder for CountWindow.
+    """
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        out_stream.write_byte(0)
+
+    def decode_from_stream(self, in_stream: InputStream, length=0):
+        in_stream.read_byte()
+        return GlobalWindowCoderImpl()
+
+
 class DataViewFilterCoderImpl(FieldCoderImpl):
     """
     A coder for data view filter.

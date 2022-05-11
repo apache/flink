@@ -470,6 +470,16 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(GlobalWindows.create()) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ## 窗口函数（Window Functions）
