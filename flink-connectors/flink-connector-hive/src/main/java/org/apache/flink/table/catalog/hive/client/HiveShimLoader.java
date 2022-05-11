@@ -50,6 +50,8 @@ public class HiveShimLoader {
     public static final String HIVE_VERSION_V2_3_5 = "2.3.5";
     public static final String HIVE_VERSION_V2_3_6 = "2.3.6";
     public static final String HIVE_VERSION_V2_3_7 = "2.3.7";
+    public static final String HIVE_VERSION_V2_3_8 = "2.3.8";
+    public static final String HIVE_VERSION_V2_3_9 = "2.3.9";
     public static final String HIVE_VERSION_V3_1_0 = "3.1.0";
     public static final String HIVE_VERSION_V3_1_1 = "3.1.1";
     public static final String HIVE_VERSION_V3_1_2 = "3.1.2";
@@ -123,6 +125,12 @@ public class HiveShimLoader {
                     }
                     if (v.startsWith(HIVE_VERSION_V2_3_7)) {
                         return new HiveShimV237();
+                    }
+                    if (v.startsWith(HIVE_VERSION_V2_3_8)) {
+                        return new HiveShimV238();
+                    }
+                    if (v.startsWith(HIVE_VERSION_V2_3_9)) {
+                        return new HiveShimV239();
                     }
                     if (v.startsWith(HIVE_VERSION_V3_1_0)) {
                         return new HiveShimV310();
