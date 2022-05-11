@@ -42,6 +42,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
  * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
  * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)

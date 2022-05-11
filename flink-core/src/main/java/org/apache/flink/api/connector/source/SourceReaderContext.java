@@ -69,5 +69,7 @@ public interface SourceReaderContext {
      *
      * @return the parallelism of the Source.
      */
-    int currentParallelism();
+    default int currentParallelism() {
+        throw new UnsupportedOperationException();
+    }
 }
