@@ -25,6 +25,7 @@ import org.junit.Test;
 import java.io.File;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link JavaCodeSplitter}. */
@@ -51,6 +52,38 @@ public class JavaCodeSplitterTest {
                                     FlinkMatchers.containsMessage(
                                             "JavaCodeSplitter failed. This is a bug. Please file an issue.")));
         }
+    }
+
+    @Test
+    public void testNullCode() {
+        assertThatThrownBy(() -> JavaCodeSplitter.split(null, 4000, 10000))
+                .getCause()
+                .hasMessage("code cannot be empty");
+    }
+
+    @Test
+    public void testEmptyCode() {
+        assertThatThrownBy(() -> JavaCodeSplitter.split("", 4000, 10000))
+                .getCause()
+                .hasMessage("code cannot be empty");
+    }
+
+    @Test
+    public void testWrongMaxMethodLength() {
+        assertThatThrownBy(
+                        () ->
+                                JavaCodeSplitter.split(
+                                        "public interface DummyInterface {}", 0, 10000))
+                .getCause()
+                .hasMessage("maxMethodLength must be greater than 0");
+    }
+
+    @Test
+    public void testWrongMaxClassMemberCount() {
+        assertThatThrownBy(
+                        () -> JavaCodeSplitter.split("public interface DummyInterface {}", 10, 0))
+                .getCause()
+                .hasMessage("maxClassMemberCount must be greater than 0");
     }
 
     private void runTest(String filename, int maxLength, int maxMembers) {
