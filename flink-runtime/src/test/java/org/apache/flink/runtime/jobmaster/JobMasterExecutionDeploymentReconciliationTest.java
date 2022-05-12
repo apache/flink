@@ -60,6 +60,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -127,7 +128,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                     deploymentTrackerWrapper.getTaskDeploymentFuture().get();
             assertFalse(taskCancellationFuture.isDone());
 
-            ExecutionAttemptID unknownDeployment = new ExecutionAttemptID();
+            ExecutionAttemptID unknownDeployment = createExecutionAttemptId();
             //  the deployment report is missing the just deployed task, but contains the ID of some
             // other unknown deployment
             //  the job master should cancel the unknown deployment, and fail the job

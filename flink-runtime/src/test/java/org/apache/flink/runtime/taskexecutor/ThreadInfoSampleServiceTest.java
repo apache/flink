@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -149,7 +150,7 @@ public class ThreadInfoSampleServiceTest extends TestLogger {
 
     private static class TestTask implements SampleableTask {
 
-        private final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        private final ExecutionAttemptID executionAttemptID = createExecutionAttemptId();
 
         @Override
         public Thread getExecutingThread() {

@@ -88,6 +88,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultSubpartitionView;
@@ -1182,7 +1183,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                     createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
                     // Unknown
                     new UnknownShuffleDescriptor(
-                            new ResultPartitionID(partitionIds[2], new ExecutionAttemptID()))
+                            new ResultPartitionID(partitionIds[2], createExecutionAttemptId()))
                 };
 
         InputGateDeploymentDescriptor gateDesc =
@@ -1236,7 +1237,7 @@ public class SingleInputGateTest extends InputGateTestBase {
                             ids[i], ResultPartitionType.PIPELINED, 0, channelDescs);
         }
 
-        ExecutionAttemptID consumerID = new ExecutionAttemptID();
+        ExecutionAttemptID consumerID = createExecutionAttemptId();
         SingleInputGate[] gates =
                 network.createInputGates(
                                 network.createShuffleIOOwnerContext(

@@ -68,6 +68,7 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -184,11 +185,12 @@ public class LocalStateForwardingTest extends TestLogger {
 
         final JobID jobID = new JobID();
         final AllocationID allocationID = new AllocationID();
-        final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
         final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(42L, 4711L);
         final CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
         final int subtaskIdx = 42;
         JobVertexID jobVertexID = new JobVertexID();
+        final ExecutionAttemptID executionAttemptID =
+                createExecutionAttemptId(jobVertexID, subtaskIdx, 0);
 
         TaskStateSnapshot jmSnapshot = new TaskStateSnapshot();
         TaskStateSnapshot tmSnapshot = new TaskStateSnapshot();

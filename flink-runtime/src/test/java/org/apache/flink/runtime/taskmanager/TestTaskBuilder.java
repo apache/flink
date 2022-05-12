@@ -60,6 +60,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.mockito.Mockito.mock;
 
 /** Util that helps building {@link Task} objects for testing. */
@@ -81,7 +82,7 @@ public final class TestTaskBuilder {
     private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
     private JobID jobId = new JobID();
     private AllocationID allocationID = new AllocationID();
-    private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+    private ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
     private TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
@@ -176,7 +177,7 @@ public final class TestTaskBuilder {
     }
 
     public Task build(Executor executor) throws Exception {
-        final JobVertexID jobVertexId = new JobVertexID();
+        final JobVertexID jobVertexId = executionAttemptId.getJobVertexId();
 
         final SerializedValue<ExecutionConfig> serializedExecutionConfig =
                 new SerializedValue<>(executionConfig);

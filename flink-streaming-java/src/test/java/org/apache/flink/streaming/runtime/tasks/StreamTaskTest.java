@@ -184,6 +184,7 @@ import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_T
 import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_SEGMENT_SIZE;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
@@ -784,7 +785,7 @@ public class StreamTaskTest extends TestLogger {
         TaskStateManager taskStateManager =
                 new TaskStateManagerImpl(
                         new JobID(1L, 2L),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
                         new InMemoryStateChangelogStorage(),
                         null,
@@ -977,7 +978,7 @@ public class StreamTaskTest extends TestLogger {
         TaskStateManager taskStateManager =
                 new TaskStateManagerImpl(
                         new JobID(1L, 2L),
-                        new ExecutionAttemptID(),
+                        createExecutionAttemptId(),
                         mock(TaskLocalStateStoreImpl.class),
                         new InMemoryStateChangelogStorage(),
                         null,

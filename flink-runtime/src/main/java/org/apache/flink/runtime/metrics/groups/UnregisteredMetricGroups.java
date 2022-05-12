@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionAttemptID.randomId;
+
 /** A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s. */
 public class UnregisteredMetricGroups {
 
@@ -159,7 +161,7 @@ public class UnregisteredMetricGroups {
 
     /** A safe drop-in replacement for {@link TaskMetricGroup}s. */
     public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
-        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
+        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = randomId();
         private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
         protected UnregisteredTaskMetricGroup() {

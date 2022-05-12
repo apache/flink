@@ -47,6 +47,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.not;
@@ -265,7 +266,7 @@ public class ThreadInfoRequestCoordinatorTest extends TestLogger {
         final Map<ExecutionAttemptID, CompletableFuture<TaskExecutorThreadInfoGateway>> result =
                 new HashMap<>();
         for (CompletionType completionType : completionTypes) {
-            result.put(new ExecutionAttemptID(), createMockTaskManagerGateway(completionType));
+            result.put(createExecutionAttemptId(), createMockTaskManagerGateway(completionType));
         }
         return result;
     }

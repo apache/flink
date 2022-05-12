@@ -21,7 +21,6 @@ package org.apache.flink.runtime.messages.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -34,6 +33,7 @@ import org.junit.rules.TemporaryFolder;
 import java.net.URLClassLoader;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -65,7 +65,7 @@ public class DeclineCheckpointTest extends TestLogger {
         final byte[] serializedCheckpointMessage =
                 InstantiationUtil.serializeObject(
                         new DeclineCheckpoint(
-                                new JobID(), new ExecutionAttemptID(), 1, checkpointException));
+                                new JobID(), createExecutionAttemptId(), 1, checkpointException));
         final DeclineCheckpoint deserializedCheckpointMessage =
                 InstantiationUtil.deserializeObject(
                         serializedCheckpointMessage, ClassLoader.getSystemClassLoader());

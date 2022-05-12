@@ -438,10 +438,13 @@ public class ExecutionGraphTestUtils {
 
     public static ExecutionAttemptID createExecutionAttemptId(
             JobVertexID jobVertexId, int subtaskIndex, int attemptNumber) {
-        return new ExecutionAttemptID(
-                new ExecutionGraphID(),
-                new ExecutionVertexID(jobVertexId, subtaskIndex),
-                attemptNumber);
+        return createExecutionAttemptId(
+                new ExecutionVertexID(jobVertexId, subtaskIndex), attemptNumber);
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(
+            ExecutionVertexID executionVertexId, int attemptNumber) {
+        return new ExecutionAttemptID(new ExecutionGraphID(), executionVertexId, attemptNumber);
     }
 
     // ------------------------------------------------------------------------

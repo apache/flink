@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
@@ -48,11 +47,6 @@ public class ExecutionAttemptID implements java.io.Serializable {
 
     private final int attemptNumber;
 
-    @VisibleForTesting
-    public ExecutionAttemptID() {
-        this(new ExecutionGraphID(), new ExecutionVertexID(new JobVertexID(0, 0), 0), 0);
-    }
-
     public ExecutionAttemptID(
             ExecutionGraphID executionGraphId,
             ExecutionVertexID executionVertexId,
@@ -61,21 +55,6 @@ public class ExecutionAttemptID implements java.io.Serializable {
         this.executionGraphId = checkNotNull(executionGraphId);
         this.executionVertexId = checkNotNull(executionVertexId);
         this.attemptNumber = attemptNumber;
-    }
-
-    @VisibleForTesting
-    public ExecutionAttemptID(ExecutionAttemptID toCopy) {
-        // deep copy
-        this.executionGraphId = new ExecutionGraphID(toCopy.executionGraphId.getBytes());
-
-        final ExecutionVertexID executionVertexId = toCopy.executionVertexId;
-        final JobVertexID jobVertexId = executionVertexId.getJobVertexId();
-        this.executionVertexId =
-                new ExecutionVertexID(
-                        new JobVertexID(jobVertexId.getBytes()),
-                        executionVertexId.getSubtaskIndex());
-
-        this.attemptNumber = toCopy.attemptNumber;
     }
 
     public ExecutionVertexID getExecutionVertexId() {
@@ -133,5 +112,10 @@ public class ExecutionAttemptID implements java.io.Serializable {
     @Override
     public String toString() {
         return String.format("%s_%s_%d", executionGraphId, executionVertexId, attemptNumber);
+    }
+
+    public static ExecutionAttemptID randomId() {
+        return new ExecutionAttemptID(
+                new ExecutionGraphID(), new ExecutionVertexID(new JobVertexID(0, 0), 0), 0);
     }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
@@ -37,6 +36,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -353,7 +353,10 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
                 SchedulingResultPartition failedProducer) {
             return cause(
                     new PartitionConnectionException(
-                            new ResultPartitionID(failedProducer.getId(), new ExecutionAttemptID()),
+                            new ResultPartitionID(
+                                    failedProducer.getId(),
+                                    createExecutionAttemptId(
+                                            failedProducer.getProducer().getId(), 0)),
                             new Exception("Test failure")));
         }
 

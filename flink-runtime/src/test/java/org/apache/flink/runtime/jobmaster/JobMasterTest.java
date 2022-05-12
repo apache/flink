@@ -158,6 +158,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -1357,7 +1358,7 @@ public class JobMasterTest extends TestLogger {
 
             final ExecutionAttemptID executionAttemptId = tdd.getExecutionAttemptId();
             final ExecutionAttemptID copiedExecutionAttemptId =
-                    new ExecutionAttemptID(executionAttemptId);
+                    InstantiationUtil.clone(executionAttemptId);
 
             // finish the producer task
             jobMasterGateway
@@ -1406,7 +1407,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.requestPartitionState(
                             partition.getResultId(),
                             new ResultPartitionID(
-                                    partition.getPartitionId(), new ExecutionAttemptID()));
+                                    partition.getPartitionId(), createExecutionAttemptId()));
 
             try {
                 partitionStateFuture.get();
