@@ -806,9 +806,10 @@ class GlobalWindowCoderImpl(FieldCoderImpl):
     """
 
     def encode_to_stream(self, value, out_stream: OutputStream):
-        out_stream.write_int64(0)
+        out_stream.write_byte(0)
 
     def decode_from_stream(self, in_stream: InputStream, length=0):
+        in_stream.read_byte()
         return GlobalWindowCoderImpl()
 
 

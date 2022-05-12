@@ -43,7 +43,8 @@ from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListState
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
-                                       WindowAssigner, WindowOperationDescriptor)
+                                       WindowAssigner, WindowOperationDescriptor,
+                                       GlobalWindowSerializer)
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
@@ -2138,6 +2139,10 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         elif isinstance(window_serializer, CountWindowSerializer):
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.table.runtime.operators.window.CountWindow.Serializer()
+        elif isinstance(window_serializer, GlobalWindowSerializer):
+            j_namespace_serializer = \
+                gateway.jvm.org.apache.flink.streaming.api.windowing.windows.GlobalWindow \
+                .Serializer()
         else:
             j_namespace_serializer = \
                 gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()

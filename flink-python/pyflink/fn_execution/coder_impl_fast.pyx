@@ -915,9 +915,10 @@ cdef class GlobalWindowCoderImpl(FieldCoderImpl):
     """
 
     cpdef encode_to_stream(self, value, OutputStream out_stream):
-        out_stream.write_int64(0)
+        out_stream.write_byte(0)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        in_stream.read_byte()
         return GlobalWindow()
 
 cdef class DataViewFilterCoderImpl(FieldCoderImpl):

@@ -28,7 +28,7 @@ from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
-                                       GlobalWindows, CountTrigger, GlobalWindow)
+                                       GlobalWindows, CountTrigger)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
@@ -432,13 +432,13 @@ class WindowTests(PyFlinkStreamingTestCase):
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
             .window(GlobalWindows.create()) \
-            .trigger(PurgingTrigger.of(CountTrigger.of(5))) \
+            .trigger(PurgingTrigger.of(CountTrigger.of(2))) \
             .process(MyProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_global_window_with_purging_trigger')
         results = self.test_sink.get_results()
-        expected = ['(hi,5)']
+        expected = ['(hi,2)', '(hi,2)', '(hi,2)']
         self.assert_equals_sorted(expected, results)
 
 
@@ -468,18 +468,6 @@ class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, TimeWi
     def process(self,
                 key: str,
                 context: ProcessWindowFunction.Context[TimeWindow],
-                elements: Iterable[tuple]) -> Iterable[tuple]:
-        return [(key, context.window().start, context.window().end, len([e for e in elements]))]
-
-    def clear(self, context: ProcessWindowFunction.Context) -> None:
-        pass
-
-
-class GlobalWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, GlobalWindow]):
-
-    def process(self,
-                key: str,
-                context: ProcessWindowFunction.Context[GlobalWindow],
                 elements: Iterable[tuple]) -> Iterable[tuple]:
         return [(key, context.window().start, context.window().end, len([e for e in elements]))]
 

@@ -202,8 +202,7 @@ class CountWindow(Window):
 
 class GlobalWindow(Window):
     """
-    The default window into which all data is placed (via org.apache.flink.streaming.api.windowing.
-    assigners.GlobalWindows).
+    The default window into which all data is placed GlobalWindows.
     """
     def __init__(self):
         super(GlobalWindow, self).__init__()
@@ -277,7 +276,7 @@ class GlobalWindowSerializer(TypeSerializer[GlobalWindow]):
     A TypeSerializer for GlobalWindow.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._underlying_coder = None
 
     def serialize(self, element: GlobalWindow, stream: BytesIO) -> None:
