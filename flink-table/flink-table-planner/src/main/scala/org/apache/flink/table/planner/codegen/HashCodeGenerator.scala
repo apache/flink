@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{hashCodeForType, newName, ROW_DATA}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{hashCodeForType, newName, primitiveTypeTermForType, rowFieldReadAccess, ARRAY_DATA, MAP_DATA, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedHashFunction, HashFunction}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.MathUtils
 
 /**
- * CodeGenerator for hash code RowData, Calculate a hash value based on some fields of RowData.
- * NOTE: If you need a hash value that is more evenly distributed, call [[MathUtils.murmurHash]]
- * outside to scatter.
+ * CodeGenerator for hash code RowData/ArrayData/MapData, Calculate a hash value based on some
+ * fields of RowData. NOTE: If you need a hash value that is more evenly distributed, call
+ * [[MathUtils.murmurHash]] outside to scatter.
  */
 object HashCodeGenerator {
 
@@ -75,6 +75,146 @@ object HashCodeGenerator {
           return $resultTerm;
         }
 
+        @Override
+        public int hashCode($ARRAY_DATA $inputTerm) {
+          ${genThrowException("RowData hash function doesn't support to generate hash code for ArrayData.")}
+        }
+
+        @Override
+        public int hashCode($MAP_DATA $inputTerm) {
+          ${genThrowException("RowData hash function doesn't support to generate hash code for MapData.")}
+        }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
+      }
+    """.stripMargin
+
+    new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  def generateArrayHash(
+      ctx: CodeGeneratorContext,
+      elementType: LogicalType,
+      name: String): GeneratedHashFunction = {
+    val className = newName(name)
+    val baseClass = classOf[HashFunction]
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+
+    val typeTerm = primitiveTypeTermForType(elementType)
+    val isNull = newName("isNull")
+    val fieldTerm = newName("fieldTerm")
+    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val i = newName("i")
+
+    // Generate element hash code firstly
+    val elementHashBody = hashCodeForType(ctx, elementType, fieldTerm)
+    val code =
+      j"""
+      public class $className implements ${baseClass.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        @Override
+        public int hashCode($ARRAY_DATA $inputTerm) {
+          int $hashIntTerm = 0;
+          for (int $i = 0; $i < $inputTerm.size(); $i++) {
+            boolean $isNull = $inputTerm.isNullAt($i);
+            if (!$isNull) {
+              $typeTerm $fieldTerm = ${rowFieldReadAccess(i, inputTerm, elementType)};
+              $hashIntTerm += $elementHashBody;
+            }
+          }
+
+          return $hashIntTerm;
+        }
+
+        @Override
+        public int hashCode($ROW_DATA $inputTerm) {
+          ${genThrowException("ArrayData hash function doesn't support to generate hash code for RowData.")}
+        }
+
+        @Override
+        public int hashCode($MAP_DATA $inputTerm) {
+          ${genThrowException("ArrayData hash function doesn't support to generate hash code for MapData.")}
+        }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
+      }
+    """.stripMargin
+
+    new GeneratedHashFunction(className, code, ctx.references.toArray, ctx.tableConfig)
+  }
+
+  def generateMapHash(
+      ctx: CodeGeneratorContext,
+      keyType: LogicalType,
+      valueType: LogicalType,
+      name: String): GeneratedHashFunction = {
+    val className = newName(name)
+    val baseClass = classOf[HashFunction]
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+
+    val keyTypeTerm = primitiveTypeTermForType(keyType)
+    val valueTypeTerm = primitiveTypeTermForType(valueType)
+    val keys = newName("keys")
+    val values = newName("values")
+    val keyIsNull = newName("keyIsNull")
+    val keyFieldTerm = newName("keyFieldTerm")
+    val valueIsNull = newName("valueIsNull")
+    val valueFieldTerm = newName("valueFieldTerm")
+    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val i = newName("i")
+
+    // Generate key and value hash code body firstly
+    val keyElementHashBody = hashCodeForType(ctx, keyType, keyFieldTerm)
+    val valueElementHashBody = hashCodeForType(ctx, valueType, valueFieldTerm)
+    val code =
+      j"""
+      public class $className implements ${baseClass.getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className(Object[] references) throws Exception {
+          ${ctx.reuseInitCode()}
+        }
+
+        @Override
+        public int hashCode($MAP_DATA $inputTerm) {
+          $ARRAY_DATA $keys = $inputTerm.keyArray();
+          $ARRAY_DATA $values = $inputTerm.valueArray();
+
+          int $hashIntTerm = 0;
+          for (int $i = 0; $i < $inputTerm.size(); $i++) {
+            boolean $keyIsNull = $keys.isNullAt($i);
+            if (!$keyIsNull) {
+              $keyTypeTerm $keyFieldTerm = ${rowFieldReadAccess(i, keys, keyType)};
+              $hashIntTerm += $keyElementHashBody;
+            }
+
+            boolean $valueIsNull = $values.isNullAt($i);
+            if(!$valueIsNull) {
+              $valueTypeTerm $valueFieldTerm = ${rowFieldReadAccess(i, values, valueType)};
+              $hashIntTerm += $valueElementHashBody;
+            }
+          }
+
+          return $hashIntTerm;
+        }
+
+        @Override
+        public int hashCode($ROW_DATA $inputTerm) {
+          ${genThrowException("MapData hash function doesn't support to generate hash code for RowData.")}
+        }
+
+        @Override
+        public int hashCode($ARRAY_DATA $inputTerm) {
+          ${genThrowException("ArrayData hash function doesn't support to generate hash code for ArrayData.")}
+        }
+
         ${ctx.reuseInnerClassDefinitionCode()}
       }
     """.stripMargin
@@ -106,5 +246,11 @@ object HashCodeGenerator {
          |int $hashIntTerm = 0;
          |$hashBodyCode""".stripMargin,
       hashIntTerm)
+  }
+
+  private def genThrowException(msg: String): String = {
+    s"""
+       |throw new java.lang.RuntimeException("$msg");
+     """.stripMargin
   }
 }

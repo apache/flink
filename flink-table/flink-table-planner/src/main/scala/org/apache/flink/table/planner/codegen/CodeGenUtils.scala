@@ -311,10 +311,19 @@ object CodeGenUtils {
       case DOUBLE => s"${className[JDouble]}.hashCode($term)"
       case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         s"$term.hashCode()"
-      case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
+      case TIMESTAMP_WITH_TIME_ZONE =>
         throw new UnsupportedOperationException(
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
+      case ARRAY => genHashForArray(ctx, t.asInstanceOf[ArrayType].getElementType, term)
+      case MULTISET =>
+        genHashForMap(ctx, t.asInstanceOf[MultisetType].getElementType, new IntType(), term)
+      case MAP =>
+        genHashForMap(
+          ctx,
+          t.asInstanceOf[MapType].getKeyType,
+          t.asInstanceOf[MapType].getValueType,
+          term)
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
@@ -343,6 +352,34 @@ object CodeGenUtils {
     }
 
   // -------------------------- Method & Enum ---------------------------------------
+
+  def genHashForArray(ctx: CodeGeneratorContext, elementType: LogicalType, term: String): String = {
+    val subCtx = CodeGeneratorContext(ctx.tableConfig)
+    val genHash =
+      HashCodeGenerator.generateArrayHash(subCtx, elementType, "SubHashArray")
+    ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+    val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+    val hashFunc = newName("hashFunc")
+    ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+    ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+    s"$hashFunc.hashCode($term)"
+  }
+
+  def genHashForMap(
+      ctx: CodeGeneratorContext,
+      keyType: LogicalType,
+      valueType: LogicalType,
+      term: String): String = {
+    val subCtx = CodeGeneratorContext(ctx.tableConfig)
+    val genHash =
+      HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
+    ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+    val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+    val hashFunc = newName("hashFunc")
+    ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+    ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+    s"$hashFunc.hashCode($term)"
+  }
 
   def qualifyMethod(method: Method): String =
     method.getDeclaringClass.getCanonicalName + "." + method.getName

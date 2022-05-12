@@ -18,12 +18,19 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Interface for code generated hash code of {@link RowData}, which will select some fields to hash.
+ * Interface for code generated hash code of {@link RowData} or {@link ArrayData} or {@link
+ * MapData}, which will select some fields to hash.
  */
 public interface HashFunction {
 
     int hashCode(RowData row);
+
+    int hashCode(ArrayData array);
+
+    int hashCode(MapData map);
 }
