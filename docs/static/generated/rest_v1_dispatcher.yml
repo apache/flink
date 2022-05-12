@@ -677,6 +677,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EnvironmentInfo'
+  /jobs/{jobid}/jobmanager/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getJobManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/metrics:
     get:
       description: Provides access to job metrics.
@@ -865,6 +883,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TriggerResponse'
+  /jobs/{jobid}/taskmanagers/{taskmanagerid}/log-url:
+    get:
+      description: Returns the log url of jobmanager of a specific job.
+      operationId: getTaskManagerLogUrl
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: taskmanagerid
+        in: path
+        description: 32-character hexadecimal string that identifies a task manager.
+        required: true
+        schema:
+          $ref: '#/components/schemas/ResourceID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogUrlResponse'
   /jobs/{jobid}/vertices/{vertexid}:
     get:
       description: "Returns details for a task, with a summary for each of its subtasks."
@@ -1916,6 +1958,11 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/JobStatus'
+    LogUrlResponse:
+      type: object
+      properties:
+        url:
+          type: string
     JobAccumulator:
       type: object
     Id:
