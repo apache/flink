@@ -20,9 +20,9 @@ package org.apache.flink.connector.pulsar.common.schema.factories;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
-import org.apache.flink.connector.pulsar.common.schema.PulsarSchemaTypeInformation;
 import org.apache.flink.connector.pulsar.testutils.SampleData.FL;
 import org.apache.flink.connector.pulsar.testutils.SampleData.Foo;
+import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.pulsar.client.api.Schema;
@@ -62,7 +62,7 @@ class JSONSchemaFactoryTest {
         TypeInformation<FL> typeInfo = factory.createTypeInfo(pulsarSchema.getSchemaInfo());
 
         assertThat(typeInfo)
-                .isInstanceOf(PulsarSchemaTypeInformation.class)
+                .isInstanceOf(AvroTypeInfo.class)
                 .hasFieldOrPropertyWithValue("typeClass", FL.class);
 
         // TypeInformation serialization.
