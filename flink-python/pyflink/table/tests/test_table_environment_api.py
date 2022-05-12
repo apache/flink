@@ -238,7 +238,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
 
         super(DataStreamConversionTestCases, self).setUp()
         config = Configuration()
-        config.setString("akka.ask.timeout", "20 s")
+        config.set_string("akka.ask.timeout", "20 s")
         self.env = StreamExecutionEnvironment.get_execution_environment(config)
         self.t_env = StreamTableEnvironment.create(self.env)
 
