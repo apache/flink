@@ -28,8 +28,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
@@ -53,6 +51,8 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 
 /** Metrics related tests for batch task chains. */
 public class ChainedOperatorsMetricTest extends TaskTestBase {
@@ -85,12 +85,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
                                                 "host",
                                                 ResourceID.generate())
                                         .addJob(new JobID(), "jobName")
-                                        .addTask(
-                                                new JobVertexID(),
-                                                new ExecutionAttemptID(),
-                                                "task",
-                                                0,
-                                                0))
+                                        .addTask(createExecutionAttemptId(), "task"))
                         .build();
 
         final int keyCnt = 100;
