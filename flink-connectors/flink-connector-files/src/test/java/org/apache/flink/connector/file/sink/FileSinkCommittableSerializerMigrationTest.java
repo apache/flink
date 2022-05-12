@@ -29,38 +29,31 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RowWiseBucketWriter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the {@link FileSinkCommittableSerializer} that verify we can still read the recoverable
  * serialized by the previous versions.
  */
-@RunWith(Parameterized.class)
-public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
+class FileSinkCommittableSerializerMigrationTest {
 
     private static final int CURRENT_VERSION = 1;
 
-    @Parameterized.Parameters(name = "Previous Version = {0}")
-    public static Collection<Integer> previousVersions() {
-        return Collections.singletonList(1);
+    static Stream<Integer> previousVersions() {
+        return Stream.of(1);
     }
-
-    @Parameterized.Parameter public Integer previousVersion;
 
     private static final String IN_PROGRESS_CONTENT = "writing";
     private static final String PENDING_CONTENT = "wrote";
@@ -68,11 +61,9 @@ public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
     private static final java.nio.file.Path BASE_PATH =
             Paths.get("src/test/resources/").resolve("committable-serializer-migration");
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
     @Test
-    @Ignore
-    public void prepareDeserializationInProgressToCleanup() throws IOException {
+    @Disabled
+    void prepareDeserializationInProgressToCleanup() throws IOException {
         String scenario = "in-progress";
         java.nio.file.Path path = resolveVersionPath(CURRENT_VERSION, scenario);
 
@@ -96,8 +87,9 @@ public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
         Files.write(path.resolve("committable"), bytes);
     }
 
-    @Test
-    public void testSerializationInProgressToCleanup() throws IOException {
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationInProgressToCleanup(Integer previousVersion) throws IOException {
         String scenario = "in-progress";
         java.nio.file.Path path = resolveVersionPath(previousVersion, scenario);
 
@@ -111,13 +103,13 @@ public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
                 serializer.deserialize(
                         previousVersion, Files.readAllBytes(path.resolve("committable")));
 
-        Assert.assertTrue(committable.hasInProgressFileToCleanup());
-        Assert.assertFalse(committable.hasPendingFile());
+        assertThat(committable.hasInProgressFileToCleanup()).isTrue();
+        assertThat(committable.hasPendingFile()).isFalse();
     }
 
     @Test
-    @Ignore
-    public void prepareDeserializationPending() throws IOException {
+    @Disabled
+    void prepareDeserializationPending() throws IOException {
         String scenario = "pending";
         java.nio.file.Path path = resolveVersionPath(CURRENT_VERSION, scenario);
 
@@ -141,8 +133,9 @@ public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
         Files.write(path.resolve("committable"), bytes);
     }
 
-    @Test
-    public void testSerializationPending() throws IOException {
+    @ParameterizedTest(name = "Previous Version = {0}")
+    @MethodSource("previousVersions")
+    void testSerializationPending(Integer previousVersion) throws IOException {
         String scenario = "pending";
         java.nio.file.Path path = resolveVersionPath(previousVersion, scenario);
 
@@ -156,8 +149,8 @@ public class FileSinkCommittableSerializerMigrationTest extends TestLogger {
                 serializer.deserialize(
                         previousVersion, Files.readAllBytes(path.resolve("committable")));
 
-        Assert.assertTrue(committable.hasPendingFile());
-        Assert.assertFalse(committable.hasInProgressFileToCleanup());
+        assertThat(committable.hasPendingFile()).isTrue();
+        assertThat(committable.hasInProgressFileToCleanup()).isFalse();
     }
 
     private java.nio.file.Path resolveVersionPath(long version, String scenario) {

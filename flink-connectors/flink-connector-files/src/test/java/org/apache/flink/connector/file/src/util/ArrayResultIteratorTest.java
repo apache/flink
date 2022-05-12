@@ -18,26 +18,23 @@
 
 package org.apache.flink.connector.file.src.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link ArrayResultIterator}. */
-public class ArrayResultIteratorTest {
+class ArrayResultIteratorTest {
 
     @Test
-    public void testEmptyConstruction() {
+    void testEmptyConstruction() {
         final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
-        assertNull(iter.next());
+        assertThat(iter.next()).isNull();
     }
 
     @Test
-    public void testGetElements() {
+    void testGetElements() {
         final String[] elements = new String[] {"1", "2", "3", "4"};
         final long initialPos = 1422;
         final long initialSkipCount = 17;
@@ -47,47 +44,47 @@ public class ArrayResultIteratorTest {
 
         for (int i = 0; i < elements.length; i++) {
             final RecordAndPosition<String> recAndPos = iter.next();
-            assertEquals(elements[i], recAndPos.getRecord());
-            assertEquals(initialPos, recAndPos.getOffset());
-            assertEquals(initialSkipCount + i + 1, recAndPos.getRecordSkipCount());
+            assertThat(recAndPos.getRecord()).isEqualTo(elements[i]);
+            assertThat(recAndPos.getOffset()).isEqualTo(initialPos);
+            assertThat(recAndPos.getRecordSkipCount()).isEqualTo(initialSkipCount + i + 1);
         }
     }
 
     @Test
-    public void testExhausted() {
+    void testExhausted() {
         final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
         iter.set(new String[] {"1", "2"}, 2, 0L, 0L);
 
         iter.next();
         iter.next();
 
-        assertNull(iter.next());
+        assertThat(iter.next()).isNull();
     }
 
     @Test
-    public void testArraySubRange() {
+    void testArraySubRange() {
         final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
         iter.set(new String[] {"1", "2", "3"}, 2, 0L, 0L);
 
-        assertNotNull(iter.next());
-        assertNotNull(iter.next());
-        assertNull(iter.next());
+        assertThat(iter.next()).isNotNull();
+        assertThat(iter.next()).isNotNull();
+        assertThat(iter.next()).isNull();
     }
 
     @Test
-    public void testNoRecycler() {
+    void testNoRecycler() {
         final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
         iter.releaseBatch();
     }
 
     @Test
-    public void testRecycler() {
+    void testRecycler() {
         final AtomicBoolean recycled = new AtomicBoolean();
         final ArrayResultIterator<Object> iter =
                 new ArrayResultIterator<>(() -> recycled.set(true));
 
         iter.releaseBatch();
 
-        assertTrue(recycled.get());
+        assertThat(recycled.get()).isTrue();
     }
 }
