@@ -28,7 +28,6 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -166,7 +165,7 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
                         .build();
         shuffleEnvironment.createInputGates(
                 shuffleEnvironment.createShuffleIOOwnerContext(
-                        "test", new ExecutionAttemptID(), taskMetricGroup),
+                        "test", createExecutionAttemptId(), taskMetricGroup),
                 (dsid, id, consumer) -> {},
                 Arrays.asList(
                         new InputGateDeploymentDescriptor(

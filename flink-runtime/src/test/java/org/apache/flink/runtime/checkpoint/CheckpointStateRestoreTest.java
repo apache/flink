@@ -23,7 +23,6 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -51,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -305,7 +305,7 @@ public class CheckpointStateRestoreTest {
 
     private Execution mockExecution(ExecutionState state) {
         Execution mock = mock(Execution.class);
-        when(mock.getAttemptId()).thenReturn(new ExecutionAttemptID());
+        when(mock.getAttemptId()).thenReturn(createExecutionAttemptId());
         when(mock.getState()).thenReturn(state);
         return mock;
     }

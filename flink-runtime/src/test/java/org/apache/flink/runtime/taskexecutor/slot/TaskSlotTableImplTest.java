@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -396,7 +397,7 @@ public class TaskSlotTableImplTest extends TestLogger {
     @Test
     public void testAddTask() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+        final ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
         final AllocationID allocationId = new AllocationID();
         TaskSlotPayload task =
                 new TestingTaskSlotPayload(jobId, executionAttemptId, allocationId).terminate();
@@ -413,7 +414,7 @@ public class TaskSlotTableImplTest extends TestLogger {
     @Test(timeout = 10000)
     public void testRemoveTaskCallsFreeSlotAction() throws Exception {
         final JobID jobId = new JobID();
-        final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+        final ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
         final AllocationID allocationId = new AllocationID();
         CompletableFuture<AllocationID> freeSlotFuture = new CompletableFuture<>();
         SlotActions slotActions =

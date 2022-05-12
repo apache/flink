@@ -81,6 +81,7 @@ import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.Mockito.mock;
 
@@ -157,7 +158,7 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                 final JobID jid = new JobID();
                 final AllocationID allocationID = new AllocationID();
                 final JobVertexID jobVertexId = new JobVertexID();
-                final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+                final ExecutionAttemptID executionAttemptID = createExecutionAttemptId(jobVertexId);
                 final AllocationID slotAllocationId = new AllocationID();
 
                 final SerializedValue<ExecutionConfig> execConfig =
@@ -205,7 +206,7 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 jid,
                                 allocationID,
                                 jobVertexId,
-                                0,
+                                executionAttemptID.getSubtaskIndex(),
                                 TestLocalRecoveryConfig.disabled(),
                                 executor);
 

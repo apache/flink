@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Implementation of {@link TaskStateManager} for tests. */
@@ -69,7 +70,7 @@ public class TestTaskStateManager implements TaskStateManager {
     public TestTaskStateManager(LocalRecoveryConfig localRecoveryConfig) {
         this(
                 new JobID(),
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(),
                 new TestCheckpointResponder(),
                 localRecoveryConfig,
                 new InMemoryStateChangelogStorage(),

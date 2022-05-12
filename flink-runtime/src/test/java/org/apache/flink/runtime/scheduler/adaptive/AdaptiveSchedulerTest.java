@@ -122,6 +122,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
@@ -1352,7 +1353,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         scheduler.deliverOperatorEventToCoordinator(
-                new ExecutionAttemptID(), new OperatorID(), new TestOperatorEvent());
+                createExecutionAttemptId(), new OperatorID(), new TestOperatorEvent());
     }
 
     @Test
@@ -1380,7 +1381,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         scheduler.updateTaskExecutionState(
                                 new TaskExecutionStateTransition(
                                         new TaskExecutionState(
-                                                new ExecutionAttemptID(), ExecutionState.FAILED))))
+                                                createExecutionAttemptId(),
+                                                ExecutionState.FAILED))))
                 .isFalse();
     }
 
@@ -1390,7 +1392,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
-        scheduler.requestNextInputSplit(JOB_VERTEX.getID(), new ExecutionAttemptID());
+        scheduler.requestNextInputSplit(JOB_VERTEX.getID(), createExecutionAttemptId());
     }
 
     @Test(expected = PartitionProducerDisposedException.class)
