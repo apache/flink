@@ -201,10 +201,6 @@ public class AllWindowedStream<T, W extends Window> {
 
         // clean the closure
         function = input.getExecutionEnvironment().clean(function);
-
-        String callLocation = Utils.getCallLocationName();
-        String udfName = "AllWindowedStream." + callLocation;
-
         return reduce(function, new PassThroughAllWindowFunction<W, T>());
     }
 
