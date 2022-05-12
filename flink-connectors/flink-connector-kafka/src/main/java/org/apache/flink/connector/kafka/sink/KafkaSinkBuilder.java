@@ -50,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * }</pre>
  *
  * <p>One can also configure different {@link DeliveryGuarantee} by using {@link
- * #setDeliverGuarantee(DeliveryGuarantee)} but keep in mind when using {@link
+ * #setDeliveryGuarantee(DeliveryGuarantee)} but keep in mind when using {@link
  * DeliveryGuarantee#EXACTLY_ONCE} one must set the transactionalIdPrefix {@link
  * #setTransactionalIdPrefix(String)}.
  *
@@ -94,6 +94,20 @@ public class KafkaSinkBuilder<IN> {
      * @param deliveryGuarantee
      * @return {@link KafkaSinkBuilder}
      */
+    public KafkaSinkBuilder<IN> setDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
+        this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
+        return this;
+    }
+
+    /**
+     * Sets the wanted the {@link DeliveryGuarantee}. The default delivery guarantee is {@link
+     * #deliveryGuarantee}.
+     *
+     * @param deliveryGuarantee
+     * @return {@link KafkaSinkBuilder}
+     * @deprecated Will be removed in future versions. Use {@link #setDeliveryGuarantee} instead.
+     */
+    @Deprecated
     public KafkaSinkBuilder<IN> setDeliverGuarantee(DeliveryGuarantee deliveryGuarantee) {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
         return this;

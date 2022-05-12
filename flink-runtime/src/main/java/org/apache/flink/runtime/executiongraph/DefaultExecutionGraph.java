@@ -260,6 +260,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Nullable private String checkpointStorageName;
 
+    @Nullable private String changelogStorageName;
+
     private String jsonPlan;
 
     /** Shuffle master to register partitions for task deployment. */
@@ -401,6 +403,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
+    public Optional<String> getChangelogStorageName() {
+        return Optional.ofNullable(changelogStorageName);
+    }
+
+    @Override
     public void enableCheckpointing(
             CheckpointCoordinatorConfiguration chkConfig,
             List<MasterTriggerRestoreHook<?>> masterHooks,
@@ -409,7 +416,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner) {
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorageName) {
 
         checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
         checkState(checkpointCoordinator == null, "checkpointing already enabled");
@@ -483,6 +491,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
+        this.changelogStorageName = changelogStorageName;
     }
 
     private CheckpointPlanCalculator createCheckpointPlanCalculator(

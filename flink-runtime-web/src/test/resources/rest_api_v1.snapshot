@@ -1336,6 +1336,12 @@
         },
         "checkpoints_after_tasks_finish" : {
           "type" : "boolean"
+        },
+        "changelog_periodic_materialization_interval" : {
+          "type" : "integer"
+        },
+        "changelog_storage" : {
+          "type" : "string"
         }
       }
     }

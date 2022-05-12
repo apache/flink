@@ -323,7 +323,7 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
             .setValueSerializationSchema(new SimpleStringSchema())
             .build()
         )
-        .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);

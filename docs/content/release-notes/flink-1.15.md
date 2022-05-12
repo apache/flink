@@ -406,6 +406,22 @@ updating the client dependency to a version >= 7.14.0 is required due to interna
 The old JDBC connector (indicated by `connector.type=jdbc` in DDL) has been removed.
 If not done already, users need to upgrade to the newer stack (indicated by `connector=jdbc` in DDL).
 
+
+#### Extensible unified Sink uses new metric to capture outgoing records
+
+##### [FLINK-26126](https://issues.apache.org/jira/browse/FLINK-26126)
+
+New metrics `numRecordsSend` and `numRecordsSendErrors` have been introduced for users to monitor the number of 
+records sent to the external system. The `numRecordsOut` should be used to monitor the number of records 
+transferred between sink tasks.
+
+Connector developers should pay attention to the usage of these metrics numRecordsOut, 
+numRecordsSend and numRecordsSendErrors while building sink connectors. 
+Please refer to the new Kafka Sink for details. 
+Additionally, since numRecordsOut now only counts the records sent between sink tasks 
+and numRecordsOutErrors was designed for counting the records sent to the external system, 
+we deprecated numRecordsOutErrors and recommend using numRecordsSendErrors instead.
+
 ## Runtime & Coordination
 
 #### Integrate retry strategy for cleanup stage 

@@ -131,6 +131,8 @@ export interface CheckpointConfig {
   tolerable_failed_checkpoints: number;
   aligned_checkpoint_timeout: number;
   checkpoints_after_tasks_finish: boolean;
+  changelog_storage: string;
+  changelog_periodic_materialization_interval: number;
 }
 
 export interface CheckpointDetail {

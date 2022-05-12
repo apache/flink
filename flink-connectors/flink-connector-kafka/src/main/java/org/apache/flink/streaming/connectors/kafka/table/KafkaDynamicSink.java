@@ -198,7 +198,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         }
         final KafkaSink<RowData> kafkaSink =
                 sinkBuilder
-                        .setDeliverGuarantee(deliveryGuarantee)
+                        .setDeliveryGuarantee(deliveryGuarantee)
                         .setBootstrapServers(
                                 properties.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).toString())
                         .setKafkaProducerConfig(properties)
