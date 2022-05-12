@@ -428,6 +428,18 @@ public class ExecutionGraphTestUtils {
         return ejv.getTaskVertices()[subtaskIndex].getCurrentExecutionAttempt();
     }
 
+    public static ExecutionAttemptID createExecutionAttemptId() {
+        return createExecutionAttemptId(new JobVertexID(0, 0), 0, 0);
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(
+            JobVertexID jobVertexId, int subtaskIndex, int attemptNumber) {
+        return new ExecutionAttemptID(
+                new ExecutionGraphID(),
+                new ExecutionVertexID(jobVertexId, subtaskIndex),
+                attemptNumber);
+    }
+
     // ------------------------------------------------------------------------
     //  graph vertex verifications
     // ------------------------------------------------------------------------

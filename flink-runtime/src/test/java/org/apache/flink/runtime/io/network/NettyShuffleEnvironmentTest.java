@@ -43,7 +43,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -69,6 +68,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
@@ -347,7 +347,7 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
         return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
                 .addJob(new JobID(), "jobName")
-                .addTask(new JobVertexID(0, 0), new ExecutionAttemptID(), "test", 0, 0);
+                .addTask(createExecutionAttemptId(), "test");
     }
 
     /** The metric registry for storing the registered metrics to verify in tests. */

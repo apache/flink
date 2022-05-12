@@ -655,12 +655,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             // note that a pre-existing job group can NOT be closed concurrently - this is done by
             // the same TM thread in removeJobMetricsGroup
             TaskMetricGroup taskMetricGroup =
-                    jobGroup.addTask(
-                            taskInformation.getJobVertexId(),
-                            tdd.getExecutionAttemptId(),
-                            taskInformation.getTaskName(),
-                            tdd.getSubtaskIndex(),
-                            tdd.getAttemptNumber());
+                    jobGroup.addTask(tdd.getExecutionAttemptId(), taskInformation.getTaskName());
 
             InputSplitProvider inputSplitProvider =
                     new RpcInputSplitProvider(

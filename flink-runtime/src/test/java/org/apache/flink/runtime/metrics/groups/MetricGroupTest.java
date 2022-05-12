@@ -45,6 +45,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -335,13 +336,13 @@ public class MetricGroupTest extends TestLogger {
     public void testCreateQueryServiceMetricInfo() {
         JobID jid = new JobID();
         JobVertexID vid = new JobVertexID();
-        ExecutionAttemptID eid = new ExecutionAttemptID();
+        ExecutionAttemptID eid = createExecutionAttemptId(vid, 4, 5);
         MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
         TaskManagerMetricGroup tm =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
 
-        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(vid, eid, "taskName", 4, 5);
+        TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(eid, "taskName");
         GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");
         GenericMetricGroup userGroup2 = new GenericMetricGroup(registry, userGroup1, "world");
 
