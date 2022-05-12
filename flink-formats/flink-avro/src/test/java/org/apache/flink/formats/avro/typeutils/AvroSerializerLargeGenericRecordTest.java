@@ -27,9 +27,9 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 
 /** Test for {@link AvroSerializer} that tests GenericRecord. */
-public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericRecord> {
+public class AvroSerializerLargeGenericRecordTest extends SerializerTestBase<GenericRecord> {
 
-    private static final Schema SCHEMA = AvroTestUtils.getSmallSchema();
+    private static final Schema SCHEMA = AvroTestUtils.getLargeSchema();
 
     @Override
     protected TypeSerializer<GenericRecord> createSerializer() {
@@ -49,7 +49,7 @@ public class AvroSerializerGenericRecordTest extends SerializerTestBase<GenericR
     @Override
     protected GenericRecord[] getTestData() {
         return new GenericRecord[] {
-            new GenericRecordBuilder(SCHEMA).set("afield", "foo bar").build()
+            new GenericRecordBuilder(SCHEMA).set("field1", "foo bar").build()
         };
     }
 }
