@@ -34,6 +34,7 @@ __all__ = ['Window',
            'TimeWindow',
            'CountWindow',
            'GlobalWindow',
+           'WindowAssigner',
            'TumblingProcessingTimeWindows',
            'TumblingEventTimeWindows',
            'SlidingProcessingTimeWindows',
@@ -42,7 +43,7 @@ __all__ = ['Window',
            'EventTimeSessionWindows',
            'DynamicProcessingTimeSessionWindows',
            'DynamicEventTimeSessionWindows',
-           'WindowAssigner',
+           'GlobalWindows',
            'MergingWindowAssigner',
            'CountTumblingWindowAssigner',
            'CountSlidingWindowAssigner',
@@ -57,8 +58,8 @@ __all__ = ['Window',
            'CountTrigger',
            'TimeWindowSerializer',
            'CountWindowSerializer',
-           'SessionWindowTimeGapExtractor',
-           'GlobalWindows']
+           'GlobalWindowSerializer',
+           'SessionWindowTimeGapExtractor']
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:

@@ -83,6 +83,8 @@ Classes to define window:
       A grouping of elements according to a time interval from start (inclusive) to end (exclusive).
     - :class:`CountWindow`:
       A grouping of elements according to element count from start (inclusive) to end (exclusive).
+    - :class:`GlobalWindow`:
+      The window into which all data is placed.
     - :class:`WindowAssigner`:
       Assigns zero or more :class:`Window` to an element.
     - :class:`MergingWindowAssigner`:
@@ -211,7 +213,7 @@ from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
 from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
-    MergingWindowAssigner, TriggerResult, Trigger
+    MergingWindowAssigner, TriggerResult, Trigger, GlobalWindow
 from pyflink.datastream.output_tag import OutputTag
 
 __all__ = [
@@ -255,6 +257,7 @@ __all__ = [
     'Window',
     'TimeWindow',
     'CountWindow',
+    'GlobalWindow',
     'WindowAssigner',
     'MergingWindowAssigner',
     'TriggerResult',
