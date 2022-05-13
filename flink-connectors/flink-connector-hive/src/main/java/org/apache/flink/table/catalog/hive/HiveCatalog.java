@@ -132,7 +132,6 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_C
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
-import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -144,6 +143,9 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /** A catalog implementation for Hive. */
 public class HiveCatalog extends AbstractCatalog {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HiveCatalog.class);
+
     // Default database of Hive metastore
     public static final String DEFAULT_DB = "default";
 
@@ -1140,7 +1142,7 @@ public class HiveCatalog extends AbstractCatalog {
      * Creates a {@link CatalogPartitionSpec} from a Hive partition name string. Example of Hive
      * partition name string - "name=bob/year=2019"
      */
-    private static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
+    public static CatalogPartitionSpec createPartitionSpec(String hivePartitionName) {
         String[] partKeyVals = hivePartitionName.split("/");
         Map<String, String> spec = new HashMap<>(partKeyVals.length);
         for (String keyVal : partKeyVals) {
@@ -1488,7 +1490,7 @@ public class HiveCatalog extends AbstractCatalog {
                 || newTableStats.getTotalSize()
                         != parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE)
                 || newTableStats.getFileCount()
-                        != parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES)
+                        != parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES)
                 || newTableStats.getRawDataSize()
                         != parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES);
     }
@@ -1511,7 +1513,7 @@ public class HiveCatalog extends AbstractCatalog {
             Map<String, String> parameters) {
         return new CatalogTableStatistics(
                 parsePositiveLongStat(parameters, StatsSetupConst.ROW_COUNT),
-                parsePositiveIntStat(parameters, StatsSetupConst.NUM_FILES),
+                parsePositiveLongStat(parameters, StatsSetupConst.NUM_FILES),
                 parsePositiveLongStat(parameters, StatsSetupConst.TOTAL_SIZE),
                 parsePositiveLongStat(parameters, StatsSetupConst.RAW_DATA_SIZE));
     }
@@ -1590,7 +1592,30 @@ public class HiveCatalog extends AbstractCatalog {
         if (!isTablePartitioned(hiveTable)) {
             return createCatalogTableStatistics(hiveTable.getParameters());
         } else {
-            return CatalogTableStatistics.UNKNOWN;
+            long startTimeMillis = System.currentTimeMillis();
+            // we accumulate the statistic for all partitions
+            List<CatalogTableStatistics> partitionStatisticsList;
+            try {
+                partitionStatisticsList =
+                        client
+                                .listPartitions(
+                                        tablePath.getDatabaseName(),
+                                        tablePath.getObjectName(),
+                                        (short) -1)
+                                .stream()
+                                .map(p -> createCatalogTableStatistics(p.getParameters()))
+                                .collect(Collectors.toList());
+            } catch (TException e) {
+                throw new CatalogException("Fail to list partitions for table " + tablePath, e);
+            }
+            CatalogTableStatistics catalogTableStatistics =
+                    CatalogTableStatistics.accumulateStatistics(partitionStatisticsList);
+            LOG.info(
+                    "Hive getTableStatistics {} for {} use time: {} ms.",
+                    catalogTableStatistics,
+                    tablePath,
+                    System.currentTimeMillis() - startTimeMillis);
+            return catalogTableStatistics;
         }
     }
 
@@ -1608,8 +1633,29 @@ public class HiveCatalog extends AbstractCatalog {
                 return new CatalogColumnStatistics(
                         HiveStatsUtil.createCatalogColumnStats(columnStatisticsObjs, hiveVersion));
             } else {
-                // TableColumnStats of partitioned table is unknown, the behavior is same as HIVE
-                return CatalogColumnStatistics.UNKNOWN;
+                long startTimeMillis = System.currentTimeMillis();
+                // to get column statistic, we merge the statistic of all partitions for all columns
+                // list all partitions
+                List<String> partNames =
+                        client.listPartitionNames(
+                                hiveTable.getDbName(), hiveTable.getTableName(), (short) -1);
+                // get statistic from partition to all columns' statics
+                Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
+                        client.getPartitionColumnStatistics(
+                                hiveTable.getDbName(),
+                                hiveTable.getTableName(),
+                                partNames,
+                                getFieldNames(hiveTable.getSd().getCols()));
+                CatalogColumnStatistics catalogColumnStatistics =
+                        new CatalogColumnStatistics(
+                                HiveStatsUtil.createCatalogColumnStats(
+                                        partitionColumnStatistics, hiveVersion, this, tablePath));
+                LOG.info(
+                        "Hive getTableColumnStatistics {} for {} use time: {} ms.",
+                        catalogColumnStatistics,
+                        tablePath,
+                        System.currentTimeMillis() - startTimeMillis);
+                return catalogColumnStatistics;
             }
         } catch (TException e) {
             throw new CatalogException(

@@ -54,4 +54,14 @@ public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsD
         return new CatalogColumnStatisticsDataBoolean(
                 trueCount, falseCount, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataBoolean{"
+                + "trueCount="
+                + trueCount
+                + ", falseCount="
+                + falseCount
+                + '}';
+    }
 }

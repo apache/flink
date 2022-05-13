@@ -68,4 +68,16 @@ public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDa
         return new CatalogColumnStatisticsDataString(
                 maxLength, avgLength, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataString{"
+                + "maxLength="
+                + maxLength
+                + ", avgLength="
+                + avgLength
+                + ", ndv="
+                + ndv
+                + '}';
+    }
 }

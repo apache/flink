@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -61,6 +62,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -241,6 +243,64 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     @Test
+    void testPartitionedTableColumnStatistics() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogTable catalogTable = createPartitionedTable();
+        catalog.createTable(path1, catalogTable, false);
+        CatalogPartitionSpec partition1Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2010-04-21 09:45:00");
+                                put("third", "2000");
+                            }
+                        });
+        CatalogPartitionSpec partition2Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2010-04-22 09:45:00");
+                                put("third", "2000");
+                            }
+                        });
+        catalog.createPartition(path1, partition1Spec, createPartition(), true);
+        catalog.createPartition(path1, partition2Spec, createPartition(), true);
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
+
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 3.0, 3L, 100L));
+        CatalogColumnStatistics catalogColumnStatistics =
+                new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        catalog.alterPartitionColumnStatistics(
+                path1, partition1Spec, catalogColumnStatistics, false);
+
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(0L, 1.0, 3L, 100L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        catalog.alterPartitionColumnStatistics(
+                path1, partition2Spec, catalogColumnStatistics, false);
+
+        // we don't set partition statistic, we can't calculate avgLength from all partitions for we
+        // can't know how many rows in each partition
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 2.0, 6L, 200L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+
+        // now set partition statistic, so that we can calculate avgLength from all partitions
+        catalog.alterPartitionStatistics(
+                path1, partition1Spec, new CatalogTableStatistics(3L, 1L, 2L, 2L), false);
+        catalog.alterPartitionStatistics(
+                path1, partition2Spec, new CatalogTableStatistics(1L, 1L, 2L, 2L), false);
+
+        // avgLength = (3 * 3 + 1 * 1) / (3 + 1)
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 2.5, 6L, 200L));
+        catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+    }
+
+    @Test
     void testHiveStatistics() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         checkStatistics(0, -1);
@@ -309,8 +369,8 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     private void checkStatistics(int inputStat, int expectStat) throws Exception {
+        // check statistics for non-partitioned table
         catalog.dropTable(path1, true);
-
         Map<String, String> properties = new HashMap<>();
         properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
@@ -327,6 +387,37 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         assertThat(statistics.getFileCount()).isEqualTo(expectStat);
         assertThat(statistics.getRawDataSize()).isEqualTo(expectStat);
         assertThat(statistics.getTotalSize()).isEqualTo(expectStat);
+
+        // check statistics for partitioned table
+        catalog.dropTable(path1, true);
+        catalogTable =
+                new CatalogTableImpl(
+                        TableSchema.builder()
+                                .fields(
+                                        new String[] {"f0", "p"},
+                                        new DataType[] {DataTypes.INT(), DataTypes.STRING()})
+                                .build(),
+                        Collections.singletonList("p"),
+                        properties,
+                        TEST_COMMENT);
+        catalog.createTable(path1, catalogTable, false);
+
+        // alter Statistics for two different partitions
+        CatalogPartitionSpec p1 = new CatalogPartitionSpec(Collections.singletonMap("p", "v1"));
+        CatalogPartitionSpec p2 = new CatalogPartitionSpec(Collections.singletonMap("p", "v2"));
+        CatalogPartitionImpl partition =
+                new CatalogPartitionImpl(Collections.emptyMap(), TEST_COMMENT);
+        catalog.createPartition(path1, p1, partition, false);
+        catalog.createPartition(path1, p2, partition, false);
+        catalog.alterPartitionStatistics(path1, p1, statistics, false);
+        catalog.alterPartitionStatistics(path1, p2, statistics, false);
+        statistics = catalog.getTableStatistics(path1);
+
+        // statistics for the partitioned table should be sum of all partitions' statistics
+        // we can only check rawDataSize/numRows, for we can't really update numFiles/totalSize by
+        // alterPartitionStatistics
+        assertThat(statistics.getRawDataSize()).isEqualTo(expectStat * 2L);
+        assertThat(statistics.getRowCount()).isEqualTo(expectStat * 2L);
     }
 
     // ------ utils ------

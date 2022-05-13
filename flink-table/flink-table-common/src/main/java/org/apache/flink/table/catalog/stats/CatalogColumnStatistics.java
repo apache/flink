@@ -73,4 +73,14 @@ public class CatalogColumnStatistics {
         }
         return new CatalogColumnStatistics(copy, new HashMap<>(this.properties));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatistics{"
+                + "columnStatisticsData="
+                + columnStatisticsData
+                + ", properties="
+                + properties
+                + '}';
+    }
 }

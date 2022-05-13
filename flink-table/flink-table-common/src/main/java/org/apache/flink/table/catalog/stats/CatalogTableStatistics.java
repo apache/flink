@@ -20,7 +20,9 @@ package org.apache.flink.table.catalog.stats;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Statistics for a non-partitioned table or a partition of a partitioned table. */
@@ -32,7 +34,7 @@ public class CatalogTableStatistics {
     private final long rowCount;
 
     /** The number of files on disk. */
-    private final int fileCount;
+    private final long fileCount;
 
     /** The total size in bytes. */
     private final long totalSize;
@@ -40,15 +42,15 @@ public class CatalogTableStatistics {
     /** The raw data size (size when loaded in memory) in bytes. */
     private final long rawDataSize;
 
-    private Map<String, String> properties;
+    private final Map<String, String> properties;
 
-    public CatalogTableStatistics(long rowCount, int fileCount, long totalSize, long rawDataSize) {
-        this(rowCount, fileCount, totalSize, rawDataSize, new HashMap<>());
+    public CatalogTableStatistics(long rowCount, long fileCount, long totalSize, long rawDataSize) {
+        this(rowCount, fileCount, totalSize, rawDataSize, Collections.emptyMap());
     }
 
     public CatalogTableStatistics(
             long rowCount,
-            int fileCount,
+            long fileCount,
             long totalSize,
             long rawDataSize,
             Map<String, String> properties) {
@@ -64,7 +66,7 @@ public class CatalogTableStatistics {
         return this.rowCount;
     }
 
-    public int getFileCount() {
+    public long getFileCount() {
         return this.fileCount;
     }
 
@@ -80,6 +82,26 @@ public class CatalogTableStatistics {
         return this.properties;
     }
 
+    public static CatalogTableStatistics accumulateStatistics(
+            List<CatalogTableStatistics> tableStatisticsList) {
+        if (tableStatisticsList.isEmpty()) {
+            return UNKNOWN;
+        }
+        CatalogTableStatistics catalogTableStatistics = tableStatisticsList.get(0);
+        long rowCount = catalogTableStatistics.getRowCount();
+        long fileCount = catalogTableStatistics.getFileCount();
+        long totalSize = catalogTableStatistics.getTotalSize();
+        long rawDataSize = catalogTableStatistics.getRawDataSize();
+        for (int i = 1; i < tableStatisticsList.size(); i++) {
+            catalogTableStatistics = tableStatisticsList.get(i);
+            rowCount += catalogTableStatistics.getRowCount();
+            fileCount += catalogTableStatistics.getFileCount();
+            totalSize += catalogTableStatistics.getTotalSize();
+            rawDataSize += catalogTableStatistics.getRawDataSize();
+        }
+        return new CatalogTableStatistics(rowCount, fileCount, totalSize, rawDataSize);
+    }
+
     /**
      * Create a deep copy of "this" instance.
      *
@@ -92,5 +114,21 @@ public class CatalogTableStatistics {
                 this.totalSize,
                 this.rawDataSize,
                 new HashMap<>(this.properties));
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogTableStatistics{"
+                + "rowCount="
+                + rowCount
+                + ", fileCount="
+                + fileCount
+                + ", totalSize="
+                + totalSize
+                + ", rawDataSize="
+                + rawDataSize
+                + ", properties="
+                + properties
+                + '}';
     }
 }

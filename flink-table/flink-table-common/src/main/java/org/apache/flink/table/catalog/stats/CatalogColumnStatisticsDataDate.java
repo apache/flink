@@ -63,4 +63,16 @@ public class CatalogColumnStatisticsDataDate extends CatalogColumnStatisticsData
         return new CatalogColumnStatisticsDataDate(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataDate{"
+                + "min="
+                + min
+                + ", max="
+                + max
+                + ", ndv="
+                + ndv
+                + '}';
+    }
 }

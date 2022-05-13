@@ -54,4 +54,14 @@ public class CatalogColumnStatisticsDataBinary extends CatalogColumnStatisticsDa
         return new CatalogColumnStatisticsDataBinary(
                 maxLength, avgLength, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataBinary{"
+                + "maxLength="
+                + maxLength
+                + ", avgLength="
+                + avgLength
+                + '}';
+    }
 }

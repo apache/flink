@@ -63,4 +63,16 @@ public class CatalogColumnStatisticsDataDouble extends CatalogColumnStatisticsDa
         return new CatalogColumnStatisticsDataDouble(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataDouble{"
+                + "min="
+                + min
+                + ", max="
+                + max
+                + ", ndv="
+                + ndv
+                + '}';
+    }
 }

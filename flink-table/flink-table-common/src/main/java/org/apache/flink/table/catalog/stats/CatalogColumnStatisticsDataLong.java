@@ -63,4 +63,16 @@ public class CatalogColumnStatisticsDataLong extends CatalogColumnStatisticsData
         return new CatalogColumnStatisticsDataLong(
                 min, max, ndv, getNullCount(), new HashMap<>(getProperties()));
     }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataLong{"
+                + "min="
+                + min
+                + ", max="
+                + max
+                + ", ndv="
+                + ndv
+                + '}';
+    }
 }
