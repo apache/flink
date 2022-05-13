@@ -18,94 +18,50 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
-
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import java.lang.reflect.Field;
-import java.util.ArrayDeque;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 
-/**
- * A test input gate to mock reading data.
- */
+/** A test input gate to mock reading data. */
 public class TestSingleInputGate {
 
-	protected final SingleInputGate inputGate;
+    protected final SingleInputGate inputGate;
 
-	protected final TestInputChannel[] inputChannels;
+    protected final TestInputChannel[] inputChannels;
 
-	public TestSingleInputGate(int numberOfInputChannels) {
-		this(numberOfInputChannels, true);
-	}
+    public TestSingleInputGate(int numberOfInputChannels, int gateIndex, boolean initialize) {
+        this(
+                numberOfInputChannels,
+                gateIndex,
+                initialize,
+                BufferDebloatConfiguration.fromConfiguration(new Configuration()));
+    }
 
-	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
-		checkArgument(numberOfInputChannels >= 1);
+    public TestSingleInputGate(
+            int numberOfInputChannels,
+            int gateIndex,
+            boolean initialize,
+            BufferDebloatConfiguration bufferDebloatConfiguration) {
+        checkArgument(numberOfInputChannels >= 1);
 
-		SingleInputGate realGate = new SingleInputGate(
-			"Test Task Name",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			numberOfInputChannels,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true);
+        inputGate =
+                new SingleInputGateBuilder()
+                        .setNumberOfChannels(numberOfInputChannels)
+                        .setSingleInputGateIndex(gateIndex)
+                        .setBufferDebloatConfiguration(bufferDebloatConfiguration)
+                        .build();
+        inputChannels = new TestInputChannel[numberOfInputChannels];
 
-		this.inputGate = spy(realGate);
+        if (initialize) {
+            for (int i = 0; i < numberOfInputChannels; i++) {
+                inputChannels[i] = new TestInputChannel(inputGate, i);
+            }
+            inputGate.setInputChannels(inputChannels);
+        }
+    }
 
-		// Notify about late registrations (added for DataSinkTaskTest#testUnionDataSinkTask).
-		// After merging registerInputOutput and invoke, we have to make sure that the test
-		// notifications happen at the expected time. In real programs, this is guaranteed by
-		// the instantiation and request partition life cycle.
-		try {
-			Field f = realGate.getClass().getDeclaredField("inputChannelsWithData");
-			f.setAccessible(true);
-			final ArrayDeque<InputChannel> notifications = (ArrayDeque<InputChannel>) f.get(realGate);
-
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					invocation.callRealMethod();
-
-					synchronized (notifications) {
-						if (!notifications.isEmpty()) {
-							InputGateListener listener = (InputGateListener) invocation.getArguments()[0];
-							listener.notifyInputGateNonEmpty(inputGate);
-						}
-					}
-
-					return null;
-				}
-			}).when(inputGate).registerListener(any(InputGateListener.class));
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-
-		this.inputChannels = new TestInputChannel[numberOfInputChannels];
-
-		if (initialize) {
-			for (int i = 0; i < numberOfInputChannels; i++) {
-				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
-			}
-		}
-	}
-
-	public SingleInputGate getInputGate() {
-		return inputGate;
-	}
-
+    public SingleInputGate getInputGate() {
+        return inputGate;
+    }
 }

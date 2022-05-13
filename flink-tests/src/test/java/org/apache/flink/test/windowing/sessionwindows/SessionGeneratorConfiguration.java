@@ -21,40 +21,43 @@ package org.apache.flink.test.windowing.sessionwindows;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Configuration for a session event generator, consisting of the generator configuration and the session configuration.
+ * Configuration for a session event generator, consisting of the generator configuration and the
+ * session configuration.
  *
  * @param <K> type of session key
  * @param <E> type of session event
  */
 public final class SessionGeneratorConfiguration<K, E> {
 
-	private final SessionConfiguration<K, E> sessionConfiguration;
-	private final GeneratorConfiguration generatorConfiguration;
+    private final SessionConfiguration<K, E> sessionConfiguration;
+    private final GeneratorConfiguration generatorConfiguration;
 
-	public SessionGeneratorConfiguration(
-			SessionConfiguration<K, E> sessionConfiguration,
-			GeneratorConfiguration generatorConfiguration) {
+    public SessionGeneratorConfiguration(
+            SessionConfiguration<K, E> sessionConfiguration,
+            GeneratorConfiguration generatorConfiguration) {
 
-		Preconditions.checkNotNull(sessionConfiguration);
-		Preconditions.checkNotNull(generatorConfiguration);
+        Preconditions.checkNotNull(sessionConfiguration);
+        Preconditions.checkNotNull(generatorConfiguration);
 
-		this.sessionConfiguration = sessionConfiguration;
-		this.generatorConfiguration = generatorConfiguration;
-	}
+        this.sessionConfiguration = sessionConfiguration;
+        this.generatorConfiguration = generatorConfiguration;
+    }
 
-	public SessionConfiguration<K, E> getSessionConfiguration() {
-		return sessionConfiguration;
-	}
+    public SessionConfiguration<K, E> getSessionConfiguration() {
+        return sessionConfiguration;
+    }
 
-	public GeneratorConfiguration getGeneratorConfiguration() {
-		return generatorConfiguration;
-	}
+    public GeneratorConfiguration getGeneratorConfiguration() {
+        return generatorConfiguration;
+    }
 
-	@Override
-	public String toString() {
-		return "SessionGeneratorConfiguration{" +
-				"sessionConfiguration=" + sessionConfiguration +
-				", generatorConfiguration=" + generatorConfiguration +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "SessionGeneratorConfiguration{"
+                + "sessionConfiguration="
+                + sessionConfiguration
+                + ", generatorConfiguration="
+                + generatorConfiguration
+                + '}';
+    }
 }

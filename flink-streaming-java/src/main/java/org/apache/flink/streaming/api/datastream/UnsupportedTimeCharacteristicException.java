@@ -27,9 +27,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 @PublicEvolving
 public class UnsupportedTimeCharacteristicException extends FlinkRuntimeException {
 
-	private static final long serialVersionUID = -8109094930338075819L;
+    private static final long serialVersionUID = -8109094930338075819L;
 
-	public UnsupportedTimeCharacteristicException(String message) {
-		super(message);
-	}
+    public UnsupportedTimeCharacteristicException(String message) {
+        super(message);
+    }
 }

@@ -26,116 +26,113 @@ import java.io.Serializable;
 /**
  * Utility class for efficient operations on {@link StringValue}.
  *
- * <p>All methods in this class are written to be optimized for efficiency and work directly
- * on the StringValues char arrays, avoiding copies. For simplicity and efficiency, the methods
- * only apply to strings whose characters are representable in a single <tt>char</tt>,
- * ie. strings without surrogate characters.
+ * <p>All methods in this class are written to be optimized for efficiency and work directly on the
+ * StringValues char arrays, avoiding copies. For simplicity and efficiency, the methods only apply
+ * to strings whose characters are representable in a single <tt>char</tt>, ie. strings without
+ * surrogate characters.
  */
 @PublicEvolving
 public final class StringValueUtils {
 
-	/**
-	 * Converts the given <code>StringValue</code> into a lower case variant.
-	 *
-	 * @param string The string to convert to lower case.
-	 */
-	public static void toLowerCase(StringValue string) {
-		final char[] chars = string.getCharArray();
-		final int len = string.length();
+    /**
+     * Converts the given <code>StringValue</code> into a lower case variant.
+     *
+     * @param string The string to convert to lower case.
+     */
+    public static void toLowerCase(StringValue string) {
+        final char[] chars = string.getCharArray();
+        final int len = string.length();
 
-		for (int i = 0; i < len; i++) {
-			chars[i] = Character.toLowerCase(chars[i]);
-		}
-	}
+        for (int i = 0; i < len; i++) {
+            chars[i] = Character.toLowerCase(chars[i]);
+        }
+    }
 
-	/**
-	 * Replaces all non-word characters in a string by a given character. The only
-	 * characters not replaced are the characters that qualify as word characters
-	 * or digit characters with respect to {@link Character#isLetter(char)} or
-	 * {@link Character#isDigit(char)}, as well as the underscore character.
-	 *
-	 * <p>This operation is intended to simplify strings for counting distinct words.
-	 *
-	 * @param string The string value to have the non-word characters replaced.
-	 * @param replacement The character to use as the replacement.
-	 */
-	public static void replaceNonWordChars(StringValue string, char replacement) {
-		final char[] chars = string.getCharArray();
-		final int len = string.length();
+    /**
+     * Replaces all non-word characters in a string by a given character. The only characters not
+     * replaced are the characters that qualify as word characters or digit characters with respect
+     * to {@link Character#isLetter(char)} or {@link Character#isDigit(char)}, as well as the
+     * underscore character.
+     *
+     * <p>This operation is intended to simplify strings for counting distinct words.
+     *
+     * @param string The string value to have the non-word characters replaced.
+     * @param replacement The character to use as the replacement.
+     */
+    public static void replaceNonWordChars(StringValue string, char replacement) {
+        final char[] chars = string.getCharArray();
+        final int len = string.length();
 
-		for (int i = 0; i < len; i++) {
-			final char c = chars[i];
-			if (!(Character.isLetter(c) || Character.isDigit(c) || c == '_')) {
-				chars[i] = replacement;
-			}
-		}
-	}
+        for (int i = 0; i < len; i++) {
+            final char c = chars[i];
+            if (!(Character.isLetter(c) || Character.isDigit(c) || c == '_')) {
+                chars[i] = replacement;
+            }
+        }
+    }
 
-	// ============================================================================================
+    // ============================================================================================
 
-	/**
-	 * A tokenizer for string values that uses whitespace characters as token delimiters.
-	 * The tokenizer is designed to have a resettable state and operate on mutable objects,
-	 * sparing object allocation and garbage collection overhead.
-	 */
-	public static final class WhitespaceTokenizer implements Serializable {
-		private static final long serialVersionUID = 1L;
+    /**
+     * A tokenizer for string values that uses whitespace characters as token delimiters. The
+     * tokenizer is designed to have a resettable state and operate on mutable objects, sparing
+     * object allocation and garbage collection overhead.
+     */
+    public static final class WhitespaceTokenizer implements Serializable {
+        private static final long serialVersionUID = 1L;
 
-		private StringValue toTokenize;		// the string to tokenize
-		private int pos;					// the current position in the string
-		private int limit;					// the limit in the string's character data
+        private StringValue toTokenize; // the string to tokenize
+        private int pos; // the current position in the string
+        private int limit; // the limit in the string's character data
 
-		/**
-		 * Creates a new tokenizer with an undefined internal state.
-		 */
-		public WhitespaceTokenizer() {}
+        /** Creates a new tokenizer with an undefined internal state. */
+        public WhitespaceTokenizer() {}
 
-		/**
-		 * Sets the string to be tokenized and resets the state of the tokenizer.
-		 *
-		 * @param string The string value to be tokenized.
-		 */
-		public void setStringToTokenize(StringValue string) {
-			this.toTokenize = string;
-			this.pos = 0;
-			this.limit = string.length();
-		}
+        /**
+         * Sets the string to be tokenized and resets the state of the tokenizer.
+         *
+         * @param string The string value to be tokenized.
+         */
+        public void setStringToTokenize(StringValue string) {
+            this.toTokenize = string;
+            this.pos = 0;
+            this.limit = string.length();
+        }
 
-		/**
-		 * Gets the next token from the string. If another token is available, the token is stored
-		 * in the given target StringValue object.
-		 *
-		 * @param target The StringValue object to store the next token in.
-		 * @return True, if there was another token, false if not.
-		 */
-		public boolean next(StringValue target) {
-			final char[] data = this.toTokenize.getCharArray();
-			final int limit = this.limit;
-			int pos = this.pos;
+        /**
+         * Gets the next token from the string. If another token is available, the token is stored
+         * in the given target StringValue object.
+         *
+         * @param target The StringValue object to store the next token in.
+         * @return True, if there was another token, false if not.
+         */
+        public boolean next(StringValue target) {
+            final char[] data = this.toTokenize.getCharArray();
+            final int limit = this.limit;
+            int pos = this.pos;
 
-			// skip the delimiter
-			for (; pos < limit && Character.isWhitespace(data[pos]); pos++) {
-			}
+            // skip the delimiter
+            for (; pos < limit && Character.isWhitespace(data[pos]); pos++) {}
 
-			if (pos >= limit) {
-				this.pos = pos;
-				return false;
-			}
+            if (pos >= limit) {
+                this.pos = pos;
+                return false;
+            }
 
-			final int start = pos;
-			for (; pos < limit && !Character.isWhitespace(data[pos]); pos++) {
-			}
+            final int start = pos;
+            for (; pos < limit && !Character.isWhitespace(data[pos]); pos++) {}
 
-			this.pos = pos;
-			target.setValue(this.toTokenize, start, pos - start);
-			return true;
-		}
-	}
+            this.pos = pos;
+            target.setValue(this.toTokenize, start, pos - start);
+            return true;
+        }
+    }
 
-	// ============================================================================================
+    // ============================================================================================
 
-	/**
-	 * Private constructor to prevent instantiation, as this is a utility method encapsulating class.
-	 */
-	private StringValueUtils() {}
+    /**
+     * Private constructor to prevent instantiation, as this is a utility method encapsulating
+     * class.
+     */
+    private StringValueUtils() {}
 }

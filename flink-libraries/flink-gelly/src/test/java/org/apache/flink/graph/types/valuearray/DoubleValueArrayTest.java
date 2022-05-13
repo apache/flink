@@ -27,102 +27,103 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link DoubleValueArray}.
- */
+/** Tests for {@link DoubleValueArray}. */
 public class DoubleValueArrayTest {
 
-	@Test
-	public void testBoundedArray() {
-		int count = DoubleValueArray.DEFAULT_CAPACITY_IN_BYTES / DoubleValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Test
+    public void testBoundedArray() {
+        int count =
+                DoubleValueArray.DEFAULT_CAPACITY_IN_BYTES
+                        / DoubleValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		ValueArray<DoubleValue> lva = new DoubleValueArray(DoubleValueArray.DEFAULT_CAPACITY_IN_BYTES);
+        ValueArray<DoubleValue> lva =
+                new DoubleValueArray(DoubleValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
-		// fill the array
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // fill the array
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new DoubleValue(i)));
+            assertTrue(lva.add(new DoubleValue(i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array is now full
-		assertTrue(lva.isFull());
-		assertEquals(count, lva.size());
+        // array is now full
+        assertTrue(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (DoubleValue lv : lva) {
-			assertEquals(idx++, lv.getValue(), 0.000001);
-		}
+        // verify the array values
+        int idx = 0;
+        for (DoubleValue lv : lva) {
+            assertEquals(idx++, lv.getValue(), 0.000001);
+        }
 
-		// add element past end of array
-		assertFalse(lva.add(new DoubleValue(count)));
-		assertFalse(lva.addAll(lva));
+        // add element past end of array
+        assertFalse(lva.add(new DoubleValue(count)));
+        assertFalse(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		DoubleValueArray lvaTo = new DoubleValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        DoubleValueArray lvaTo = new DoubleValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 
-	@Test
-	public void testUnboundedArray() {
-		int count = 4096;
+    @Test
+    public void testUnboundedArray() {
+        int count = 4096;
 
-		ValueArray<DoubleValue> lva = new DoubleValueArray();
+        ValueArray<DoubleValue> lva = new DoubleValueArray();
 
-		// add several elements
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // add several elements
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new DoubleValue(i)));
+            assertTrue(lva.add(new DoubleValue(i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array never fills
-		assertFalse(lva.isFull());
-		assertEquals(count, lva.size());
+        // array never fills
+        assertFalse(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (DoubleValue lv : lva) {
-			assertEquals(idx++, lv.getValue(), 0.000001);
-		}
+        // verify the array values
+        int idx = 0;
+        for (DoubleValue lv : lva) {
+            assertEquals(idx++, lv.getValue(), 0.000001);
+        }
 
-		// add element past end of array
-		assertTrue(lva.add(new DoubleValue(count)));
-		assertTrue(lva.addAll(lva));
+        // add element past end of array
+        assertTrue(lva.add(new DoubleValue(count)));
+        assertTrue(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		DoubleValueArray lvaTo = new DoubleValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        DoubleValueArray lvaTo = new DoubleValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test mark/reset
-		int size = lva.size();
-		lva.mark();
-		assertTrue(lva.add(new DoubleValue()));
-		assertEquals(size + 1, lva.size());
-		lva.reset();
-		assertEquals(size, lva.size());
+        // test mark/reset
+        int size = lva.size();
+        lva.mark();
+        assertTrue(lva.add(new DoubleValue()));
+        assertEquals(size + 1, lva.size());
+        lva.reset();
+        assertEquals(size, lva.size());
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 }

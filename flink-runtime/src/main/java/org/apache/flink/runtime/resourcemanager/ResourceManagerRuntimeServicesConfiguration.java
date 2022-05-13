@@ -19,51 +19,74 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
-import scala.concurrent.duration.Duration;
+import org.apache.flink.util.TimeUtils;
 
-/**
- * Configuration class for the {@link ResourceManagerRuntimeServices} class.
- */
+/** Configuration class for the {@link ResourceManagerRuntimeServices} class. */
 public class ResourceManagerRuntimeServicesConfiguration {
 
-	private final Time jobTimeout;
+    private final Time jobTimeout;
 
-	private final SlotManagerConfiguration slotManagerConfiguration;
+    private final SlotManagerConfiguration slotManagerConfiguration;
 
-	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout, SlotManagerConfiguration slotManagerConfiguration) {
-		this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
-		this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
-	}
+    private final boolean enableFineGrainedResourceManagement;
 
-	public Time getJobTimeout() {
-		return jobTimeout;
-	}
+    public ResourceManagerRuntimeServicesConfiguration(
+            Time jobTimeout,
+            SlotManagerConfiguration slotManagerConfiguration,
+            boolean enableFineGrainedResourceManagement) {
+        this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
+        this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
+        this.enableFineGrainedResourceManagement = enableFineGrainedResourceManagement;
+    }
 
-	public SlotManagerConfiguration getSlotManagerConfiguration() {
-		return slotManagerConfiguration;
-	}
+    public Time getJobTimeout() {
+        return jobTimeout;
+    }
 
-	// ---------------------------- Static methods ----------------------------------
+    public SlotManagerConfiguration getSlotManagerConfiguration() {
+        return slotManagerConfiguration;
+    }
 
-	public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+    public boolean isEnableFineGrainedResourceManagement() {
+        return enableFineGrainedResourceManagement;
+    }
 
-		final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
-		final Time jobTimeout;
+    // ---------------------------- Static methods ----------------------------------
 
-		try {
-			jobTimeout = Time.milliseconds(Duration.apply(strJobTimeout).toMillis());
-		} catch (NumberFormatException e) {
-			throw new ConfigurationException("Could not parse the resource manager's job timeout " +
-				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
-		}
+    public static ResourceManagerRuntimeServicesConfiguration fromConfiguration(
+            Configuration configuration, WorkerResourceSpecFactory defaultWorkerResourceSpecFactory)
+            throws ConfigurationException {
 
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+        final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
+        final Time jobTimeout;
 
-		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration);
-	}
+        try {
+            jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
+        } catch (IllegalArgumentException e) {
+            throw new ConfigurationException(
+                    "Could not parse the resource manager's job timeout "
+                            + "value "
+                            + ResourceManagerOptions.JOB_TIMEOUT
+                            + '.',
+                    e);
+        }
+
+        final WorkerResourceSpec defaultWorkerResourceSpec =
+                defaultWorkerResourceSpecFactory.createDefaultWorkerResourceSpec(configuration);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration, defaultWorkerResourceSpec);
+
+        final boolean enableFineGrainedResourceManagement =
+                ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
+
+        return new ResourceManagerRuntimeServicesConfiguration(
+                jobTimeout, slotManagerConfiguration, enableFineGrainedResourceManagement);
+    }
 }

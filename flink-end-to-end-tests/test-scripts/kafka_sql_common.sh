@@ -17,13 +17,12 @@
 # limitations under the License.
 ################################################################################
 
-KAFKA_CONNECTOR_VERSION="$1"
-KAFKA_VERSION="$2"
-CONFLUENT_VERSION="$3"
-CONFLUENT_MAJOR_VERSION="$4"
-KAFKA_SQL_VERSION="$5"
+KAFKA_VERSION="$1"
+CONFLUENT_VERSION="$2"
+CONFLUENT_MAJOR_VERSION="$3"
+KAFKA_SQL_VERSION="$4"
 
-source "$(dirname "$0")"/kafka-common.sh $2 $3 $4
+source "$(dirname "$0")"/kafka-common.sh $1 $2 $3
 
 function create_kafka_json_source {
     topicName="$1"
@@ -32,71 +31,33 @@ function create_kafka_json_source {
     # put JSON data into Kafka
     echo "Sending messages to Kafka..."
 
-    send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' $topicName
-    send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T08:00:00Z", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T08:10:00Z", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:00:00Z", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:10:00Z", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:20:00Z", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:30:00Z", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T09:30:00Z", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' $topicName
+    send_messages_to_kafka '{"timestamp": "2018-03-12T10:40:00Z", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' $topicName
 }
 
 function get_kafka_json_source_schema {
     topicName="$1"
     tableName="$2"
     cat << EOF
-  - name: $tableName
-    type: source-table
-    update-mode: append
-    schema:
-      - name: rowtime
-        type: TIMESTAMP
-        rowtime:
-          timestamps:
-            type: from-field
-            from: timestamp
-          watermarks:
-            type: periodic-bounded
-            delay: 2000
-      - name: user
-        type: VARCHAR
-      - name: event
-        type: ROW<type VARCHAR, message VARCHAR>
-    connector:
-      type: kafka
-      version: "$KAFKA_SQL_VERSION"
-      topic: $topicName
-      startup-mode: earliest-offset
-      properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-    format:
-      type: json
-      json-schema: >
-        {
-          "type": "object",
-          "properties": {
-            "timestamp": {
-              "type": "string"
-            },
-            "user": {
-              "type": ["string", "null"]
-            },
-            "event": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "message": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
+    CREATE TABLE $tableName (
+      \`timestamp\` TIMESTAMP_LTZ(3),
+      \`user\` STRING,
+      \`event\` ROW<type STRING, message STRING>,
+      \`rowtime\` as \`timestamp\`,
+      WATERMARK FOR \`rowtime\` AS \`rowtime\` - INTERVAL '2' SECOND
+    ) WITH (
+      'connector' = 'kafka',
+      'topic' = '$topicName',
+      'properties.bootstrap.servers' = 'localhost:9092',
+      'scan.startup.mode' = 'earliest-offset',
+      'format' = 'json',
+      'json.timestamp-format.standard' = 'ISO-8601'
+    );
 EOF
 }

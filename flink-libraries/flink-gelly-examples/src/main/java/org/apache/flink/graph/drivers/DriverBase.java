@@ -32,15 +32,13 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public abstract class DriverBase<K, VV, EV>
-extends ParameterizedBase
-implements Driver<K, VV, EV> {
+public abstract class DriverBase<K, VV, EV> extends ParameterizedBase implements Driver<K, VV, EV> {
 
-	protected LongParameter parallelism = new LongParameter(this, "__parallelism")
-		.setDefaultValue(PARALLELISM_DEFAULT);
+    protected LongParameter parallelism =
+            new LongParameter(this, "__parallelism").setDefaultValue(PARALLELISM_DEFAULT);
 
-	@Override
-	public void printAnalytics(PrintStream out) {
-		// analytics are optionally executed by drivers overriding this method
-	}
+    @Override
+    public void printAnalytics(PrintStream out) {
+        // analytics are optionally executed by drivers overriding this method
+    }
 }

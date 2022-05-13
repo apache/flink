@@ -872,12 +872,6 @@
   </property>
 
   <property>
-    <name>fs.swift.impl</name>
-    <value>org.apache.hadoop.fs.swift.snative.SwiftNativeFileSystem</value>
-    <description>The implementation class of the OpenStack Swift Filesystem</description>
-  </property>
-
-  <property>
     <name>fs.automatic.close</name>
     <value>true</value>
     <description>By default, FileSystem instances are automatically closed at program

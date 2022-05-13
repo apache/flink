@@ -18,38 +18,42 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.math.BigDecimal;
-import java.util.Random;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link BigDecSerializer}.
- */
+import java.math.BigDecimal;
+import java.util.Random;
+
+/** A test for the {@link BigDecSerializer}. */
 public class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
 
-	@Override
-	protected TypeSerializer<BigDecimal> createSerializer() {
-		return new BigDecSerializer();
-	}
+    @Override
+    protected TypeSerializer<BigDecimal> createSerializer() {
+        return new BigDecSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<BigDecimal> getTypeClass() {
-		return BigDecimal.class;
-	}
+    @Override
+    protected Class<BigDecimal> getTypeClass() {
+        return BigDecimal.class;
+    }
 
-	@Override
-	protected BigDecimal[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
+    @Override
+    protected BigDecimal[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
 
-		return new BigDecimal[] {
-			BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.TEN,
-			new BigDecimal(rnd.nextDouble()), new BigDecimal("874597969.1234123413478523984729447"),
-			BigDecimal.valueOf(-1.444), BigDecimal.valueOf(-10000.888)};
-	}
+        return new BigDecimal[] {
+            BigDecimal.ZERO,
+            BigDecimal.ONE,
+            BigDecimal.TEN,
+            new BigDecimal(rnd.nextDouble()),
+            new BigDecimal("874597969.1234123413478523984729447"),
+            BigDecimal.valueOf(-1.444),
+            BigDecimal.valueOf(-10000.888)
+        };
+    }
 }

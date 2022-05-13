@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.ScalarFunction;
  */
 public class StringRegexReplaceFunction extends ScalarFunction {
 
-	public String eval(String input, String regex, String replacement) {
-		return input.replaceAll(regex, replacement);
-	}
+    public String eval(String input, String regex, String replacement) {
+        return input.replaceAll(regex, replacement);
+    }
 }

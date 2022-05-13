@@ -18,82 +18,108 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 public class NettyConnectionManager implements ConnectionManager {
 
-	private final NettyServer server;
+    private final NettyServer server;
 
-	private final NettyClient client;
+    private final NettyClient client;
 
-	private final NettyBufferPool bufferPool;
+    private final NettyBufferPool bufferPool;
 
-	private final PartitionRequestClientFactory partitionRequestClientFactory;
+    private final PartitionRequestClientFactory partitionRequestClientFactory;
 
-	public NettyConnectionManager(NettyConfig nettyConfig) {
-		this.server = new NettyServer(nettyConfig);
-		this.client = new NettyClient(nettyConfig);
-		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
+    private final NettyProtocol nettyProtocol;
 
-		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
-	}
+    public NettyConnectionManager(
+            ResultPartitionProvider partitionProvider,
+            TaskEventPublisher taskEventPublisher,
+            NettyConfig nettyConfig,
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
 
-	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) throws IOException {
-		NettyProtocol partitionRequestProtocol = new NettyProtocol(
-			partitionProvider,
-			taskEventDispatcher,
-			client.getConfig().isCreditBasedEnabled());
+        this(
+                new NettyBufferPool(nettyConfig.getNumberOfArenas()),
+                partitionProvider,
+                taskEventPublisher,
+                nettyConfig,
+                maxNumberOfConnections,
+                connectionReuseEnabled);
+    }
 
-		client.init(partitionRequestProtocol, bufferPool);
-		server.init(partitionRequestProtocol, bufferPool);
-	}
+    @VisibleForTesting
+    public NettyConnectionManager(
+            NettyBufferPool bufferPool,
+            ResultPartitionProvider partitionProvider,
+            TaskEventPublisher taskEventPublisher,
+            NettyConfig nettyConfig,
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
 
-	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
-			throws IOException, InterruptedException {
-		return partitionRequestClientFactory.createPartitionRequestClient(connectionId);
-	}
+        this.server = new NettyServer(nettyConfig);
+        this.client = new NettyClient(nettyConfig);
+        this.bufferPool = checkNotNull(bufferPool);
 
-	@Override
-	public void closeOpenChannelConnections(ConnectionID connectionId) {
-		partitionRequestClientFactory.closeOpenChannelConnections(connectionId);
-	}
+        this.partitionRequestClientFactory =
+                new PartitionRequestClientFactory(
+                        client,
+                        nettyConfig.getNetworkRetries(),
+                        maxNumberOfConnections,
+                        connectionReuseEnabled);
 
-	@Override
-	public int getNumberOfActiveConnections() {
-		return partitionRequestClientFactory.getNumberOfActiveClients();
-	}
+        this.nettyProtocol =
+                new NettyProtocol(
+                        checkNotNull(partitionProvider), checkNotNull(taskEventPublisher));
+    }
 
-	@Override
-	public int getDataPort() {
-		if (server != null && server.getLocalAddress() != null) {
-			return server.getLocalAddress().getPort();
-		} else {
-			return -1;
-		}
-	}
+    @Override
+    public int start() throws IOException {
+        client.init(nettyProtocol, bufferPool);
 
-	@Override
-	public void shutdown() {
-		client.shutdown();
-		server.shutdown();
-	}
+        return server.init(nettyProtocol, bufferPool);
+    }
 
-	NettyClient getClient() {
-		return client;
-	}
+    @Override
+    public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
+            throws IOException, InterruptedException {
+        return partitionRequestClientFactory.createPartitionRequestClient(connectionId);
+    }
 
-	NettyServer getServer() {
-		return server;
-	}
+    @Override
+    public void closeOpenChannelConnections(ConnectionID connectionId) {
+        partitionRequestClientFactory.closeOpenChannelConnections(connectionId);
+    }
 
-	NettyBufferPool getBufferPool() {
-		return bufferPool;
-	}
+    @Override
+    public int getNumberOfActiveConnections() {
+        return partitionRequestClientFactory.getNumberOfActiveClients();
+    }
+
+    @Override
+    public void shutdown() {
+        client.shutdown();
+        server.shutdown();
+    }
+
+    NettyClient getClient() {
+        return client;
+    }
+
+    NettyServer getServer() {
+        return server;
+    }
+
+    NettyBufferPool getBufferPool() {
+        return bufferPool;
+    }
 }

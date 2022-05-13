@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -30,40 +29,37 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-/**
- * A simple {@link ExternalResource} to be used by tests that require a {@link BlobServer}.
- */
+/** A simple {@link ExternalResource} to be used by tests that require a {@link BlobServer}. */
 public class BlobServerResource extends ExternalResource {
-	private static final Logger LOG = LoggerFactory.getLogger(BlobServerResource.class);
-	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private static final Logger LOG = LoggerFactory.getLogger(BlobServerResource.class);
+    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private BlobServer blobServer;
+    private BlobServer blobServer;
 
-	protected void before() throws Throwable {
-		temporaryFolder.create();
+    protected void before() throws Throwable {
+        temporaryFolder.create();
 
-		Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        Configuration config = new Configuration();
 
-		blobServer = new BlobServer(config, new VoidBlobStore());
-		blobServer.start();
-	}
+        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+        blobServer.start();
+    }
 
-	protected void after() {
-		temporaryFolder.delete();
+    protected void after() {
+        temporaryFolder.delete();
 
-		try {
-			blobServer.close();
-		} catch (IOException e) {
-			LOG.error("Exception while shutting down blob server.", e);
-		}
-	}
+        try {
+            blobServer.close();
+        } catch (IOException e) {
+            LOG.error("Exception while shutting down blob server.", e);
+        }
+    }
 
-	public int getBlobServerPort() {
-		return blobServer.getPort();
-	}
+    public int getBlobServerPort() {
+        return blobServer.getPort();
+    }
 
-	public BlobServer getBlobServer() {
-		return blobServer;
-	}
+    public BlobServer getBlobServer() {
+        return blobServer;
+    }
 }

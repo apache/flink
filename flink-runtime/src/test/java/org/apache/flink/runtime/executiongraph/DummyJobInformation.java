@@ -27,24 +27,22 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
 
-/**
- * Simple dummy job information for testing purposes.
- */
+/** Simple dummy job information for testing purposes. */
 public class DummyJobInformation extends JobInformation {
 
-	private static final long serialVersionUID = 6611358237464645058L;
+    private static final long serialVersionUID = 6611358237464645058L;
 
-	public DummyJobInformation(JobID jobId, String jobName) throws IOException {
-		super(
-			jobId,
-			jobName,
-			new SerializedValue<>(new ExecutionConfig()),
-			new Configuration(),
-			Collections.emptyList(),
-			Collections.emptyList());
-	}
+    public DummyJobInformation(JobID jobId, String jobName) throws IOException {
+        super(
+                jobId,
+                jobName,
+                new SerializedValue<>(new ExecutionConfig()),
+                new Configuration(),
+                Collections.emptyList(),
+                Collections.emptyList());
+    }
 
-	public DummyJobInformation() throws IOException {
-		this(new JobID(), "Test Job " + UUID.randomUUID());
-	}
+    public DummyJobInformation() throws IOException {
+        this(new JobID(), "Test Job " + UUID.randomUUID());
+    }
 }

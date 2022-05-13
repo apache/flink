@@ -17,118 +17,161 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Extension of the {@link KinesisDataFetcher} for testing.
- */
+/** Extension of the {@link KinesisDataFetcher} for testing. */
 public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 
-	private OneShotLatch runWaiter;
-	private OneShotLatch initialDiscoveryWaiter;
+    private final OneShotLatch runWaiter;
+    private final Semaphore discoveryWaiter = new Semaphore(0);
+    private final OneShotLatch shutdownWaiter;
 
-	private volatile boolean running;
+    private volatile boolean running;
+    private volatile boolean executorServiceShutdownNowCalled;
 
-	public TestableKinesisDataFetcher(
-			List<String> fakeStreams,
-			SourceFunction.SourceContext<T> sourceContext,
-			Properties fakeConfiguration,
-			KinesisDeserializationSchema<T> deserializationSchema,
-			int fakeTotalCountOfSubtasks,
-			int fakeIndexOfThisSubtask,
-			AtomicReference<Throwable> thrownErrorUnderTest,
-			LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
-			HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
-			KinesisProxyInterface fakeKinesis) {
-		super(
-			fakeStreams,
-			sourceContext,
-			sourceContext.getCheckpointLock(),
-			getMockedRuntimeContext(fakeTotalCountOfSubtasks, fakeIndexOfThisSubtask),
-			fakeConfiguration,
-			deserializationSchema,
-			DEFAULT_SHARD_ASSIGNER,
-			null,
-			thrownErrorUnderTest,
-			subscribedShardsStateUnderTest,
-			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
-			(properties) -> fakeKinesis);
+    public TestableKinesisDataFetcher(
+            List<String> fakeStreams,
+            SourceFunction.SourceContext<T> sourceContext,
+            Properties fakeConfiguration,
+            KinesisDeserializationSchema<T> deserializationSchema,
+            int fakeTotalCountOfSubtasks,
+            int fakeIndexOfThisSubtask,
+            AtomicReference<Throwable> thrownErrorUnderTest,
+            LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
+            HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+            KinesisProxyInterface fakeKinesis) {
 
-		this.runWaiter = new OneShotLatch();
-		this.initialDiscoveryWaiter = new OneShotLatch();
+        this(
+                fakeStreams,
+                sourceContext,
+                fakeConfiguration,
+                deserializationSchema,
+                fakeTotalCountOfSubtasks,
+                fakeIndexOfThisSubtask,
+                thrownErrorUnderTest,
+                subscribedShardsStateUnderTest,
+                subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+                fakeKinesis,
+                null);
+    }
 
-		this.running = true;
-	}
+    public TestableKinesisDataFetcher(
+            List<String> fakeStreams,
+            SourceFunction.SourceContext<T> sourceContext,
+            Properties fakeConfiguration,
+            KinesisDeserializationSchema<T> deserializationSchema,
+            int fakeTotalCountOfSubtasks,
+            int fakeIndexOfThisSubtask,
+            AtomicReference<Throwable> thrownErrorUnderTest,
+            LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
+            HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+            KinesisProxyInterface fakeKinesis,
+            KinesisProxyV2Interface fakeKinesisV2) {
+        super(
+                fakeStreams,
+                sourceContext,
+                sourceContext.getCheckpointLock(),
+                TestUtils.getMockedRuntimeContext(fakeTotalCountOfSubtasks, fakeIndexOfThisSubtask),
+                fakeConfiguration,
+                deserializationSchema,
+                DEFAULT_SHARD_ASSIGNER,
+                null,
+                null,
+                thrownErrorUnderTest,
+                subscribedShardsStateUnderTest,
+                subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+                properties -> fakeKinesis,
+                properties -> fakeKinesisV2);
 
-	@Override
-	public void runFetcher() throws Exception {
-		runWaiter.trigger();
-		super.runFetcher();
-	}
+        this.runWaiter = new OneShotLatch();
+        this.shutdownWaiter = new OneShotLatch();
 
-	public void waitUntilRun() throws Exception {
-		runWaiter.await();
-	}
+        this.running = true;
+    }
 
-	@Override
-	protected ExecutorService createShardConsumersThreadPool(String subtaskName) {
-		// this is just a dummy fetcher, so no need to create a thread pool for shard consumers
-		ExecutorService mockExecutor = mock(ExecutorService.class);
-		when(mockExecutor.isTerminated()).thenAnswer((InvocationOnMock invocation) -> !running);
-		return mockExecutor;
-	}
+    @Override
+    public void runFetcher() throws Exception {
+        runWaiter.trigger();
+        super.runFetcher();
+    }
 
-	@Override
-	public void awaitTermination() throws InterruptedException {
-		this.running = false;
-		super.awaitTermination();
-	}
+    public void waitUntilRun() throws Exception {
+        runWaiter.await();
+    }
 
-	@Override
-	public List<StreamShardHandle> discoverNewShardsToSubscribe() throws InterruptedException {
-		List<StreamShardHandle> newShards = super.discoverNewShardsToSubscribe();
-		initialDiscoveryWaiter.trigger();
-		return newShards;
-	}
+    public void waitUntilShutdown(long timeout, TimeUnit timeUnit) throws Exception {
+        shutdownWaiter.await(timeout, timeUnit);
+    }
 
-	public void waitUntilInitialDiscovery() throws InterruptedException {
-		initialDiscoveryWaiter.await();
-	}
+    @Override
+    protected ExecutorService createShardConsumersThreadPool(String subtaskName) {
+        // this is just a dummy fetcher, so no need to create a thread pool for shard consumers
+        ExecutorService mockExecutorService = mock(ExecutorService.class);
+        when(mockExecutorService.isTerminated())
+                .thenAnswer((InvocationOnMock invocation) -> !running);
+        when(mockExecutorService.shutdownNow())
+                .thenAnswer(
+                        invocationOnMock -> {
+                            executorServiceShutdownNowCalled = true;
+                            return Collections.emptyList();
+                        });
+        try {
+            when(mockExecutorService.awaitTermination(anyLong(), any()))
+                    .thenAnswer(invocationOnMock -> !running && executorServiceShutdownNowCalled);
+        } catch (InterruptedException e) {
+            // We're just trying to stub the method. Must acknowledge the checked exception.
+        }
+        return mockExecutorService;
+    }
 
-	private static RuntimeContext getMockedRuntimeContext(final int fakeTotalCountOfSubtasks, final int fakeIndexOfThisSubtask) {
-		RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        this.running = false;
+        super.awaitTermination();
+    }
 
-		Mockito.when(mockedRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(fakeTotalCountOfSubtasks);
-		Mockito.when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(fakeIndexOfThisSubtask);
-		Mockito.when(mockedRuntimeContext.getTaskName()).thenReturn("Fake Task");
-		Mockito.when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(
-				"Fake Task (" + fakeIndexOfThisSubtask + "/" + fakeTotalCountOfSubtasks + ")");
-		Mockito.when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(
-				Thread.currentThread().getContextClassLoader());
+    @Override
+    public void shutdownFetcher() {
+        super.shutdownFetcher();
+        shutdownWaiter.trigger();
+    }
 
-		Mockito.when(mockedRuntimeContext.getMetricGroup()).thenReturn(new UnregisteredMetricsGroup());
+    @Override
+    public List<StreamShardHandle> discoverNewShardsToSubscribe() throws InterruptedException {
+        List<StreamShardHandle> newShards = super.discoverNewShardsToSubscribe();
+        discoveryWaiter.release();
+        return newShards;
+    }
 
-		return mockedRuntimeContext;
-	}
+    public void waitUntilInitialDiscovery() throws InterruptedException {
+        discoveryWaiter.acquire();
+    }
+
+    public void waitUntilDiscovery(int number) throws InterruptedException {
+        discoveryWaiter.acquire(number);
+    }
 }

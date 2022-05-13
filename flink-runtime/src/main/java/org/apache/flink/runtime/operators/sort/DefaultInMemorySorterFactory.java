@@ -20,48 +20,45 @@ package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.Nonnull;
 
 import java.util.List;
 
-/**
- * Default factory for {@link InMemorySorter}.
- */
+/** Default factory for {@link InMemorySorter}. */
 public class DefaultInMemorySorterFactory<T> implements InMemorySorterFactory<T> {
 
-	@Nonnull
-	private final TypeSerializerFactory<T> typeSerializerFactory;
+    @Nonnull private final TypeSerializer<T> typeSerializer;
 
-	@Nonnull
-	private final TypeComparator<T> typeComparator;
+    @Nonnull private final TypeComparator<T> typeComparator;
 
-	private final boolean useFixedLengthRecordSorter;
+    private final boolean useFixedLengthRecordSorter;
 
-	DefaultInMemorySorterFactory(
-			@Nonnull TypeSerializerFactory<T> typeSerializerFactory,
-			@Nonnull TypeComparator<T> typeComparator,
-			int thresholdForInPlaceSorting) {
-		this.typeSerializerFactory = typeSerializerFactory;
-		this.typeComparator = typeComparator;
+    public DefaultInMemorySorterFactory(
+            @Nonnull TypeSerializer<T> typeSerializer,
+            @Nonnull TypeComparator<T> typeComparator,
+            int thresholdForInPlaceSorting) {
+        this.typeSerializer = typeSerializer;
+        this.typeComparator = typeComparator;
 
-		TypeSerializer<T> typeSerializer = typeSerializerFactory.getSerializer();
+        this.useFixedLengthRecordSorter =
+                typeComparator.supportsSerializationWithKeyNormalization()
+                        && typeSerializer.getLength() > 0
+                        && typeSerializer.getLength() <= thresholdForInPlaceSorting;
+    }
 
-		this.useFixedLengthRecordSorter = typeComparator.supportsSerializationWithKeyNormalization() &&
-			typeSerializer.getLength() > 0 && typeSerializer.getLength() <= thresholdForInPlaceSorting;
-	}
+    @Override
+    public InMemorySorter<T> create(List<MemorySegment> sortSegments) {
+        final TypeSerializer<T> duplicatedTypeSerializer = typeSerializer.duplicate();
+        final TypeComparator<T> duplicateTypeComparator = typeComparator.duplicate();
 
-	@Override
-	public InMemorySorter<T> create(List<MemorySegment> sortSegments) {
-		final TypeSerializer<T> typeSerializer = typeSerializerFactory.getSerializer();
-		final TypeComparator<T> duplicateTypeComparator = typeComparator.duplicate();
-
-		if (useFixedLengthRecordSorter) {
-			return new FixedLengthRecordSorter<>(typeSerializer, duplicateTypeComparator, sortSegments);
-		} else {
-			return new NormalizedKeySorter<>(typeSerializer, duplicateTypeComparator, sortSegments);
-		}
-	}
+        if (useFixedLengthRecordSorter) {
+            return new FixedLengthRecordSorter<>(
+                    duplicatedTypeSerializer, duplicateTypeComparator, sortSegments);
+        } else {
+            return new NormalizedKeySorter<>(
+                    duplicatedTypeSerializer, duplicateTypeComparator, sortSegments);
+        }
+    }
 }

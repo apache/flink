@@ -25,90 +25,92 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link AscendingTimestampExtractor}.
- */
+/** Tests for {@link AscendingTimestampExtractor}. */
 public class AscendingTimestampExtractorTest {
 
-	@Test
-	public void testWithFailingHandler() {
-		AscendingTimestampExtractor<Long> extractor = new LongExtractor()
-				.withViolationHandler(new AscendingTimestampExtractor.FailingHandler());
+    @Test
+    public void testWithFailingHandler() {
+        AscendingTimestampExtractor<Long> extractor =
+                new LongExtractor()
+                        .withViolationHandler(new AscendingTimestampExtractor.FailingHandler());
 
-		runValidTests(extractor);
-		try {
-			runInvalidTest(extractor);
-			fail("should fail with an exception");
-		} catch (Exception ignored) {}
-	}
+        runValidTests(extractor);
+        try {
+            runInvalidTest(extractor);
+            fail("should fail with an exception");
+        } catch (Exception ignored) {
+        }
+    }
 
-	@Test
-	public void testWithIgnoringHandler() {
-		AscendingTimestampExtractor<Long> extractor = new LongExtractor()
-				.withViolationHandler(new AscendingTimestampExtractor.IgnoringHandler());
+    @Test
+    public void testWithIgnoringHandler() {
+        AscendingTimestampExtractor<Long> extractor =
+                new LongExtractor()
+                        .withViolationHandler(new AscendingTimestampExtractor.IgnoringHandler());
 
-		runValidTests(extractor);
-		runInvalidTest(extractor);
-	}
+        runValidTests(extractor);
+        runInvalidTest(extractor);
+    }
 
-	@Test
-	public void testWithLoggingHandler() {
-		AscendingTimestampExtractor<Long> extractor = new LongExtractor()
-				.withViolationHandler(new AscendingTimestampExtractor.LoggingHandler());
+    @Test
+    public void testWithLoggingHandler() {
+        AscendingTimestampExtractor<Long> extractor =
+                new LongExtractor()
+                        .withViolationHandler(new AscendingTimestampExtractor.LoggingHandler());
 
-		runValidTests(extractor);
-		runInvalidTest(extractor);
-	}
+        runValidTests(extractor);
+        runInvalidTest(extractor);
+    }
 
-	@Test
-	public void testWithDefaultHandler() {
-		AscendingTimestampExtractor<Long> extractor = new LongExtractor();
+    @Test
+    public void testWithDefaultHandler() {
+        AscendingTimestampExtractor<Long> extractor = new LongExtractor();
 
-		runValidTests(extractor);
-		runInvalidTest(extractor);
-	}
+        runValidTests(extractor);
+        runInvalidTest(extractor);
+    }
 
-	@Test
-	public void testInitialAndFinalWatermark() {
-		AscendingTimestampExtractor<Long> extractor = new LongExtractor();
-		assertEquals(Long.MIN_VALUE, extractor.getCurrentWatermark().getTimestamp());
+    @Test
+    public void testInitialAndFinalWatermark() {
+        AscendingTimestampExtractor<Long> extractor = new LongExtractor();
+        assertEquals(Long.MIN_VALUE, extractor.getCurrentWatermark().getTimestamp());
 
-		extractor.extractTimestamp(Long.MIN_VALUE, -1L);
+        extractor.extractTimestamp(Long.MIN_VALUE, -1L);
 
-		extractor.extractTimestamp(Long.MAX_VALUE, -1L);
-		assertEquals(Long.MAX_VALUE - 1, extractor.getCurrentWatermark().getTimestamp());
-	}
+        extractor.extractTimestamp(Long.MAX_VALUE, -1L);
+        assertEquals(Long.MAX_VALUE - 1, extractor.getCurrentWatermark().getTimestamp());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private void runValidTests(AscendingTimestampExtractor<Long> extractor) {
-		assertEquals(13L, extractor.extractTimestamp(13L, -1L));
-		assertEquals(13L, extractor.extractTimestamp(13L, 0L));
-		assertEquals(14L, extractor.extractTimestamp(14L, 0L));
-		assertEquals(20L, extractor.extractTimestamp(20L, 0L));
-		assertEquals(20L, extractor.extractTimestamp(20L, 0L));
-		assertEquals(20L, extractor.extractTimestamp(20L, 0L));
-		assertEquals(500L, extractor.extractTimestamp(500L, 0L));
+    private void runValidTests(AscendingTimestampExtractor<Long> extractor) {
+        assertEquals(13L, extractor.extractTimestamp(13L, -1L));
+        assertEquals(13L, extractor.extractTimestamp(13L, 0L));
+        assertEquals(14L, extractor.extractTimestamp(14L, 0L));
+        assertEquals(20L, extractor.extractTimestamp(20L, 0L));
+        assertEquals(20L, extractor.extractTimestamp(20L, 0L));
+        assertEquals(20L, extractor.extractTimestamp(20L, 0L));
+        assertEquals(500L, extractor.extractTimestamp(500L, 0L));
 
-		assertEquals(Long.MAX_VALUE - 1, extractor.extractTimestamp(Long.MAX_VALUE - 1, 99999L));
-	}
+        assertEquals(Long.MAX_VALUE - 1, extractor.extractTimestamp(Long.MAX_VALUE - 1, 99999L));
+    }
 
-	private void runInvalidTest(AscendingTimestampExtractor<Long> extractor) {
-		assertEquals(1000L, extractor.extractTimestamp(1000L, 100));
-		assertEquals(1000L, extractor.extractTimestamp(1000L, 100));
+    private void runInvalidTest(AscendingTimestampExtractor<Long> extractor) {
+        assertEquals(1000L, extractor.extractTimestamp(1000L, 100));
+        assertEquals(1000L, extractor.extractTimestamp(1000L, 100));
 
-		// violation
-		assertEquals(999L, extractor.extractTimestamp(999L, 100));
-	}
+        // violation
+        assertEquals(999L, extractor.extractTimestamp(999L, 100));
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class LongExtractor extends AscendingTimestampExtractor<Long> {
-		private static final long serialVersionUID = 1L;
+    private static class LongExtractor extends AscendingTimestampExtractor<Long> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public long extractAscendingTimestamp(Long element) {
-			return element;
-		}
-	}
+        @Override
+        public long extractAscendingTimestamp(Long element) {
+            return element;
+        }
+    }
 }

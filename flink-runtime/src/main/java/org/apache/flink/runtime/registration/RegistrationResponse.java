@@ -18,67 +18,83 @@
 
 package org.apache.flink.runtime.registration;
 
+import org.apache.flink.util.SerializedThrowable;
+
 import java.io.Serializable;
 
-/**
- * Base class for responses given to registration attempts from {@link RetryingRegistration}.
- */
+/** Base class for responses given to registration attempts from {@link RetryingRegistration}. */
 public abstract class RegistrationResponse implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
 
-	/**
-	 * Base class for a successful registration. Concrete registration implementations
-	 * will typically extend this class to attach more information.
-	 */
-	public static class Success extends RegistrationResponse {
-		private static final long serialVersionUID = 1L;
+    /**
+     * Base class for a successful registration. Concrete registration implementations will
+     * typically extend this class to attach more information.
+     */
+    public static class Success extends RegistrationResponse {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public String toString() {
-			return "Registration Successful";
-		}
-	}
+        @Override
+        public String toString() {
+            return "Registration Successful";
+        }
+    }
 
-	// ----------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------
 
-	/**
-	 * A rejected (declined) registration.
-	 */
-	public static final class Decline extends RegistrationResponse {
-		private static final long serialVersionUID = 1L;
+    /**
+     * A registration failure.
+     *
+     * <p>A failure indicates a temporary problem which can be solved by retrying the connection
+     * attempt. That's why the {@link RetryingRegistration} will retry the registration with the
+     * target upon receiving a {@link Failure} response. Consequently, the target should answer with
+     * a {@link Failure} if a temporary failure has occurred.
+     */
+    public static final class Failure extends RegistrationResponse {
+        private static final long serialVersionUID = 1L;
 
-		/** The rejection reason. */
-		private final String reason;
+        /** The failure reason. */
+        private final SerializedThrowable reason;
 
-		/**
-		 * Creates a new rejection message.
-		 *
-		 * @param reason The reason for the rejection.
-		 */
-		public Decline(String reason) {
-			this.reason = reason != null ? reason : "(unknown)";
-		}
+        /**
+         * Creates a new failure message.
+         *
+         * @param reason The reason for the failure.
+         */
+        public Failure(Throwable reason) {
+            this.reason = new SerializedThrowable(reason);
+        }
 
-		/**
-		 * Gets the reason for the rejection.
-		 */
-		public String getReason() {
-			return reason;
-		}
+        /** Gets the reason for the failure. */
+        public SerializedThrowable getReason() {
+            return reason;
+        }
 
-		@Override
-		public String toString() {
-			return "Registration Declined (" + reason + ')';
-		}
-	}
+        @Override
+        public String toString() {
+            return "Registration Failure (" + reason + ')';
+        }
+    }
+
+    // ----------------------------------------------------------------------------
+
+    /**
+     * A rejected (declined) registration.
+     *
+     * <p>A rejection indicates a permanent problem which prevents the registration between the
+     * target and the caller which cannot be solved by retrying the connection. Consequently, the
+     * {@link RetryingRegistration} will stop when it receives a {@link Rejection} response from the
+     * target. Moreover, a target should respond with {@link Rejection} if it realizes that it
+     * cannot work with the caller.
+     */
+    public static class Rejection extends RegistrationResponse {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public String toString() {
+            return "Registration Rejected";
+        }
+    }
 }
-
-
-
-
-
-
-

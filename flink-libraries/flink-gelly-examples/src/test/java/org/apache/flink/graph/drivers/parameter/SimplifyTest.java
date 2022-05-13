@@ -25,36 +25,33 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Tests for {@link Simplify}.
- */
-public class SimplifyTest
-extends ParameterTestBase {
+/** Tests for {@link Simplify}. */
+public class SimplifyTest extends ParameterTestBase {
 
-	private Simplify parameter;
+    private Simplify parameter;
 
-	@Before
-	public void setup() {
-		super.setup();
+    @Before
+    public void setup() {
+        super.setup();
 
-		parameter = new Simplify(owner);
-	}
+        parameter = new Simplify(owner);
+    }
 
-	@Test
-	public void testWithDirected() {
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--simplify", "directed"}));
-		Assert.assertEquals(Ordering.DIRECTED, parameter.getValue());
-	}
+    @Test
+    public void testWithDirected() {
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--simplify", "directed"}));
+        Assert.assertEquals(Ordering.DIRECTED, parameter.getValue());
+    }
 
-	@Test
-	public void testWithUndirected() {
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--simplify", "undirected"}));
-		Assert.assertEquals(Ordering.UNDIRECTED, parameter.getValue());
-	}
+    @Test
+    public void testWithUndirected() {
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--simplify", "undirected"}));
+        Assert.assertEquals(Ordering.UNDIRECTED, parameter.getValue());
+    }
 
-	@Test
-	public void testWithNoParameter() {
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-		Assert.assertEquals(Ordering.NONE, parameter.getValue());
-	}
+    @Test
+    public void testWithNoParameter() {
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+        Assert.assertEquals(Ordering.NONE, parameter.getValue());
+    }
 }

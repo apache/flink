@@ -1,0 +1,52 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-card>
+  <nz-table
+    nzBordered
+    [nzSize]="'small'"
+    [nzData]="listOfLog"
+    [nzLoading]="isLoading"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+    [nzVirtualItemSize]="39"
+    [nzVirtualForTrackBy]="trackByName"
+    [nzVirtualMinBufferPx]="480"
+    [nzVirtualMaxBufferPx]="480"
+    [nzScroll]="{ y: '440px' }"
+  >
+    <thead>
+      <tr>
+        <th nzWidth="50%">Log Name</th>
+        <th [nzSortFn]="sortLastModifiedTimeFn">Last Modified Time</th>
+        <th [nzSortFn]="sortSizeFn">Size (KB)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-template nz-virtual-scroll let-data>
+        <ng-container *ngIf="narrowLogData(data) as narrowData">
+          <tr>
+            <td>
+              <a [routerLink]="[narrowData.name]">{{ narrowData.name }}</a>
+            </td>
+            <td>{{ narrowData.mtime | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ narrowData.size / 1024 | number: '1.0-2' }}</td>
+          </tr>
+        </ng-container>
+      </ng-template>
+    </tbody>
+  </nz-table>
+</nz-card>

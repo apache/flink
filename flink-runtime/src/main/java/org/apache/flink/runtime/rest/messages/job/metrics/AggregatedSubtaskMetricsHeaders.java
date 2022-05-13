@@ -21,32 +21,35 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 
-/**
- * Headers for aggregating subtask metrics.
- */
-public class AggregatedSubtaskMetricsHeaders extends AbstractAggregatedMetricsHeaders<AggregatedSubtaskMetricsParameters> {
+/** Headers for aggregating subtask metrics. */
+public class AggregatedSubtaskMetricsHeaders
+        extends AbstractAggregatedMetricsHeaders<AggregatedSubtaskMetricsParameters> {
 
-	private static final AggregatedSubtaskMetricsHeaders INSTANCE = new AggregatedSubtaskMetricsHeaders();
+    private static final AggregatedSubtaskMetricsHeaders INSTANCE =
+            new AggregatedSubtaskMetricsHeaders();
 
-	private AggregatedSubtaskMetricsHeaders() {
-	}
+    private AggregatedSubtaskMetricsHeaders() {}
 
-	@Override
-	public AggregatedSubtaskMetricsParameters getUnresolvedMessageParameters() {
-		return new AggregatedSubtaskMetricsParameters();
-	}
+    @Override
+    public AggregatedSubtaskMetricsParameters getUnresolvedMessageParameters() {
+        return new AggregatedSubtaskMetricsParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/subtasks/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/:"
+                + JobIDPathParameter.KEY
+                + "/vertices/:"
+                + JobVertexIdPathParameter.KEY
+                + "/subtasks/metrics";
+    }
 
-	public static AggregatedSubtaskMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static AggregatedSubtaskMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to aggregated subtask metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to aggregated subtask metrics.";
+    }
 }

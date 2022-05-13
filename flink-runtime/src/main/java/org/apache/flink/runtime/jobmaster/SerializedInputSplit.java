@@ -21,19 +21,19 @@ package org.apache.flink.runtime.jobmaster;
 import java.io.Serializable;
 
 public class SerializedInputSplit implements Serializable {
-	private static final long serialVersionUID = -2063021844254152064L;
+    private static final long serialVersionUID = -2063021844254152064L;
 
-	private final byte[] inputSplitData;
+    private final byte[] inputSplitData;
 
-	public SerializedInputSplit(byte[] inputSplitData) {
-		this.inputSplitData = inputSplitData;
-	}
+    public SerializedInputSplit(byte[] inputSplitData) {
+        this.inputSplitData = inputSplitData;
+    }
 
-	public byte[] getInputSplitData() {
-		return inputSplitData;
-	}
+    public byte[] getInputSplitData() {
+        return inputSplitData;
+    }
 
-	public boolean isEmpty() {
-		return inputSplitData == null || inputSplitData.length == 0;
-	}
+    public boolean isEmpty() {
+        return inputSplitData == null || inputSplitData.length == 0;
+    }
 }

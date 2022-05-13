@@ -31,49 +31,45 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 
-/**
- * Tests for {@link MetricCollectionResponseBody}.
- */
-public class MetricCollectionResponseBodyTest extends
-	RestResponseMarshallingTestBase<MetricCollectionResponseBody> {
+/** Tests for {@link MetricCollectionResponseBody}. */
+public class MetricCollectionResponseBodyTest
+        extends RestResponseMarshallingTestBase<MetricCollectionResponseBody> {
 
-	private static final String TEST_METRIC_NAME = "metric1";
+    private static final String TEST_METRIC_NAME = "metric1";
 
-	private static final String TEST_METRIC_VALUE = "1000";
+    private static final String TEST_METRIC_VALUE = "1000";
 
-	@Override
-	protected Class<MetricCollectionResponseBody> getTestResponseClass() {
-		return MetricCollectionResponseBody.class;
-	}
+    @Override
+    protected Class<MetricCollectionResponseBody> getTestResponseClass() {
+        return MetricCollectionResponseBody.class;
+    }
 
-	@Override
-	protected MetricCollectionResponseBody getTestResponseInstance() {
-		return new MetricCollectionResponseBody(Collections.singleton(new Metric(
-			TEST_METRIC_NAME,
-			TEST_METRIC_VALUE)));
-	}
+    @Override
+    protected MetricCollectionResponseBody getTestResponseInstance() {
+        return new MetricCollectionResponseBody(
+                Collections.singleton(new Metric(TEST_METRIC_NAME, TEST_METRIC_VALUE)));
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			MetricCollectionResponseBody expected,
-			MetricCollectionResponseBody actual) {
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            MetricCollectionResponseBody expected, MetricCollectionResponseBody actual) {
 
-		assertThat(actual.getMetrics(), hasSize(1));
+        assertThat(actual.getMetrics(), hasSize(1));
 
-		final Metric metric = actual.getMetrics().iterator().next();
-		assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-		assertThat(metric.getValue(), equalTo(TEST_METRIC_VALUE));
-	}
+        final Metric metric = actual.getMetrics().iterator().next();
+        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
+        assertThat(metric.getValue(), equalTo(TEST_METRIC_VALUE));
+    }
 
-	@Test
-	public void testNullValueNotSerialized() throws Exception {
-		final String json = RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(
-				new MetricCollectionResponseBody(
-					Collections.singleton(new Metric(TEST_METRIC_NAME))));
+    @Test
+    public void testNullValueNotSerialized() throws Exception {
+        final String json =
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(
+                                new MetricCollectionResponseBody(
+                                        Collections.singleton(new Metric(TEST_METRIC_NAME))));
 
-		assertThat(json, not(containsString("\"value\"")));
-		assertThat(json, not(containsString("\"metrics\"")));
-	}
-
+        assertThat(json, not(containsString("\"value\"")));
+        assertThat(json, not(containsString("\"metrics\"")));
+    }
 }

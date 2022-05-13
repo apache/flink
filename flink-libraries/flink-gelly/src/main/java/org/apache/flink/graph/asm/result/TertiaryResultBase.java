@@ -27,85 +27,88 @@ import org.apache.flink.util.Collector;
  *
  * @param <K> graph ID type
  */
-public abstract class TertiaryResultBase<K>
-extends ResultBase
-implements TertiaryResult<K>, TranslatableResult<K> {
+public abstract class TertiaryResultBase<K> extends ResultBase
+        implements TertiaryResult<K>, TranslatableResult<K> {
 
-	private K vertexId0;
+    private K vertexId0;
 
-	private K vertexId1;
+    private K vertexId1;
 
-	private K vertexId2;
+    private K vertexId2;
 
-	@Override
-	public K getVertexId0() {
-		return vertexId0;
-	}
+    @Override
+    public K getVertexId0() {
+        return vertexId0;
+    }
 
-	@Override
-	public void setVertexId0(K vertexId0) {
-		this.vertexId0 = vertexId0;
-	}
+    @Override
+    public void setVertexId0(K vertexId0) {
+        this.vertexId0 = vertexId0;
+    }
 
-	@Override
-	public K getVertexId1() {
-		return vertexId1;
-	}
+    @Override
+    public K getVertexId1() {
+        return vertexId1;
+    }
 
-	@Override
-	public void setVertexId1(K vertexId1) {
-		this.vertexId1 = vertexId1;
-	}
+    @Override
+    public void setVertexId1(K vertexId1) {
+        this.vertexId1 = vertexId1;
+    }
 
-	@Override
-	public K getVertexId2() {
-		return vertexId2;
-	}
+    @Override
+    public K getVertexId2() {
+        return vertexId2;
+    }
 
-	@Override
-	public void setVertexId2(K vertexId2) {
-		this.vertexId2 = vertexId2;
-	}
+    @Override
+    public void setVertexId2(K vertexId2) {
+        this.vertexId2 = vertexId2;
+    }
 
-	@Override
-	public <T> TranslatableResult<T> translate(TranslateFunction<K, T> translator, TranslatableResult<T> reuse, Collector<TranslatableResult<T>> out)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new BasicTertiaryResult<>();
-		}
+    @Override
+    public <T> TranslatableResult<T> translate(
+            TranslateFunction<K, T> translator,
+            TranslatableResult<T> reuse,
+            Collector<TranslatableResult<T>> out)
+            throws Exception {
+        if (reuse == null) {
+            reuse = new BasicTertiaryResult<>();
+        }
 
-		K vertexId0 = this.getVertexId0();
-		K vertexId1 = this.getVertexId1();
-		K vertexId2 = this.getVertexId2();
+        K vertexId0 = this.getVertexId0();
+        K vertexId1 = this.getVertexId1();
+        K vertexId2 = this.getVertexId2();
 
-		TertiaryResult<T> translatable = (TertiaryResult<T>) reuse;
-		TertiaryResult<T> translated = (TertiaryResult<T>) this;
+        TertiaryResult<T> translatable = (TertiaryResult<T>) reuse;
+        TertiaryResult<T> translated = (TertiaryResult<T>) this;
 
-		translated.setVertexId0(translator.translate(this.getVertexId0(), translatable.getVertexId0()));
-		translated.setVertexId1(translator.translate(this.getVertexId1(), translatable.getVertexId1()));
-		translated.setVertexId2(translator.translate(this.getVertexId2(), translatable.getVertexId2()));
+        translated.setVertexId0(
+                translator.translate(this.getVertexId0(), translatable.getVertexId0()));
+        translated.setVertexId1(
+                translator.translate(this.getVertexId1(), translatable.getVertexId1()));
+        translated.setVertexId2(
+                translator.translate(this.getVertexId2(), translatable.getVertexId2()));
 
-		out.collect((TranslatableResult<T>) translated);
+        out.collect((TranslatableResult<T>) translated);
 
-		this.setVertexId0(vertexId0);
-		this.setVertexId1(vertexId1);
-		this.setVertexId2(vertexId2);
+        this.setVertexId0(vertexId0);
+        this.setVertexId1(vertexId1);
+        this.setVertexId2(vertexId2);
 
-		return reuse;
-	}
+        return reuse;
+    }
 
-	/**
-	 * Simple override of {@code TertiaryResultBase}. This holds no additional
-	 * values but is used by {@link TertiaryResultBase#translate} as the reuse
-	 * object for translating vertex IDs.
-	 *
-	 * @param <U> result ID type
-	 */
-	private static class BasicTertiaryResult<U>
-	extends TertiaryResultBase<U> {
-		@Override
-		public String toString() {
-			return "(" + getVertexId0() + "," + getVertexId1() + "," + getVertexId2() + ")";
-		}
-	}
+    /**
+     * Simple override of {@code TertiaryResultBase}. This holds no additional values but is used by
+     * {@link TertiaryResultBase#translate} as the reuse object for translating vertex IDs.
+     *
+     * @param <U> result ID type
+     */
+    private static class BasicTertiaryResult<U> extends TertiaryResultBase<U> {
+        @Override
+        public String toString() {
+            return "(" + getVertexId0() + "," + getVertexId1() + "," + getVertexId2() + ")";
+        }
+    }
 }

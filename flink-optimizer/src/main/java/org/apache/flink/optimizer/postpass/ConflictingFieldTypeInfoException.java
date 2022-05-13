@@ -16,35 +16,39 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.postpass;
 
 public final class ConflictingFieldTypeInfoException extends Exception {
 
-	private static final long serialVersionUID = 3991352502693288321L;
+    private static final long serialVersionUID = 3991352502693288321L;
 
-	private final int fieldNumber;
-	
-	private final Object previousType, newType;
+    private final int fieldNumber;
 
-	
-	public ConflictingFieldTypeInfoException(int fieldNumber, Object previousType, Object newType) {
-		super("Conflicting type info for field " + fieldNumber + ": Old='" + previousType + "', new='" + newType + "'.");
-		this.fieldNumber = fieldNumber;
-		this.previousType = previousType;
-		this.newType = newType;
-	}
-	
-	
-	public int getFieldNumber() {
-		return fieldNumber;
-	}
+    private final Object previousType, newType;
 
-	public Object getPreviousType() {
-		return this.previousType;
-	}
+    public ConflictingFieldTypeInfoException(int fieldNumber, Object previousType, Object newType) {
+        super(
+                "Conflicting type info for field "
+                        + fieldNumber
+                        + ": Old='"
+                        + previousType
+                        + "', new='"
+                        + newType
+                        + "'.");
+        this.fieldNumber = fieldNumber;
+        this.previousType = previousType;
+        this.newType = newType;
+    }
 
-	public Object getNewType() {
-		return this.newType;
-	}
+    public int getFieldNumber() {
+        return fieldNumber;
+    }
+
+    public Object getPreviousType() {
+        return this.previousType;
+    }
+
+    public Object getNewType() {
+        return this.newType;
+    }
 }

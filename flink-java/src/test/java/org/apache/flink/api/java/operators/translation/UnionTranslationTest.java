@@ -40,119 +40,127 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for translation of union operation.
- */
+/** Tests for translation of union operation. */
 @SuppressWarnings("serial")
 public class UnionTranslationTest {
 
-	@Test
-	public void translateUnion2Group() {
-		try {
-			final int parallelism = 4;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    public void translateUnion2Group() {
+        try {
+            final int parallelism = 4;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> dataset1 = getSourceDataSet(env, 3);
+            DataSet<Tuple3<Double, StringValue, LongValue>> dataset1 = getSourceDataSet(env, 3);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> dataset2 = getSourceDataSet(env, 2);
+            DataSet<Tuple3<Double, StringValue, LongValue>> dataset2 = getSourceDataSet(env, 2);
 
-			dataset1.union(dataset2)
-					.groupBy((KeySelector<Tuple3<Double, StringValue, LongValue>, String>) value -> "")
-					.reduceGroup((GroupReduceFunction<Tuple3<Double, StringValue, LongValue>, String>) (values, out) -> {})
-					.returns(String.class)
-					.output(new DiscardingOutputFormat<>());
+            dataset1.union(dataset2)
+                    .groupBy(
+                            (KeySelector<Tuple3<Double, StringValue, LongValue>, String>)
+                                    value -> "")
+                    .reduceGroup(
+                            (GroupReduceFunction<Tuple3<Double, StringValue, LongValue>, String>)
+                                    (values, out) -> {})
+                    .returns(String.class)
+                    .output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			// The plan should look like the following one.
-			//
-			// DataSet1(3) - MapOperator(3)-+
-			//	                            |- Union(-1) - SingleInputOperator - Sink
-			// DataSet2(2) - MapOperator(2)-+
+            // The plan should look like the following one.
+            //
+            // DataSet1(3) - MapOperator(3)-+
+            //	                            |- Union(-1) - SingleInputOperator - Sink
+            // DataSet2(2) - MapOperator(2)-+
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-			Union unionOperator = (Union) ((SingleInputOperator) sink.getInput()).getInput();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            Union unionOperator = (Union) ((SingleInputOperator) sink.getInput()).getInput();
 
-			// The key mappers should be added to both of the two input streams for union.
-			assertTrue(unionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
-			assertTrue(unionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            // The key mappers should be added to both of the two input streams for union.
+            assertTrue(unionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
+            assertTrue(unionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
 
-			// The parallelisms of the key mappers should be equal to those of their inputs.
-			assertEquals(unionOperator.getFirstInput().getParallelism(), 3);
-			assertEquals(unionOperator.getSecondInput().getParallelism(), 2);
+            // The parallelisms of the key mappers should be equal to those of their inputs.
+            assertEquals(unionOperator.getFirstInput().getParallelism(), 3);
+            assertEquals(unionOperator.getSecondInput().getParallelism(), 2);
 
-			// The union should always have the default parallelism.
-			assertEquals(unionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            // The union should always have the default parallelism.
+            assertEquals(unionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void translateUnion3SortedGroup() {
-		try {
-			final int parallelism = 4;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
+    @Test
+    public void translateUnion3SortedGroup() {
+        try {
+            final int parallelism = 4;
+            ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> dataset1 = getSourceDataSet(env, 2);
+            DataSet<Tuple3<Double, StringValue, LongValue>> dataset1 = getSourceDataSet(env, 2);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> dataset2 = getSourceDataSet(env, 3);
+            DataSet<Tuple3<Double, StringValue, LongValue>> dataset2 = getSourceDataSet(env, 3);
 
-			DataSet<Tuple3<Double, StringValue, LongValue>> dataset3 = getSourceDataSet(env, -1);
+            DataSet<Tuple3<Double, StringValue, LongValue>> dataset3 = getSourceDataSet(env, -1);
 
-			dataset1.union(dataset2).union(dataset3)
-					.groupBy((KeySelector<Tuple3<Double, StringValue, LongValue>, String>) value -> "")
-					.sortGroup((KeySelector<Tuple3<Double, StringValue, LongValue>, String>) value -> "", Order.ASCENDING)
-					.reduceGroup((GroupReduceFunction<Tuple3<Double, StringValue, LongValue>, String>) (values, out) -> {})
-					.returns(String.class)
-					.output(new DiscardingOutputFormat<>());
+            dataset1.union(dataset2)
+                    .union(dataset3)
+                    .groupBy(
+                            (KeySelector<Tuple3<Double, StringValue, LongValue>, String>)
+                                    value -> "")
+                    .sortGroup(
+                            (KeySelector<Tuple3<Double, StringValue, LongValue>, String>)
+                                    value -> "",
+                            Order.ASCENDING)
+                    .reduceGroup(
+                            (GroupReduceFunction<Tuple3<Double, StringValue, LongValue>, String>)
+                                    (values, out) -> {})
+                    .returns(String.class)
+                    .output(new DiscardingOutputFormat<>());
 
-			Plan p = env.createProgramPlan();
+            Plan p = env.createProgramPlan();
 
-			// The plan should look like the following one.
-			//
-			// DataSet1(2) - MapOperator(2)-+
-			//	                            |- Union(-1) -+
-			// DataSet2(3) - MapOperator(3)-+             |- Union(-1) - SingleInputOperator - Sink
-			//                                            |
-			//             DataSet3(-1) - MapOperator(-1)-+
+            // The plan should look like the following one.
+            //
+            // DataSet1(2) - MapOperator(2)-+
+            //	                            |- Union(-1) -+
+            // DataSet2(3) - MapOperator(3)-+             |- Union(-1) - SingleInputOperator - Sink
+            //                                            |
+            //             DataSet3(-1) - MapOperator(-1)-+
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-			Union secondUnionOperator = (Union) ((SingleInputOperator) sink.getInput()).getInput();
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            Union secondUnionOperator = (Union) ((SingleInputOperator) sink.getInput()).getInput();
 
-			// The first input of the second union should be the first union.
-			Union firstUnionOperator = (Union) secondUnionOperator.getFirstInput();
+            // The first input of the second union should be the first union.
+            Union firstUnionOperator = (Union) secondUnionOperator.getFirstInput();
 
-			// The key mapper should be added to the second input stream of the second union.
-			assertTrue(secondUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            // The key mapper should be added to the second input stream of the second union.
+            assertTrue(secondUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
 
-			// The key mappers should be added to both of the two input streams for the first union.
-			assertTrue(firstUnionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
-			assertTrue(firstUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
+            // The key mappers should be added to both of the two input streams for the first union.
+            assertTrue(firstUnionOperator.getFirstInput() instanceof MapOperatorBase<?, ?, ?>);
+            assertTrue(firstUnionOperator.getSecondInput() instanceof MapOperatorBase<?, ?, ?>);
 
-			// The parallelisms of the key mappers should be equal to those of their inputs.
-			assertEquals(firstUnionOperator.getFirstInput().getParallelism(), 2);
-			assertEquals(firstUnionOperator.getSecondInput().getParallelism(), 3);
-			assertEquals(secondUnionOperator.getSecondInput().getParallelism(), -1);
+            // The parallelisms of the key mappers should be equal to those of their inputs.
+            assertEquals(firstUnionOperator.getFirstInput().getParallelism(), 2);
+            assertEquals(firstUnionOperator.getSecondInput().getParallelism(), 3);
+            assertEquals(secondUnionOperator.getSecondInput().getParallelism(), -1);
 
-			// The union should always have the default parallelism.
-			assertEquals(secondUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
-			assertEquals(firstUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Test caused an error: " + e.getMessage());
-		}
-	}
+            // The union should always have the default parallelism.
+            assertEquals(secondUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
+            assertEquals(firstUnionOperator.getParallelism(), ExecutionConfig.PARALLELISM_DEFAULT);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            e.printStackTrace();
+            fail("Test caused an error: " + e.getMessage());
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(ExecutionEnvironment env, int parallelism) {
-		return env
-				.fromElements(new Tuple3<>(0.0, new StringValue(""), new LongValue(1L)))
-				.setParallelism(parallelism);
-	}
+    @SuppressWarnings("unchecked")
+    private static DataSet<Tuple3<Double, StringValue, LongValue>> getSourceDataSet(
+            ExecutionEnvironment env, int parallelism) {
+        return env.fromElements(new Tuple3<>(0.0, new StringValue(""), new LongValue(1L)))
+                .setParallelism(parallelism);
+    }
 }

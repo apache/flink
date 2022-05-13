@@ -20,7 +20,11 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockSerializationSchema;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -33,246 +37,327 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collections;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the {@link RMQSink}.
- */
+/** Tests for the {@link RMQSink}. */
 public class RMQSinkTest {
 
-	private static final String QUEUE_NAME = "queue";
-	private static final String EXCHANGE = "exchange";
-	private static final String ROUTING_KEY = "application.component.error";
-	private static final String EXPIRATION = "10000";
-	private static final String MESSAGE_STR = "msg";
-	private static final byte[] MESSAGE = new byte[1];
-	private static AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-			.headers(Collections.singletonMap("Test", "My Value"))
-			.expiration(EXPIRATION)
-			.build();
+    private static final String QUEUE_NAME = "queue";
+    private static final String EXCHANGE = "exchange";
+    private static final String ROUTING_KEY = "application.component.error";
+    private static final String EXPIRATION = "10000";
+    private static final String MESSAGE_STR = "msg";
+    private static final byte[] MESSAGE = new byte[1];
+    private static AMQP.BasicProperties props =
+            new AMQP.BasicProperties.Builder()
+                    .headers(Collections.singletonMap("Test", "My Value"))
+                    .expiration(EXPIRATION)
+                    .build();
 
-	private RMQConnectionConfig rmqConnectionConfig;
-	private ConnectionFactory connectionFactory;
-	private Connection connection;
-	private Channel channel;
-	private SerializationSchema<String> serializationSchema;
-	private DummyPublishOptions publishOptions;
-	private DummyReturnHandler returnListener;
+    private RMQConnectionConfig rmqConnectionConfig;
+    private ConnectionFactory connectionFactory;
+    private Connection connection;
+    private Channel channel;
+    private SerializationSchema<String> serializationSchema;
+    private DummyPublishOptions publishOptions;
+    private DummyReturnHandler returnListener;
 
-	@Before
-	public void before() throws Exception {
-		serializationSchema = spy(new DummySerializationSchema());
-		rmqConnectionConfig = mock(RMQConnectionConfig.class);
-		connectionFactory = mock(ConnectionFactory.class);
-		connection = mock(Connection.class);
-		channel = mock(Channel.class);
+    @Before
+    public void before() throws Exception {
+        serializationSchema = spy(new DummySerializationSchema());
+        rmqConnectionConfig = mock(RMQConnectionConfig.class);
+        connectionFactory = mock(ConnectionFactory.class);
+        connection = mock(Connection.class);
+        channel = mock(Channel.class);
 
-		when(rmqConnectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
-		when(connectionFactory.newConnection()).thenReturn(connection);
-		when(connection.createChannel()).thenReturn(channel);
-	}
+        when(rmqConnectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+        when(connectionFactory.newConnection()).thenReturn(connection);
+        when(connection.createChannel()).thenReturn(channel);
+    }
 
-	@Test
-	public void openCallDeclaresQueueInStandardMode() throws Exception {
-		createRMQSink();
+    @Test
+    public void openCallDeclaresQueueInStandardMode() throws Exception {
+        createRMQSink();
 
-		verify(channel).queueDeclare(QUEUE_NAME, false, false, false, null);
-	}
+        verify(channel).queueDeclare(QUEUE_NAME, true, false, false, null);
+    }
 
-	@Test
-	public void openCallDontDeclaresQueueInWithOptionsMode() throws Exception {
-		createRMQSinkWithOptions(false, false);
+    @Test
+    public void openCallDontDeclaresQueueInWithOptionsMode() throws Exception {
+        createRMQSinkWithOptions(false, false);
 
-		verify(channel, never()).queueDeclare(null, false, false, false, null);
-	}
+        verify(channel, never()).queueDeclare(null, true, false, false, null);
+    }
 
-	@Test
-	public void throwExceptionIfChannelIsNull() throws Exception {
-		when(connection.createChannel()).thenReturn(null);
-		try {
-			createRMQSink();
-		} catch (RuntimeException ex) {
-			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
-		}
-	}
+    @Test
+    public void testOverrideConnection() throws Exception {
+        final Connection mockConnection = mock(Connection.class);
+        Channel channel = mock(Channel.class);
+        when(mockConnection.createChannel()).thenReturn(channel);
 
-	private RMQSink<String> createRMQSink() throws Exception {
-		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
-		rmqSink.open(new Configuration());
-		return rmqSink;
-	}
+        RMQSink<String> rmqSink =
+                new RMQSink<String>(rmqConnectionConfig, QUEUE_NAME, serializationSchema) {
+                    @Override
+                    protected Connection setupConnection() throws Exception {
+                        return mockConnection;
+                    }
+                };
 
-	private RMQSink<String> createRMQSinkWithOptions(boolean mandatory, boolean immediate) throws Exception {
-		publishOptions = new DummyPublishOptions(mandatory, immediate);
-		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
-		rmqSink.open(new Configuration());
-		return rmqSink;
-	}
+        rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        rmqSink.open(new Configuration());
 
-	private RMQSink<String> createRMQSinkWithOptionsAndReturnHandler(boolean mandatory, boolean immediate) throws Exception {
-		publishOptions = new DummyPublishOptions(mandatory, immediate);
-		returnListener = new DummyReturnHandler();
-		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
-		rmqSink.open(new Configuration());
-		return rmqSink;
-	}
+        verify(mockConnection, times(1)).createChannel();
+    }
 
-	@Test
-	public void invokePublishBytesToQueue() throws Exception {
-		RMQSink<String> rmqSink = createRMQSink();
+    @Test
+    public void throwExceptionIfChannelIsNull() throws Exception {
+        when(connection.createChannel()).thenReturn(null);
+        try {
+            createRMQSink();
+        } catch (RuntimeException ex) {
+            assertEquals("None of RabbitMQ channels are available", ex.getMessage());
+        }
+    }
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-	}
+    @Test
+    public void testOpen() throws Exception {
+        MockSerializationSchema<String> serializationSchema = new MockSerializationSchema<>();
 
-	@Test(expected = RuntimeException.class)
-	public void exceptionDuringPublishingIsNotIgnored() throws Exception {
-		RMQSink<String> rmqSink = createRMQSink();
+        RMQSink<String> producer =
+                new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
+        AbstractStreamOperatorTestHarness<Object> testHarness =
+                new AbstractStreamOperatorTestHarness<>(new StreamSink<>(producer), 1, 1, 0);
 
-		doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-	}
+        testHarness.open();
+        assertThat("Open method was not called", serializationSchema.isOpenCalled(), is(true));
+    }
 
-	@Test
-	public void exceptionDuringPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
-		RMQSink<String> rmqSink = createRMQSink();
-		rmqSink.setLogFailuresOnly(true);
+    private RMQSink<String> createRMQSink() throws Exception {
+        RMQSink<String> rmqSink =
+                new RMQSink<>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
+        rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        rmqSink.open(new Configuration());
+        return rmqSink;
+    }
 
-		doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-	}
+    private RMQSink<String> createRMQSinkWithOptions(boolean mandatory, boolean immediate)
+            throws Exception {
+        publishOptions = new DummyPublishOptions(mandatory, immediate);
+        RMQSink<String> rmqSink =
+                new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
+        rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        rmqSink.open(new Configuration());
+        return rmqSink;
+    }
 
-	@Test
-	public void closeAllResources() throws Exception {
-		RMQSink<String> rmqSink = createRMQSink();
+    private RMQSink<String> createRMQSinkWithOptionsAndReturnHandler(
+            boolean mandatory, boolean immediate) throws Exception {
+        publishOptions = new DummyPublishOptions(mandatory, immediate);
+        returnListener = new DummyReturnHandler();
+        RMQSink<String> rmqSink =
+                new RMQSink<>(
+                        rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
+        rmqSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        rmqSink.open(new Configuration());
+        return rmqSink;
+    }
 
-		rmqSink.close();
+    @Test
+    public void invokePublishBytesToQueue() throws Exception {
+        RMQSink<String> rmqSink = createRMQSink();
 
-		verify(channel).close();
-		verify(connection).close();
-	}
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        verify(serializationSchema).serialize(MESSAGE_STR);
+        verify(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
+    }
 
-	@Test
-	public void invokePublishBytesToQueueWithOptions() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
+    @Test(expected = RuntimeException.class)
+    public void exceptionDuringPublishingIsNotIgnored() throws Exception {
+        RMQSink<String> rmqSink = createRMQSink();
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
-				publishOptions.computeProperties(""), MESSAGE);
-	}
+        doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
+        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+    }
 
-	@Test(expected = IllegalStateException.class)
-	public void invokePublishBytesToQueueWithOptionsMandatory() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
+    @Test
+    public void exceptionDuringPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
+        RMQSink<String> rmqSink = createRMQSink();
+        rmqSink.setLogFailuresOnly(true);
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-	}
+        doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
+        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+    }
 
-	@Test(expected = IllegalStateException.class)
-	public void invokePublishBytesToQueueWithOptionsImmediate() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
+    @Test
+    public void closeAllResources() throws Exception {
+        RMQSink<String> rmqSink = createRMQSink();
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-	}
+        rmqSink.close();
 
-	@Test
-	public void invokePublishBytesToQueueWithOptionsMandatoryReturnHandler() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(true, false);
+        verify(channel).close();
+        verify(connection).close();
+    }
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, true, false,
-				publishOptions.computeProperties(""), MESSAGE);
-	}
+    @Test
+    public void invokePublishBytesToQueueWithOptions() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
-	@Test
-	public void invokePublishBytesToQueueWithOptionsImmediateReturnHandler() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(false, true);
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        verify(serializationSchema).serialize(MESSAGE_STR);
+        verify(channel)
+                .basicPublish(
+                        EXCHANGE,
+                        ROUTING_KEY,
+                        false,
+                        false,
+                        publishOptions.computeProperties(""),
+                        MESSAGE);
+    }
 
-		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, true,
-				publishOptions.computeProperties(""), MESSAGE);
-	}
+    @Test(expected = IllegalStateException.class)
+    public void invokePublishBytesToQueueWithOptionsMandatory() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
 
-	@Test(expected = RuntimeException.class)
-	public void exceptionDuringWithOptionsPublishingIsNotIgnored() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+    }
 
-		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
-				publishOptions.computeProperties(""), MESSAGE);
-		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-	}
+    @Test(expected = IllegalStateException.class)
+    public void invokePublishBytesToQueueWithOptionsImmediate() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
 
-	@Test
-	public void exceptionDuringWithOptionsPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
-		rmqSink.setLogFailuresOnly(true);
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+    }
 
-		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
-				publishOptions.computeProperties(""), MESSAGE);
-		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-	}
+    @Test
+    public void invokePublishBytesToQueueWithOptionsMandatoryReturnHandler() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(true, false);
 
-	private class DummyPublishOptions implements RMQSinkPublishOptions<String> {
-		private static final long serialVersionUID = 1L;
-		private boolean mandatory = false;
-		private boolean immediate = false;
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        verify(serializationSchema).serialize(MESSAGE_STR);
+        verify(channel)
+                .basicPublish(
+                        EXCHANGE,
+                        ROUTING_KEY,
+                        true,
+                        false,
+                        publishOptions.computeProperties(""),
+                        MESSAGE);
+    }
 
-		public DummyPublishOptions(boolean mandatory, boolean immediate) {
-			this.mandatory = mandatory;
-			this.immediate = immediate;
-		}
+    @Test
+    public void invokePublishBytesToQueueWithOptionsImmediateReturnHandler() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(false, true);
 
-		@Override
-		public String computeRoutingKey(String a) {
-			return ROUTING_KEY;
-		}
+        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        verify(serializationSchema).serialize(MESSAGE_STR);
+        verify(channel)
+                .basicPublish(
+                        EXCHANGE,
+                        ROUTING_KEY,
+                        false,
+                        true,
+                        publishOptions.computeProperties(""),
+                        MESSAGE);
+    }
 
-		@Override
-		public BasicProperties computeProperties(String a) {
-			return props;
-		}
+    @Test(expected = RuntimeException.class)
+    public void exceptionDuringWithOptionsPublishingIsNotIgnored() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
-		@Override
-		public String computeExchange(String a) {
-			return EXCHANGE;
-		}
+        doThrow(IOException.class)
+                .when(channel)
+                .basicPublish(
+                        EXCHANGE,
+                        ROUTING_KEY,
+                        false,
+                        false,
+                        publishOptions.computeProperties(""),
+                        MESSAGE);
+        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+    }
 
-		@Override
-		public boolean computeMandatory(String a) {
-			return mandatory;
-		}
+    @Test
+    public void exceptionDuringWithOptionsPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
+        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
+        rmqSink.setLogFailuresOnly(true);
 
-		@Override
-		public boolean computeImmediate(String a) {
-			return immediate;
-		}
-	}
+        doThrow(IOException.class)
+                .when(channel)
+                .basicPublish(
+                        EXCHANGE,
+                        ROUTING_KEY,
+                        false,
+                        false,
+                        publishOptions.computeProperties(""),
+                        MESSAGE);
+        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+    }
 
-	private class DummyReturnHandler implements SerializableReturnListener {
+    private class DummyPublishOptions implements RMQSinkPublishOptions<String> {
+        private static final long serialVersionUID = 1L;
+        private boolean mandatory = false;
+        private boolean immediate = false;
 
-		private static final long serialVersionUID = 1L;
+        public DummyPublishOptions(boolean mandatory, boolean immediate) {
+            this.mandatory = mandatory;
+            this.immediate = immediate;
+        }
 
-		@Override
-		public void handleReturn(final int replyCode, final String replyText, final String exchange, final String routingKey, final BasicProperties properties, final byte[] body) {
-		}
-	}
+        @Override
+        public String computeRoutingKey(String a) {
+            return ROUTING_KEY;
+        }
 
-	private class DummySerializationSchema implements SerializationSchema<String> {
-		private static final long serialVersionUID = 1L;
+        @Override
+        public BasicProperties computeProperties(String a) {
+            return props;
+        }
 
-		@Override
-		public byte[] serialize(String element) {
-			return MESSAGE;
-		}
-	}
+        @Override
+        public String computeExchange(String a) {
+            return EXCHANGE;
+        }
+
+        @Override
+        public boolean computeMandatory(String a) {
+            return mandatory;
+        }
+
+        @Override
+        public boolean computeImmediate(String a) {
+            return immediate;
+        }
+    }
+
+    private class DummyReturnHandler implements SerializableReturnListener {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void handleReturn(
+                final int replyCode,
+                final String replyText,
+                final String exchange,
+                final String routingKey,
+                final BasicProperties properties,
+                final byte[] body) {}
+    }
+
+    private class DummySerializationSchema implements SerializationSchema<String> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public byte[] serialize(String element) {
+            return MESSAGE;
+        }
+    }
 }

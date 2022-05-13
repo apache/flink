@@ -24,194 +24,189 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.BitSet;
 
 /**
- * Tests that Flink can execute jobs with a higher parallelism than available number
- * of slots. This effectively tests that Flink can execute jobs with blocking results
- * in a staged fashion.
+ * Tests that Flink can execute jobs with a higher parallelism than available number of slots. This
+ * effectively tests that Flink can execute jobs with blocking results in a staged fashion.
  */
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
-	// Test configuration
-	private static final int NUMBER_OF_TMS = 2;
-	private static final int NUMBER_OF_SLOTS_PER_TM = 2;
-	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+    // Test configuration
+    private static final int NUMBER_OF_TMS = 2;
+    private static final int NUMBER_OF_SLOTS_PER_TM = 2;
+    private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
-	public static final String JOB_NAME = "SlotCountExceedingParallelismTest (no slot sharing, blocking results)";
+    public static final String JOB_NAME =
+            "SlotCountExceedingParallelismTest (no slot sharing, blocking results)";
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getFlinkConfiguration())
-			.setNumberTaskManagers(NUMBER_OF_TMS)
-			.setNumberSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
-			.build());
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getFlinkConfiguration())
+                            .setNumberTaskManagers(NUMBER_OF_TMS)
+                            .setNumberSlotsPerTaskManager(NUMBER_OF_SLOTS_PER_TM)
+                            .build());
 
-	private static Configuration getFlinkConfiguration() {
-		final Configuration config = new Configuration();
-		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+    private static Configuration getFlinkConfiguration() {
+        final Configuration config = new Configuration();
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
 
-		return config;
-	}
+        return config;
+    }
 
-	@Test
-	public void testNoSlotSharingAndBlockingResultSender() throws Exception {
-		// Sender with higher parallelism than available slots
-		JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM);
-		submitJobGraphAndWait(jobGraph);
-	}
+    @Test
+    public void testNoSlotSharingAndBlockingResultSender() throws Exception {
+        // Sender with higher parallelism than available slots
+        JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM);
+        submitJobGraphAndWait(jobGraph);
+    }
 
-	@Test
-	public void testNoSlotSharingAndBlockingResultReceiver() throws Exception {
-		// Receiver with higher parallelism than available slots
-		JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM, PARALLELISM * 2);
-		submitJobGraphAndWait(jobGraph);
-	}
+    @Test
+    public void testNoSlotSharingAndBlockingResultReceiver() throws Exception {
+        // Receiver with higher parallelism than available slots
+        JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM, PARALLELISM * 2);
+        submitJobGraphAndWait(jobGraph);
+    }
 
-	@Test
-	public void testNoSlotSharingAndBlockingResultBoth() throws Exception {
-		// Both sender and receiver with higher parallelism than available slots
-		JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM * 2);
-		submitJobGraphAndWait(jobGraph);
-	}
+    @Test
+    public void testNoSlotSharingAndBlockingResultBoth() throws Exception {
+        // Both sender and receiver with higher parallelism than available slots
+        JobGraph jobGraph = createTestJobGraph(JOB_NAME, PARALLELISM * 2, PARALLELISM * 2);
+        submitJobGraphAndWait(jobGraph);
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	private void submitJobGraphAndWait(final JobGraph jobGraph) throws JobExecutionException, InterruptedException {
-		MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
-	}
+    private void submitJobGraphAndWait(final JobGraph jobGraph)
+            throws JobExecutionException, InterruptedException {
+        MINI_CLUSTER_RESOURCE.getMiniCluster().executeJobBlocking(jobGraph);
+    }
 
-	private JobGraph createTestJobGraph(
-			String jobName,
-			int senderParallelism,
-			int receiverParallelism) {
+    private JobGraph createTestJobGraph(
+            String jobName, int senderParallelism, int receiverParallelism) {
 
-		// The sender and receiver invokable logic ensure that each subtask gets the expected data
-		final JobVertex sender = new JobVertex("Sender");
-		sender.setInvokableClass(RoundRobinSubtaskIndexSender.class);
-		sender.getConfiguration().setInteger(RoundRobinSubtaskIndexSender.CONFIG_KEY, receiverParallelism);
-		sender.setParallelism(senderParallelism);
+        // The sender and receiver invokable logic ensure that each subtask gets the expected data
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setInvokableClass(RoundRobinSubtaskIndexSender.class);
+        sender.getConfiguration()
+                .setInteger(RoundRobinSubtaskIndexSender.CONFIG_KEY, receiverParallelism);
+        sender.setParallelism(senderParallelism);
 
-		final JobVertex receiver = new JobVertex("Receiver");
-		receiver.setInvokableClass(SubtaskIndexReceiver.class);
-		receiver.getConfiguration().setInteger(SubtaskIndexReceiver.CONFIG_KEY, senderParallelism);
-		receiver.setParallelism(receiverParallelism);
+        final JobVertex receiver = new JobVertex("Receiver");
+        receiver.setInvokableClass(SubtaskIndexReceiver.class);
+        receiver.getConfiguration().setInteger(SubtaskIndexReceiver.CONFIG_KEY, senderParallelism);
+        receiver.setParallelism(receiverParallelism);
 
-		receiver.connectNewDataSetAsInput(
-				sender,
-				DistributionPattern.ALL_TO_ALL,
-				ResultPartitionType.BLOCKING);
+        receiver.connectNewDataSetAsInput(
+                sender, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
+        return JobGraphBuilder.newBatchJobGraphBuilder()
+                .setJobName(jobName)
+                .addJobVertices(Arrays.asList(sender, receiver))
+                .build();
+    }
 
-		// We need to allow queued scheduling, because there are not enough slots available
-		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking
-		// result one after the other.
-		jobGraph.setAllowQueuedScheduling(true);
+    /** Sends the subtask index a configurable number of times in a round-robin fashion. */
+    public static class RoundRobinSubtaskIndexSender extends AbstractInvokable {
 
-		return jobGraph;
-	}
+        public static final String CONFIG_KEY = "number-of-times-to-send";
 
-	/**
-	 * Sends the subtask index a configurable number of times in a round-robin fashion.
-	 */
-	public static class RoundRobinSubtaskIndexSender extends AbstractInvokable {
+        public RoundRobinSubtaskIndexSender(Environment environment) {
+            super(environment);
+        }
 
-		public static final String CONFIG_KEY = "number-of-times-to-send";
+        @Override
+        public void invoke() throws Exception {
+            RecordWriter<IntValue> writer =
+                    new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
+            final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 
-		public RoundRobinSubtaskIndexSender(Environment environment) {
-			super(environment);
-		}
+            final IntValue subtaskIndex =
+                    new IntValue(getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
-		@Override
-		public void invoke() throws Exception {
-			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
-			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+            try {
+                for (int i = 0; i < numberOfTimesToSend; i++) {
+                    writer.emit(subtaskIndex);
+                }
+                writer.flushAll();
+            } finally {
+                writer.close();
+            }
+        }
+    }
 
-			final IntValue subtaskIndex = new IntValue(
-					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
+    /** Expects to receive the subtask index from a configurable number of sender tasks. */
+    public static class SubtaskIndexReceiver extends AbstractInvokable {
 
-			try {
-				for (int i = 0; i < numberOfTimesToSend; i++) {
-					writer.emit(subtaskIndex);
-				}
-				writer.flushAll();
-			}
-			finally {
-				writer.clearBuffers();
-			}
-		}
-	}
+        public static final String CONFIG_KEY = "number-of-indexes-to-receive";
 
-	/**
-	 * Expects to receive the subtask index from a configurable number of sender tasks.
-	 */
-	public static class SubtaskIndexReceiver extends AbstractInvokable {
+        public SubtaskIndexReceiver(Environment environment) {
+            super(environment);
+        }
 
-		public static final String CONFIG_KEY = "number-of-indexes-to-receive";
+        @Override
+        public void invoke() throws Exception {
+            RecordReader<IntValue> reader =
+                    new RecordReader<>(
+                            getEnvironment().getInputGate(0),
+                            IntValue.class,
+                            getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-		public SubtaskIndexReceiver(Environment environment) {
-			super(environment);
-		}
+            try {
+                final int numberOfSubtaskIndexesToReceive =
+                        getTaskConfiguration().getInteger(CONFIG_KEY, 0);
+                final BitSet receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
 
-		@Override
-		public void invoke() throws Exception {
-			RecordReader<IntValue> reader = new RecordReader<>(
-					getEnvironment().getInputGate(0),
-					IntValue.class,
-					getEnvironment().getTaskManagerInfo().getTmpDirectories());
+                IntValue record;
 
-			try {
-				final int numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-				final BitSet receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
+                int numberOfReceivedSubtaskIndexes = 0;
 
-				IntValue record;
+                while ((record = reader.next()) != null) {
+                    // Check that we don't receive more than expected
+                    numberOfReceivedSubtaskIndexes++;
 
-				int numberOfReceivedSubtaskIndexes = 0;
+                    if (numberOfReceivedSubtaskIndexes > numberOfSubtaskIndexesToReceive) {
+                        throw new IllegalStateException("Received more records than expected.");
+                    }
 
-				while ((record = reader.next()) != null) {
-					// Check that we don't receive more than expected
-					numberOfReceivedSubtaskIndexes++;
+                    int subtaskIndex = record.getValue();
 
-					if (numberOfReceivedSubtaskIndexes > numberOfSubtaskIndexesToReceive) {
-						throw new IllegalStateException("Received more records than expected.");
-					}
+                    // Check that we only receive each subtask index once
+                    if (receivedSubtaskIndexes.get(subtaskIndex)) {
+                        throw new IllegalStateException("Received expected subtask index twice.");
+                    } else {
+                        receivedSubtaskIndexes.set(subtaskIndex, true);
+                    }
+                }
 
-					int subtaskIndex = record.getValue();
-
-					// Check that we only receive each subtask index once
-					if (receivedSubtaskIndexes.get(subtaskIndex)) {
-						throw new IllegalStateException("Received expected subtask index twice.");
-					}
-					else {
-						receivedSubtaskIndexes.set(subtaskIndex, true);
-					}
-				}
-
-				// Check that we have received all expected subtask indexes
-				if (receivedSubtaskIndexes.cardinality() != numberOfSubtaskIndexesToReceive) {
-					throw new IllegalStateException("Finished receive, but did not receive "
-							+ "all expected subtask indexes.");
-				}
-			}
-			finally {
-				reader.clearBuffers();
-			}
-		}
-	}
+                // Check that we have received all expected subtask indexes
+                if (receivedSubtaskIndexes.cardinality() != numberOfSubtaskIndexesToReceive) {
+                    throw new IllegalStateException(
+                            "Finished receive, but did not receive "
+                                    + "all expected subtask indexes.");
+                }
+            } finally {
+                reader.clearBuffers();
+            }
+        }
+    }
 }

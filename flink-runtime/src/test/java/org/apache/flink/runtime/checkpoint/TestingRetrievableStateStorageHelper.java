@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 
 import java.io.Serializable;
 
@@ -28,36 +28,38 @@ import java.io.Serializable;
  *
  * @param <T> type of the element to store
  */
-public final class TestingRetrievableStateStorageHelper<T extends Serializable> implements RetrievableStateStorageHelper<T> {
+public final class TestingRetrievableStateStorageHelper<T extends Serializable>
+        implements RetrievableStateStorageHelper<T> {
 
-	@Override
-	public RetrievableStateHandle<T> store(T state) {
-		return new TestingRetrievableStateHandle<>(state);
-	}
+    @Override
+    public RetrievableStateHandle<T> store(T state) {
+        return new TestingRetrievableStateHandle<>(state);
+    }
 
-	private static final class TestingRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {
+    private static final class TestingRetrievableStateHandle<T extends Serializable>
+            implements RetrievableStateHandle<T> {
 
-		private static final long serialVersionUID = 137053380713794300L;
+        private static final long serialVersionUID = 137053380713794300L;
 
-		private final T state;
+        private final T state;
 
-		private TestingRetrievableStateHandle(T state) {
-			this.state = state;
-		}
+        private TestingRetrievableStateHandle(T state) {
+            this.state = state;
+        }
 
-		@Override
-		public T retrieveState() {
-			return state;
-		}
+        @Override
+        public T retrieveState() {
+            return state;
+        }
 
-		@Override
-		public void discardState() {
-			// no op
-		}
+        @Override
+        public void discardState() {
+            // no op
+        }
 
-		@Override
-		public long getStateSize() {
-			return 0;
-		}
-	}
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
+    }
 }

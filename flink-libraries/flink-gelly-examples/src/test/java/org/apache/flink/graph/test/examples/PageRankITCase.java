@@ -35,99 +35,94 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Tests for {@link PageRank}.
- */
+/** Tests for {@link PageRank}. */
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {
 
-	public PageRankITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public PageRankITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testPageRankWithThreeIterations() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testPageRankWithThreeIterations() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+        Graph<Long, Double, Double> inputGraph =
+                Graph.fromDataSet(PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3))
-			.collect();
+        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3)).collect();
 
-		compareWithDelta(result, 0.01);
-	}
+        compareWithDelta(result, 0.01);
+    }
 
-	@Test
-	public void testGSAPageRankWithThreeIterations() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testGSAPageRankWithThreeIterations() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+        Graph<Long, Double, Double> inputGraph =
+                Graph.fromDataSet(PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3))
-			.collect();
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3)).collect();
 
-		compareWithDelta(result, 0.01);
-	}
+        compareWithDelta(result, 0.01);
+    }
 
-	@Test
-	public void testPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+        Graph<Long, Double, Double> inputGraph =
+                Graph.fromDataSet(PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3))
-			.collect();
+        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<>(0.85, 3)).collect();
 
-		compareWithDelta(result, 0.01);
-	}
+        compareWithDelta(result, 0.01);
+    }
 
-	@Test
-	public void testGSAPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testGSAPageRankWithThreeIterationsAndNumOfVertices() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+        Graph<Long, Double, Double> inputGraph =
+                Graph.fromDataSet(PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3))
-			.collect();
+        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<>(0.85, 3)).collect();
 
-		compareWithDelta(result, 0.01);
-	}
+        compareWithDelta(result, 0.01);
+    }
 
-	private void compareWithDelta(List<Vertex<Long, Double>> result, double delta) {
+    private void compareWithDelta(List<Vertex<Long, Double>> result, double delta) {
 
-		String resultString = "";
-		for (Vertex<Long, Double> v : result) {
-			resultString += v.f0.toString() + "," + v.f1.toString() + "\n";
-		}
+        String resultString = "";
+        for (Vertex<Long, Double> v : result) {
+            resultString += v.f0.toString() + "," + v.f1.toString() + "\n";
+        }
 
-		String expectedResult = PageRankData.RANKS_AFTER_3_ITERATIONS;
-		String[] expected = expectedResult.isEmpty() ? new String[0] : expectedResult.split("\n");
+        String expectedResult = PageRankData.RANKS_AFTER_3_ITERATIONS;
+        String[] expected = expectedResult.isEmpty() ? new String[0] : expectedResult.split("\n");
 
-		String[] resultArray = resultString.isEmpty() ? new String[0] : resultString.split("\n");
+        String[] resultArray = resultString.isEmpty() ? new String[0] : resultString.split("\n");
 
-		Arrays.sort(expected);
-		Arrays.sort(resultArray);
+        Arrays.sort(expected);
+        Arrays.sort(resultArray);
 
-		for (int i = 0; i < expected.length; i++) {
-			String[] expectedFields = expected[i].split(",");
-			String[] resultFields = resultArray[i].split(",");
+        for (int i = 0; i < expected.length; i++) {
+            String[] expectedFields = expected[i].split(",");
+            String[] resultFields = resultArray[i].split(",");
 
-			double expectedPayLoad = Double.parseDouble(expectedFields[1]);
-			double resultPayLoad = Double.parseDouble(resultFields[1]);
+            double expectedPayLoad = Double.parseDouble(expectedFields[1]);
+            double resultPayLoad = Double.parseDouble(resultFields[1]);
 
-			Assert.assertTrue("Values differ by more than the permissible delta",
-				Math.abs(expectedPayLoad - resultPayLoad) < delta);
-		}
-	}
+            Assert.assertTrue(
+                    "Values differ by more than the permissible delta",
+                    Math.abs(expectedPayLoad - resultPayLoad) < delta);
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static final class InitMapper implements MapFunction<Long, Double> {
-		public Double map(Long value) {
-			return 1.0;
-		}
-	}
+    @SuppressWarnings("serial")
+    private static final class InitMapper implements MapFunction<Long, Double> {
+        public Double map(Long value) {
+            return 1.0;
+        }
+    }
 }

@@ -19,50 +19,46 @@
 package org.apache.flink.runtime.messages.webmonitor;
 
 /**
- * This message requests an overview of the status, such as how many TaskManagers
- * are currently connected, how many slots are available, how many are free, ...
- * The response to this message is a {@link ClusterOverview} message.
+ * This message requests an overview of the status, such as how many TaskManagers are currently
+ * connected, how many slots are available, how many are free, ... The response to this message is a
+ * {@link ClusterOverview} message.
  */
 public class RequestStatusOverview implements InfoMessage {
 
-	private static final long serialVersionUID = 3052933564788843275L;
-	
-	// ------------------------------------------------------------------------
-	
-	private static final RequestStatusOverview INSTANCE = new RequestStatusOverview();
+    private static final long serialVersionUID = 3052933564788843275L;
 
-	public static RequestStatusOverview getInstance() {
-		return INSTANCE;
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    private static final RequestStatusOverview INSTANCE = new RequestStatusOverview();
 
-	@Override
-	public int hashCode() {
-		return RequestStatusOverview.class.hashCode();
-	}
+    public static RequestStatusOverview getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == RequestStatusOverview.class;
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return RequestStatusOverview.class.getSimpleName();
-	}
-	
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * No external instantiation
-	 */
-	private RequestStatusOverview() {}
+    @Override
+    public int hashCode() {
+        return RequestStatusOverview.class.hashCode();
+    }
 
-	/**
-	 * Preserve the singleton property by returning the singleton instance
-	 */
-	private Object readResolve() {
-		return INSTANCE;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj != null && obj.getClass() == RequestStatusOverview.class;
+    }
+
+    @Override
+    public String toString() {
+        return RequestStatusOverview.class.getSimpleName();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** No external instantiation */
+    private RequestStatusOverview() {}
+
+    /** Preserve the singleton property by returning the singleton instance */
+    private Object readResolve() {
+        return INSTANCE;
+    }
 }

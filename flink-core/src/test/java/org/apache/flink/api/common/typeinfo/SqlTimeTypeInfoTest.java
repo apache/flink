@@ -20,17 +20,13 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link SqlTimeTypeInfo}.
- */
+/** Test for {@link SqlTimeTypeInfo}. */
 public class SqlTimeTypeInfoTest extends TypeInformationTestBase<SqlTimeTypeInfo<?>> {
 
-	@Override
-	protected SqlTimeTypeInfo<?>[] getTestData() {
-		return new SqlTimeTypeInfo<?>[] {
-			SqlTimeTypeInfo.DATE,
-			SqlTimeTypeInfo.TIME,
-			SqlTimeTypeInfo.TIMESTAMP
-		};
-	}
+    @Override
+    protected SqlTimeTypeInfo<?>[] getTestData() {
+        return new SqlTimeTypeInfo<?>[] {
+            SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.TIMESTAMP
+        };
+    }
 }

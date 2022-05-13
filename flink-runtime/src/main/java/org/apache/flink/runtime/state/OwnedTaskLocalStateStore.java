@@ -23,16 +23,16 @@ import org.apache.flink.annotation.Internal;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * This interface represents the administrative interface to {@link TaskLocalStateStore}, that only the owner of the
- * object should see. All clients that want to use the service should only see the {@link TaskLocalStateStore}
- * interface.
+ * This interface represents the administrative interface to {@link TaskLocalStateStore}, that only
+ * the owner of the object should see. All clients that want to use the service should only see the
+ * {@link TaskLocalStateStore} interface.
  */
 @Internal
 public interface OwnedTaskLocalStateStore extends TaskLocalStateStore {
 
-	/**
-	 * Disposes the task local state store. Disposal can happen asynchronously and completion is signaled through the
-	 * returned future.
-	 */
-	CompletableFuture<Void> dispose();
+    /**
+     * Disposes the task local state store. Disposal can happen asynchronously and completion is
+     * signaled through the returned future.
+     */
+    CompletableFuture<Void> dispose();
 }

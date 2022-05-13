@@ -41,97 +41,104 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 
-/**
- * Tests for {@link IncrementalSSSP}.
- */
+/** Tests for {@link IncrementalSSSP}. */
 @RunWith(Parameterized.class)
 public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 
-	private String verticesPath;
+    private String verticesPath;
 
-	private String edgesPath;
+    private String edgesPath;
 
-	private String edgesInSSSPPath;
+    private String edgesInSSSPPath;
 
-	private String resultPath;
+    private String resultPath;
 
-	private String expected;
+    private String expected;
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public IncrementalSSSPITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public IncrementalSSSPITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-		File verticesFile = tempFolder.newFile();
-		FileUtils.writeFileUtf8(verticesFile, IncrementalSSSPData.VERTICES);
+    @Before
+    public void before() throws Exception {
+        resultPath = tempFolder.newFile().toURI().toString();
+        File verticesFile = tempFolder.newFile();
+        FileUtils.writeFileUtf8(verticesFile, IncrementalSSSPData.VERTICES);
 
-		File edgesFile = tempFolder.newFile();
-		FileUtils.writeFileUtf8(edgesFile, IncrementalSSSPData.EDGES);
+        File edgesFile = tempFolder.newFile();
+        FileUtils.writeFileUtf8(edgesFile, IncrementalSSSPData.EDGES);
 
-		File edgesInSSSPFile = tempFolder.newFile();
-		FileUtils.writeFileUtf8(edgesInSSSPFile, IncrementalSSSPData.EDGES_IN_SSSP);
+        File edgesInSSSPFile = tempFolder.newFile();
+        FileUtils.writeFileUtf8(edgesInSSSPFile, IncrementalSSSPData.EDGES_IN_SSSP);
 
-		verticesPath = verticesFile.toURI().toString();
-		edgesPath = edgesFile.toURI().toString();
-		edgesInSSSPPath = edgesInSSSPFile.toURI().toString();
-	}
+        verticesPath = verticesFile.toURI().toString();
+        edgesPath = edgesFile.toURI().toString();
+        edgesInSSSPPath = edgesInSSSPFile.toURI().toString();
+    }
 
-	@Test
-	public void testIncrementalSSSP() throws Exception {
-		IncrementalSSSP.main(new String[]{verticesPath, edgesPath, edgesInSSSPPath,
-				IncrementalSSSPData.SRC_EDGE_TO_BE_REMOVED, IncrementalSSSPData.TRG_EDGE_TO_BE_REMOVED,
-				IncrementalSSSPData.VAL_EDGE_TO_BE_REMOVED, resultPath, IncrementalSSSPData.NUM_VERTICES + ""});
-		expected = IncrementalSSSPData.RESULTED_VERTICES;
-	}
+    @Test
+    public void testIncrementalSSSP() throws Exception {
+        IncrementalSSSP.main(
+                new String[] {
+                    verticesPath,
+                    edgesPath,
+                    edgesInSSSPPath,
+                    IncrementalSSSPData.SRC_EDGE_TO_BE_REMOVED,
+                    IncrementalSSSPData.TRG_EDGE_TO_BE_REMOVED,
+                    IncrementalSSSPData.VAL_EDGE_TO_BE_REMOVED,
+                    resultPath,
+                    IncrementalSSSPData.NUM_VERTICES + ""
+                });
+        expected = IncrementalSSSPData.RESULTED_VERTICES;
+    }
 
-	@Test
-	public void testIncrementalSSSPNonSPEdge() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Vertex<Long, Double>> vertices = IncrementalSSSPData.getDefaultVertexDataSet(env);
-		DataSet<Edge<Long, Double>> edges = IncrementalSSSPData.getDefaultEdgeDataSet(env);
-		DataSet<Edge<Long, Double>> edgesInSSSP = IncrementalSSSPData.getDefaultEdgesInSSSP(env);
-		// the edge to be removed is a non-SP edge
-		Edge<Long, Double> edgeToBeRemoved = new Edge<>(3L, 5L, 5.0);
+    @Test
+    public void testIncrementalSSSPNonSPEdge() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Vertex<Long, Double>> vertices = IncrementalSSSPData.getDefaultVertexDataSet(env);
+        DataSet<Edge<Long, Double>> edges = IncrementalSSSPData.getDefaultEdgeDataSet(env);
+        DataSet<Edge<Long, Double>> edgesInSSSP = IncrementalSSSPData.getDefaultEdgesInSSSP(env);
+        // the edge to be removed is a non-SP edge
+        Edge<Long, Double> edgeToBeRemoved = new Edge<>(3L, 5L, 5.0);
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
-		// Assumption: all minimum weight paths are kept
-		Graph<Long, Double, Double> ssspGraph = Graph.fromDataSet(vertices, edgesInSSSP, env);
-		// remove the edge
-		graph.removeEdge(edgeToBeRemoved);
+        Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+        // Assumption: all minimum weight paths are kept
+        Graph<Long, Double, Double> ssspGraph = Graph.fromDataSet(vertices, edgesInSSSP, env);
+        // remove the edge
+        graph.removeEdge(edgeToBeRemoved);
 
-		// configure the iteration
-		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
+        // configure the iteration
+        ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
-		if (IncrementalSSSP.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
+        if (IncrementalSSSP.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
 
-			parameters.setDirection(EdgeDirection.IN);
-			parameters.setOptDegrees(true);
+            parameters.setDirection(EdgeDirection.IN);
+            parameters.setOptDegrees(true);
 
-			// run the scatter gather iteration to propagate info
-			Graph<Long, Double, Double> result = ssspGraph.runScatterGatherIteration(
-					new IncrementalSSSP.InvalidateMessenger(edgeToBeRemoved),
-					new IncrementalSSSP.VertexDistanceUpdater(),
-					IncrementalSSSPData.NUM_VERTICES, parameters);
+            // run the scatter gather iteration to propagate info
+            Graph<Long, Double, Double> result =
+                    ssspGraph.runScatterGatherIteration(
+                            new IncrementalSSSP.InvalidateMessenger(edgeToBeRemoved),
+                            new IncrementalSSSP.VertexDistanceUpdater(),
+                            IncrementalSSSPData.NUM_VERTICES,
+                            parameters);
 
-			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
+            DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
 
-			resultedVertices.writeAsCsv(resultPath, "\n", ",");
-			env.execute();
-		} else {
-			vertices.writeAsCsv(resultPath, "\n", ",");
-			env.execute();
-		}
+            resultedVertices.writeAsCsv(resultPath, "\n", ",");
+            env.execute();
+        } else {
+            vertices.writeAsCsv(resultPath, "\n", ",");
+            env.execute();
+        }
 
-		expected = IncrementalSSSPData.VERTICES;
-	}
+        expected = IncrementalSSSPData.VERTICES;
+    }
 
-	@After
-	public void after() throws Exception {
-		TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
-	}
+    @After
+    public void after() throws Exception {
+        TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
+    }
 }

@@ -25,23 +25,25 @@ import org.junit.Assert;
 
 import java.util.UUID;
 
-/**
- * Tests the un/marshalling of the {@link SavepointDisposalRequest}.
- */
-public class SavepointDisposalRequestTest extends RestRequestMarshallingTestBase<SavepointDisposalRequest> {
+/** Tests the un/marshalling of the {@link SavepointDisposalRequest}. */
+public class SavepointDisposalRequestTest
+        extends RestRequestMarshallingTestBase<SavepointDisposalRequest> {
 
-	@Override
-	protected Class<SavepointDisposalRequest> getTestRequestClass() {
-		return SavepointDisposalRequest.class;
-	}
+    @Override
+    protected Class<SavepointDisposalRequest> getTestRequestClass() {
+        return SavepointDisposalRequest.class;
+    }
 
-	@Override
-	protected SavepointDisposalRequest getTestRequestInstance() {
-		return new SavepointDisposalRequest(UUID.randomUUID().toString());
-	}
+    @Override
+    protected SavepointDisposalRequest getTestRequestInstance() {
+        return new SavepointDisposalRequest(UUID.randomUUID().toString());
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(SavepointDisposalRequest expected, SavepointDisposalRequest actual) {
-		Assert.assertThat(actual.getSavepointPath(), Matchers.is(Matchers.equalTo(expected.getSavepointPath())));
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            SavepointDisposalRequest expected, SavepointDisposalRequest actual) {
+        Assert.assertThat(
+                actual.getSavepointPath(),
+                Matchers.is(Matchers.equalTo(expected.getSavepointPath())));
+    }
 }

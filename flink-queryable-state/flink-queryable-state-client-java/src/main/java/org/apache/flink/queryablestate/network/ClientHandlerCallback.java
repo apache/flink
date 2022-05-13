@@ -21,36 +21,33 @@ package org.apache.flink.queryablestate.network;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 
-/**
- * Callback for {@link ClientHandler}.
- */
+/** Callback for {@link ClientHandler}. */
 @Internal
 public interface ClientHandlerCallback<RESP extends MessageBody> {
 
-	/**
-	 * Called on a successful request.
-	 *
-	 * @param requestId			ID of the request
-	 * @param response			The received response
-	 */
-	void onRequestResult(long requestId, RESP response);
+    /**
+     * Called on a successful request.
+     *
+     * @param requestId ID of the request
+     * @param response The received response
+     */
+    void onRequestResult(long requestId, RESP response);
 
-	/**
-	 * Called on a failed request.
-	 *
-	 * @param requestId ID of the request
-	 * @param cause     Cause of the request failure
-	 */
-	void onRequestFailure(long requestId, Throwable cause);
+    /**
+     * Called on a failed request.
+     *
+     * @param requestId ID of the request
+     * @param cause Cause of the request failure
+     */
+    void onRequestFailure(long requestId, Throwable cause);
 
-	/**
-	 * Called on any failure, which is not related to a specific request.
-	 *
-	 * <p>This can be for example a caught Exception in the channel pipeline
-	 * or an unexpected channel close.
-	 *
-	 * @param cause Cause of the failure
-	 */
-	void onFailure(Throwable cause);
-
+    /**
+     * Called on any failure, which is not related to a specific request.
+     *
+     * <p>This can be for example a caught Exception in the channel pipeline or an unexpected
+     * channel close.
+     *
+     * @param cause Cause of the failure
+     */
+    void onFailure(Throwable cause);
 }

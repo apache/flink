@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.hash;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -32,57 +31,81 @@ import org.apache.flink.util.MutableObjectIterator;
 import java.io.IOException;
 import java.util.List;
 
-public class NonReusingBuildFirstReOpenableHashJoinIterator<V1, V2, O> extends NonReusingBuildFirstHashJoinIterator<V1, V2, O> {
+public class NonReusingBuildFirstReOpenableHashJoinIterator<V1, V2, O>
+        extends NonReusingBuildFirstHashJoinIterator<V1, V2, O> {
 
+    private final ReOpenableMutableHashTable<V1, V2> reopenHashTable;
 
-	private final ReOpenableMutableHashTable<V1, V2> reopenHashTable;
+    public NonReusingBuildFirstReOpenableHashJoinIterator(
+            MutableObjectIterator<V1> firstInput,
+            MutableObjectIterator<V2> secondInput,
+            TypeSerializer<V1> serializer1,
+            TypeComparator<V1> comparator1,
+            TypeSerializer<V2> serializer2,
+            TypeComparator<V2> comparator2,
+            TypePairComparator<V2, V1> pairComparator,
+            MemoryManager memManager,
+            IOManager ioManager,
+            AbstractInvokable ownerTask,
+            double memoryFraction,
+            boolean probeSideOuterJoin,
+            boolean buildSideOuterJoin,
+            boolean useBitmapFilters)
+            throws MemoryAllocationException {
 
-	public NonReusingBuildFirstReOpenableHashJoinIterator(
-			MutableObjectIterator<V1> firstInput,
-			MutableObjectIterator<V2> secondInput,
-			TypeSerializer<V1> serializer1,
-			TypeComparator<V1> comparator1,
-			TypeSerializer<V2> serializer2,
-			TypeComparator<V2> comparator2,
-			TypePairComparator<V2, V1> pairComparator,
-			MemoryManager memManager,
-			IOManager ioManager,
-			AbstractInvokable ownerTask,
-			double memoryFraction,
-			boolean probeSideOuterJoin,
-			boolean buildSideOuterJoin,
-			boolean useBitmapFilters) throws MemoryAllocationException {
-		
-		super(firstInput, secondInput, serializer1, comparator1, serializer2,
-				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				memoryFraction, probeSideOuterJoin, buildSideOuterJoin, useBitmapFilters);
-		
-		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
-	}
+        super(
+                firstInput,
+                secondInput,
+                serializer1,
+                comparator1,
+                serializer2,
+                comparator2,
+                pairComparator,
+                memManager,
+                ioManager,
+                ownerTask,
+                memoryFraction,
+                probeSideOuterJoin,
+                buildSideOuterJoin,
+                useBitmapFilters);
 
-	@Override
-	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
-			TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
-			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
-			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager,
-			AbstractInvokable ownerTask,
-			double memoryFraction,
-			boolean useBitmapFilters) throws MemoryAllocationException {
-		
-		final int numPages = memManager.computeNumberOfPages(memoryFraction);
-		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
-		
-		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer,
-				buildSideComparator, probeSideComparator, pairComparator,
-				memorySegments, ioManager, useBitmapFilters);
-	}
+        reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
+    }
 
-	/**
-	 * Set new input for probe side
-	 * @throws java.io.IOException
-	 */
-	public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
-		reopenHashTable.reopenProbe(probeInput);
-	}
+    @Override
+    public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
+            TypeSerializer<BT> buildSideSerializer,
+            TypeComparator<BT> buildSideComparator,
+            TypeSerializer<PT> probeSideSerializer,
+            TypeComparator<PT> probeSideComparator,
+            TypePairComparator<PT, BT> pairComparator,
+            MemoryManager memManager,
+            IOManager ioManager,
+            AbstractInvokable ownerTask,
+            double memoryFraction,
+            boolean useBitmapFilters)
+            throws MemoryAllocationException {
+
+        final int numPages = memManager.computeNumberOfPages(memoryFraction);
+        final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
+
+        return new ReOpenableMutableHashTable<BT, PT>(
+                buildSideSerializer,
+                probeSideSerializer,
+                buildSideComparator,
+                probeSideComparator,
+                pairComparator,
+                memorySegments,
+                ioManager,
+                useBitmapFilters);
+    }
+
+    /**
+     * Set new input for probe side
+     *
+     * @throws java.io.IOException
+     */
+    public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
+        reopenHashTable.reopenProbe(probeInput);
+    }
 }

@@ -24,58 +24,62 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
 
 import org.junit.Test;
 
-/**
- * Tests that large programs can be compiled to a Plan in reasonable amount of time.
- */
+/** Tests that large programs can be compiled to a Plan in reasonable amount of time. */
 public class LargePlanTest {
 
-	@Test(expected = OptimizerPlanEnvironment.ProgramAbortException.class, timeout = 30_000)
-	public void testPlanningOfLargePlan() throws Exception {
-		runProgram(new PreviewPlanEnvironment(), 10, 20);
-	}
+    @Test(timeout = 30_000)
+    public void testPlanningOfLargePlan() throws Exception {
+        runProgram(10, 20);
+    }
 
-	private static void runProgram(ExecutionEnvironment env, int depth, int width) throws Exception {
-		DataSet<String> input = env.fromElements("a", "b", "c");
-		DataSet<String> stats = null;
+    private static void runProgram(int depth, int width) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		for (int i = 0; i < depth; i++) {
-			stats = analyze(input, stats, width / (i + 1) + 1);
-		}
+        DataSet<String> input = env.fromElements("a", "b", "c");
+        DataSet<String> stats = null;
 
-		stats.output(new DiscardingOutputFormat<>());
-		env.execute("depth " + depth + " width " + width);
-	}
+        for (int i = 0; i < depth; i++) {
+            stats = analyze(input, stats, width / (i + 1) + 1);
+        }
 
-	private static DataSet<String> analyze(DataSet<String> input, DataSet<String> stats, int branches) {
-		for (int i = 0; i < branches; i++) {
-			final int ii = i;
+        stats.output(new DiscardingOutputFormat<>());
 
-			if (stats != null) {
-				input = input.map(
-					new RichMapFunction<String, String>() {
-						@Override
-						public String map(String value) {
-							return value;
-						}
-				}).withBroadcastSet(stats.map(s -> "(" + s + ").map"), "stats");
-			}
+        env.createProgramPlan("depth " + depth + " width " + width);
+    }
 
-			DataSet<String> branch = input
-				.map(s -> new Tuple2<>(0, s + ii)).returns(Types.TUPLE(Types.STRING, Types.INT))
-				.groupBy(0)
-				.minBy(1)
-				.map(kv -> kv.f1).returns(Types.STRING);
-			if (stats == null) {
-				stats = branch;
-			} else {
-				stats = stats.union(branch);
-			}
-		}
-		return stats.map(s -> "(" + s + ").stats");
-	}
+    private static DataSet<String> analyze(
+            DataSet<String> input, DataSet<String> stats, int branches) {
+        for (int i = 0; i < branches; i++) {
+            final int ii = i;
+
+            if (stats != null) {
+                input =
+                        input.map(
+                                        new RichMapFunction<String, String>() {
+                                            @Override
+                                            public String map(String value) {
+                                                return value;
+                                            }
+                                        })
+                                .withBroadcastSet(stats.map(s -> "(" + s + ").map"), "stats");
+            }
+
+            DataSet<String> branch =
+                    input.map(s -> new Tuple2<>(0, s + ii))
+                            .returns(Types.TUPLE(Types.STRING, Types.INT))
+                            .groupBy(0)
+                            .minBy(1)
+                            .map(kv -> kv.f1)
+                            .returns(Types.STRING);
+            if (stats == null) {
+                stats = branch;
+            } else {
+                stats = stats.union(branch);
+            }
+        }
+        return stats.map(s -> "(" + s + ").stats");
+    }
 }

@@ -18,116 +18,90 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
-import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
-import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
-import java.util.ArrayList;
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StreamTask} for executing a {@link TwoInputStreamOperator}.
+ * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting the {@link
+ * TwoInputStreamOperator} to select input for reading.
  */
 @Internal
-public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
+public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
+    @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
 
-	private volatile boolean running = true;
+    public TwoInputStreamTask(Environment env) throws Exception {
+        super(env);
+    }
 
-	private final WatermarkGauge input1WatermarkGauge;
-	private final WatermarkGauge input2WatermarkGauge;
-	private final MinWatermarkGauge minInputWatermarkGauge;
+    @Override
+    protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
+        return Optional.ofNullable(checkpointBarrierHandler);
+    }
 
-	/**
-	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
-	 *
-	 * @param env The task environment for this task.
-	 */
-	public TwoInputStreamTask(Environment env) {
-		super(env);
-		input1WatermarkGauge = new WatermarkGauge();
-		input2WatermarkGauge = new WatermarkGauge();
-		minInputWatermarkGauge = new MinWatermarkGauge(input1WatermarkGauge, input2WatermarkGauge);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected void createInputProcessor(
+            List<IndexedInputGate> inputGates1,
+            List<IndexedInputGate> inputGates2,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners) {
 
-	@Override
-	public void init() throws Exception {
-		StreamConfig configuration = getConfiguration();
-		ClassLoader userClassLoader = getUserCodeClassLoader();
+        // create an input instance for each input
+        checkpointBarrierHandler =
+                InputProcessorUtil.createCheckpointBarrierHandler(
+                        this,
+                        configuration,
+                        getCheckpointCoordinator(),
+                        getTaskNameWithSubtaskAndId(),
+                        new List[] {inputGates1, inputGates2},
+                        Collections.emptyList(),
+                        mainMailboxExecutor,
+                        systemTimerService);
 
-		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
-		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
+        CheckpointedInputGate[] checkpointedInputGates =
+                InputProcessorUtil.createCheckpointedMultipleInputGate(
+                        mainMailboxExecutor,
+                        new List[] {inputGates1, inputGates2},
+                        getEnvironment().getMetricGroup().getIOMetricGroup(),
+                        checkpointBarrierHandler,
+                        configuration);
 
-		int numberOfInputs = configuration.getNumberOfInputs();
+        checkState(checkpointedInputGates.length == 2);
 
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
-
-		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-
-		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = inEdges.get(i).getTypeNumber();
-			InputGate reader = getEnvironment().getInputGate(i);
-			switch (inputType) {
-				case 1:
-					inputList1.add(reader);
-					break;
-				case 2:
-					inputList2.add(reader);
-					break;
-				default:
-					throw new RuntimeException("Invalid input type number: " + inputType);
-			}
-		}
-
-		this.inputProcessor = new StreamTwoInputProcessor<>(
-				inputList1, inputList2,
-				inputDeserializer1, inputDeserializer2,
-				this,
-				configuration.getCheckpointMode(),
-				getCheckpointLock(),
-				getEnvironment().getIOManager(),
-				getEnvironment().getTaskManagerInfo().getConfiguration(),
-				getStreamStatusMaintainer(),
-				this.headOperator,
-				getEnvironment().getMetricGroup().getIOMetricGroup(),
-				input1WatermarkGauge,
-				input2WatermarkGauge);
-
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
-		// wrap watermark gauge since registered metrics must be unique
-		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
-	}
-
-	@Override
-	protected void run() throws Exception {
-		// cache processor reference on the stack, to make the code more JIT friendly
-		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-
-		while (running && inputProcessor.processInput()) {
-			// all the work happens in the "processInput" method
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
-	}
-
-	@Override
-	protected void cancelTask() {
-		running = false;
-	}
+        inputProcessor =
+                StreamTwoInputProcessorFactory.create(
+                        this,
+                        checkpointedInputGates,
+                        getEnvironment().getIOManager(),
+                        getEnvironment().getMemoryManager(),
+                        getEnvironment().getMetricGroup().getIOMetricGroup(),
+                        mainOperator,
+                        input1WatermarkGauge,
+                        input2WatermarkGauge,
+                        operatorChain,
+                        getConfiguration(),
+                        getEnvironment().getTaskConfiguration(),
+                        getJobConfiguration(),
+                        getExecutionConfig(),
+                        getUserCodeClassLoader(),
+                        setupNumRecordsInCounter(mainOperator),
+                        getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                        gatePartitioners,
+                        getEnvironment().getTaskInfo());
+    }
 }

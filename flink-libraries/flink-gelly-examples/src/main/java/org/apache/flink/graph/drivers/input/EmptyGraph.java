@@ -26,29 +26,26 @@ import org.apache.flink.types.NullValue;
 
 import static org.apache.flink.graph.generator.EmptyGraph.MINIMUM_VERTEX_COUNT;
 
-/**
- * Generate an {@link org.apache.flink.graph.generator.EmptyGraph}.
- */
-public class EmptyGraph
-extends GeneratedGraph {
+/** Generate an {@link org.apache.flink.graph.generator.EmptyGraph}. */
+public class EmptyGraph extends GeneratedGraph {
 
-	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
-		.setMinimumValue(MINIMUM_VERTEX_COUNT);
+    private LongParameter vertexCount =
+            new LongParameter(this, "vertex_count").setMinimumValue(MINIMUM_VERTEX_COUNT);
 
-	@Override
-	public String getIdentity() {
-		return getName() + " (" + vertexCount + ")";
-	}
+    @Override
+    public String getIdentity() {
+        return getName() + " (" + vertexCount + ")";
+    }
 
-	@Override
-	protected long vertexCount() {
-		return vertexCount.getValue();
-	}
+    @Override
+    protected long vertexCount() {
+        return vertexCount.getValue();
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
-		return new org.apache.flink.graph.generator.EmptyGraph(env, vertexCount.getValue())
-			.setParallelism(parallelism.getValue().intValue())
-			.generate();
-	}
+    @Override
+    public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
+        return new org.apache.flink.graph.generator.EmptyGraph(env, vertexCount.getValue())
+                .setParallelism(parallelism.getValue().intValue())
+                .generate();
+    }
 }

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -32,37 +31,46 @@ import java.util.List;
 
 public class HashLeftOuterJoinBuildSecondDescriptor extends AbstractJoinDescriptor {
 
-	public HashLeftOuterJoinBuildSecondDescriptor(FieldList keys1, FieldList keys2,
-													boolean broadcastSecondAllowed, boolean repartitionAllowed) {
-		super(keys1, keys2, false, broadcastSecondAllowed, repartitionAllowed);
-	}
+    public HashLeftOuterJoinBuildSecondDescriptor(
+            FieldList keys1,
+            FieldList keys2,
+            boolean broadcastSecondAllowed,
+            boolean repartitionAllowed) {
+        super(keys1, keys2, false, broadcastSecondAllowed, repartitionAllowed);
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND;
+    }
 
-	@Override
-	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(new RequestedLocalProperties(), new RequestedLocalProperties()));
-	}
-	
-	@Override
-	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
-			LocalProperties produced1, LocalProperties produced2) {
-		return true;
-	}
+    @Override
+    protected List<LocalPropertiesPair> createPossibleLocalProperties() {
+        // all properties are possible
+        return Collections.singletonList(
+                new LocalPropertiesPair(
+                        new RequestedLocalProperties(), new RequestedLocalProperties()));
+    }
 
-	@Override
-	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+    @Override
+    public boolean areCoFulfilled(
+            RequestedLocalProperties requested1,
+            RequestedLocalProperties requested2,
+            LocalProperties produced1,
+            LocalProperties produced2) {
+        return true;
+    }
 
-		String nodeName = "LeftOuterJoin ("+node.getOperator().getName()+")";
-		return new DualInputPlanNode(node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
-	}
-	
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		return new LocalProperties();
-	}
+    @Override
+    public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+
+        String nodeName = "LeftOuterJoin (" + node.getOperator().getName() + ")";
+        return new DualInputPlanNode(
+                node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        return new LocalProperties();
+    }
 }

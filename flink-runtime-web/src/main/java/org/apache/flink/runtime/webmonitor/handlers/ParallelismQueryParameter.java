@@ -22,28 +22,29 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
  * Query parameter specifying the parallelism of the job.
+ *
  * @see JarRunHandler
  */
 public class ParallelismQueryParameter extends MessageQueryParameter<Integer> {
 
-	private static final String KEY = "parallelism";
+    private static final String KEY = "parallelism";
 
-	public ParallelismQueryParameter() {
-		super(KEY, MessageParameterRequisiteness.OPTIONAL);
-	}
+    public ParallelismQueryParameter() {
+        super(KEY, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public Integer convertStringToValue(final String value) {
-		return Integer.valueOf(value);
-	}
+    @Override
+    public Integer convertStringToValue(final String value) {
+        return Integer.valueOf(value);
+    }
 
-	@Override
-	public String convertValueToString(final Integer value) {
-		return value.toString();
-	}
+    @Override
+    public String convertValueToString(final Integer value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Positive integer value that specifies the desired parallelism for the job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Positive integer value that specifies the desired parallelism for the job.";
+    }
 }

@@ -18,9 +18,8 @@
 
 package org.apache.flink.configuration.description;
 
-/**
- * Part of description that represents an element inside a block e.g. a link.
- */
-public interface InlineElement extends DescriptionElement {
+import org.apache.flink.annotation.PublicEvolving;
 
-}
+/** Part of description that represents an element inside a block e.g. a link. */
+@PublicEvolving
+public interface InlineElement extends DescriptionElement {}

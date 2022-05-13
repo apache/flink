@@ -28,10 +28,9 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 @FunctionalInterface
 public interface SecurityModuleFactory {
 
-	/**
-	 * Creates and returns a {@link SecurityModule}. This can return {@code null} if the type
-	 * of {@link SecurityModule} that this factory can create does not work in the current
-	 * environment.
-	 */
-	SecurityModule createModule(SecurityConfiguration securityConfig);
+    /**
+     * Creates and returns a {@link SecurityModule}. This can return {@code null} if the type of
+     * {@link SecurityModule} that this factory can create does not work in the current environment.
+     */
+    SecurityModule createModule(SecurityConfiguration securityConfig);
 }

@@ -22,109 +22,149 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateHandleDummyUtil;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Future;
+import java.util.function.Function;
 
-/**
- * Tests for {@link OperatorSnapshotFinalizer}.
- */
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.deepDummyCopy;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.state.SnapshotResult.withLocalState;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+/** Tests for {@link OperatorSnapshotFinalizer}. */
 public class OperatorSnapshotFinalizerTest extends TestLogger {
 
-	/**
-	 * Test that the runnable futures are executed and the result is correctly extracted.
-	 */
-	@Test
-	public void testRunAndExtract() throws Exception{
+    /** Test that the runnable futures are executed and the result is correctly extracted. */
+    @Test
+    public void testRunAndExtract() throws Exception {
 
-		Random random = new Random(0x42);
+        Random random = new Random(0x42);
 
-		KeyedStateHandle keyedTemplate =
-			StateHandleDummyUtil.createNewKeyedStateHandle(new KeyGroupRange(0, 0));
-		OperatorStateHandle operatorTemplate =
-			StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
+        KeyedStateHandle keyedTemplate =
+                StateHandleDummyUtil.createNewKeyedStateHandle(new KeyGroupRange(0, 0));
+        OperatorStateHandle operatorTemplate =
+                StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
+        InputChannelStateHandle inputChannelTemplate =
+                StateHandleDummyUtil.createNewInputChannelStateHandle(2, random);
+        ResultSubpartitionStateHandle resultSubpartitionTemplate =
+                StateHandleDummyUtil.createNewResultSubpartitionStateHandle(2, random);
 
-		SnapshotResult<KeyedStateHandle> snapKeyMan = SnapshotResult.withLocalState(
-			StateHandleDummyUtil.deepDummyCopy(keyedTemplate),
-			StateHandleDummyUtil.deepDummyCopy(keyedTemplate));
+        SnapshotResult<KeyedStateHandle> manKeyed =
+                withLocalState(deepDummyCopy(keyedTemplate), deepDummyCopy(keyedTemplate));
+        SnapshotResult<KeyedStateHandle> rawKeyed =
+                withLocalState(deepDummyCopy(keyedTemplate), deepDummyCopy(keyedTemplate));
+        SnapshotResult<OperatorStateHandle> manOper =
+                withLocalState(deepDummyCopy(operatorTemplate), deepDummyCopy(operatorTemplate));
+        SnapshotResult<OperatorStateHandle> rawOper =
+                withLocalState(deepDummyCopy(operatorTemplate), deepDummyCopy(operatorTemplate));
+        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannel =
+                withLocalState(
+                        singleton(deepDummyCopy(inputChannelTemplate)),
+                        singleton(deepDummyCopy(inputChannelTemplate)));
+        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition =
+                withLocalState(
+                        singleton(deepDummyCopy(resultSubpartitionTemplate)),
+                        singleton(deepDummyCopy(resultSubpartitionTemplate)));
 
-		SnapshotResult<KeyedStateHandle> snapKeyRaw = SnapshotResult.withLocalState(
-			StateHandleDummyUtil.deepDummyCopy(keyedTemplate),
-			StateHandleDummyUtil.deepDummyCopy(keyedTemplate));
+        OperatorSnapshotFutures snapshotFutures =
+                new OperatorSnapshotFutures(
+                        new PseudoNotDoneFuture<>(manKeyed),
+                        new PseudoNotDoneFuture<>(rawKeyed),
+                        new PseudoNotDoneFuture<>(manOper),
+                        new PseudoNotDoneFuture<>(rawOper),
+                        new PseudoNotDoneFuture<>(inputChannel),
+                        new PseudoNotDoneFuture<>(resultSubpartition));
 
-		SnapshotResult<OperatorStateHandle> snapOpMan = SnapshotResult.withLocalState(
-			StateHandleDummyUtil.deepDummyCopy(operatorTemplate),
-			StateHandleDummyUtil.deepDummyCopy(operatorTemplate));
+        for (Future<?> f : snapshotFutures.getAllFutures()) {
+            assertFalse(f.isDone());
+        }
 
-		SnapshotResult<OperatorStateHandle> snapOpRaw = SnapshotResult.withLocalState(
-			StateHandleDummyUtil.deepDummyCopy(operatorTemplate),
-			StateHandleDummyUtil.deepDummyCopy(operatorTemplate));
+        OperatorSnapshotFinalizer finalizer = new OperatorSnapshotFinalizer(snapshotFutures);
 
-		DoneFuture<SnapshotResult<KeyedStateHandle>> managedKeyed = new PseudoNotDoneFuture<>(snapKeyMan);
-		DoneFuture<SnapshotResult<KeyedStateHandle>> rawKeyed = new PseudoNotDoneFuture<>(snapKeyRaw);
-		DoneFuture<SnapshotResult<OperatorStateHandle>> managedOp = new PseudoNotDoneFuture<>(snapOpMan);
-		DoneFuture<SnapshotResult<OperatorStateHandle>> rawOp = new PseudoNotDoneFuture<>(snapOpRaw);
+        for (Future<?> f : snapshotFutures.getAllFutures()) {
+            assertTrue(f.isDone());
+        }
 
-		Assert.assertFalse(managedKeyed.isDone());
-		Assert.assertFalse(rawKeyed.isDone());
-		Assert.assertFalse(managedOp.isDone());
-		Assert.assertFalse(rawOp.isDone());
+        Map<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> map =
+                new HashMap<>();
+        map.put(manKeyed, headExtractor(OperatorSubtaskState::getManagedKeyedState));
+        map.put(rawKeyed, headExtractor(OperatorSubtaskState::getRawKeyedState));
+        map.put(manOper, headExtractor(OperatorSubtaskState::getManagedOperatorState));
+        map.put(rawOper, headExtractor(OperatorSubtaskState::getRawOperatorState));
+        map.put(inputChannel, OperatorSubtaskState::getInputChannelState);
+        map.put(resultSubpartition, OperatorSubtaskState::getResultSubpartitionState);
 
-		OperatorSnapshotFutures futures = new OperatorSnapshotFutures(managedKeyed, rawKeyed, managedOp, rawOp);
-		OperatorSnapshotFinalizer operatorSnapshotFinalizer = new OperatorSnapshotFinalizer(futures);
+        for (Map.Entry<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> e :
+                map.entrySet()) {
+            assertEquals(
+                    e.getKey().getJobManagerOwnedSnapshot(),
+                    e.getValue().apply(finalizer.getJobManagerOwnedState()));
+        }
+        for (Map.Entry<SnapshotResult<?>, Function<OperatorSubtaskState, ? extends StateObject>> e :
+                map.entrySet()) {
+            assertEquals(
+                    e.getKey().getTaskLocalSnapshot(),
+                    e.getValue().apply(finalizer.getTaskLocalState()));
+        }
+    }
 
-		Assert.assertTrue(managedKeyed.isDone());
-		Assert.assertTrue(rawKeyed.isDone());
-		Assert.assertTrue(managedOp.isDone());
-		Assert.assertTrue(rawOp.isDone());
+    private static <T extends StateObject> Function<OperatorSubtaskState, T> headExtractor(
+            Function<OperatorSubtaskState, StateObjectCollection<T>> collectionExtractor) {
+        return collectionExtractor.andThen(
+                col -> col == null || col.isEmpty() ? null : col.iterator().next());
+    }
 
-		OperatorSubtaskState jobManagerOwnedState = operatorSnapshotFinalizer.getJobManagerOwnedState();
-		Assert.assertTrue(checkResult(snapKeyMan.getJobManagerOwnedSnapshot(), jobManagerOwnedState.getManagedKeyedState()));
-		Assert.assertTrue(checkResult(snapKeyRaw.getJobManagerOwnedSnapshot(), jobManagerOwnedState.getRawKeyedState()));
-		Assert.assertTrue(checkResult(snapOpMan.getJobManagerOwnedSnapshot(), jobManagerOwnedState.getManagedOperatorState()));
-		Assert.assertTrue(checkResult(snapOpRaw.getJobManagerOwnedSnapshot(), jobManagerOwnedState.getRawOperatorState()));
+    private void checkResult(Object expected, StateObjectCollection<?> actual) {
+        if (expected == null) {
+            assertTrue(actual == null || actual.isEmpty());
+        } else {
+            assertEquals(1, actual.size());
+            assertEquals(expected, actual.iterator().next());
+        }
+    }
 
-		OperatorSubtaskState taskLocalState = operatorSnapshotFinalizer.getTaskLocalState();
-		Assert.assertTrue(checkResult(snapKeyMan.getTaskLocalSnapshot(), taskLocalState.getManagedKeyedState()));
-		Assert.assertTrue(checkResult(snapKeyRaw.getTaskLocalSnapshot(), taskLocalState.getRawKeyedState()));
-		Assert.assertTrue(checkResult(snapOpMan.getTaskLocalSnapshot(), taskLocalState.getManagedOperatorState()));
-		Assert.assertTrue(checkResult(snapOpRaw.getTaskLocalSnapshot(), taskLocalState.getRawOperatorState()));
-	}
+    static class PseudoNotDoneFuture<T> extends DoneFuture<T> {
 
-	private <T extends StateObject> boolean checkResult(T expected, StateObjectCollection<T> actual) {
-		if (expected == null) {
-			return actual.isEmpty();
-		}
+        private boolean done;
 
-		return actual.size() == 1 && expected == actual.iterator().next();
-	}
+        PseudoNotDoneFuture(T payload) {
+            super(payload);
+            this.done = false;
+        }
 
-	static class PseudoNotDoneFuture<T> extends DoneFuture<T> {
+        @Override
+        public void run() {
+            super.run();
+            this.done = true;
+        }
 
-		private boolean done;
+        @Override
+        public boolean isDone() {
+            return done;
+        }
 
-		PseudoNotDoneFuture(T payload) {
-			super(payload);
-			this.done = false;
-		}
-
-		@Override
-		public void run() {
-			super.run();
-			this.done = true;
-		}
-
-		@Override
-		public boolean isDone() {
-			return done;
-		}
-	}
+        @Override
+        public T get() {
+            try {
+                return super.get();
+            } finally {
+                this.done = true;
+            }
+        }
+    }
 }

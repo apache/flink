@@ -18,297 +18,657 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Describe the immutable resource profile of the slot, either when requiring or offering it. The profile can be
- * checked whether it can match another profile's requirement, and furthermore we may calculate a matching
- * score to decide which profile we should choose when we have lots of candidate slots.
- * It should be generated from {@link ResourceSpec} with the input and output memory calculated in JobMaster.
+ * Describe the immutable resource profile of the slot, either when requiring or offering it. The
+ * profile can be checked whether it can match another profile's requirement, and furthermore we may
+ * calculate a matching score to decide which profile we should choose when we have lots of
+ * candidate slots. It should be generated from {@link ResourceSpec} with the input and output
+ * memory calculated in JobMaster.
  *
  * <p>Resource Profiles have a total ordering, defined by comparing these fields in sequence:
+ *
  * <ol>
- *     <li>Memory Size</li>
- *     <li>CPU cores</li>
- *     <li>Extended resources</li>
+ *   <li>Memory Size
+ *   <li>CPU cores
+ *   <li>Extended resources
  * </ol>
+ *
  * The extended resources are compared ordered by the resource names.
  */
-public class ResourceProfile implements Serializable, Comparable<ResourceProfile> {
+public class ResourceProfile implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1);
+    /**
+     * A ResourceProfile that indicates an unknown resource requirement. This is mainly used for
+     * describing resource requirements that the exact amount of resource needed is not specified.
+     * It can also be used for describing remaining resource of a multi task slot that contains
+     * tasks with unknown resource requirements. It should not be used for describing total resource
+     * of a task executor / slot, which should always be specific.
+     */
+    public static final ResourceProfile UNKNOWN = new ResourceProfile();
 
-	/** ResourceProfile which matches any other ResourceProfile. */
-	public static final ResourceProfile ANY = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+    /** A ResourceProfile that indicates infinite resource that matches any resource requirement. */
+    @VisibleForTesting
+    public static final ResourceProfile ANY =
+            newBuilder()
+                    .setCpuCores(Double.MAX_VALUE)
+                    .setTaskHeapMemory(MemorySize.MAX_VALUE)
+                    .setTaskOffHeapMemory(MemorySize.MAX_VALUE)
+                    .setManagedMemory(MemorySize.MAX_VALUE)
+                    .setNetworkMemory(MemorySize.MAX_VALUE)
+                    .build();
 
-	// ------------------------------------------------------------------------
+    /** A ResourceProfile describing zero resources. */
+    public static final ResourceProfile ZERO = newBuilder().build();
 
-	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
-	private final double cpuCores;
+    /** Maximum number of cpu cores to output in {@link #toString()}. */
+    static final BigDecimal MAX_CPU_CORE_NUMBER_TO_LOG = new BigDecimal(16384);
 
-	/** How many heap memory in mb are needed. */
-	private final int heapMemoryInMB;
+    /** Maximum memory resource size to output in {@link #toString()}. */
+    static final MemorySize MAX_MEMORY_SIZE_TO_LOG = new MemorySize(1L << 50); // 1Pb
 
-	/** How many direct memory in mb are needed. */
-	private final int directMemoryInMB;
+    // ------------------------------------------------------------------------
 
-	/** How many native memory in mb are needed. */
-	private final int nativeMemoryInMB;
+    /** How many cpu cores are needed. Can be null only if it is unknown. */
+    @Nullable private final CPUResource cpuCores;
 
-	/** Memory used for the task in the slot to communicate with its upstreams. Set by job master. */
-	private final int networkMemoryInMB;
+    /** How much task heap memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private final MemorySize taskHeapMemory;
 
-	/** A extensible field for user specified resources from {@link ResourceSpec}. */
-	private final Map<String, Resource> extendedResources = new HashMap<>(1);
+    /** How much task off-heap memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private final MemorySize taskOffHeapMemory;
 
-	// ------------------------------------------------------------------------
+    /** How much managed memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private final MemorySize managedMemory;
 
-	/**
-	 * Creates a new ResourceProfile.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
-	 * @param directMemoryInMB The size of the direct memory, in megabytes.
-	 * @param nativeMemoryInMB The size of the native memory, in megabytes.
-	 * @param networkMemoryInMB The size of the memory for input and output, in megabytes.
-	 * @param extendedResources The extended resources such as GPU and FPGA
-	 */
-	public ResourceProfile(
-			double cpuCores,
-			int heapMemoryInMB,
-			int directMemoryInMB,
-			int nativeMemoryInMB,
-			int networkMemoryInMB,
-			Map<String, Resource> extendedResources) {
-		this.cpuCores = cpuCores;
-		this.heapMemoryInMB = heapMemoryInMB;
-		this.directMemoryInMB = directMemoryInMB;
-		this.nativeMemoryInMB = nativeMemoryInMB;
-		this.networkMemoryInMB = networkMemoryInMB;
-		if (extendedResources != null) {
-			this.extendedResources.putAll(extendedResources);
-		}
-	}
+    /** How much network memory is needed. */
+    @Nullable // can be null only for UNKNOWN
+    private final MemorySize networkMemory;
 
-	/**
-	 * Creates a new simple ResourceProfile used for testing.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
-	 */
-	public ResourceProfile(double cpuCores, int heapMemoryInMB) {
-		this(cpuCores, heapMemoryInMB, 0, 0, 0, Collections.emptyMap());
-	}
+    /** A extensible field for user specified resources from {@link ResourceSpec}. */
+    private final Map<String, ExternalResource> extendedResources;
 
-	/**
-	 * Creates a copy of the given ResourceProfile.
-	 *
-	 * @param other The ResourceProfile to copy.
-	 */
-	public ResourceProfile(ResourceProfile other) {
-		this(other.cpuCores,
-				other.heapMemoryInMB,
-				other.directMemoryInMB,
-				other.nativeMemoryInMB,
-				other.networkMemoryInMB,
-				other.extendedResources);
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    /**
+     * Creates a new ResourceProfile.
+     *
+     * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
+     * @param taskHeapMemory The size of the task heap memory.
+     * @param taskOffHeapMemory The size of the task off-heap memory.
+     * @param managedMemory The size of the managed memory.
+     * @param networkMemory The size of the network memory.
+     * @param extendedResources The extended resources such as GPU and FPGA
+     */
+    private ResourceProfile(
+            final CPUResource cpuCores,
+            final MemorySize taskHeapMemory,
+            final MemorySize taskOffHeapMemory,
+            final MemorySize managedMemory,
+            final MemorySize networkMemory,
+            final Map<String, ExternalResource> extendedResources) {
 
-	/**
-	 * Get the cpu cores needed.
-	 *
-	 * @return The cpu cores, 1.0 means a full cpu thread
-	 */
-	public double getCpuCores() {
-		return cpuCores;
-	}
+        checkNotNull(cpuCores);
 
-	/**
-	 * Get the heap memory needed in MB.
-	 *
-	 * @return The heap memory in MB
-	 */
-	public int getHeapMemoryInMB() {
-		return heapMemoryInMB;
-	}
+        this.cpuCores = cpuCores;
+        this.taskHeapMemory = checkNotNull(taskHeapMemory);
+        this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
+        this.managedMemory = checkNotNull(managedMemory);
+        this.networkMemory = checkNotNull(networkMemory);
 
-	/**
-	 * Get the direct memory needed in MB.
-	 *
-	 * @return The direct memory in MB
-	 */
-	public int getDirectMemoryInMB() {
-		return directMemoryInMB;
-	}
+        this.extendedResources =
+                checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
 
-	/**
-	 * Get the native memory needed in MB.
-	 *
-	 * @return The native memory in MB
-	 */
-	public int getNativeMemoryInMB() {
-		return nativeMemoryInMB;
-	}
+    /**
+     * Creates a special ResourceProfile with negative values, indicating resources are unspecified.
+     */
+    private ResourceProfile() {
+        this.cpuCores = null;
+        this.taskHeapMemory = null;
+        this.taskOffHeapMemory = null;
+        this.managedMemory = null;
+        this.networkMemory = null;
+        this.extendedResources = new HashMap<>();
+    }
 
-	/**
-	 * Get the memory needed for task to communicate with its upstreams and downstreams in MB.
-	 * @return The network memory in MB
-	 */
-	public int getNetworkMemoryInMB() {
-		return networkMemoryInMB;
-	}
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get the total memory needed in MB.
-	 *
-	 * @return The total memory in MB
-	 */
-	public int getMemoryInMB() {
-		return heapMemoryInMB + directMemoryInMB + nativeMemoryInMB + networkMemoryInMB;
-	}
+    /**
+     * Get the cpu cores needed.
+     *
+     * @return The cpu cores, 1.0 means a full cpu thread
+     */
+    public CPUResource getCpuCores() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return cpuCores;
+    }
 
-	/**
-	 * Get the memory the operators needed in MB.
-	 *
-	 * @return The operator memory in MB
-	 */
-	public int getOperatorsMemoryInMB() {
-		return heapMemoryInMB + directMemoryInMB + nativeMemoryInMB;
-	}
+    /**
+     * Get the task heap memory needed.
+     *
+     * @return The task heap memory
+     */
+    public MemorySize getTaskHeapMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return taskHeapMemory;
+    }
 
-	/**
-	 * Get the extended resources.
-	 *
-	 * @return The extended resources
-	 */
-	public Map<String, Resource> getExtendedResources() {
-		return Collections.unmodifiableMap(extendedResources);
-	}
+    /**
+     * Get the task off-heap memory needed.
+     *
+     * @return The task off-heap memory
+     */
+    public MemorySize getTaskOffHeapMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return taskOffHeapMemory;
+    }
 
-	/**
-	 * Check whether required resource profile can be matched.
-	 *
-	 * @param required the required resource profile
-	 * @return true if the requirement is matched, otherwise false
-	 */
-	public boolean isMatching(ResourceProfile required) {
-		if (cpuCores >= required.getCpuCores() &&
-				heapMemoryInMB >= required.getHeapMemoryInMB() &&
-				directMemoryInMB >= required.getDirectMemoryInMB() &&
-				nativeMemoryInMB >= required.getNativeMemoryInMB() &&
-				networkMemoryInMB >= required.getNetworkMemoryInMB()) {
-			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
-				if (!extendedResources.containsKey(resource.getKey()) ||
-						!extendedResources.get(resource.getKey()).getResourceAggregateType().equals(resource.getValue().getResourceAggregateType()) ||
-						extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
-					return false;
-				}
-			}
-			return true;
-		}
-		return false;
-	}
+    /**
+     * Get the managed memory needed.
+     *
+     * @return The managed memory
+     */
+    public MemorySize getManagedMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return managedMemory;
+    }
 
-	@Override
-	public int compareTo(@Nonnull ResourceProfile other) {
-		int cmp = Integer.compare(this.getMemoryInMB(), other.getMemoryInMB());
-		if (cmp == 0) {
-			cmp = Double.compare(this.cpuCores, other.cpuCores);
-		}
-		if (cmp == 0) {
-			Iterator<Map.Entry<String, Resource>> thisIterator = extendedResources.entrySet().iterator();
-			Iterator<Map.Entry<String, Resource>> otherIterator = other.extendedResources.entrySet().iterator();
-			while (thisIterator.hasNext() && otherIterator.hasNext()) {
-				Map.Entry<String, Resource> thisResource = thisIterator.next();
-				Map.Entry<String, Resource> otherResource = otherIterator.next();
-				if ((cmp = otherResource.getKey().compareTo(thisResource.getKey())) != 0) {
-					return cmp;
-				}
-				if (!otherResource.getValue().getResourceAggregateType().equals(thisResource.getValue().getResourceAggregateType())) {
-					return 1;
-				}
-				if ((cmp = Double.compare(thisResource.getValue().getValue(), otherResource.getValue().getValue())) != 0) {
-					return cmp;
-				}
-			}
-			if (thisIterator.hasNext()) {
-				return 1;
-			}
-			if (otherIterator.hasNext()) {
-				return -1;
-			}
-		}
-		return cmp;
-	}
+    /**
+     * Get the network memory needed.
+     *
+     * @return The network memory
+     */
+    public MemorySize getNetworkMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return networkMemory;
+    }
 
-	// ------------------------------------------------------------------------
+    /**
+     * Get the total memory needed.
+     *
+     * @return The total memory
+     */
+    public MemorySize getTotalMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return getOperatorsMemory().add(networkMemory);
+    }
 
-	@Override
-	public int hashCode() {
-		final long cpuBits =  Double.doubleToLongBits(cpuCores);
-		int result = (int) (cpuBits ^ (cpuBits >>> 32));
-		result = 31 * result + heapMemoryInMB;
-		result = 31 * result + directMemoryInMB;
-		result = 31 * result + nativeMemoryInMB;
-		result = 31 * result + networkMemoryInMB;
-		result = 31 * result + extendedResources.hashCode();
-		return result;
-	}
+    /**
+     * Get the memory the operators needed.
+     *
+     * @return The operator memory
+     */
+    public MemorySize getOperatorsMemory() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return taskHeapMemory.add(taskOffHeapMemory).add(managedMemory);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		else if (obj != null && obj.getClass() == ResourceProfile.class) {
-			ResourceProfile that = (ResourceProfile) obj;
-			return this.cpuCores == that.cpuCores &&
-					this.heapMemoryInMB == that.heapMemoryInMB &&
-					this.directMemoryInMB == that.directMemoryInMB &&
-					this.networkMemoryInMB == that.networkMemoryInMB &&
-					Objects.equals(extendedResources, that.extendedResources);
-		}
-		return false;
-	}
+    /**
+     * Get the extended resources.
+     *
+     * @return The extended resources
+     */
+    public Map<String, ExternalResource> getExtendedResources() {
+        throwUnsupportedOperationExceptionIfUnknown();
+        return Collections.unmodifiableMap(extendedResources);
+    }
 
-	@Override
-	public String toString() {
-		final StringBuilder resources = new StringBuilder(extendedResources.size() * 10);
-		for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
-			resources.append(", ").append(resource.getKey()).append('=').append(resource.getValue());
-		}
-		return "ResourceProfile{" +
-			"cpuCores=" + cpuCores +
-			", heapMemoryInMB=" + heapMemoryInMB +
-			", directMemoryInMB=" + directMemoryInMB +
-			", nativeMemoryInMB=" + nativeMemoryInMB +
-			", networkMemoryInMB=" + networkMemoryInMB + resources +
-			'}';
-	}
+    private void throwUnsupportedOperationExceptionIfUnknown() {
+        if (this.equals(UNKNOWN)) {
+            throw new UnsupportedOperationException();
+        }
+    }
 
-	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
-		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
+    /**
+     * Check whether required resource profile can be matched.
+     *
+     * @param required the required resource profile
+     * @return true if the requirement is matched, otherwise false
+     */
+    public boolean isMatching(final ResourceProfile required) {
+        checkNotNull(required, "Cannot check matching with null resources");
+        throwUnsupportedOperationExceptionIfUnknown();
 
-		return new ResourceProfile(
-				resourceSpec.getCpuCores(),
-				resourceSpec.getHeapMemory(),
-				resourceSpec.getDirectMemory(),
-				resourceSpec.getNativeMemory(),
-				networkMemory,
-				copiedExtendedResources);
-	}
+        if (this.equals(ANY)) {
+            return true;
+        }
+
+        if (this.equals(required)) {
+            return true;
+        }
+
+        if (required.equals(UNKNOWN)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether all fields of this resource profile are no less than the given resource
+     * profile.
+     *
+     * <p>It is not same with the total resource comparison. It return true iff each resource
+     * field(cpu, task heap memory, managed memory, etc.) is no less than the respective field of
+     * the given profile.
+     *
+     * <p>For example, assume that this profile has 1 core, 50 managed memory and 100 heap memory.
+     *
+     * <ol>
+     *   <li>The comparison will return false if the other profile has 2 core, 10 managed memory and
+     *       1000 heap memory.
+     *   <li>The comparison will return true if the other profile has 1 core, 50 managed memory and
+     *       150 heap memory.
+     * </ol>
+     *
+     * @param other the other resource profile
+     * @return true if all fields of this are no less than the other's, otherwise false
+     */
+    public boolean allFieldsNoLessThan(final ResourceProfile other) {
+        checkNotNull(other, "Cannot compare null resources");
+
+        if (this.equals(ANY)) {
+            return true;
+        }
+
+        if (this.equals(other)) {
+            return true;
+        }
+
+        if (this.equals(UNKNOWN)) {
+            return false;
+        }
+
+        if (other.equals(UNKNOWN)) {
+            return true;
+        }
+
+        if (cpuCores.getValue().compareTo(other.cpuCores.getValue()) >= 0
+                && taskHeapMemory.compareTo(other.taskHeapMemory) >= 0
+                && taskOffHeapMemory.compareTo(other.taskOffHeapMemory) >= 0
+                && managedMemory.compareTo(other.managedMemory) >= 0
+                && networkMemory.compareTo(other.networkMemory) >= 0) {
+
+            for (Map.Entry<String, ExternalResource> resource :
+                    other.extendedResources.entrySet()) {
+                if (!extendedResources.containsKey(resource.getKey())
+                        || extendedResources
+                                        .get(resource.getKey())
+                                        .getValue()
+                                        .compareTo(resource.getValue().getValue())
+                                < 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(cpuCores);
+        result = 31 * result + Objects.hashCode(taskHeapMemory);
+        result = 31 * result + Objects.hashCode(taskOffHeapMemory);
+        result = 31 * result + Objects.hashCode(managedMemory);
+        result = 31 * result + Objects.hashCode(networkMemory);
+        result = 31 * result + extendedResources.hashCode();
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == ResourceProfile.class) {
+            ResourceProfile that = (ResourceProfile) obj;
+            return Objects.equals(this.cpuCores, that.cpuCores)
+                    && Objects.equals(taskHeapMemory, that.taskHeapMemory)
+                    && Objects.equals(taskOffHeapMemory, that.taskOffHeapMemory)
+                    && Objects.equals(managedMemory, that.managedMemory)
+                    && Objects.equals(networkMemory, that.networkMemory)
+                    && Objects.equals(extendedResources, that.extendedResources);
+        }
+        return false;
+    }
+
+    /**
+     * Calculates the sum of two resource profiles.
+     *
+     * @param other The other resource profile to add.
+     * @return The merged resource profile.
+     */
+    @Nonnull
+    public ResourceProfile merge(final ResourceProfile other) {
+        checkNotNull(other, "Cannot merge with null resources");
+
+        if (equals(ANY) || other.equals(ANY)) {
+            return ANY;
+        }
+
+        if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
+            return UNKNOWN;
+        }
+
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
+
+        other.extendedResources.forEach(
+                (String name, ExternalResource resource) -> {
+                    resultExtendedResource.compute(
+                            name,
+                            (ignored, oldResource) ->
+                                    oldResource == null ? resource : oldResource.merge(resource));
+                });
+
+        return new ResourceProfile(
+                cpuCores.merge(other.cpuCores),
+                taskHeapMemory.add(other.taskHeapMemory),
+                taskOffHeapMemory.add(other.taskOffHeapMemory),
+                managedMemory.add(other.managedMemory),
+                networkMemory.add(other.networkMemory),
+                resultExtendedResource);
+    }
+
+    /**
+     * Subtracts another piece of resource profile from this one.
+     *
+     * @param other The other resource profile to subtract.
+     * @return The subtracted resource profile.
+     */
+    public ResourceProfile subtract(final ResourceProfile other) {
+        checkNotNull(other, "Cannot subtract with null resources");
+
+        if (equals(ANY) || other.equals(ANY)) {
+            return ANY;
+        }
+
+        if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
+            return UNKNOWN;
+        }
+
+        checkArgument(
+                allFieldsNoLessThan(other),
+                "Try to subtract an unmatched resource profile from this one.");
+
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
+
+        other.extendedResources.forEach(
+                (String name, ExternalResource resource) ->
+                        resultExtendedResource.compute(
+                                name, (ignored, oldResource) -> oldResource.subtract(resource)));
+
+        return new ResourceProfile(
+                cpuCores.subtract(other.cpuCores),
+                taskHeapMemory.subtract(other.taskHeapMemory),
+                taskOffHeapMemory.subtract(other.taskOffHeapMemory),
+                managedMemory.subtract(other.managedMemory),
+                networkMemory.subtract(other.networkMemory),
+                resultExtendedResource);
+    }
+
+    @Nonnull
+    public ResourceProfile multiply(final int multiplier) {
+        checkArgument(multiplier >= 0, "multiplier must be >= 0");
+        if (equals(ANY)) {
+            return ANY;
+        }
+
+        if (this.equals(UNKNOWN)) {
+            return UNKNOWN;
+        }
+
+        if (multiplier == 0) {
+            return ZERO;
+        }
+
+        Map<String, ExternalResource> resultExtendedResource =
+                extendedResources.entrySet().stream()
+                        .map(
+                                entry ->
+                                        Tuple2.of(
+                                                entry.getKey(),
+                                                entry.getValue().multiply(multiplier)))
+                        .collect(Collectors.toMap(tuple -> tuple.f0, tuple -> tuple.f1));
+
+        return new ResourceProfile(
+                cpuCores.multiply(multiplier),
+                taskHeapMemory.multiply(multiplier),
+                taskOffHeapMemory.multiply(multiplier),
+                managedMemory.multiply(multiplier),
+                networkMemory.multiply(multiplier),
+                resultExtendedResource);
+    }
+
+    @Override
+    public String toString() {
+        if (this.equals(UNKNOWN)) {
+            return "ResourceProfile{UNKNOWN}";
+        }
+
+        if (this.equals(ANY)) {
+            return "ResourceProfile{ANY}";
+        }
+
+        return "ResourceProfile{"
+                + getResourceString()
+                + (extendedResources.isEmpty()
+                        ? ""
+                        : (", "
+                                + ExternalResourceUtils.generateExternalResourcesString(
+                                        extendedResources.values())))
+                + '}';
+    }
+
+    private String getResourceString() {
+        String resourceStr =
+                cpuCores == null || cpuCores.getValue().compareTo(MAX_CPU_CORE_NUMBER_TO_LOG) > 0
+                        ? ""
+                        : "cpuCores=" + cpuCores.getValue();
+        resourceStr = addMemorySizeString(resourceStr, "taskHeapMemory", taskHeapMemory);
+        resourceStr = addMemorySizeString(resourceStr, "taskOffHeapMemory", taskOffHeapMemory);
+        resourceStr = addMemorySizeString(resourceStr, "managedMemory", managedMemory);
+        resourceStr = addMemorySizeString(resourceStr, "networkMemory", networkMemory);
+        return resourceStr;
+    }
+
+    private static String addMemorySizeString(String resourceStr, String name, MemorySize size) {
+        String comma = resourceStr.isEmpty() ? "" : ", ";
+        String memorySizeStr =
+                size == null || size.compareTo(MAX_MEMORY_SIZE_TO_LOG) > 0
+                        ? ""
+                        : comma + name + '=' + size.toHumanReadableString();
+        return resourceStr + memorySizeStr;
+    }
+
+    // ------------------------------------------------------------------------
+    //  serialization
+    // ------------------------------------------------------------------------
+
+    private Object readResolve() {
+        // try to preserve the singleton property for UNKNOWN and ANY
+
+        if (this.equals(UNKNOWN)) {
+            return UNKNOWN;
+        }
+
+        if (this.equals(ANY)) {
+            return ANY;
+        }
+
+        return this;
+    }
+
+    // ------------------------------------------------------------------------
+    //  factories
+    // ------------------------------------------------------------------------
+
+    @VisibleForTesting
+    static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec) {
+        return fromResourceSpec(resourceSpec, MemorySize.ZERO);
+    }
+
+    public static ResourceProfile fromResourceSpec(
+            ResourceSpec resourceSpec, MemorySize networkMemory) {
+        if (ResourceSpec.UNKNOWN.equals(resourceSpec)) {
+            return UNKNOWN;
+        }
+
+        return newBuilder()
+                .setCpuCores(resourceSpec.getCpuCores())
+                .setTaskHeapMemory(resourceSpec.getTaskHeapMemory())
+                .setTaskOffHeapMemory(resourceSpec.getTaskOffHeapMemory())
+                .setManagedMemory(resourceSpec.getManagedMemory())
+                .setNetworkMemory(networkMemory)
+                .setExtendedResources(resourceSpec.getExtendedResources().values())
+                .build();
+    }
+
+    @VisibleForTesting
+    public static ResourceProfile fromResources(final double cpuCores, final int taskHeapMemoryMB) {
+        return newBuilder().setCpuCores(cpuCores).setTaskHeapMemoryMB(taskHeapMemoryMB).build();
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    public static Builder newBuilder(ResourceProfile resourceProfile) {
+        Preconditions.checkArgument(!resourceProfile.equals(UNKNOWN));
+        return newBuilder()
+                .setCpuCores(resourceProfile.cpuCores)
+                .setTaskHeapMemory(resourceProfile.taskHeapMemory)
+                .setTaskOffHeapMemory(resourceProfile.taskOffHeapMemory)
+                .setManagedMemory(resourceProfile.managedMemory)
+                .setNetworkMemory(resourceProfile.networkMemory)
+                .setExtendedResources(resourceProfile.extendedResources.values());
+    }
+
+    /** Builder for the {@link ResourceProfile}. */
+    public static class Builder {
+
+        private CPUResource cpuCores = new CPUResource(0.0);
+        private MemorySize taskHeapMemory = MemorySize.ZERO;
+        private MemorySize taskOffHeapMemory = MemorySize.ZERO;
+        private MemorySize managedMemory = MemorySize.ZERO;
+        private MemorySize networkMemory = MemorySize.ZERO;
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
+
+        private Builder() {}
+
+        public Builder setCpuCores(CPUResource cpuCores) {
+            this.cpuCores = cpuCores;
+            return this;
+        }
+
+        public Builder setCpuCores(double cpuCores) {
+            this.cpuCores = new CPUResource(cpuCores);
+            return this;
+        }
+
+        public Builder setTaskHeapMemory(MemorySize taskHeapMemory) {
+            this.taskHeapMemory = taskHeapMemory;
+            return this;
+        }
+
+        public Builder setTaskHeapMemoryMB(int taskHeapMemoryMB) {
+            this.taskHeapMemory = MemorySize.ofMebiBytes(taskHeapMemoryMB);
+            return this;
+        }
+
+        public Builder setTaskOffHeapMemory(MemorySize taskOffHeapMemory) {
+            this.taskOffHeapMemory = taskOffHeapMemory;
+            return this;
+        }
+
+        public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
+            this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
+            return this;
+        }
+
+        public Builder setManagedMemory(MemorySize managedMemory) {
+            this.managedMemory = managedMemory;
+            return this;
+        }
+
+        public Builder setManagedMemoryMB(int managedMemoryMB) {
+            this.managedMemory = MemorySize.ofMebiBytes(managedMemoryMB);
+            return this;
+        }
+
+        public Builder setNetworkMemory(MemorySize networkMemory) {
+            this.networkMemory = networkMemory;
+            return this;
+        }
+
+        public Builder setNetworkMemoryMB(int networkMemoryMB) {
+            this.networkMemory = MemorySize.ofMebiBytes(networkMemoryMB);
+            return this;
+        }
+
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
+            return this;
+        }
+
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<ExternalResource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExternalResource::getName, Function.identity()));
+            return this;
+        }
+
+        public ResourceProfile build() {
+            return new ResourceProfile(
+                    cpuCores,
+                    taskHeapMemory,
+                    taskOffHeapMemory,
+                    managedMemory,
+                    networkMemory,
+                    extendedResources);
+        }
+    }
 }

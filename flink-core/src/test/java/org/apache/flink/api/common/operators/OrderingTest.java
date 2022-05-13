@@ -25,25 +25,25 @@ import static org.junit.Assert.assertEquals;
 
 public class OrderingTest {
 
-	@Test
-	public void testNewOrdering() {
-		Ordering ordering = new Ordering();
+    @Test
+    public void testNewOrdering() {
+        Ordering ordering = new Ordering();
 
-		// add a field
-		ordering.appendOrdering(3, Integer.class, Order.ASCENDING);
-		assertEquals(1, ordering.getNumberOfFields());
+        // add a field
+        ordering.appendOrdering(3, Integer.class, Order.ASCENDING);
+        assertEquals(1, ordering.getNumberOfFields());
 
-		// add a second field
-		ordering.appendOrdering(1, Long.class, Order.DESCENDING);
-		assertEquals(2, ordering.getNumberOfFields());
+        // add a second field
+        ordering.appendOrdering(1, Long.class, Order.DESCENDING);
+        assertEquals(2, ordering.getNumberOfFields());
 
-		// duplicate field index does not change Ordering
-		ordering.appendOrdering(1, String.class, Order.ASCENDING);
-		assertEquals(2, ordering.getNumberOfFields());
+        // duplicate field index does not change Ordering
+        ordering.appendOrdering(1, String.class, Order.ASCENDING);
+        assertEquals(2, ordering.getNumberOfFields());
 
-		// verify field positions, types, and orderings
-		assertArrayEquals(new int[]{3, 1}, ordering.getFieldPositions());
-		assertArrayEquals(new Class[]{Integer.class, Long.class}, ordering.getTypes());
-		assertArrayEquals(new boolean[]{true, false}, ordering.getFieldSortDirections());
-	}
+        // verify field positions, types, and orderings
+        assertArrayEquals(new int[] {3, 1}, ordering.getFieldPositions());
+        assertArrayEquals(new Class[] {Integer.class, Long.class}, ordering.getTypes());
+        assertArrayEquals(new boolean[] {true, false}, ordering.getFieldSortDirections());
+    }
 }

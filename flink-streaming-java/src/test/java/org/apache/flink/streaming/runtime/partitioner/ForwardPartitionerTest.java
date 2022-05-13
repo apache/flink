@@ -21,20 +21,22 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link ForwardPartitioner}.
- */
+import static org.junit.Assert.assertFalse;
+
+/** Tests for {@link ForwardPartitioner}. */
 public class ForwardPartitionerTest extends StreamPartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		return new ForwardPartitioner<>();
-	}
+    @Override
+    public StreamPartitioner<Tuple> createPartitioner() {
+        StreamPartitioner<Tuple> partitioner = new ForwardPartitioner<>();
+        assertFalse(partitioner.isBroadcast());
+        return partitioner;
+    }
 
-	@Test
-	public void testSelectChannelsInterval() {
-		assertSelectedChannelWithSetup(0, 1);
-		assertSelectedChannelWithSetup(0, 2);
-		assertSelectedChannelWithSetup(0, 1024);
-	}
+    @Test
+    public void testSelectChannelsInterval() {
+        assertSelectedChannelWithSetup(0, 1);
+        assertSelectedChannelWithSetup(0, 2);
+        assertSelectedChannelWithSetup(0, 1024);
+    }
 }

@@ -24,8 +24,8 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.types.NullFieldException
 
 /**
- * Serializer for Case Classes. Creation and access is different from
- * our Java Tuples so we have to treat them differently.
+ * Serializer for Case Classes. Creation and access is different from our Java Tuples so we have to
+ * treat them differently.
  */
 @Internal
 @SerialVersionUID(7341356073446263475L)
@@ -35,9 +35,9 @@ abstract class CaseClassSerializer[T <: Product](
   extends TupleSerializerBase[T](clazz, scalaFieldSerializers)
   with Cloneable {
 
-  @transient var fields : Array[AnyRef] = _
+  @transient var fields: Array[AnyRef] = _
 
-  @transient var instanceCreationFailed : Boolean = false
+  @transient var instanceCreationFailed: Boolean = false
 
   override def duplicate = {
     clone().asInstanceOf[CaseClassSerializer[T]]
@@ -58,8 +58,7 @@ abstract class CaseClassSerializer[T <: Product](
   def createInstance: T = {
     if (instanceCreationFailed) {
       null.asInstanceOf[T]
-    }
-    else {
+    } else {
       initArray()
       try {
         var i = 0
@@ -68,8 +67,7 @@ abstract class CaseClassSerializer[T <: Product](
           i += 1
         }
         createInstance(fields)
-      }
-      catch {
+      } catch {
         case t: Throwable =>
           instanceCreationFailed = true
           null.asInstanceOf[T]
@@ -77,17 +75,8 @@ abstract class CaseClassSerializer[T <: Product](
     }
   }
 
-  override def createOrReuseInstance(fields: Array[Object], reuse: T) : T = {
+  override def createOrReuseInstance(fields: Array[Object], reuse: T): T = {
     createInstance(fields)
-  }
-
-  override def createSerializerInstance(
-      tupleClass: Class[T],
-      fieldSerializers: Array[TypeSerializer[_]]): TupleSerializerBase[T] = {
-    this.getClass
-      .getConstructors()(0)
-      .newInstance(tupleClass, fieldSerializers)
-      .asInstanceOf[CaseClassSerializer[T]]
   }
 
   def copy(from: T, reuse: T): T = {
@@ -95,13 +84,17 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def copy(from: T): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
-      i += 1
+    if (from == null) {
+      null.asInstanceOf[T]
+    } else {
+      initArray()
+      var i = 0
+      while (i < arity) {
+        fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
+        i += 1
+      }
+      createInstance(fields)
     }
-    createInstance(fields)
   }
 
   def serialize(value: T, target: DataOutputView) {

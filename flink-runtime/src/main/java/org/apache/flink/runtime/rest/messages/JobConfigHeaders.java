@@ -23,53 +23,52 @@ import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobConfigHandler}.
- */
-public class JobConfigHeaders implements MessageHeaders<EmptyRequestBody, JobConfigInfo, JobMessageParameters> {
+/** Message headers for the {@link JobConfigHandler}. */
+public class JobConfigHeaders
+        implements MessageHeaders<EmptyRequestBody, JobConfigInfo, JobMessageParameters> {
 
-	private static final JobConfigHeaders INSTANCE = new JobConfigHeaders();
+    private static final JobConfigHeaders INSTANCE = new JobConfigHeaders();
 
-	public static final String URL = "/jobs/:jobid/config";
+    public static final String URL = "/jobs/:jobid/config";
 
-	private JobConfigHeaders() {}
+    private JobConfigHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobConfigInfo> getResponseClass() {
-		return JobConfigInfo.class;
-	}
+    @Override
+    public Class<JobConfigInfo> getResponseClass() {
+        return JobConfigInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobConfigHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobConfigHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the configuration of a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the configuration of a job.";
+    }
 }

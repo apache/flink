@@ -34,85 +34,86 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link ListStateDescriptor}.
- */
+/** Tests for the {@link ListStateDescriptor}. */
 public class ListStateDescriptorTest {
 
-	@Test
-	public void testListStateDescriptor() throws Exception {
+    @Test
+    public void testListStateDescriptor() throws Exception {
 
-		TypeSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+        TypeSerializer<String> serializer =
+                new KryoSerializer<>(String.class, new ExecutionConfig());
 
-		ListStateDescriptor<String> descr =
-				new ListStateDescriptor<>("testName", serializer);
+        ListStateDescriptor<String> descr = new ListStateDescriptor<>("testName", serializer);
 
-		assertEquals("testName", descr.getName());
-		assertNotNull(descr.getSerializer());
-		assertTrue(descr.getSerializer() instanceof ListSerializer);
-		assertNotNull(descr.getElementSerializer());
-		assertEquals(serializer, descr.getElementSerializer());
+        assertEquals("testName", descr.getName());
+        assertNotNull(descr.getSerializer());
+        assertTrue(descr.getSerializer() instanceof ListSerializer);
+        assertNotNull(descr.getElementSerializer());
+        assertEquals(serializer, descr.getElementSerializer());
 
-		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
+        ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
-		assertEquals("testName", copy.getName());
-		assertNotNull(copy.getSerializer());
-		assertTrue(copy.getSerializer() instanceof ListSerializer);
+        assertEquals("testName", copy.getName());
+        assertNotNull(copy.getSerializer());
+        assertTrue(copy.getSerializer() instanceof ListSerializer);
 
-		assertNotNull(copy.getElementSerializer());
-		assertEquals(serializer, copy.getElementSerializer());
-	}
+        assertNotNull(copy.getElementSerializer());
+        assertEquals(serializer, copy.getElementSerializer());
+    }
 
-	@Test
-	public void testHashCodeEquals() throws Exception {
-		final String name = "testName";
+    @Test
+    public void testHashCodeEquals() throws Exception {
+        final String name = "testName";
 
-		ListStateDescriptor<String> original = new ListStateDescriptor<>(name, String.class);
-		ListStateDescriptor<String> same = new ListStateDescriptor<>(name, String.class);
-		ListStateDescriptor<String> sameBySerializer = new ListStateDescriptor<>(name, StringSerializer.INSTANCE);
+        ListStateDescriptor<String> original = new ListStateDescriptor<>(name, String.class);
+        ListStateDescriptor<String> same = new ListStateDescriptor<>(name, String.class);
+        ListStateDescriptor<String> sameBySerializer =
+                new ListStateDescriptor<>(name, StringSerializer.INSTANCE);
 
-		// test that hashCode() works on state descriptors with initialized and uninitialized serializers
-		assertEquals(original.hashCode(), same.hashCode());
-		assertEquals(original.hashCode(), sameBySerializer.hashCode());
+        // test that hashCode() works on state descriptors with initialized and uninitialized
+        // serializers
+        assertEquals(original.hashCode(), same.hashCode());
+        assertEquals(original.hashCode(), sameBySerializer.hashCode());
 
-		assertEquals(original, same);
-		assertEquals(original, sameBySerializer);
+        assertEquals(original, same);
+        assertEquals(original, sameBySerializer);
 
-		// equality with a clone
-		ListStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
-		assertEquals(original, clone);
+        // equality with a clone
+        ListStateDescriptor<String> clone = CommonTestUtils.createCopySerializable(original);
+        assertEquals(original, clone);
 
-		// equality with an initialized
-		clone.initializeSerializerUnlessSet(new ExecutionConfig());
-		assertEquals(original, clone);
+        // equality with an initialized
+        clone.initializeSerializerUnlessSet(new ExecutionConfig());
+        assertEquals(original, clone);
 
-		original.initializeSerializerUnlessSet(new ExecutionConfig());
-		assertEquals(original, same);
-	}
+        original.initializeSerializerUnlessSet(new ExecutionConfig());
+        assertEquals(original, same);
+    }
 
-	/**
-	 * FLINK-6775.
-	 *
-	 * <p>Tests that the returned serializer is duplicated. This allows to
-	 * share the state descriptor.
-	 */
-	@Test
-	public void testSerializerDuplication() {
-		// we need a serializer that actually duplicates for testing (a stateful one)
-		// we use Kryo here, because it meets these conditions
-		TypeSerializer<String> statefulSerializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+    /**
+     * FLINK-6775.
+     *
+     * <p>Tests that the returned serializer is duplicated. This allows to share the state
+     * descriptor.
+     */
+    @Test
+    public void testSerializerDuplication() {
+        // we need a serializer that actually duplicates for testing (a stateful one)
+        // we use Kryo here, because it meets these conditions
+        TypeSerializer<String> statefulSerializer =
+                new KryoSerializer<>(String.class, new ExecutionConfig());
 
-		ListStateDescriptor<String> descr = new ListStateDescriptor<>("foobar", statefulSerializer);
+        ListStateDescriptor<String> descr = new ListStateDescriptor<>("foobar", statefulSerializer);
 
-		TypeSerializer<String> serializerA = descr.getElementSerializer();
-		TypeSerializer<String> serializerB = descr.getElementSerializer();
+        TypeSerializer<String> serializerA = descr.getElementSerializer();
+        TypeSerializer<String> serializerB = descr.getElementSerializer();
 
-		// check that the retrieved serializers are not the same
-		assertNotSame(serializerA, serializerB);
+        // check that the retrieved serializers are not the same
+        assertNotSame(serializerA, serializerB);
 
-		TypeSerializer<List<String>> listSerializerA = descr.getSerializer();
-		TypeSerializer<List<String>> listSerializerB = descr.getSerializer();
+        TypeSerializer<List<String>> listSerializerA = descr.getSerializer();
+        TypeSerializer<List<String>> listSerializerB = descr.getSerializer();
 
-		assertNotSame(listSerializerA, listSerializerB);
-	}
+        assertNotSame(listSerializerA, listSerializerB);
+    }
 }

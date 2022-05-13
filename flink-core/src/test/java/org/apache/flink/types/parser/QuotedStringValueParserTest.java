@@ -16,50 +16,62 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.StringValue;
-
 
 public class QuotedStringValueParserTest extends ParserTestBase<StringValue> {
 
     @Override
     public String[] getValidTestValues() {
         return new String[] {
-                "\\\"Hello \\\"World\\\"",
-                "\"abcdefgh\"", "\"i\"", "\"jklmno\"", "\"abc|de|fgh\"",
-                "\"abc&&&&def&&&&ghij\"", "\"i\"", "\"Hello9\"",
-                "abcdefgh", "i", "jklmno", "Hello9"
+            "\\\"Hello \\\"World\\\"",
+            "\"abcdefgh\"",
+            "\"i\"",
+            "\"jklmno\"",
+            "\"abc|de|fgh\"",
+            "\"abc&&&&def&&&&ghij\"",
+            "\"i\"",
+            "\"Hello9\"",
+            "abcdefgh",
+            "i",
+            "jklmno",
+            "Hello9"
         };
     }
 
     @Override
     public StringValue[] getValidTestResults() {
         return new StringValue[] {
-                new StringValue("\\\"Hello \\\"World\\\""),
-                new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"), new StringValue("abc|de|fgh"),
-                new StringValue("abc&&&&def&&&&ghij"), new StringValue("i"), new StringValue("Hello9"),
-                new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"), new StringValue("Hello9"),
+            new StringValue("\\\"Hello \\\"World\\\""),
+            new StringValue("abcdefgh"),
+            new StringValue("i"),
+            new StringValue("jklmno"),
+            new StringValue("abc|de|fgh"),
+            new StringValue("abc&&&&def&&&&ghij"),
+            new StringValue("i"),
+            new StringValue("Hello9"),
+            new StringValue("abcdefgh"),
+            new StringValue("i"),
+            new StringValue("jklmno"),
+            new StringValue("Hello9"),
         };
     }
 
     @Override
     public String[] getInvalidTestValues() {
-        return new String[] {
-                "\"abcd\"ef", "\"abcdef"
-        };
+        return new String[] {"\"abcd\"ef", "\"abcdef"};
     }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return true;
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return true;
+    }
 
     @Override
     public FieldParser<StringValue> getParser() {
         StringValueParser p = new StringValueParser();
-        p.enableQuotedStringParsing((byte)'"');
+        p.enableQuotedStringParsing((byte) '"');
         return p;
     }
 

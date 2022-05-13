@@ -27,41 +27,41 @@ import org.apache.flink.util.Preconditions;
 /**
  * @see <a href="http://mathworld.wolfram.com/PathGraph.html">Path Graph at Wolfram MathWorld</a>
  */
-public class PathGraph
-extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
+public class PathGraph extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
-	public static final int MINIMUM_VERTEX_COUNT = 2;
+    public static final int MINIMUM_VERTEX_COUNT = 2;
 
-	// Required to create the DataSource
-	private final ExecutionEnvironment env;
+    // Required to create the DataSource
+    private final ExecutionEnvironment env;
 
-	// Required configuration
-	private final long vertexCount;
+    // Required configuration
+    private final long vertexCount;
 
-	/**
-	 * An undirected {@link Graph} with {@code n} vertices where each vertex
-	 * v<sub>i</sub> connects to adjacent vertices v<sub>i+1</sub> when
-	 * {@code i < n-1} and v<sub>i-1</sub> when {@code i > 0}.
-	 *
-	 * <p>A {@code PathGraph} is distinguished from a {@code CycleGraph} in that
-	 * the first and last vertex are not connected, breaking the cycle.
-	 *
-	 * @param env the Flink execution environment
-	 * @param vertexCount number of vertices
-	 */
-	public PathGraph(ExecutionEnvironment env, long vertexCount) {
-		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
-			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
+    /**
+     * An undirected {@link Graph} with {@code n} vertices where each vertex v<sub>i</sub> connects
+     * to adjacent vertices v<sub>i+1</sub> when {@code i < n-1} and v<sub>i-1</sub> when {@code i >
+     * 0}.
+     *
+     * <p>A {@code PathGraph} is distinguished from a {@code CycleGraph} in that the first and last
+     * vertex are not connected, breaking the cycle.
+     *
+     * @param env the Flink execution environment
+     * @param vertexCount number of vertices
+     */
+    public PathGraph(ExecutionEnvironment env, long vertexCount) {
+        Preconditions.checkArgument(
+                vertexCount >= MINIMUM_VERTEX_COUNT,
+                "Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 
-		this.env = env;
-		this.vertexCount = vertexCount;
-	}
+        this.env = env;
+        this.vertexCount = vertexCount;
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> generate() {
-		return new GridGraph(env)
-			.addDimension(vertexCount, false)
-			.setParallelism(parallelism)
-			.generate();
-	}
+    @Override
+    public Graph<LongValue, NullValue, NullValue> generate() {
+        return new GridGraph(env)
+                .addDimension(vertexCount, false)
+                .setParallelism(parallelism)
+                .generate();
+    }
 }

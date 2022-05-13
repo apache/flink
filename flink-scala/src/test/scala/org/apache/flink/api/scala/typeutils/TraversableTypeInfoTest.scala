@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.{TypeInformationTestBase, TypeSerializer}
 
-/**
-  * Test for [[TraversableTypeInfo]].
-  */
+/** Test for [[TraversableTypeInfo]]. */
 class TraversableTypeInfoTest extends TypeInformationTestBase[TraversableTypeInfo[_, _]] {
 
   override protected def getTestData: Array[TraversableTypeInfo[_, _]] = Array(

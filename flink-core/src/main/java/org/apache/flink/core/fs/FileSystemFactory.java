@@ -20,6 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.plugin.Plugin;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,35 +28,23 @@ import java.net.URI;
 /**
  * A factory to create file systems.
  *
- * <p>The factory is typically configured via {@link #configure(Configuration)} before
- * creating file systems via {@link #create(URI)}.
+ * <p>The factory is typically configured via {@link #configure(Configuration)} before creating file
+ * systems via {@link #create(URI)}.
  */
 @PublicEvolving
-public interface FileSystemFactory {
+public interface FileSystemFactory extends Plugin {
 
-	/**
-	 * Gets the scheme of the file system created by this factory.
-	 */
-	String getScheme();
+    /** Gets the scheme of the file system created by this factory. */
+    String getScheme();
 
-	/**
-	 * Applies the given configuration to this factory. All future file system
-	 * instantiations via {@link #create(URI)} should take the configuration into
-	 * account.
-	 *
-	 * @param config The configuration to apply.
-	 */
-	void configure(Configuration config);
-
-	/**
-	 * Creates a new file system for the given file system URI.
-	 * The URI describes the type of file system (via its scheme) and optionally the
-	 * authority (for example the host) of the file system.
-	 *
-	 * @param fsUri The URI that describes the file system.
-	 * @return A new instance of the specified file system.
-	 *
-	 * @throws IOException Thrown if the file system could not be instantiated.
-	 */
-	FileSystem create(URI fsUri) throws IOException;
+    /**
+     * Creates a new file system for the given file system URI. The URI describes the type of file
+     * system (via its scheme) and optionally the authority (for example the host) of the file
+     * system.
+     *
+     * @param fsUri The URI that describes the file system.
+     * @return A new instance of the specified file system.
+     * @throws IOException Thrown if the file system could not be instantiated.
+     */
+    FileSystem create(URI fsUri) throws IOException;
 }

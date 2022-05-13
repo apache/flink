@@ -36,97 +36,94 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link TriangleListing}.
- */
+/** Tests for {@link TriangleListing}. */
 public class TriangleListingTest extends AsmTestBase {
 
-	@Test
-	public void testSimpleGraphSorted() throws Exception {
-		DataSet<Result<IntValue>> tl = undirectedSimpleGraph
-			.run(new TriangleListing<IntValue, NullValue, NullValue>()
-				.setSortTriangleVertices(true));
+    @Test
+    public void testSimpleGraphSorted() throws Exception {
+        DataSet<Result<IntValue>> tl =
+                undirectedSimpleGraph.run(
+                        new TriangleListing<IntValue, NullValue, NullValue>()
+                                .setSortTriangleVertices(true));
 
-		String expectedResult =
-			"(0,1,2)\n" +
-			"(1,2,3)";
+        String expectedResult = "(0,1,2)\n" + "(1,2,3)";
 
-		TestBaseUtils.compareResultAsText(tl.collect(), expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(tl.collect(), expectedResult);
+    }
 
-	@Test
-	public void testSimpleGraphPermuted() throws Exception {
-		DataSet<Result<IntValue>> tl = undirectedSimpleGraph
-			.run(new TriangleListing<IntValue, NullValue, NullValue>()
-				.setPermuteResults(true));
+    @Test
+    public void testSimpleGraphPermuted() throws Exception {
+        DataSet<Result<IntValue>> tl =
+                undirectedSimpleGraph.run(
+                        new TriangleListing<IntValue, NullValue, NullValue>()
+                                .setPermuteResults(true));
 
-		String expectedResult =
-			// permutation of (0,1,2)
-			"1st vertex ID: 0, 2nd vertex ID: 1, 3rd vertex ID: 2\n" +
-			"1st vertex ID: 0, 2nd vertex ID: 2, 3rd vertex ID: 1\n" +
-			"1st vertex ID: 1, 2nd vertex ID: 0, 3rd vertex ID: 2\n" +
-			"1st vertex ID: 1, 2nd vertex ID: 2, 3rd vertex ID: 0\n" +
-			"1st vertex ID: 2, 2nd vertex ID: 0, 3rd vertex ID: 1\n" +
-			"1st vertex ID: 2, 2nd vertex ID: 1, 3rd vertex ID: 0\n" +
-			// permutation of (1,2,3)
-			"1st vertex ID: 1, 2nd vertex ID: 2, 3rd vertex ID: 3\n" +
-			"1st vertex ID: 1, 2nd vertex ID: 3, 3rd vertex ID: 2\n" +
-			"1st vertex ID: 2, 2nd vertex ID: 1, 3rd vertex ID: 3\n" +
-			"1st vertex ID: 2, 2nd vertex ID: 3, 3rd vertex ID: 1\n" +
-			"1st vertex ID: 3, 2nd vertex ID: 1, 3rd vertex ID: 2\n" +
-			"1st vertex ID: 3, 2nd vertex ID: 2, 3rd vertex ID: 1";
+        String expectedResult =
+                // permutation of (0,1,2)
+                "1st vertex ID: 0, 2nd vertex ID: 1, 3rd vertex ID: 2\n"
+                        + "1st vertex ID: 0, 2nd vertex ID: 2, 3rd vertex ID: 1\n"
+                        + "1st vertex ID: 1, 2nd vertex ID: 0, 3rd vertex ID: 2\n"
+                        + "1st vertex ID: 1, 2nd vertex ID: 2, 3rd vertex ID: 0\n"
+                        + "1st vertex ID: 2, 2nd vertex ID: 0, 3rd vertex ID: 1\n"
+                        + "1st vertex ID: 2, 2nd vertex ID: 1, 3rd vertex ID: 0\n"
+                        +
+                        // permutation of (1,2,3)
+                        "1st vertex ID: 1, 2nd vertex ID: 2, 3rd vertex ID: 3\n"
+                        + "1st vertex ID: 1, 2nd vertex ID: 3, 3rd vertex ID: 2\n"
+                        + "1st vertex ID: 2, 2nd vertex ID: 1, 3rd vertex ID: 3\n"
+                        + "1st vertex ID: 2, 2nd vertex ID: 3, 3rd vertex ID: 1\n"
+                        + "1st vertex ID: 3, 2nd vertex ID: 1, 3rd vertex ID: 2\n"
+                        + "1st vertex ID: 3, 2nd vertex ID: 2, 3rd vertex ID: 1";
 
-		List<String> printableStrings = new ArrayList<>();
+        List<String> printableStrings = new ArrayList<>();
 
-		for (Result<IntValue> result : tl.collect()) {
-			printableStrings.add(result.toPrintableString());
-		}
+        for (Result<IntValue> result : tl.collect()) {
+            printableStrings.add(result.toPrintableString());
+        }
 
-		TestBaseUtils.compareResultAsText(printableStrings, expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(printableStrings, expectedResult);
+    }
 
-	@Test
-	public void testCompleteGraph() throws Exception {
-		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2) / 3;
+    @Test
+    public void testCompleteGraph() throws Exception {
+        long expectedDegree = completeGraphVertexCount - 1;
+        long expectedCount =
+                completeGraphVertexCount
+                        * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2)
+                        / 3;
 
-		DataSet<Result<LongValue>> tl = completeGraph
-			.run(new TriangleListing<>());
+        DataSet<Result<LongValue>> tl = completeGraph.run(new TriangleListing<>());
 
-		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
-			.run(tl)
-			.execute();
+        Checksum checksum = new ChecksumHashCode<Result<LongValue>>().run(tl).execute();
 
-		assertEquals(expectedCount, checksum.getCount());
-	}
+        assertEquals(expectedCount, checksum.getCount());
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		DataSet<Result<LongValue>> tl = emptyGraphWithVertices
-			.run(new TriangleListing<>());
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        DataSet<Result<LongValue>> tl = emptyGraphWithVertices.run(new TriangleListing<>());
 
-		assertEquals(0, tl.collect().size());
-	}
+        assertEquals(0, tl.collect().size());
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		DataSet<Result<LongValue>> tl = emptyGraphWithoutVertices
-			.run(new TriangleListing<>());
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        DataSet<Result<LongValue>> tl = emptyGraphWithoutVertices.run(new TriangleListing<>());
 
-		assertEquals(0, tl.collect().size());
-	}
+        assertEquals(0, tl.collect().size());
+    }
 
-	@Test
-	public void testRMatGraph() throws Exception {
-		DataSet<Result<LongValue>> tl = undirectedRMatGraph(10, 16)
-			.run(new TriangleListing<LongValue, NullValue, NullValue>()
-				.setSortTriangleVertices(true));
+    @Test
+    public void testRMatGraph() throws Exception {
+        DataSet<Result<LongValue>> tl =
+                undirectedRMatGraph(10, 16)
+                        .run(
+                                new TriangleListing<LongValue, NullValue, NullValue>()
+                                        .setSortTriangleVertices(true));
 
-		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
-			.run(tl)
-			.execute();
+        Checksum checksum = new ChecksumHashCode<Result<LongValue>>().run(tl).execute();
 
-		assertEquals(75049, checksum.getCount());
-		assertEquals(0x000092826c991dd9L, checksum.getChecksum());
-	}
+        assertEquals(75049, checksum.getCount());
+        assertEquals(0x000092826c991dd9L, checksum.getChecksum());
+    }
 }

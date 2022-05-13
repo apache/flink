@@ -21,32 +21,29 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A {@link StreamOperator} for executing {@link FlatMapFunction FlatMapFunctions}.
- */
+/** A {@link StreamOperator} for executing {@link FlatMapFunction FlatMapFunctions}. */
 @Internal
-public class StreamFlatMap<IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+public class StreamFlatMap<IN, OUT> extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
+        implements OneInputStreamOperator<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient TimestampedCollector<OUT> collector;
+    private transient TimestampedCollector<OUT> collector;
 
-	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
-		super(flatMapper);
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+    public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
+        super(flatMapper);
+        chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		collector = new TimestampedCollector<>(output);
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        collector = new TimestampedCollector<>(output);
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		collector.setTimestamp(element);
-		userFunction.flatMap(element.getValue(), collector);
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        collector.setTimestamp(element);
+        userFunction.flatMap(element.getValue(), collector);
+    }
 }

@@ -32,14 +32,14 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface KvStateLocationOracle {
 
-	/**
-	 * Requests a {@link KvStateLocation} for the specified {@link InternalKvState} registration name.
-	 *
-	 * @param jobId identifying the job for which to request the {@link KvStateLocation}
-	 * @param registrationName Name under which the KvState has been registered.
-	 * @return Future of the requested {@link InternalKvState} location
-	 */
-	CompletableFuture<KvStateLocation> requestKvStateLocation(
-		final JobID jobId,
-		final String registrationName);
+    /**
+     * Requests a {@link KvStateLocation} for the specified {@link InternalKvState} registration
+     * name.
+     *
+     * @param jobId identifying the job for which to request the {@link KvStateLocation}
+     * @param registrationName Name under which the KvState has been registered.
+     * @return Future of the requested {@link InternalKvState} location
+     */
+    CompletableFuture<KvStateLocation> requestKvStateLocation(
+            final JobID jobId, final String registrationName);
 }

@@ -18,110 +18,57 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
-import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.Mockito.mock;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-/**
- * resourceManager HA test, including grant leadership and revoke leadership
- */
+/** ResourceManager HA test, including grant leadership and revoke leadership. */
 public class ResourceManagerHATest extends TestLogger {
 
-	@Test
-	public void testGrantAndRevokeLeadership() throws Exception {
-		ResourceID rmResourceId = ResourceID.generate();
-		RpcService rpcService = new TestingRpcService();
+    @Test
+    public void testGrantAndRevokeLeadership() throws Exception {
+        final TestingLeaderElectionService leaderElectionService =
+                new TestingLeaderElectionService();
 
-		CompletableFuture<UUID> leaderSessionIdFuture = new CompletableFuture<>();
+        final TestingResourceManagerService resourceManagerService =
+                TestingResourceManagerService.newBuilder()
+                        .setRmLeaderElectionService(leaderElectionService)
+                        .build();
 
-		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService() {
-			@Override
-			public void confirmLeaderSessionID(UUID leaderId) {
-				leaderSessionIdFuture.complete(leaderId);
-			}
-		};
+        try {
+            resourceManagerService.start();
 
-		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
+            final UUID leaderId = UUID.randomUUID();
+            resourceManagerService.isLeader(leaderId);
 
-		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+            // after grant leadership, verify resource manager is started with the fencing token
+            assertEquals(
+                    leaderId,
+                    leaderElectionService.getConfirmationFuture().get().getLeaderSessionId());
+            assertTrue(resourceManagerService.getResourceManagerFencingToken().isPresent());
+            assertEquals(
+                    leaderId,
+                    resourceManagerService.getResourceManagerFencingToken().get().toUUID());
 
-		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
-			Time.seconds(5L),
-			new SlotManagerConfiguration(
-				TestingUtils.infiniteTime(),
-				TestingUtils.infiniteTime(),
-				TestingUtils.infiniteTime()));
-		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			resourceManagerRuntimeServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+            // then revoke leadership, verify resource manager is closed
+            final Optional<CompletableFuture<Void>> rmTerminationFutureOpt =
+                    resourceManagerService.getResourceManagerTerminationFuture();
+            assertTrue(rmTerminationFutureOpt.isPresent());
 
-		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
+            resourceManagerService.notLeader();
+            rmTerminationFutureOpt.get().get();
 
-		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-
-		CompletableFuture<ResourceManagerId> revokedLeaderIdFuture = new CompletableFuture<>();
-
-		final ResourceManager resourceManager =
-			new StandaloneResourceManager(
-				rpcService,
-				FlinkResourceManager.RESOURCE_MANAGER_NAME,
-				rmResourceId,
-				highAvailabilityServices,
-				heartbeatServices,
-				resourceManagerRuntimeServices.getSlotManager(),
-				metricRegistry,
-				resourceManagerRuntimeServices.getJobLeaderIdService(),
-				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup()) {
-
-				@Override
-				public void revokeLeadership() {
-					super.revokeLeadership();
-					runAsyncWithoutFencing(
-						() -> revokedLeaderIdFuture.complete(getFencingToken()));
-				}
-			};
-
-		try {
-			resourceManager.start();
-
-			Assert.assertNull(resourceManager.getFencingToken());
-			final UUID leaderId = UUID.randomUUID();
-			leaderElectionService.isLeader(leaderId);
-			// after grant leadership, resourceManager's leaderId has value
-			Assert.assertEquals(leaderId, leaderSessionIdFuture.get());
-			// then revoke leadership, resourceManager's leaderId should be different
-			leaderElectionService.notLeader();
-			Assert.assertNotEquals(leaderId, revokedLeaderIdFuture.get());
-
-			if (testingFatalErrorHandler.hasExceptionOccurred()) {
-				testingFatalErrorHandler.rethrowError();
-			}
-		} finally {
-			rpcService.stopService().get();
-		}
-	}
+            resourceManagerService.rethrowFatalErrorIfAny();
+        } finally {
+            resourceManagerService.cleanUp();
+        }
+    }
 }

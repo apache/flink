@@ -24,35 +24,38 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-/**
- * Path parameter to identify uploaded jar files.
- */
+/** Path parameter to identify uploaded jar files. */
 public class JarIdPathParameter extends MessagePathParameter<String> {
 
-	public static final String KEY = "jarid";
+    public static final String KEY = "jarid";
 
-	protected JarIdPathParameter() {
-		super(KEY);
-	}
+    protected JarIdPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected String convertFromString(final String value) throws ConversionException {
-		final Path path = Paths.get(value);
-		if (path.getParent() != null) {
-			throw new ConversionException(String.format("%s must be a filename only (%s)", KEY, path));
-		}
-		return value;
-	}
+    @Override
+    protected String convertFromString(final String value) throws ConversionException {
+        final Path path = Paths.get(value);
+        if (path.getParent() != null) {
+            throw new ConversionException(
+                    String.format("%s must be a filename only (%s)", KEY, path));
+        }
+        return value;
+    }
 
-	@Override
-	protected String convertToString(final String value) {
-		return value;
-	}
+    @Override
+    protected String convertToString(final String value) {
+        return value;
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that identifies a jar. When uploading the jar a path is returned, where the filename " +
-			"is the ID. This value is equivalent to the `" + JarListInfo.JarFileInfo.JAR_FILE_FIELD_ID + "` field " +
-			"in the list of uploaded jars (" + JarListHeaders.URL + ").";
-	}
+    @Override
+    public String getDescription() {
+        return "String value that identifies a jar. When uploading the jar a path is returned, where the filename "
+                + "is the ID. This value is equivalent to the `"
+                + JarListInfo.JarFileInfo.JAR_FILE_FIELD_ID
+                + "` field "
+                + "in the list of uploaded jars ("
+                + JarListHeaders.URL
+                + ").";
+    }
 }

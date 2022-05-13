@@ -1,0 +1,111 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-table
+  #table
+  class="no-border small"
+  [nzSize]="'small'"
+  [nzData]="nodes"
+  [nzScroll]="{ x: 1360 + left + 'px' }"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false"
+>
+  <thead>
+    <tr>
+      <th nzLeft="0px" [nzWidth]="left + 'px'">Name</th>
+      <th [nzSortFn]="sortStatusFn" nzWidth="120px">Status</th>
+      <th [nzSortFn]="sortReadBytesFn" nzWidth="150px">Bytes Received</th>
+      <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
+      <th [nzSortFn]="sortWriteBytesFn" nzWidth="150px">Bytes Sent</th>
+      <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
+      <th [nzSortFn]="sortParallelismFn" nzWidth="120px">Parallelism</th>
+      <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
+      <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
+      <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
+      <th nzWidth="100px" nzRight="0px">Tasks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr
+      *ngFor="let node of table.data; trackBy: trackById"
+      class="clickable"
+      (click)="clickNode(node)"
+      [class.selected]="selectedNode?.id === node.id"
+    >
+      <td nzLeft="0px" class="name" [class.selected]="selectedNode?.id === node.id">
+        <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">
+          {{ node.detail?.name }}
+        </a>
+      </td>
+      <td>
+        <flink-job-badge [state]="node.detail?.status"></flink-job-badge>
+      </td>
+      <td>
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['read-bytes-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['read-bytes'] | humanizeBytes }}
+        </span>
+      </td>
+      <td>
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['read-records-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['read-records'] | number: '1.0-0' }}
+        </span>
+      </td>
+      <td>
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['write-bytes-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['write-bytes'] | humanizeBytes }}
+        </span>
+      </td>
+      <td>
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['write-records-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
+        </span>
+      </td>
+      <td>{{ node.parallelism }}</td>
+      <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ node.detail?.duration | humanizeDuration }}</td>
+      <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td nzRight="0px" [class.selected]="selectedNode?.id === node.id">
+        <flink-task-badge [tasks]="node.detail?.tasks"></flink-task-badge>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>
+<flink-resize [(left)]="left" [baseElement]="elementRef" [resizeMin]="390"></flink-resize>
+<ng-template #loadingTemplate>
+  <i nz-icon nzType="loading"></i>
+</ng-template>

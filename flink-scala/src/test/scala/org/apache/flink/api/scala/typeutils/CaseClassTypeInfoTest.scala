@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.{TypeInformationTestBase, TypeSerializer}
 
-/**
-  * Test for [[CaseClassTypeInfo]].
-  */
+/** Test for [[CaseClassTypeInfo]]. */
 class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]] {
 
   override protected def getTestData: Array[CaseClassTypeInfo[_]] = Array(

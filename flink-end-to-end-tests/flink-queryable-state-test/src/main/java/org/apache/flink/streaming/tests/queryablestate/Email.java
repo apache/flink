@@ -21,57 +21,56 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Toy email resentation.
- */
+/** Toy email resentation. */
 public class Email {
 
-	private EmailId emailId;
-	private Instant timestamp;
-	private String foo;
-	private LabelSurrogate label;
+    private EmailId emailId;
+    private Instant timestamp;
+    private String foo;
+    private LabelSurrogate label;
 
-	public Email(EmailId emailId, Instant timestamp, String foo, LabelSurrogate label) {
-		this.emailId = emailId;
-		this.timestamp = timestamp;
-		this.foo = foo;
-		this.label = label;
-	}
+    public Email(EmailId emailId, Instant timestamp, String foo, LabelSurrogate label) {
+        this.emailId = emailId;
+        this.timestamp = timestamp;
+        this.foo = foo;
+        this.label = label;
+    }
 
-	public EmailId getEmailId() {
-		return emailId;
-	}
+    public EmailId getEmailId() {
+        return emailId;
+    }
 
-	public void setEmailId(EmailId emailId) {
-		this.emailId = emailId;
-	}
+    public void setEmailId(EmailId emailId) {
+        this.emailId = emailId;
+    }
 
-	public Instant getTimestamp() {
-		return timestamp;
-	}
+    public Instant getTimestamp() {
+        return timestamp;
+    }
 
-	public void setTimestamp(Instant timestamp) {
-		this.timestamp = timestamp;
-	}
+    public void setTimestamp(Instant timestamp) {
+        this.timestamp = timestamp;
+    }
 
-	public String getFoo() {
-		return foo;
-	}
+    public String getFoo() {
+        return foo;
+    }
 
-	public void setFoo(String foo) {
-		this.foo = foo;
-	}
+    public void setFoo(String foo) {
+        this.foo = foo;
+    }
 
-	public LabelSurrogate getLabel() {
-		return label;
-	}
+    public LabelSurrogate getLabel() {
+        return label;
+    }
 
-	public void setLabel(LabelSurrogate label) {
-		this.label = label;
-	}
+    public void setLabel(LabelSurrogate label) {
+        this.label = label;
+    }
 
-	public String getDate() {
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
-		return formatter.format(timestamp);
-	}
+    public String getDate() {
+        DateTimeFormatter formatter =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
+        return formatter.format(timestamp);
+    }
 }

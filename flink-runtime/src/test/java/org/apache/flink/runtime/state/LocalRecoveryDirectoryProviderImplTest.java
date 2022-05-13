@@ -32,91 +32,96 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Tests for {@link LocalRecoveryDirectoryProvider}.
- */
+/** Tests for {@link LocalRecoveryDirectoryProvider}. */
 public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
 
-	private static final JobID JOB_ID = new JobID();
-	private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
-	private static final int SUBTASK_INDEX = 0;
+    private static final JobID JOB_ID = new JobID();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
 
-	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-	private LocalRecoveryDirectoryProviderImpl directoryProvider;
-	private File[] allocBaseFolders;
+    private LocalRecoveryDirectoryProviderImpl directoryProvider;
+    private File[] allocBaseFolders;
 
-	@Before
-	public void setup() throws IOException {
-		this.allocBaseFolders = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
-		this.directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-			allocBaseFolders,
-			JOB_ID,
-			JOB_VERTEX_ID,
-			SUBTASK_INDEX);
-	}
+    @Before
+    public void setup() throws IOException {
+        this.allocBaseFolders =
+                new File[] {tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+        this.directoryProvider =
+                new LocalRecoveryDirectoryProviderImpl(
+                        allocBaseFolders, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
+    }
 
-	@Test
-	public void allocationBaseDir() {
-		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(allocBaseFolders[i % allocBaseFolders.length], directoryProvider.allocationBaseDirectory(i));
-		}
-	}
+    @Test
+    public void allocationBaseDir() {
+        for (int i = 0; i < 10; ++i) {
+            Assert.assertEquals(
+                    allocBaseFolders[i % allocBaseFolders.length],
+                    directoryProvider.allocationBaseDirectory(i));
+        }
+    }
 
-	@Test
-	public void selectAllocationBaseDir() {
-		for (int i = 0; i < allocBaseFolders.length; ++i) {
-			Assert.assertEquals(allocBaseFolders[i], directoryProvider.selectAllocationBaseDirectory(i));
-		}
-	}
+    @Test
+    public void selectAllocationBaseDir() {
+        for (int i = 0; i < allocBaseFolders.length; ++i) {
+            Assert.assertEquals(
+                    allocBaseFolders[i], directoryProvider.selectAllocationBaseDirectory(i));
+        }
+    }
 
-	@Test
-	public void allocationBaseDirectoriesCount() {
-		Assert.assertEquals(allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
-	}
+    @Test
+    public void allocationBaseDirectoriesCount() {
+        Assert.assertEquals(allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
+    }
 
-	@Test
-	public void subtaskSpecificDirectory() {
-		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(
-				new File(
-					directoryProvider.allocationBaseDirectory(i),
-					directoryProvider.subtaskDirString()),
-				directoryProvider.subtaskBaseDirectory(i));
-		}
-	}
+    @Test
+    public void subtaskSpecificDirectory() {
+        for (int i = 0; i < 10; ++i) {
+            Assert.assertEquals(
+                    new File(
+                            directoryProvider.allocationBaseDirectory(i),
+                            directoryProvider.subtaskDirString()),
+                    directoryProvider.subtaskBaseDirectory(i));
+        }
+    }
 
-	@Test
-	public void subtaskCheckpointSpecificDirectory() {
-		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(
-				new File(
-					directoryProvider.subtaskBaseDirectory(i),
-					directoryProvider.checkpointDirString(i)),
-				directoryProvider.subtaskSpecificCheckpointDirectory(i));
-		}
-	}
+    @Test
+    public void subtaskCheckpointSpecificDirectory() {
+        for (int i = 0; i < 10; ++i) {
+            Assert.assertEquals(
+                    new File(
+                            directoryProvider.subtaskBaseDirectory(i),
+                            directoryProvider.checkpointDirString(i)),
+                    directoryProvider.subtaskSpecificCheckpointDirectory(i));
+        }
+    }
 
-	@Test
-	public void testPathStringConstants() {
+    @Test
+    public void testPathStringConstants() {
 
-		Assert.assertEquals(
-			directoryProvider.subtaskDirString(),
-			"jid_" + JOB_ID + Path.SEPARATOR + "vtx_" + JOB_VERTEX_ID + "_sti_" + SUBTASK_INDEX);
+        Assert.assertEquals(
+                directoryProvider.subtaskDirString(),
+                "jid_"
+                        + JOB_ID
+                        + Path.SEPARATOR
+                        + "vtx_"
+                        + JOB_VERTEX_ID
+                        + "_sti_"
+                        + SUBTASK_INDEX);
 
-		final long checkpointId = 42;
-		Assert.assertEquals(
-			directoryProvider.checkpointDirString(checkpointId),
-			"chk_" + checkpointId);
-	}
+        final long checkpointId = 42;
+        Assert.assertEquals(
+                directoryProvider.checkpointDirString(checkpointId), "chk_" + checkpointId);
+    }
 
-	@Test
-	public void testPreconditionsNotNullFiles() {
-		try {
-			new LocalRecoveryDirectoryProviderImpl(new File[]{null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
-			Assert.fail();
-		} catch (NullPointerException ignore) {
-		}
-	}
+    @Test
+    public void testPreconditionsNotNullFiles() {
+        try {
+            new LocalRecoveryDirectoryProviderImpl(
+                    new File[] {null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
+            Assert.fail();
+        } catch (NullPointerException ignore) {
+        }
+    }
 }

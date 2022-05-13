@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -30,9 +31,9 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.TimerException;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -41,295 +42,275 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the timer service of {@code StreamTask}.
  *
- * <p>These tests ensure that exceptions are properly forwarded from the timer thread to
- * the task thread and that operator methods are not invoked concurrently.
+ * <p>These tests ensure that exceptions are properly forwarded from the timer thread to the task
+ * thread and that operator methods are not invoked concurrently.
  */
 @RunWith(Parameterized.class)
 public class StreamTaskTimerITCase extends AbstractTestBase {
 
-	private final TimeCharacteristic timeCharacteristic;
+    private final TimeCharacteristic timeCharacteristic;
 
-	public StreamTaskTimerITCase(TimeCharacteristic characteristic) {
-		timeCharacteristic = characteristic;
-	}
+    public StreamTaskTimerITCase(TimeCharacteristic characteristic) {
+        timeCharacteristic = characteristic;
+    }
 
-	/**
-	 * Note: this test fails if we don't check for exceptions in the source contexts and do not
-	 * synchronize in the source contexts.
-	 */
-	@Test
-	public void testOperatorChainedToSource() throws Exception {
+    /**
+     * Note: this test fails if we don't check for exceptions in the source contexts and do not
+     * synchronize in the source contexts.
+     */
+    @Test
+    public void testOperatorChainedToSource() throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(timeCharacteristic);
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(timeCharacteristic);
+        env.setParallelism(1);
 
-		DataStream<String> source = env.addSource(new InfiniteTestSource());
+        DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(ChainingStrategy.ALWAYS));
+        source.transform(
+                "Custom Operator",
+                BasicTypeInfo.STRING_TYPE_INFO,
+                new TimerOperator(ChainingStrategy.ALWAYS));
 
-		boolean testSuccess = false;
-		try {
-			env.execute("Timer test");
-		} catch (JobExecutionException e) {
-			if (e.getCause() instanceof TimerException) {
-				TimerException te = (TimerException) e.getCause();
-				if (te.getCause() instanceof RuntimeException) {
-					RuntimeException re = (RuntimeException) te.getCause();
-					if (re.getMessage().equals("TEST SUCCESS")) {
-						testSuccess = true;
-					} else {
-						throw e;
-					}
-				} else {
-					throw e;
-				}
-			} else {
-				throw e;
-			}
-		}
-		Assert.assertTrue(testSuccess);
-	}
+        try {
+            env.execute("Timer test");
+        } catch (JobExecutionException e) {
+            verifyJobExecutionException(e);
+        }
+    }
 
-	/**
-	 * Note: this test fails if we don't check for exceptions in the source contexts and do not
-	 * synchronize in the source contexts.
-	 */
-	@Test
-	public void testOneInputOperatorWithoutChaining() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(timeCharacteristic);
-		env.setParallelism(1);
+    private void verifyJobExecutionException(JobExecutionException e) throws JobExecutionException {
+        final Optional<TimerException> optionalTimerException =
+                ExceptionUtils.findThrowable(e, TimerException.class);
+        assertTrue(optionalTimerException.isPresent());
 
-		DataStream<String> source = env.addSource(new InfiniteTestSource());
+        TimerException te = optionalTimerException.get();
+        if (te.getCause() instanceof RuntimeException) {
+            RuntimeException re = (RuntimeException) te.getCause();
+            if (!re.getMessage().equals("TEST SUCCESS")) {
+                throw e;
+            }
+        } else {
+            throw e;
+        }
+    }
 
-		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(ChainingStrategy.NEVER));
+    /**
+     * Note: this test fails if we don't check for exceptions in the source contexts and do not
+     * synchronize in the source contexts.
+     */
+    @Test
+    public void testOneInputOperatorWithoutChaining() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(timeCharacteristic);
+        env.setParallelism(1);
 
-		boolean testSuccess = false;
-		try {
-			env.execute("Timer test");
-		} catch (JobExecutionException e) {
-			if (e.getCause() instanceof TimerException) {
-				TimerException te = (TimerException) e.getCause();
-				if (te.getCause() instanceof RuntimeException) {
-					RuntimeException re = (RuntimeException) te.getCause();
-					if (re.getMessage().equals("TEST SUCCESS")) {
-						testSuccess = true;
-					} else {
-						throw e;
-					}
-				} else {
-					throw e;
-				}
-			} else {
-				throw e;
-			}
-		}
-		Assert.assertTrue(testSuccess);
-	}
+        DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-	@Test
-	public void testTwoInputOperatorWithoutChaining() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(timeCharacteristic);
-		env.setParallelism(1);
+        source.transform(
+                "Custom Operator",
+                BasicTypeInfo.STRING_TYPE_INFO,
+                new TimerOperator(ChainingStrategy.NEVER));
 
-		DataStream<String> source = env.addSource(new InfiniteTestSource());
+        try {
+            env.execute("Timer test");
+        } catch (JobExecutionException e) {
+            verifyJobExecutionException(e);
+        }
+    }
 
-		source.connect(source).transform(
-				"Custom Operator",
-				BasicTypeInfo.STRING_TYPE_INFO,
-				new TwoInputTimerOperator(ChainingStrategy.NEVER));
+    @Test
+    public void testTwoInputOperatorWithoutChaining() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStreamTimeCharacteristic(timeCharacteristic);
+        env.setParallelism(1);
 
-		boolean testSuccess = false;
-		try {
-			env.execute("Timer test");
-		} catch (JobExecutionException e) {
-			if (e.getCause() instanceof TimerException) {
-				TimerException te = (TimerException) e.getCause();
-				if (te.getCause() instanceof RuntimeException) {
-					RuntimeException re = (RuntimeException) te.getCause();
-					if (re.getMessage().equals("TEST SUCCESS")) {
-						testSuccess = true;
-					} else {
-						throw e;
-					}
-				} else {
-					throw e;
-				}
-			} else {
-				throw e;
-			}
-		}
-		Assert.assertTrue(testSuccess);
-	}
+        DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-	private static class TimerOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String>, ProcessingTimeCallback {
-		private static final long serialVersionUID = 1L;
+        source.connect(source)
+                .transform(
+                        "Custom Operator",
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        new TwoInputTimerOperator(ChainingStrategy.NEVER));
 
-		int numTimers = 0;
-		int numElements = 0;
+        try {
+            env.execute("Timer test");
+        } catch (JobExecutionException e) {
+            verifyJobExecutionException(e);
+        }
+    }
 
-		private boolean first = true;
+    private static class TimerOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String>, ProcessingTimeCallback {
+        private static final long serialVersionUID = 1L;
 
-		private Semaphore semaphore = new Semaphore(1);
+        int numTimers = 0;
+        int numElements = 0;
 
-		public TimerOperator(ChainingStrategy chainingStrategy) {
-			setChainingStrategy(chainingStrategy);
-		}
+        private boolean first = true;
 
-		@Override
-		public void processElement(StreamRecord<String> element) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
+        private Semaphore semaphore = new Semaphore(1);
 
-			if (first) {
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
-				first = false;
-			}
-			numElements++;
+        public TimerOperator(ChainingStrategy chainingStrategy) {
+            setChainingStrategy(chainingStrategy);
+        }
 
-			semaphore.release();
-		}
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
 
-		@Override
-		public void onProcessingTime(long time) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
+            if (first) {
+                getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
+                first = false;
+            }
+            numElements++;
 
-			try {
-				numTimers++;
-				throwIfDone();
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 1, this);
-			} finally {
-				semaphore.release();
-			}
-		}
+            semaphore.release();
+        }
 
-		private void throwIfDone() {
-			if (numTimers > 1000 && numElements > 10_000) {
-				throw new RuntimeException("TEST SUCCESS");
-			}
-		}
+        @Override
+        public void onProcessingTime(long time) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
 
-		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
-			semaphore.release();
-		}
-	}
+            try {
+                numTimers++;
+                throwIfDone();
+                getProcessingTimeService().registerTimer(System.currentTimeMillis() + 1, this);
+            } finally {
+                semaphore.release();
+            }
+        }
 
-	private static class TwoInputTimerOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String>, ProcessingTimeCallback {
-		private static final long serialVersionUID = 1L;
+        private void throwIfDone() {
+            if (numTimers > 1000 && numElements > 10_000) {
+                throw new RuntimeException("TEST SUCCESS");
+            }
+        }
 
-		int numTimers = 0;
-		int numElements = 0;
+        @Override
+        public void processWatermark(Watermark mark) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
+            semaphore.release();
+        }
+    }
 
-		private boolean first = true;
+    private static class TwoInputTimerOperator extends AbstractStreamOperator<String>
+            implements TwoInputStreamOperator<String, String, String>, ProcessingTimeCallback {
+        private static final long serialVersionUID = 1L;
 
-		private Semaphore semaphore = new Semaphore(1);
+        int numTimers = 0;
+        int numElements = 0;
 
-		public TwoInputTimerOperator(ChainingStrategy chainingStrategy) {
-			setChainingStrategy(chainingStrategy);
-		}
+        private boolean first = true;
 
-		@Override
-		public void processElement1(StreamRecord<String> element) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
+        private Semaphore semaphore = new Semaphore(1);
 
-			if (first) {
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
-				first = false;
-			}
-			numElements++;
+        public TwoInputTimerOperator(ChainingStrategy chainingStrategy) {
+            setChainingStrategy(chainingStrategy);
+        }
 
-			semaphore.release();
-		}
+        @Override
+        public void processElement1(StreamRecord<String> element) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
 
-		@Override
-		public void processElement2(StreamRecord<String> element) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
+            if (first) {
+                getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
+                first = false;
+            }
+            numElements++;
 
-			if (first) {
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
-				first = false;
-			}
-			numElements++;
+            semaphore.release();
+        }
 
-			semaphore.release();
-		}
+        @Override
+        public void processElement2(StreamRecord<String> element) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
 
-		@Override
-		public void onProcessingTime(long time) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
+            if (first) {
+                getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
+                first = false;
+            }
+            numElements++;
 
-			try {
-				numTimers++;
-				throwIfDone();
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 1, this);
-			} finally {
-				semaphore.release();
-			}
-		}
+            semaphore.release();
+        }
 
-		private void throwIfDone() {
-			if (numTimers > 1000 && numElements > 10_000) {
-				throw new RuntimeException("TEST SUCCESS");
-			}
-		}
+        @Override
+        public void onProcessingTime(long time) throws Exception {
+            if (!semaphore.tryAcquire()) {
+                Assert.fail("Concurrent invocation of operator functions.");
+            }
 
-		@Override
-		public void processWatermark1(Watermark mark) throws Exception {
-			//ignore
-		}
+            try {
+                numTimers++;
+                throwIfDone();
+                getProcessingTimeService().registerTimer(System.currentTimeMillis() + 1, this);
+            } finally {
+                semaphore.release();
+            }
+        }
 
-		@Override
-		public void processWatermark2(Watermark mark) throws Exception {
-			//ignore
-		}
-	}
+        private void throwIfDone() {
+            if (numTimers > 1000 && numElements > 10_000) {
+                throw new RuntimeException("TEST SUCCESS");
+            }
+        }
 
-	private static class InfiniteTestSource implements SourceFunction<String> {
-		private static final long serialVersionUID = 1L;
-		private volatile boolean running = true;
+        @Override
+        public void processWatermark1(Watermark mark) throws Exception {
+            // ignore
+        }
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			while (running) {
-				ctx.collect("hello");
-			}
-		}
+        @Override
+        public void processWatermark2(Watermark mark) throws Exception {
+            // ignore
+        }
+    }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
+    private static class InfiniteTestSource implements SourceFunction<String> {
+        private static final long serialVersionUID = 1L;
+        private volatile boolean running = true;
 
-	// ------------------------------------------------------------------------
-	//  parametrization
-	// ------------------------------------------------------------------------
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            while (running) {
+                ctx.collect("hello");
+            }
+        }
 
-	@Parameterized.Parameters(name = "Time Characteristic = {0}")
-	public static Collection<Object[]> executionModes() {
-		return Arrays.asList(
-				new Object[] { TimeCharacteristic.ProcessingTime },
-				new Object[] { TimeCharacteristic.IngestionTime },
-				new Object[] { TimeCharacteristic.EventTime });
-	}
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  parametrization
+    // ------------------------------------------------------------------------
+
+    @Parameterized.Parameters(name = "Time Characteristic = {0}")
+    public static Collection<Object[]> executionModes() {
+        return Arrays.asList(
+                new Object[] {TimeCharacteristic.ProcessingTime},
+                new Object[] {TimeCharacteristic.IngestionTime},
+                new Object[] {TimeCharacteristic.EventTime});
+    }
 }

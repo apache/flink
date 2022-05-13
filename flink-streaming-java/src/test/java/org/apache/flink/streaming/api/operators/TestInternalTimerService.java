@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,213 +28,226 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-/**
- * Implementation of {@link InternalTimerService} meant to use for testing.
- */
+/** Implementation of {@link InternalTimerService} meant to use for testing. */
 @Internal
 public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 
-	private long currentProcessingTime = Long.MIN_VALUE;
+    private long currentProcessingTime = Long.MIN_VALUE;
 
-	private long currentWatermark = Long.MIN_VALUE;
+    private long currentWatermark = Long.MIN_VALUE;
 
-	private final KeyContext keyContext;
+    private final KeyContext keyContext;
 
-	/**
-	 * Processing time timers that are currently in-flight.
-	 */
-	private final PriorityQueue<Timer<K, N>> processingTimeTimersQueue;
-	private final Set<Timer<K, N>> processingTimeTimers;
+    /** Processing time timers that are currently in-flight. */
+    private final PriorityQueue<Timer<K, N>> processingTimeTimersQueue;
 
-	/**
-	 * Current waiting watermark callbacks.
-	 */
-	private final Set<Timer<K, N>> watermarkTimers;
-	private final PriorityQueue<Timer<K, N>> watermarkTimersQueue;
+    private final Set<Timer<K, N>> processingTimeTimers;
 
-	public TestInternalTimerService(KeyContext keyContext) {
-		this.keyContext = keyContext;
+    /** Current waiting watermark callbacks. */
+    private final Set<Timer<K, N>> watermarkTimers;
 
-		watermarkTimers = new HashSet<>();
-		watermarkTimersQueue = new PriorityQueue<>(100);
-		processingTimeTimers = new HashSet<>();
-		processingTimeTimersQueue = new PriorityQueue<>(100);
-	}
+    private final PriorityQueue<Timer<K, N>> watermarkTimersQueue;
 
-	@Override
-	public long currentProcessingTime() {
-		return currentProcessingTime;
-	}
+    public TestInternalTimerService(KeyContext keyContext) {
+        this.keyContext = keyContext;
 
-	@Override
-	public long currentWatermark() {
-		return currentWatermark;
-	}
+        watermarkTimers = new HashSet<>();
+        watermarkTimersQueue = new PriorityQueue<>(100);
+        processingTimeTimers = new HashSet<>();
+        processingTimeTimersQueue = new PriorityQueue<>(100);
+    }
 
-	@Override
-	public void registerProcessingTimeTimer(N namespace, long time) {
-		@SuppressWarnings("unchecked")
-		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
-		// make sure we only put one timer per key into the queue
-		if (processingTimeTimers.add(timer)) {
-			processingTimeTimersQueue.add(timer);
-		}
-	}
+    @Override
+    public long currentProcessingTime() {
+        return currentProcessingTime;
+    }
 
-	@Override
-	public void registerEventTimeTimer(N namespace, long time) {
-		@SuppressWarnings("unchecked")
-		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
-		if (watermarkTimers.add(timer)) {
-			watermarkTimersQueue.add(timer);
-		}
-	}
+    @Override
+    public long currentWatermark() {
+        return currentWatermark;
+    }
 
-	@Override
-	public void deleteProcessingTimeTimer(N namespace, long time) {
-		@SuppressWarnings("unchecked")
-		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
+    @Override
+    public void registerProcessingTimeTimer(N namespace, long time) {
+        @SuppressWarnings("unchecked")
+        Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
+        // make sure we only put one timer per key into the queue
+        if (processingTimeTimers.add(timer)) {
+            processingTimeTimersQueue.add(timer);
+        }
+    }
 
-		if (processingTimeTimers.remove(timer)) {
-			processingTimeTimersQueue.remove(timer);
-		}
-	}
+    @Override
+    public void registerEventTimeTimer(N namespace, long time) {
+        @SuppressWarnings("unchecked")
+        Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
+        if (watermarkTimers.add(timer)) {
+            watermarkTimersQueue.add(timer);
+        }
+    }
 
-	@Override
-	public void deleteEventTimeTimer(N namespace, long time) {
-		@SuppressWarnings("unchecked")
-		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
-		if (watermarkTimers.remove(timer)) {
-			watermarkTimersQueue.remove(timer);
-		}
-	}
+    @Override
+    public void deleteProcessingTimeTimer(N namespace, long time) {
+        @SuppressWarnings("unchecked")
+        Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
 
-	public Collection<Timer<K, N>> advanceProcessingTime(long time) throws Exception {
-		List<Timer<K, N>> result = new ArrayList<>();
+        if (processingTimeTimers.remove(timer)) {
+            processingTimeTimersQueue.remove(timer);
+        }
+    }
 
-		Timer<K, N> timer = processingTimeTimersQueue.peek();
+    @Override
+    public void deleteEventTimeTimer(N namespace, long time) {
+        @SuppressWarnings("unchecked")
+        Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
+        if (watermarkTimers.remove(timer)) {
+            watermarkTimersQueue.remove(timer);
+        }
+    }
 
-		while (timer != null && timer.timestamp <= time) {
-			processingTimeTimers.remove(timer);
-			processingTimeTimersQueue.remove();
-			result.add(timer);
-			timer = processingTimeTimersQueue.peek();
-		}
+    @Override
+    public void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
+            throws Exception {
+        for (Timer<K, N> timer : watermarkTimers) {
+            keyContext.setCurrentKey(timer.getKey());
+            consumer.accept(timer.getNamespace(), timer.getTimestamp());
+        }
+    }
 
-		currentProcessingTime = time;
-		return result;
-	}
+    @Override
+    public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
+            throws Exception {
+        for (Timer<K, N> timer : processingTimeTimers) {
+            keyContext.setCurrentKey(timer.getKey());
+            consumer.accept(timer.getNamespace(), timer.getTimestamp());
+        }
+    }
 
-	public Collection<Timer<K, N>> advanceWatermark(long time) throws Exception {
-		List<Timer<K, N>> result = new ArrayList<>();
+    public Collection<Timer<K, N>> advanceProcessingTime(long time) throws Exception {
+        List<Timer<K, N>> result = new ArrayList<>();
 
-		Timer<K, N> timer = watermarkTimersQueue.peek();
+        Timer<K, N> timer = processingTimeTimersQueue.peek();
 
-		while (timer != null && timer.timestamp <= time) {
-			watermarkTimers.remove(timer);
-			watermarkTimersQueue.remove();
-			result.add(timer);
-			timer = watermarkTimersQueue.peek();
-		}
+        while (timer != null && timer.timestamp <= time) {
+            processingTimeTimers.remove(timer);
+            processingTimeTimersQueue.remove();
+            result.add(timer);
+            timer = processingTimeTimersQueue.peek();
+        }
 
-		currentWatermark = time;
-		return result;
-	}
+        currentProcessingTime = time;
+        return result;
+    }
 
-	/**
-	 * Internal class for keeping track of in-flight timers.
-	 */
-	public static class Timer<K, N> implements Comparable<Timer<K, N>> {
-		private final long timestamp;
-		private final K key;
-		private final N namespace;
+    public Collection<Timer<K, N>> advanceWatermark(long time) throws Exception {
+        List<Timer<K, N>> result = new ArrayList<>();
 
-		public Timer(long timestamp, K key, N namespace) {
-			this.timestamp = timestamp;
-			this.key = key;
-			this.namespace = namespace;
-		}
+        Timer<K, N> timer = watermarkTimersQueue.peek();
 
-		public long getTimestamp() {
-			return timestamp;
-		}
+        while (timer != null && timer.timestamp <= time) {
+            watermarkTimers.remove(timer);
+            watermarkTimersQueue.remove();
+            result.add(timer);
+            timer = watermarkTimersQueue.peek();
+        }
 
-		public K getKey() {
-			return key;
-		}
+        currentWatermark = time;
+        return result;
+    }
 
-		public N getNamespace() {
-			return namespace;
-		}
+    /** Internal class for keeping track of in-flight timers. */
+    public static class Timer<K, N> implements Comparable<Timer<K, N>> {
+        private final long timestamp;
+        private final K key;
+        private final N namespace;
 
-		@Override
-		public int compareTo(Timer<K, N> o) {
-			return Long.compare(this.timestamp, o.timestamp);
-		}
+        public Timer(long timestamp, K key, N namespace) {
+            this.timestamp = timestamp;
+            this.key = key;
+            this.namespace = namespace;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()){
-				return false;
-			}
+        public long getTimestamp() {
+            return timestamp;
+        }
 
-			Timer<?, ?> timer = (Timer<?, ?>) o;
+        public K getKey() {
+            return key;
+        }
 
-			return timestamp == timer.timestamp
-					&& key.equals(timer.key)
-					&& namespace.equals(timer.namespace);
+        public N getNamespace() {
+            return namespace;
+        }
 
-		}
+        @Override
+        public int compareTo(Timer<K, N> o) {
+            return Long.compare(this.timestamp, o.timestamp);
+        }
 
-		@Override
-		public int hashCode() {
-			int result = (int) (timestamp ^ (timestamp >>> 32));
-			result = 31 * result + key.hashCode();
-			result = 31 * result + namespace.hashCode();
-			return result;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
-		@Override
-		public String toString() {
-			return "Timer{" +
-					"timestamp=" + timestamp +
-					", key=" + key +
-					", namespace=" + namespace +
-					'}';
-		}
-	}
+            Timer<?, ?> timer = (Timer<?, ?>) o;
 
-	public int numProcessingTimeTimers() {
-		return processingTimeTimers.size();
-	}
+            return timestamp == timer.timestamp
+                    && key.equals(timer.key)
+                    && namespace.equals(timer.namespace);
+        }
 
-	public int numEventTimeTimers() {
-		return watermarkTimers.size();
-	}
+        @Override
+        public int hashCode() {
+            int result = (int) (timestamp ^ (timestamp >>> 32));
+            result = 31 * result + key.hashCode();
+            result = 31 * result + namespace.hashCode();
+            return result;
+        }
 
-	public int numProcessingTimeTimers(N namespace) {
-		int count = 0;
-		for (Timer<K, N> timer : processingTimeTimers) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
+        @Override
+        public String toString() {
+            return "Timer{"
+                    + "timestamp="
+                    + timestamp
+                    + ", key="
+                    + key
+                    + ", namespace="
+                    + namespace
+                    + '}';
+        }
+    }
 
-		return count;
-	}
+    public int numProcessingTimeTimers() {
+        return processingTimeTimers.size();
+    }
 
-	public int numEventTimeTimers(N namespace) {
-		int count = 0;
-		for (Timer<K, N> timer : watermarkTimers) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
+    public int numEventTimeTimers() {
+        return watermarkTimers.size();
+    }
 
-		return count;
-	}
+    public int numProcessingTimeTimers(N namespace) {
+        int count = 0;
+        for (Timer<K, N> timer : processingTimeTimers) {
+            if (timer.getNamespace().equals(namespace)) {
+                count++;
+            }
+        }
 
+        return count;
+    }
+
+    public int numEventTimeTimers(N namespace) {
+        int count = 0;
+        for (Timer<K, N> timer : watermarkTimers) {
+            if (timer.getNamespace().equals(namespace)) {
+                count++;
+            }
+        }
+
+        return count;
+    }
 }

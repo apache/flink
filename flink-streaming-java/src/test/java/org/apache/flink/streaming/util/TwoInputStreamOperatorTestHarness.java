@@ -21,52 +21,72 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 /**
  * A test harness for testing a {@link TwoInputStreamOperator}.
  *
  * <p>This mock task provides the operator with a basic runtime context and allows pushing elements
- * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements
- * and watermarks can be retrieved. you are free to modify these.
+ * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements and
+ * watermarks can be retrieved. you are free to modify these.
  */
-public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractStreamOperatorTestHarness<OUT> {
+public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
+        extends AbstractStreamOperatorTestHarness<OUT> {
 
-	private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
+    private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
-	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) throws Exception {
-		this(operator, 1, 1, 0);
-	}
+    public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator)
+            throws Exception {
+        this(operator, 1, 1, 0);
+    }
 
-	public TwoInputStreamOperatorTestHarness(
-			TwoInputStreamOperator<IN1, IN2, OUT> operator,
-			int maxParallelism,
-			int numSubtasks,
-			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numSubtasks, subtaskIndex);
+    public TwoInputStreamOperatorTestHarness(
+            TwoInputStreamOperator<IN1, IN2, OUT> operator,
+            int maxParallelism,
+            int numSubtasks,
+            int subtaskIndex)
+            throws Exception {
+        super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
-		this.twoInputOperator = operator;
-	}
+        this.twoInputOperator = operator;
+    }
 
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		twoInputOperator.setKeyContextElement1(element);
-		twoInputOperator.processElement1(element);
-	}
+    public void processElement1(StreamRecord<IN1> element) throws Exception {
+        twoInputOperator.setKeyContextElement1(element);
+        twoInputOperator.processElement1(element);
+    }
 
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		twoInputOperator.setKeyContextElement2(element);
-		twoInputOperator.processElement2(element);
-	}
+    public void processElement1(IN1 value, long timestamp) throws Exception {
+        processElement1(new StreamRecord<>(value, timestamp));
+    }
 
-	public void processWatermark1(Watermark mark) throws Exception {
-		twoInputOperator.processWatermark1(mark);
-	}
+    public void processElement2(StreamRecord<IN2> element) throws Exception {
+        twoInputOperator.setKeyContextElement2(element);
+        twoInputOperator.processElement2(element);
+    }
 
-	public void processWatermark2(Watermark mark) throws Exception {
-		twoInputOperator.processWatermark2(mark);
-	}
+    public void processElement2(IN2 value, long timestamp) throws Exception {
+        processElement2(new StreamRecord<>(value, timestamp));
+    }
 
-	public void processBothWatermarks(Watermark mark) throws Exception {
-		twoInputOperator.processWatermark1(mark);
-		twoInputOperator.processWatermark2(mark);
-	}
+    public void processWatermark1(Watermark mark) throws Exception {
+        twoInputOperator.processWatermark1(mark);
+    }
+
+    public void processWatermark2(Watermark mark) throws Exception {
+        twoInputOperator.processWatermark2(mark);
+    }
+
+    public void processBothWatermarks(Watermark mark) throws Exception {
+        twoInputOperator.processWatermark1(mark);
+        twoInputOperator.processWatermark2(mark);
+    }
+
+    public void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
+        twoInputOperator.processWatermarkStatus1(watermarkStatus);
+    }
+
+    public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
+        twoInputOperator.processWatermarkStatus2(watermarkStatus);
+    }
 }

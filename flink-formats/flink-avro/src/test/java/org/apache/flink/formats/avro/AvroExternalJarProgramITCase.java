@@ -24,55 +24,68 @@ import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.JarUtils;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 
-/**
- * IT case for the {@link AvroExternalJarProgram}.
- */
-public class AvroExternalJarProgramITCase extends TestLogger {
+/** IT case for the {@link AvroExternalJarProgram}. */
+class AvroExternalJarProgramITCase {
 
-	private static final String JAR_FILE = "maven-test-jar.jar";
+    private static final String JAR_FILE = "maven-test-jar.jar";
 
-	private static final String TEST_DATA_FILE = "/testdata.avro";
+    private static final String TEST_DATA_FILE = "/testdata.avro";
 
-	private static final int PARALLELISM = 4;
+    private static final int PARALLELISM = 4;
 
-	private static final MiniCluster MINI_CLUSTER = new MiniCluster(
-		new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(PARALLELISM)
-			.build());
+    private static final MiniCluster MINI_CLUSTER =
+            new MiniCluster(
+                    new MiniClusterConfiguration.Builder()
+                            .withRandomPorts()
+                            .setNumTaskManagers(1)
+                            .setNumSlotsPerTaskManager(PARALLELISM)
+                            .build());
 
-	@BeforeClass
-	public static void setUp() throws Exception {
-		MINI_CLUSTER.start();
-	}
+    @BeforeAll
+    public static void setUp() throws Exception {
+        MINI_CLUSTER.start();
+    }
 
-	@AfterClass
-	public static void tearDown() {
-		TestEnvironment.unsetAsContext();
-		MINI_CLUSTER.closeAsync();
-	}
+    @AfterAll
+    public static void tearDown() {
+        TestEnvironment.unsetAsContext();
+        MINI_CLUSTER.closeAsync();
+    }
 
-	@Test
-	public void testExternalProgram() throws Exception {
-		TestEnvironment.setAsContext(
-			MINI_CLUSTER,
-			PARALLELISM,
-			Collections.singleton(new Path(JAR_FILE)),
-			Collections.emptyList());
+    @Test
+    void testExternalProgram() throws Exception {
 
-		String testData = getClass().getResource(TEST_DATA_FILE).toString();
+        String jarFile = JAR_FILE;
+        try {
+            JarUtils.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+        } catch (IOException e) {
+            jarFile = "target/".concat(jarFile);
+        }
 
-		PackagedProgram program = new PackagedProgram(new File(JAR_FILE), new String[]{testData});
+        TestEnvironment.setAsContext(
+                MINI_CLUSTER,
+                PARALLELISM,
+                Collections.singleton(new Path(jarFile)),
+                Collections.emptyList());
 
-		program.invokeInteractiveModeForExecution();
-	}
+        String testData = getClass().getResource(TEST_DATA_FILE).toString();
+
+        PackagedProgram program =
+                PackagedProgram.newBuilder()
+                        .setJarFile(new File(jarFile))
+                        .setArguments(new String[] {testData})
+                        .build();
+
+        program.invokeInteractiveModeForExecution();
+    }
 }

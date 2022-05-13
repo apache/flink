@@ -32,176 +32,159 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.rocksdb.ColumnFamilyHandle;
 
-import javax.annotation.Nullable;
-
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-/**
- * validate native metric monitor.
- */
+/** validate native metric monitor. */
 public class RocksDBNativeMetricMonitorTest {
 
-	private static final String OPERATOR_NAME = "dummy";
+    private static final String OPERATOR_NAME = "dummy";
 
-	private static final String COLUMN_FAMILY_NAME = "column-family";
+    private static final String COLUMN_FAMILY_NAME = "column-family";
 
-	@Rule
-	public RocksDBResource rocksDBResource = new RocksDBResource();
+    @Rule public RocksDBResource rocksDBResource = new RocksDBResource();
 
-	@Test
-	public void testMetricMonitorLifecycle() throws Throwable {
-		//We use a local variable here to manually control the life-cycle.
-		// This allows us to verify that metrics do not try to access
-		// RocksDB after the monitor was closed.
-		RocksDBResource localRocksDBResource = new RocksDBResource();
-		localRocksDBResource.before();
+    @Test
+    public void testMetricMonitorLifecycle() throws Throwable {
+        // We use a local variable here to manually control the life-cycle.
+        // This allows us to verify that metrics do not try to access
+        // RocksDB after the monitor was closed.
+        RocksDBResource localRocksDBResource = new RocksDBResource();
+        localRocksDBResource.before();
 
-		SimpleMetricRegistry registry = new SimpleMetricRegistry();
-		GenericMetricGroup group = new GenericMetricGroup(
-			registry,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			OPERATOR_NAME
-		);
+        SimpleMetricRegistry registry = new SimpleMetricRegistry();
+        GenericMetricGroup group =
+                new GenericMetricGroup(
+                        registry,
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                        OPERATOR_NAME);
 
-		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
-		// always returns a non-zero
-		// value since empty memtables
-		// have overhead.
-		options.enableSizeAllMemTables();
+        RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+        // always returns a non-zero
+        // value since empty memtables
+        // have overhead.
+        options.enableSizeAllMemTables();
 
-		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			localRocksDBResource.getRocksDB(),
-			options,
-			group
-		);
+        RocksDBNativeMetricMonitor monitor =
+                new RocksDBNativeMetricMonitor(options, group, localRocksDBResource.getRocksDB());
 
-		ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
-		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
+        ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
+        monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
 
-		Assert.assertEquals("Failed to register metrics for column family", 1, registry.metrics.size());
+        Assert.assertEquals(
+                "Failed to register metrics for column family", 1, registry.metrics.size());
 
-		RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
+        RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
 
-		view.update();
+        view.update();
 
-		Assert.assertNotEquals("Failed to pull metric from RocksDB", BigInteger.ZERO, view.getValue());
+        Assert.assertNotEquals(
+                "Failed to pull metric from RocksDB", BigInteger.ZERO, view.getValue());
 
-		view.setValue(0L);
+        view.setValue(0L);
 
-		//After the monitor is closed no metric should be accessing RocksDB anymore.
-		//If they do, then this test will likely fail with a segmentation fault.
-		monitor.close();
+        // After the monitor is closed no metric should be accessing RocksDB anymore.
+        // If they do, then this test will likely fail with a segmentation fault.
+        monitor.close();
 
-		localRocksDBResource.after();
+        localRocksDBResource.after();
 
-		view.update();
+        view.update();
 
-		Assert.assertEquals("Failed to release RocksDB reference", BigInteger.ZERO, view.getValue());
-	}
+        Assert.assertEquals(
+                "Failed to release RocksDB reference", BigInteger.ZERO, view.getValue());
+    }
 
-	@Test
-	public void testReturnsUnsigned() {
-		SimpleMetricRegistry registry = new SimpleMetricRegistry();
-		GenericMetricGroup group = new GenericMetricGroup(
-			registry,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			OPERATOR_NAME
-		);
+    @Test
+    public void testReturnsUnsigned() throws Throwable {
+        RocksDBResource localRocksDBResource = new RocksDBResource();
+        localRocksDBResource.before();
 
-		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
-		options.enableSizeAllMemTables();
+        SimpleMetricRegistry registry = new SimpleMetricRegistry();
+        GenericMetricGroup group =
+                new GenericMetricGroup(
+                        registry,
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                        OPERATOR_NAME);
 
-		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			null,
-			options,
-			group
-		);
+        RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+        options.enableSizeAllMemTables();
 
-		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, null);
-		RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
+        RocksDBNativeMetricMonitor monitor =
+                new RocksDBNativeMetricMonitor(options, group, localRocksDBResource.getRocksDB());
 
-		view.setValue(-1);
-		BigInteger result = view.getValue();
+        ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
+        monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
+        RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
 
-		Assert.assertEquals("Failed to interpret RocksDB result as an unsigned long", 1, result.signum());
-	}
+        view.setValue(-1);
+        BigInteger result = view.getValue();
 
-	@Test
-	public void testClosedGaugesDontRead() {
-		SimpleMetricRegistry registry = new SimpleMetricRegistry();
-		GenericMetricGroup group = new GenericMetricGroup(
-			registry,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			OPERATOR_NAME
-		);
+        localRocksDBResource.after();
 
-		RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
-		options.enableSizeAllMemTables();
+        Assert.assertEquals(
+                "Failed to interpret RocksDB result as an unsigned long", 1, result.signum());
+    }
 
-		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
-			rocksDBResource.getRocksDB(),
-			options,
-			group
-		);
+    @Test
+    public void testClosedGaugesDontRead() {
+        SimpleMetricRegistry registry = new SimpleMetricRegistry();
+        GenericMetricGroup group =
+                new GenericMetricGroup(
+                        registry,
+                        UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                        OPERATOR_NAME);
 
-		ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
-		monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
+        RocksDBNativeMetricOptions options = new RocksDBNativeMetricOptions();
+        options.enableSizeAllMemTables();
 
-		RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
+        RocksDBNativeMetricMonitor monitor =
+                new RocksDBNativeMetricMonitor(options, group, rocksDBResource.getRocksDB());
 
-		view.close();
-		view.update();
+        ColumnFamilyHandle handle = rocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
+        monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
 
-		Assert.assertEquals("Closed gauge still queried RocksDB", BigInteger.ZERO, view.getValue());
-	}
+        RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
 
-	static class SimpleMetricRegistry implements MetricRegistry {
-		ArrayList<RocksDBNativeMetricMonitor.RocksDBNativeMetricView> metrics = new ArrayList<>();
+        view.close();
+        view.update();
 
-		@Override
-		public char getDelimiter() {
-			return 0;
-		}
+        Assert.assertEquals("Closed gauge still queried RocksDB", BigInteger.ZERO, view.getValue());
+    }
 
-		@Override
-		public char getDelimiter(int index) {
-			return 0;
-		}
+    static class SimpleMetricRegistry implements MetricRegistry {
+        ArrayList<RocksDBNativeMetricMonitor.RocksDBNativeMetricView> metrics = new ArrayList<>();
 
-		@Override
-		public int getNumberReporters() {
-			return 0;
-		}
+        @Override
+        public char getDelimiter() {
+            return 0;
+        }
 
-		@Override
-		public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-			if (metric instanceof RocksDBNativeMetricMonitor.RocksDBNativeMetricView) {
-				metrics.add((RocksDBNativeMetricMonitor.RocksDBNativeMetricView) metric);
-			}
-		}
+        @Override
+        public int getNumberReporters() {
+            return 0;
+        }
 
-		@Override
-		public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+        @Override
+        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+            if (metric instanceof RocksDBNativeMetricMonitor.RocksDBNativeMetricView) {
+                metrics.add((RocksDBNativeMetricMonitor.RocksDBNativeMetricView) metric);
+            }
+        }
 
-		}
+        @Override
+        public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
 
-		@Override
-		public ScopeFormats getScopeFormats() {
-			Configuration config = new Configuration();
+        @Override
+        public ScopeFormats getScopeFormats() {
+            Configuration config = new Configuration();
 
-			config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
-			config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
-			config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
-			config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
+            config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
+            config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
+            config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
+            config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
 
-			return ScopeFormats.fromConfig(config);
-		}
-
-		@Nullable
-		@Override
-		public String getMetricQueryServicePath() {
-			return null;
-		}
-	}
+            return ScopeFormats.fromConfig(config);
+        }
+    }
 }

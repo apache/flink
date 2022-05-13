@@ -19,95 +19,155 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
 
-/**
- * Test base for fault tolerant streaming programs.
- */
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+
+/** Test base for fault tolerant streaming programs. */
+@RunWith(Parameterized.class)
 public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
-	protected static final int NUM_TASK_MANAGERS = 3;
-	protected static final int NUM_TASK_SLOTS = 4;
-	protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
+    @Parameterized.Parameters(name = "FailoverStrategy: {0}")
+    public static Collection<FailoverStrategy> parameters() {
+        return Arrays.asList(
+                FailoverStrategy.RestartAllFailoverStrategy,
+                FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
+    }
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(NUM_TASK_MANAGERS)
-			.setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
-			.build());
+    /** The failover strategy to use. */
+    public enum FailoverStrategy {
+        RestartAllFailoverStrategy,
+        RestartPipelinedRegionFailoverStrategy
+    }
 
-	/**
-	 * Implementations are expected to assemble the test topology in this function
-	 * using the provided {@link StreamExecutionEnvironment}.
-	 */
-	public abstract void testProgram(StreamExecutionEnvironment env);
+    @Parameterized.Parameter public FailoverStrategy failoverStrategy;
 
-	/**
-	 * Implementations are expected to provide test here to verify the correct behavior.
-	 */
-	public abstract void postSubmit() throws Exception;
+    protected static final int NUM_TASK_MANAGERS = 3;
+    protected static final int NUM_TASK_SLOTS = 4;
+    protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
-	/**
-	 * Runs the following program the test program defined in {@link #testProgram(StreamExecutionEnvironment)}
-	 * followed by the checks in {@link #postSubmit}.
-	 */
-	@Test
-	public void runCheckpointedProgram() throws Exception {
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+    private static MiniClusterWithClientResource cluster;
 
-			testProgram(env);
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-			TestUtils.tryExecute(env, "Fault Tolerance Test");
+    @Before
+    public void setup() throws Exception {
+        Configuration configuration = new Configuration();
+        switch (failoverStrategy) {
+            case RestartPipelinedRegionFailoverStrategy:
+                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+                break;
+            case RestartAllFailoverStrategy:
+                configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        }
 
-			postSubmit();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
-	}
+        // Configure DFS DSTL for this test as it might produce too much GC pressure if
+        // ChangelogStateBackend is used.
+        // Doing it on cluster level unconditionally as randomization currently happens on the job
+        // level (environment); while this factory can only be set on the cluster level.
+        FsStateChangelogStorageFactory.configure(configuration, tempFolder.newFolder());
+        cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                .setNumberTaskManagers(NUM_TASK_MANAGERS)
+                                .setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
+                                .build());
+        cluster.before();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Frequently used utilities
-	// --------------------------------------------------------------------------------------------
+    @After
+    public void shutDownExistingCluster() {
+        if (cluster != null) {
+            cluster.after();
+            cluster = null;
+        }
+    }
 
-	/**
-	 * POJO storing prefix, value, and count.
-	 */
-	@SuppressWarnings("serial")
-	public static class PrefixCount implements Serializable {
+    /**
+     * Implementations are expected to assemble the test topology in this function using the
+     * provided {@link StreamExecutionEnvironment}.
+     */
+    public abstract void testProgram(StreamExecutionEnvironment env);
 
-		public String prefix;
-		public String value;
-		public long count;
+    /** Implementations are expected to provide test here to verify the correct behavior. */
+    public abstract void postSubmit() throws Exception;
 
-		public PrefixCount() {}
+    /**
+     * Runs the following program the test program defined in {@link
+     * #testProgram(StreamExecutionEnvironment)} followed by the checks in {@link #postSubmit}.
+     */
+    @Test
+    public void runCheckpointedProgram() throws Exception {
+        try {
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(PARALLELISM);
+            env.enableCheckpointing(500);
+            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
-		public PrefixCount(String prefix, String value, long count) {
-			this.prefix = prefix;
-			this.value = value;
-			this.count = count;
-		}
+            testProgram(env);
 
-		@Override
-		public String toString() {
-			return prefix + " / " + value;
-		}
-	}
+            JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+            try {
+                submitJobAndWaitForResult(
+                        cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
+            } catch (Exception e) {
+                Assert.assertTrue(
+                        ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
+            }
+
+            postSubmit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Frequently used utilities
+    // --------------------------------------------------------------------------------------------
+
+    /** POJO storing prefix, value, and count. */
+    @SuppressWarnings("serial")
+    public static class PrefixCount implements Serializable {
+
+        public String prefix;
+        public String value;
+        public long count;
+
+        public PrefixCount() {}
+
+        public PrefixCount(String prefix, String value, long count) {
+            this.prefix = prefix;
+            this.value = value;
+            this.count = count;
+        }
+
+        @Override
+        public String toString() {
+            return prefix + " / " + value;
+        }
+    }
 }

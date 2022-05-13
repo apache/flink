@@ -19,41 +19,41 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import java.util.ArrayList;
+import java.util.Map;
 
 /**
- * Response of the {@link ClusterConfigHandler}, represented as a list
- * of key-value pairs of the cluster {@link Configuration}.
+ * Response of the {@link ClusterConfigHandler}, represented as a list of key-value pairs of the
+ * cluster {@link Configuration}.
  */
-public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry> implements ResponseBody {
+public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry>
+        implements ResponseBody {
 
-	private static final long serialVersionUID = -1170348873871206964L;
+    private static final long serialVersionUID = -1170348873871206964L;
 
-	// a default constructor is required for collection type marshalling
-	public ClusterConfigurationInfo() {}
+    // a default constructor is required for collection type marshalling
+    public ClusterConfigurationInfo() {}
 
-	public ClusterConfigurationInfo(int initialEntries) {
-		super(initialEntries);
-	}
+    public ClusterConfigurationInfo(int initialEntries) {
+        super(initialEntries);
+    }
 
-	public static ClusterConfigurationInfo from(Configuration config) {
-		ClusterConfigurationInfo clusterConfig = new ClusterConfigurationInfo(config.keySet().size());
+    public static ClusterConfigurationInfo from(Configuration config) {
+        final ClusterConfigurationInfo clusterConfig =
+                new ClusterConfigurationInfo(config.keySet().size());
+        final Map<String, String> configurationWithHiddenSensitiveValues =
+                ConfigurationUtils.hideSensitiveValues(config.toMap());
 
-		for (String key : config.keySet()) {
-			String value = config.getString(key, null);
+        for (Map.Entry<String, String> keyValuePair :
+                configurationWithHiddenSensitiveValues.entrySet()) {
+            clusterConfig.add(
+                    new ClusterConfigurationInfoEntry(
+                            keyValuePair.getKey(), keyValuePair.getValue()));
+        }
 
-			// Mask key values which contain sensitive information
-			if (value != null && GlobalConfiguration.isSensitive(key)) {
-				value = GlobalConfiguration.HIDDEN_CONTENT;
-			}
-
-			clusterConfig.add(new ClusterConfigurationInfoEntry(key, value));
-		}
-
-		return clusterConfig;
-	}
-
+        return clusterConfig;
+    }
 }

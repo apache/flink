@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Base class for TTL logic wrappers of state objects.
@@ -35,52 +37,71 @@ import org.apache.flink.util.function.ThrowingConsumer;
  * @param <S> Type of originally wrapped state object
  */
 abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N, TTLSV>>
-	extends AbstractTtlDecorator<S>
-	implements InternalKvState<K, N, SV> {
-	private final TypeSerializer<SV> valueSerializer;
+        extends AbstractTtlDecorator<S> implements InternalKvState<K, N, SV> {
+    private final TypeSerializer<SV> valueSerializer;
 
-	AbstractTtlState(S original, StateTtlConfig config, TtlTimeProvider timeProvider, TypeSerializer<SV> valueSerializer) {
-		super(original, config, timeProvider);
-		this.valueSerializer = valueSerializer;
-	}
+    /** This registered callback is to be called whenever state is accessed for read or write. */
+    final Runnable accessCallback;
 
-	<SE extends Throwable, CE extends Throwable, T> T getWithTtlCheckAndUpdate(
-		SupplierWithException<TtlValue<T>, SE> getter,
-		ThrowingConsumer<TtlValue<T>, CE> updater) throws SE, CE {
-		return getWithTtlCheckAndUpdate(getter, updater, original::clear);
-	}
+    AbstractTtlState(TtlStateContext<S, SV> ttlStateContext) {
+        super(ttlStateContext.original, ttlStateContext.config, ttlStateContext.timeProvider);
+        this.valueSerializer = ttlStateContext.valueSerializer;
+        this.accessCallback = ttlStateContext.accessCallback;
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return original.getKeySerializer();
-	}
+    <SE extends Throwable, CE extends Throwable, T> T getWithTtlCheckAndUpdate(
+            SupplierWithException<TtlValue<T>, SE> getter,
+            ThrowingConsumer<TtlValue<T>, CE> updater)
+            throws SE, CE {
+        return getWithTtlCheckAndUpdate(getter, updater, original::clear);
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return original.getNamespaceSerializer();
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return original.getKeySerializer();
+    }
 
-	@Override
-	public TypeSerializer<SV> getValueSerializer() {
-		return valueSerializer;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return original.getNamespaceSerializer();
+    }
 
-	@Override
-	public void setCurrentNamespace(N namespace) {
-		original.setCurrentNamespace(namespace);
-	}
+    @Override
+    public TypeSerializer<SV> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	@Override
-	public byte[] getSerializedValue(
-		byte[] serializedKeyAndNamespace,
-		TypeSerializer<K> safeKeySerializer,
-		TypeSerializer<N> safeNamespaceSerializer,
-		TypeSerializer<SV> safeValueSerializer) {
-		throw new FlinkRuntimeException("Queryable state is not currently supported with TTL.");
-	}
+    @Override
+    public void setCurrentNamespace(N namespace) {
+        original.setCurrentNamespace(namespace);
+    }
 
-	@Override
-	public void clear() {
-		original.clear();
-	}
+    @Override
+    public byte[] getSerializedValue(
+            byte[] serializedKeyAndNamespace,
+            TypeSerializer<K> safeKeySerializer,
+            TypeSerializer<N> safeNamespaceSerializer,
+            TypeSerializer<SV> safeValueSerializer) {
+        throw new FlinkRuntimeException("Queryable state is not currently supported with TTL.");
+    }
+
+    @Override
+    public void clear() {
+        original.clear();
+        accessCallback.run();
+    }
+
+    /**
+     * Check if state has expired or not and update it if it has partially expired.
+     *
+     * @return either non expired (possibly updated) state or null if the state has expired.
+     */
+    @Nullable
+    public abstract TTLSV getUnexpiredOrNull(@Nonnull TTLSV ttlValue);
+
+    @Override
+    public StateIncrementalVisitor<K, N, SV> getStateIncrementalVisitor(
+            int recommendedMaxNumberOfReturnedRecords) {
+        throw new UnsupportedOperationException();
+    }
 }

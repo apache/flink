@@ -18,74 +18,52 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
+
 @Internal
 public final class ShortComparator extends BasicTypeComparator<Short> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	
-	public ShortComparator(boolean ascending) {
-		super(ascending);
-	}
+    public ShortComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		short s1 = firstSource.readShort();
-		short s2 = secondSource.readShort();
-		int comp = (s1 < s2 ? -1 : (s1 == s2 ? 0 : 1)); 
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        short s1 = firstSource.readShort();
+        short s2 = secondSource.readShort();
+        int comp = (s1 < s2 ? -1 : (s1 == s2 ? 0 : 1));
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 2;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 2;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < 2;
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < 2;
+    }
 
-	@Override
-	public void putNormalizedKey(Short value, MemorySegment target, int offset, int numBytes) {
-		if (numBytes == 2) {
-			// default case, full normalized key
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
-		}
-		else if (numBytes <= 0) {
-		}
-		else if (numBytes == 1) {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-		}
-		else {
-			int highByte = ((value >>> 8) & 0xff);
-			highByte -= Byte.MIN_VALUE;
-			target.put(offset, (byte) highByte);
-			target.put(offset + 1, (byte) ((value) & 0xff));
-			for (int i = 2; i < numBytes; i++) {
-				target.put(offset + i, (byte) 0);
-			}
-		}
-	}
+    @Override
+    public void putNormalizedKey(Short value, MemorySegment target, int offset, int numBytes) {
+        NormalizedKeyUtil.putShortNormalizedKey(value, target, offset, numBytes);
+    }
 
-	@Override
-	public ShortComparator duplicate() {
-		return new ShortComparator(ascendingComparison);
-	}
+    @Override
+    public ShortComparator duplicate() {
+        return new ShortComparator(ascendingComparison);
+    }
 }

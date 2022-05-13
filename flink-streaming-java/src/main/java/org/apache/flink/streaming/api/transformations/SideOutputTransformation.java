@@ -18,58 +18,50 @@
 
 package org.apache.flink.streaming.api.transformations;
 
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-
 /**
- * This transformation represents a selection of a side output of an upstream operation with a
- * given {@link OutputTag}.
+ * This transformation represents a selection of a side output of an upstream operation with a given
+ * {@link OutputTag}.
  *
  * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
  *
  * @param <T> The type of the elements that result from this {@code SideOutputTransformation}
  */
-public class SideOutputTransformation<T> extends StreamTransformation<T> {
-	private final StreamTransformation<?> input;
+public class SideOutputTransformation<T> extends Transformation<T> {
+    private final Transformation<?> input;
 
-	private final OutputTag<T> tag;
+    private final OutputTag<T> tag;
 
-	public SideOutputTransformation(StreamTransformation<?> input, final OutputTag<T> tag) {
-		super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
-		this.input = input;
-		this.tag = requireNonNull(tag);
-	}
+    public SideOutputTransformation(Transformation<?> input, final OutputTag<T> tag) {
+        super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
+        this.input = input;
+        this.tag = requireNonNull(tag);
+    }
 
-	/**
-	 * Returns the input {@code StreamTransformation}.
-	 */
-	public StreamTransformation<?> getInput() {
-		return input;
-	}
+    public OutputTag<T> getOutputTag() {
+        return tag;
+    }
 
-	public OutputTag<T> getOutputTag() {
-		return tag;
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on SideOutput Transformation.");
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 }

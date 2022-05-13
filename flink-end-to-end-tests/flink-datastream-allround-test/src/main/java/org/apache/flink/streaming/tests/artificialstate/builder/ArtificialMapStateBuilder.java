@@ -27,43 +27,43 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import java.util.Iterator;
 import java.util.Map;
 
-/**
- * An {@link ArtificialStateBuilder} for user {@link MapState}s.
- */
+/** An {@link ArtificialStateBuilder} for user {@link MapState}s. */
 public class ArtificialMapStateBuilder<IN, K, V> extends ArtificialStateBuilder<IN> {
 
-	private static final long serialVersionUID = -143079058769306954L;
+    private static final long serialVersionUID = -143079058769306954L;
 
-	private transient MapState<K, V> mapState;
-	private final TypeSerializer<K> keySerializer;
-	private final TypeSerializer<V> valueSerializer;
-	private final JoinFunction<IN, Iterator<Map.Entry<K, V>>, Iterator<Map.Entry<K, V>>> stateValueGenerator;
+    private transient MapState<K, V> mapState;
+    private final TypeSerializer<K> keySerializer;
+    private final TypeSerializer<V> valueSerializer;
+    private final JoinFunction<IN, Iterator<Map.Entry<K, V>>, Iterator<Map.Entry<K, V>>>
+            stateValueGenerator;
 
-	public ArtificialMapStateBuilder(
-		String stateName,
-		JoinFunction<IN, Iterator<Map.Entry<K, V>>, Iterator<Map.Entry<K, V>>> stateValueGenerator,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<V> valueSerializer) {
+    public ArtificialMapStateBuilder(
+            String stateName,
+            JoinFunction<IN, Iterator<Map.Entry<K, V>>, Iterator<Map.Entry<K, V>>>
+                    stateValueGenerator,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<V> valueSerializer) {
 
-		super(stateName);
-		this.keySerializer = keySerializer;
-		this.valueSerializer = valueSerializer;
-		this.stateValueGenerator = stateValueGenerator;
-	}
+        super(stateName);
+        this.keySerializer = keySerializer;
+        this.valueSerializer = valueSerializer;
+        this.stateValueGenerator = stateValueGenerator;
+    }
 
-	@Override
-	public void artificialStateForElement(IN event) throws Exception {
-		Iterator<Map.Entry<K, V>> update = stateValueGenerator.join(event, mapState.iterator());
-		while (update.hasNext()) {
-			Map.Entry<K, V> updateEntry = update.next();
-			mapState.put(updateEntry.getKey(), updateEntry.getValue());
-		}
-	}
+    @Override
+    public void artificialStateForElement(IN event) throws Exception {
+        Iterator<Map.Entry<K, V>> update = stateValueGenerator.join(event, mapState.iterator());
+        while (update.hasNext()) {
+            Map.Entry<K, V> updateEntry = update.next();
+            mapState.put(updateEntry.getKey(), updateEntry.getValue());
+        }
+    }
 
-	@Override
-	public void initialize(FunctionInitializationContext initializationContext) {
-		MapStateDescriptor<K, V> mapStateDescriptor =
-			new MapStateDescriptor<>(stateName, keySerializer, valueSerializer);
-		mapState = initializationContext.getKeyedStateStore().getMapState(mapStateDescriptor);
-	}
+    @Override
+    public void initialize(FunctionInitializationContext initializationContext) {
+        MapStateDescriptor<K, V> mapStateDescriptor =
+                new MapStateDescriptor<>(stateName, keySerializer, valueSerializer);
+        mapState = initializationContext.getKeyedStateStore().getMapState(mapStateDescriptor);
+    }
 }

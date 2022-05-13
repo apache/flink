@@ -28,56 +28,60 @@ import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link SubtaskExecutionAttemptDetailsHandler}.
- */
-public class SubtaskExecutionAttemptDetailsHeaders implements MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> {
+/** Message headers for the {@link SubtaskExecutionAttemptDetailsHandler}. */
+public class SubtaskExecutionAttemptDetailsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody,
+                SubtaskExecutionAttemptDetailsInfo,
+                SubtaskAttemptMessageParameters> {
 
-	private static final SubtaskExecutionAttemptDetailsHeaders INSTANCE = new SubtaskExecutionAttemptDetailsHeaders();
+    private static final SubtaskExecutionAttemptDetailsHeaders INSTANCE =
+            new SubtaskExecutionAttemptDetailsHeaders();
 
-	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s",
-		JobIDPathParameter.KEY,
-		JobVertexIdPathParameter.KEY,
-		SubtaskIndexPathParameter.KEY,
-		SubtaskAttemptPathParameter.KEY);
+    public static final String URL =
+            String.format(
+                    "/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s",
+                    JobIDPathParameter.KEY,
+                    JobVertexIdPathParameter.KEY,
+                    SubtaskIndexPathParameter.KEY,
+                    SubtaskAttemptPathParameter.KEY);
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<SubtaskExecutionAttemptDetailsInfo> getResponseClass() {
-		return SubtaskExecutionAttemptDetailsInfo.class;
-	}
+    @Override
+    public Class<SubtaskExecutionAttemptDetailsInfo> getResponseClass() {
+        return SubtaskExecutionAttemptDetailsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public SubtaskAttemptMessageParameters getUnresolvedMessageParameters() {
-		return new SubtaskAttemptMessageParameters();
-	}
+    @Override
+    public SubtaskAttemptMessageParameters getUnresolvedMessageParameters() {
+        return new SubtaskAttemptMessageParameters();
+    }
 
-	public static SubtaskExecutionAttemptDetailsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SubtaskExecutionAttemptDetailsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
+    }
 }

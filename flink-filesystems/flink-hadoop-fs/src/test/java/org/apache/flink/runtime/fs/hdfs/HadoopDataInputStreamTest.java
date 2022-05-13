@@ -35,97 +35,99 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for the {@link HadoopDataInputStream}.
- */
+/** Tests for the {@link HadoopDataInputStream}. */
 public class HadoopDataInputStreamTest {
 
-	private FSDataInputStream verifyInputStream;
-	private HadoopDataInputStream testInputStream;
+    private FSDataInputStream verifyInputStream;
+    private HadoopDataInputStream testInputStream;
 
-	@Test
-	public void testSeekSkip() throws IOException {
-		verifyInputStream = spy(new FSDataInputStream(new SeekableByteArrayInputStream(new byte[2 * HadoopDataInputStream.MIN_SKIP_BYTES])));
-		testInputStream = new HadoopDataInputStream(verifyInputStream);
-		seekAndAssert(10);
-		seekAndAssert(10 + HadoopDataInputStream.MIN_SKIP_BYTES + 1);
-		seekAndAssert(testInputStream.getPos() - 1);
-		seekAndAssert(testInputStream.getPos() + 1);
-		seekAndAssert(testInputStream.getPos() - HadoopDataInputStream.MIN_SKIP_BYTES);
-		seekAndAssert(testInputStream.getPos());
-		seekAndAssert(0);
-		seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES);
-		seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES - 1);
+    @Test
+    public void testSeekSkip() throws IOException {
+        verifyInputStream =
+                spy(
+                        new FSDataInputStream(
+                                new SeekableByteArrayInputStream(
+                                        new byte[2 * HadoopDataInputStream.MIN_SKIP_BYTES])));
+        testInputStream = new HadoopDataInputStream(verifyInputStream);
+        seekAndAssert(10);
+        seekAndAssert(10 + HadoopDataInputStream.MIN_SKIP_BYTES + 1);
+        seekAndAssert(testInputStream.getPos() - 1);
+        seekAndAssert(testInputStream.getPos() + 1);
+        seekAndAssert(testInputStream.getPos() - HadoopDataInputStream.MIN_SKIP_BYTES);
+        seekAndAssert(testInputStream.getPos());
+        seekAndAssert(0);
+        seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES);
+        seekAndAssert(testInputStream.getPos() + HadoopDataInputStream.MIN_SKIP_BYTES - 1);
 
-		try {
-			seekAndAssert(-1);
-			Assert.fail();
-		} catch (Exception ignore) {
-		}
+        try {
+            seekAndAssert(-1);
+            Assert.fail();
+        } catch (Exception ignore) {
+        }
 
-		try {
-			seekAndAssert(-HadoopDataInputStream.MIN_SKIP_BYTES - 1);
-			Assert.fail();
-		} catch (Exception ignore) {
-		}
-	}
+        try {
+            seekAndAssert(-HadoopDataInputStream.MIN_SKIP_BYTES - 1);
+            Assert.fail();
+        } catch (Exception ignore) {
+        }
+    }
 
-	private void seekAndAssert(long seekPos) throws IOException {
-		Assert.assertEquals(verifyInputStream.getPos(), testInputStream.getPos());
-		long delta = seekPos - testInputStream.getPos();
-		testInputStream.seek(seekPos);
+    private void seekAndAssert(long seekPos) throws IOException {
+        Assert.assertEquals(verifyInputStream.getPos(), testInputStream.getPos());
+        long delta = seekPos - testInputStream.getPos();
+        testInputStream.seek(seekPos);
 
-		if (delta > 0L && delta <= HadoopDataInputStream.MIN_SKIP_BYTES) {
-			verify(verifyInputStream, atLeastOnce()).skip(anyLong());
-			verify(verifyInputStream, never()).seek(anyLong());
-		} else if (delta != 0L) {
-			verify(verifyInputStream, atLeastOnce()).seek(seekPos);
-			verify(verifyInputStream, never()).skip(anyLong());
-		} else {
-			verify(verifyInputStream, never()).seek(anyLong());
-			verify(verifyInputStream, never()).skip(anyLong());
-		}
+        if (delta > 0L && delta <= HadoopDataInputStream.MIN_SKIP_BYTES) {
+            verify(verifyInputStream, atLeastOnce()).skip(anyLong());
+            verify(verifyInputStream, never()).seek(anyLong());
+        } else if (delta != 0L) {
+            verify(verifyInputStream, atLeastOnce()).seek(seekPos);
+            verify(verifyInputStream, never()).skip(anyLong());
+        } else {
+            verify(verifyInputStream, never()).seek(anyLong());
+            verify(verifyInputStream, never()).skip(anyLong());
+        }
 
-		Assert.assertEquals(seekPos, verifyInputStream.getPos());
-		reset(verifyInputStream);
-	}
+        Assert.assertEquals(seekPos, verifyInputStream.getPos());
+        reset(verifyInputStream);
+    }
 
-	private static final class SeekableByteArrayInputStream
-		extends ByteArrayInputStreamWithPos
-		implements Seekable, PositionedReadable {
+    private static final class SeekableByteArrayInputStream extends ByteArrayInputStreamWithPos
+            implements Seekable, PositionedReadable {
 
-		public SeekableByteArrayInputStream(byte[] buffer) {
-			super(buffer);
-		}
+        public SeekableByteArrayInputStream(byte[] buffer) {
+            super(buffer);
+        }
 
-		@Override
-		public void seek(long pos) throws IOException {
-			setPosition((int) pos);
-		}
+        @Override
+        public void seek(long pos) throws IOException {
+            setPosition((int) pos);
+        }
 
-		@Override
-		public long getPos() throws IOException {
-			return getPosition();
-		}
+        @Override
+        public long getPos() throws IOException {
+            return getPosition();
+        }
 
-		@Override
-		public boolean seekToNewSource(long targetPos) throws IOException {
-			return false;
-		}
+        @Override
+        public boolean seekToNewSource(long targetPos) throws IOException {
+            return false;
+        }
 
-		@Override
-		public int read(long position, byte[] buffer, int offset, int length) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public int read(long position, byte[] buffer, int offset, int length) throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void readFully(long position, byte[] buffer, int offset, int length) throws IOException {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public void readFully(long position, byte[] buffer, int offset, int length)
+                throws IOException {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public void readFully(long position, byte[] buffer) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        public void readFully(long position, byte[] buffer) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

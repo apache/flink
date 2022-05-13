@@ -22,9 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -38,178 +40,196 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility class that contains helper methods to work with Flink Streaming
- * {@link Function Functions}. This is similar to
- * {@link org.apache.flink.api.common.functions.util.FunctionUtils} but has additional methods
- * for invoking interfaces that only exist in the streaming API.
+ * Utility class that contains helper methods to work with Flink Streaming {@link Function
+ * Functions}. This is similar to {@link org.apache.flink.api.common.functions.util.FunctionUtils}
+ * but has additional methods for invoking interfaces that only exist in the streaming API.
  */
 @Internal
 public final class StreamingFunctionUtils {
 
-	@SuppressWarnings("unchecked")
-	public static <T> void setOutputType(
-			Function userFunction,
-			TypeInformation<T> outTypeInfo,
-			ExecutionConfig executionConfig) {
+    @SuppressWarnings("unchecked")
+    public static <T> void setOutputType(
+            Function userFunction,
+            TypeInformation<T> outTypeInfo,
+            ExecutionConfig executionConfig) {
 
-		Preconditions.checkNotNull(outTypeInfo);
-		Preconditions.checkNotNull(executionConfig);
+        Preconditions.checkNotNull(outTypeInfo);
+        Preconditions.checkNotNull(executionConfig);
 
-		while (true) {
-			if (trySetOutputType(userFunction, outTypeInfo, executionConfig)) {
-				break;
-			}
+        while (true) {
+            if (trySetOutputType(userFunction, outTypeInfo, executionConfig)) {
+                break;
+            }
 
-			// inspect if the user function is wrapped, then unwrap and try again if we can snapshot the inner function
-			if (userFunction instanceof WrappingFunction) {
-				userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
-			} else {
-				break;
-			}
+            // inspect if the user function is wrapped, then unwrap and try again if we can snapshot
+            // the inner function
+            if (userFunction instanceof WrappingFunction) {
+                userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
+            } else {
+                break;
+            }
+        }
+    }
 
-		}
-	}
+    @SuppressWarnings("unchecked")
+    private static <T> boolean trySetOutputType(
+            Function userFunction,
+            TypeInformation<T> outTypeInfo,
+            ExecutionConfig executionConfig) {
 
-	@SuppressWarnings("unchecked")
-	private static  <T> boolean trySetOutputType(
-			Function userFunction,
-			TypeInformation<T> outTypeInfo,
-			ExecutionConfig executionConfig) {
+        Preconditions.checkNotNull(outTypeInfo);
+        Preconditions.checkNotNull(executionConfig);
 
-		Preconditions.checkNotNull(outTypeInfo);
-		Preconditions.checkNotNull(executionConfig);
+        if (OutputTypeConfigurable.class.isAssignableFrom(userFunction.getClass())) {
+            ((OutputTypeConfigurable<T>) userFunction).setOutputType(outTypeInfo, executionConfig);
+            return true;
+        }
+        return false;
+    }
 
-		if (OutputTypeConfigurable.class.isAssignableFrom(userFunction.getClass())) {
-			((OutputTypeConfigurable<T>) userFunction).setOutputType(outTypeInfo, executionConfig);
-			return true;
-		}
-		return false;
-	}
+    public static void snapshotFunctionState(
+            StateSnapshotContext context, OperatorStateBackend backend, Function userFunction)
+            throws Exception {
 
-	public static void snapshotFunctionState(
-			StateSnapshotContext context,
-			OperatorStateBackend backend,
-			Function userFunction) throws Exception {
+        Preconditions.checkNotNull(context);
+        Preconditions.checkNotNull(backend);
 
-		Preconditions.checkNotNull(context);
-		Preconditions.checkNotNull(backend);
+        while (true) {
 
-		while (true) {
+            if (trySnapshotFunctionState(context, backend, userFunction)) {
+                break;
+            }
 
-			if (trySnapshotFunctionState(context, backend, userFunction)) {
-				break;
-			}
+            // inspect if the user function is wrapped, then unwrap and try again if we can snapshot
+            // the inner function
+            if (userFunction instanceof WrappingFunction) {
+                userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
+            } else {
+                break;
+            }
+        }
+    }
 
-			// inspect if the user function is wrapped, then unwrap and try again if we can snapshot the inner function
-			if (userFunction instanceof WrappingFunction) {
-				userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
-			} else {
-				break;
-			}
-		}
-	}
+    private static boolean trySnapshotFunctionState(
+            StateSnapshotContext context, OperatorStateBackend backend, Function userFunction)
+            throws Exception {
 
-	private static boolean trySnapshotFunctionState(
-			StateSnapshotContext context,
-			OperatorStateBackend backend,
-			Function userFunction) throws Exception {
+        if (userFunction instanceof CheckpointedFunction) {
+            ((CheckpointedFunction) userFunction).snapshotState(context);
 
-		if (userFunction instanceof CheckpointedFunction) {
-			((CheckpointedFunction) userFunction).snapshotState(context);
+            return true;
+        }
 
-			return true;
-		}
+        if (userFunction instanceof ListCheckpointed) {
+            @SuppressWarnings("unchecked")
+            List<Serializable> partitionableState =
+                    ((ListCheckpointed<Serializable>) userFunction)
+                            .snapshotState(
+                                    context.getCheckpointId(), context.getCheckpointTimestamp());
 
-		if (userFunction instanceof ListCheckpointed) {
-			@SuppressWarnings("unchecked")
-			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
-					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
+            // We are using JavaSerializer from the flink-runtime module here. This is very naughty
+            // and
+            // we shouldn't be doing it because ideally nothing in the API modules/connector depends
+            // directly on flink-runtime. We are doing it here because we need to maintain backwards
+            // compatibility with old state and because we will have to rework/remove this code
+            // soon.
+            ListStateDescriptor<Serializable> listStateDescriptor =
+                    new ListStateDescriptor<>(
+                            DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+                            new JavaSerializer<>());
+            ListState<Serializable> listState = backend.getListState(listStateDescriptor);
 
-			ListState<Serializable> listState = backend.
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+            listState.clear();
 
-			listState.clear();
+            if (null != partitionableState) {
+                try {
+                    for (Serializable statePartition : partitionableState) {
+                        listState.add(statePartition);
+                    }
+                } catch (Exception e) {
+                    listState.clear();
 
-			if (null != partitionableState) {
-				try {
-					for (Serializable statePartition : partitionableState) {
-						listState.add(statePartition);
-					}
-				} catch (Exception e) {
-					listState.clear();
+                    throw new Exception(
+                            "Could not write partitionable state to operator " + "state backend.",
+                            e);
+                }
+            }
 
-					throw new Exception("Could not write partitionable state to operator " +
-						"state backend.", e);
-				}
-			}
+            return true;
+        }
 
-			return true;
-		}
+        return false;
+    }
 
-		return false;
-	}
+    public static void restoreFunctionState(
+            StateInitializationContext context, Function userFunction) throws Exception {
 
-	public static void restoreFunctionState(
-			StateInitializationContext context,
-			Function userFunction) throws Exception {
+        Preconditions.checkNotNull(context);
 
-		Preconditions.checkNotNull(context);
+        while (true) {
 
-		while (true) {
+            if (tryRestoreFunction(context, userFunction)) {
+                break;
+            }
 
-			if (tryRestoreFunction(context, userFunction)) {
-				break;
-			}
+            // inspect if the user function is wrapped, then unwrap and try again if we can restore
+            // the inner function
+            if (userFunction instanceof WrappingFunction) {
+                userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
+            } else {
+                break;
+            }
+        }
+    }
 
-			// inspect if the user function is wrapped, then unwrap and try again if we can restore the inner function
-			if (userFunction instanceof WrappingFunction) {
-				userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
-			} else {
-				break;
-			}
-		}
-	}
+    private static boolean tryRestoreFunction(
+            StateInitializationContext context, Function userFunction) throws Exception {
 
-	private static boolean tryRestoreFunction(
-			StateInitializationContext context,
-			Function userFunction) throws Exception {
+        if (userFunction instanceof CheckpointedFunction) {
+            ((CheckpointedFunction) userFunction).initializeState(context);
 
-		if (userFunction instanceof CheckpointedFunction) {
-			((CheckpointedFunction) userFunction).initializeState(context);
+            return true;
+        }
 
-			return true;
-		}
+        if (context.isRestored() && userFunction instanceof ListCheckpointed) {
+            @SuppressWarnings("unchecked")
+            ListCheckpointed<Serializable> listCheckpointedFun =
+                    (ListCheckpointed<Serializable>) userFunction;
 
-		if (context.isRestored() && userFunction instanceof ListCheckpointed) {
-			@SuppressWarnings("unchecked")
-			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
+            // We are using JavaSerializer from the flink-runtime module here. This is very naughty
+            // and
+            // we shouldn't be doing it because ideally nothing in the API modules/connector depends
+            // directly on flink-runtime. We are doing it here because we need to maintain backwards
+            // compatibility with old state and because we will have to rework/remove this code
+            // soon.
+            ListStateDescriptor<Serializable> listStateDescriptor =
+                    new ListStateDescriptor<>(
+                            DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+                            new JavaSerializer<>());
+            ListState<Serializable> listState =
+                    context.getOperatorStateStore().getListState(listStateDescriptor);
 
-			ListState<Serializable> listState = context.getOperatorStateStore().
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+            List<Serializable> list = new ArrayList<>();
 
-			List<Serializable> list = new ArrayList<>();
+            for (Serializable serializable : listState.get()) {
+                list.add(serializable);
+            }
 
-			for (Serializable serializable : listState.get()) {
-				list.add(serializable);
-			}
+            try {
+                listCheckpointedFun.restoreState(list);
+            } catch (Exception e) {
 
-			try {
-				listCheckpointedFun.restoreState(list);
-			} catch (Exception e) {
+                throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+            }
 
-				throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
-			}
+            return true;
+        }
 
-			return true;
-		}
+        return false;
+    }
 
-		return false;
-	}
-
-	/**
-	 * Private constructor to prevent instantiation.
-	 */
-	private StreamingFunctionUtils() {
-		throw new RuntimeException();
-	}
+    /** Private constructor to prevent instantiation. */
+    private StreamingFunctionUtils() {
+        throw new RuntimeException();
+    }
 }

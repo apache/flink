@@ -18,206 +18,151 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
+import static org.junit.Assert.fail;
 
-/**
- * Basic subpartition behaviour tests.
- */
+/** Basic subpartition behaviour tests. */
 public abstract class SubpartitionTestBase extends TestLogger {
 
-	/**
-	 * Return the subpartition to be tested.
-	 */
-	abstract ResultSubpartition createSubpartition();
+    /** Return the subpartition to be tested. */
+    abstract ResultSubpartition createSubpartition() throws Exception;
 
-	// ------------------------------------------------------------------------
+    /** Return the subpartition to be used for tests where write calls should fail. */
+    abstract ResultSubpartition createFailingWritesSubpartition() throws Exception;
 
-	@Test
-	public void testAddAfterFinish() throws Exception {
-		final ResultSubpartition subpartition = createSubpartition();
+    // ------------------------------------------------------------------------
 
-		try {
-			subpartition.finish();
-			assertEquals(1, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated after consuming the buffers
+    @Test
+    public void createReaderAfterDispose() throws Exception {
+        final ResultSubpartition subpartition = createSubpartition();
+        subpartition.release();
 
-			assertEquals(1, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getBuffersInBacklog());
-			assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated after consuming the buffers
+        try {
+            subpartition.createReadView(() -> {});
+            fail("expected an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        }
+    }
 
-			BufferConsumer bufferConsumer = createFilledBufferConsumer(4096, 4096);
+    @Test
+    public void testAddAfterFinish() throws Exception {
+        final ResultSubpartition subpartition = createSubpartition();
 
-			assertFalse(subpartition.add(bufferConsumer));
-			assertEquals(1, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getBuffersInBacklog());
-			assertEquals(0, subpartition.getTotalNumberOfBytes()); // only updated after consuming the buffers
-		} finally {
-			if (subpartition != null) {
-				subpartition.release();
-			}
-		}
-	}
+        try {
+            subpartition.finish();
+            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
+            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
-	@Test
-	public void testAddAfterRelease() throws Exception {
-		final ResultSubpartition subpartition = createSubpartition();
+            BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-		try {
-			subpartition.release();
-			assertEquals(0, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getTotalNumberOfBytes());
+            assertEquals(-1, subpartition.add(bufferConsumer));
+            assertTrue(bufferConsumer.isRecycled());
 
-			assertEquals(0, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getBuffersInBacklog());
-			assertEquals(0, subpartition.getTotalNumberOfBytes());
+            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
+            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
+        } finally {
+            if (subpartition != null) {
+                subpartition.release();
+            }
+        }
+    }
 
-			BufferConsumer bufferConsumer = createFilledBufferConsumer(4096, 4096);
+    @Test
+    public void testAddAfterRelease() throws Exception {
+        final ResultSubpartition subpartition = createSubpartition();
 
-			assertFalse(subpartition.add(bufferConsumer));
-			assertEquals(0, subpartition.getTotalNumberOfBuffers());
-			assertEquals(0, subpartition.getBuffersInBacklog());
-			assertEquals(0, subpartition.getTotalNumberOfBytes());
-		} finally {
-			if (subpartition != null) {
-				subpartition.release();
-			}
-		}
-	}
+        try {
+            subpartition.release();
 
-	@Test
-	public void testReleaseParent() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		verifyViewReleasedAfterParentRelease(partition);
-	}
+            BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-	@Test
-	public void testReleaseParentAfterSpilled() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		partition.releaseMemory();
+            assertEquals(-1, subpartition.add(bufferConsumer));
+            assertTrue(bufferConsumer.isRecycled());
 
-		verifyViewReleasedAfterParentRelease(partition);
-	}
+        } finally {
+            if (subpartition != null) {
+                subpartition.release();
+            }
+        }
+    }
 
-	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
-		// Add a bufferConsumer
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		partition.add(bufferConsumer);
-		partition.finish();
+    @Test
+    public void testReleasingReaderDoesNotReleasePartition() throws Exception {
+        final ResultSubpartition partition = createSubpartition();
+        partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+        partition.finish();
 
-		// Create the view
-		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		ResultSubpartitionView view = partition.createReadView(listener);
+        final ResultSubpartitionView reader =
+                partition.createReadView(new NoOpBufferAvailablityListener());
 
-		// The added bufferConsumer and end-of-partition event
-		assertNotNull(view.getNextBuffer());
-		assertNotNull(view.getNextBuffer());
+        assertFalse(partition.isReleased());
+        assertFalse(reader.isReleased());
 
-		// Release the parent
-		assertFalse(view.isReleased());
-		partition.release();
+        reader.releaseAllResources();
 
-		// Verify that parent release is reflected at partition view
-		assertTrue(view.isReleased());
-	}
+        assertTrue(reader.isReleased());
+        assertFalse(partition.isReleased());
 
-	static void assertNextBuffer(
-			ResultSubpartitionView readView,
-			int expectedReadableBufferSize,
-			boolean expectedIsMoreAvailable,
-			int expectedBuffersInBacklog,
-			boolean expectedNextBufferIsEvent,
-			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
-		assertNextBufferOrEvent(
-			readView,
-			expectedReadableBufferSize,
-			true,
-			null,
-			expectedIsMoreAvailable,
-			expectedBuffersInBacklog,
-			expectedNextBufferIsEvent,
-			expectedRecycledAfterRecycle);
-	}
+        partition.release();
+    }
 
-	static void assertNextEvent(
-			ResultSubpartitionView readView,
-			int expectedReadableBufferSize,
-			Class<? extends AbstractEvent> expectedEventClass,
-			boolean expectedIsMoreAvailable,
-			int expectedBuffersInBacklog,
-			boolean expectedNextBufferIsEvent,
-			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
-		assertNextBufferOrEvent(
-			readView,
-			expectedReadableBufferSize,
-			false,
-			expectedEventClass,
-			expectedIsMoreAvailable,
-			expectedBuffersInBacklog,
-			expectedNextBufferIsEvent,
-			expectedRecycledAfterRecycle);
-	}
+    @Test
+    public void testReleaseIsIdempotent() throws Exception {
+        final ResultSubpartition partition = createSubpartition();
+        partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+        partition.finish();
 
-	private static void assertNextBufferOrEvent(
-			ResultSubpartitionView readView,
-			int expectedReadableBufferSize,
-			boolean expectedIsBuffer,
-			@Nullable Class<? extends AbstractEvent> expectedEventClass,
-			boolean expectedIsMoreAvailable,
-			int expectedBuffersInBacklog,
-			boolean expectedNextBufferIsEvent,
-			boolean expectedRecycledAfterRecycle) throws IOException, InterruptedException {
-		checkArgument(expectedEventClass == null || !expectedIsBuffer);
+        partition.release();
+        partition.release();
+        partition.release();
+    }
 
-		ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
-		assertNotNull(bufferAndBacklog);
-		try {
-			assertEquals("buffer size", expectedReadableBufferSize,
-				bufferAndBacklog.buffer().readableBytes());
-			assertEquals("buffer or event", expectedIsBuffer,
-				bufferAndBacklog.buffer().isBuffer());
-			if (expectedEventClass != null) {
-				assertThat(EventSerializer
-						.fromBuffer(bufferAndBacklog.buffer(), ClassLoader.getSystemClassLoader()),
-					instanceOf(expectedEventClass));
-			}
-			assertEquals("more available", expectedIsMoreAvailable,
-				bufferAndBacklog.isMoreAvailable());
-			assertEquals("more available", expectedIsMoreAvailable, readView.isAvailable());
-			assertEquals("backlog", expectedBuffersInBacklog, bufferAndBacklog.buffersInBacklog());
-			assertEquals("next is event", expectedNextBufferIsEvent,
-				bufferAndBacklog.nextBufferIsEvent());
-			assertEquals("next is event", expectedNextBufferIsEvent,
-				readView.nextBufferIsEvent());
+    @Test
+    public void testReadAfterDispose() throws Exception {
+        final ResultSubpartition partition = createSubpartition();
+        partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
+        partition.finish();
 
-			assertFalse("not recycled", bufferAndBacklog.buffer().isRecycled());
-		} finally {
-			bufferAndBacklog.buffer().recycleBuffer();
-		}
-		assertEquals("recycled", expectedRecycledAfterRecycle, bufferAndBacklog.buffer().isRecycled());
-	}
+        final ResultSubpartitionView reader =
+                partition.createReadView(new NoOpBufferAvailablityListener());
+        reader.releaseAllResources();
 
-	static void assertNoNextBuffer(ResultSubpartitionView readView) throws IOException, InterruptedException {
-		assertNull(readView.getNextBuffer());
-	}
+        // the reader must not throw an exception
+        reader.getNextBuffer();
+
+        // ideally, we want this to be null, but the pipelined partition still serves data
+        // after dispose (which is unintuitive, but does not affect correctness)
+        //		assertNull(reader.getNextBuffer());
+    }
+
+    @Test
+    public void testRecycleBufferAndConsumerOnFailure() throws Exception {
+        final ResultSubpartition subpartition = createFailingWritesSubpartition();
+        try {
+            final BufferConsumer consumer =
+                    BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
+
+            try {
+                subpartition.add(consumer);
+                subpartition.flush();
+                fail("should fail with an exception");
+            } catch (Exception ignored) {
+                // expected
+            }
+
+            assertTrue(consumer.isRecycled());
+        } finally {
+            subpartition.release();
+        }
+    }
 }

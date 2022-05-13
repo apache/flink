@@ -33,70 +33,67 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Test that check the hidden API to set co location constraints on the
- * stream transformations.
- */
+/** Test that check the hidden API to set co location constraints on the stream transformations. */
 public class StreamGraphCoLocationConstraintTest {
 
-	@Test
-	public void testSettingCoLocationConstraint() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(7);
+    @Test
+    public void testSettingCoLocationConstraint() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(7);
 
-		// set up the test program
-		DataStream<Long> source = env.generateSequence(1L, 10_000_000);
-		source.getTransformation().setCoLocationGroupKey("group1");
+        // set up the test program
+        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        source.getTransformation().setCoLocationGroupKey("group1");
 
-		DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
-		step1.getTransformation().setCoLocationGroupKey("group2");
+        DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
+        step1.getTransformation().setCoLocationGroupKey("group2");
 
-		DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
-		step2.getTransformation().setCoLocationGroupKey("group1");
+        DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
+        step2.getTransformation().setCoLocationGroupKey("group1");
 
-		DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
-		result.getTransformation().setCoLocationGroupKey("group2");
+        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        result.getTransformation().setCoLocationGroupKey("group2");
 
-		// get the graph
-		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-		assertEquals(4, jobGraph.getNumberOfVertices());
+        // get the graph
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        assertEquals(4, jobGraph.getNumberOfVertices());
 
-		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-		for (JobVertex vertex : vertices) {
-			assertNotNull(vertex.getCoLocationGroup());
-		}
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        for (JobVertex vertex : vertices) {
+            assertNotNull(vertex.getCoLocationGroup());
+        }
 
-		assertEquals(vertices.get(0).getCoLocationGroup(), vertices.get(2).getCoLocationGroup());
-		assertEquals(vertices.get(1).getCoLocationGroup(), vertices.get(3).getCoLocationGroup());
-	}
+        assertEquals(vertices.get(0).getCoLocationGroup(), vertices.get(2).getCoLocationGroup());
+        assertEquals(vertices.get(1).getCoLocationGroup(), vertices.get(3).getCoLocationGroup());
+    }
 
-	@Test
-	public void testCoLocateDifferenSharingGroups() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(7);
+    @Test
+    public void testCoLocateDifferenSharingGroups() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(7);
 
-		// set up the test program
-		DataStream<Long> source = env.generateSequence(1L, 10_000_000);
-		source.getTransformation().setSlotSharingGroup("ssg1");
-		source.getTransformation().setCoLocationGroupKey("co1");
+        // set up the test program
+        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        source.getTransformation().setSlotSharingGroup("ssg1");
+        source.getTransformation().setCoLocationGroupKey("co1");
 
-		DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
-		step1.getTransformation().setSlotSharingGroup("ssg2");
-		step1.getTransformation().setCoLocationGroupKey("co2");
+        DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
+        step1.getTransformation().setSlotSharingGroup("ssg2");
+        step1.getTransformation().setCoLocationGroupKey("co2");
 
-		DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
-		step2.getTransformation().setSlotSharingGroup("ssg3");
-		step2.getTransformation().setCoLocationGroupKey("co1");
+        DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
+        step2.getTransformation().setSlotSharingGroup("ssg3");
+        step2.getTransformation().setCoLocationGroupKey("co1");
 
-		DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
-		result.getTransformation().setSlotSharingGroup("ssg4");
-		result.getTransformation().setCoLocationGroupKey("co2");
+        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        result.getTransformation().setSlotSharingGroup("ssg4");
+        result.getTransformation().setCoLocationGroupKey("co2");
 
-		// get the graph
-		try {
-			env.getStreamGraph().getJobGraph();
-			fail("exception expected");
-		}
-		catch (IllegalStateException ignored) {}
-	}
+        // get the graph
+        try {
+            env.getStreamGraph().getJobGraph();
+            fail("exception expected");
+        } catch (IllegalStateException ignored) {
+        }
+    }
 }

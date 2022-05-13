@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import org.junit.Test;
@@ -25,81 +26,124 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CompletedCheckpointStatsSummaryTest {
 
-	/**
-	 * Tests simple updates of the completed checkpoint stats.
-	 */
-	@Test
-	public void testSimpleUpdates() throws Exception {
-		long triggerTimestamp = 123123L;
-		long ackTimestamp = 123123 + 1212312399L;
-		long stateSize = Integer.MAX_VALUE + 17787L;
-		long alignmentBuffered = Integer.MAX_VALUE + 123123L;
+    /** Tests simple updates of the completed checkpoint stats. */
+    @Test
+    public void testSimpleUpdates() throws Exception {
+        long triggerTimestamp = 123123L;
+        long ackTimestamp = 123123 + 1212312399L;
+        long stateSize = Integer.MAX_VALUE + 17787L;
+        long processedData = Integer.MAX_VALUE + 123123L;
+        long persistedData = Integer.MAX_VALUE + 42L;
 
-		CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
-		assertEquals(0, summary.getStateSizeStats().getCount());
-		assertEquals(0, summary.getEndToEndDurationStats().getCount());
-		assertEquals(0, summary.getAlignmentBufferedStats().getCount());
+        CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
+        assertEquals(0, summary.getStateSizeStats().getCount());
+        assertEquals(0, summary.getEndToEndDurationStats().getCount());
+        assertEquals(0, summary.getProcessedDataStats().getCount());
+        assertEquals(0, summary.getPersistedDataStats().getCount());
 
-		int numCheckpoints = 10;
+        int numCheckpoints = 10;
 
-		for (int i = 0; i < numCheckpoints; i++) {
-			CompletedCheckpointStats completed = createCompletedCheckpoint(
-				i,
-				triggerTimestamp,
-				ackTimestamp + i,
-				stateSize + i,
-				alignmentBuffered + i);
+        for (int i = 0; i < numCheckpoints; i++) {
+            CompletedCheckpointStats completed =
+                    createCompletedCheckpoint(
+                            i,
+                            triggerTimestamp,
+                            ackTimestamp + i,
+                            stateSize + i,
+                            processedData + i,
+                            persistedData + i);
 
-			summary.updateSummary(completed);
+            summary.updateSummary(completed);
 
-			assertEquals(i + 1, summary.getStateSizeStats().getCount());
-			assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
-			assertEquals(i + 1, summary.getAlignmentBufferedStats().getCount());
-		}
+            assertEquals(i + 1, summary.getStateSizeStats().getCount());
+            assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
+            assertEquals(i + 1, summary.getProcessedDataStats().getCount());
+            assertEquals(i + 1, summary.getPersistedDataStats().getCount());
+        }
 
-		MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
-		assertEquals(stateSize, stateSizeStats.getMinimum());
-		assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
+        StatsSummary stateSizeStats = summary.getStateSizeStats();
+        assertEquals(stateSize, stateSizeStats.getMinimum());
+        assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
 
-		MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
-		assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
-		assertEquals(ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
+        StatsSummary durationStats = summary.getEndToEndDurationStats();
+        assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
+        assertEquals(
+                ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
 
-		MinMaxAvgStats alignmentBufferedStats = summary.getAlignmentBufferedStats();
-		assertEquals(alignmentBuffered, alignmentBufferedStats.getMinimum());
-		assertEquals(alignmentBuffered + numCheckpoints - 1, alignmentBufferedStats.getMaximum());
-	}
+        StatsSummary processedDataStats = summary.getProcessedDataStats();
+        assertEquals(processedData, processedDataStats.getMinimum());
+        assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
 
-	private CompletedCheckpointStats createCompletedCheckpoint(
-		long checkpointId,
-		long triggerTimestamp,
-		long ackTimestamp,
-		long stateSize,
-		long alignmentBuffered) {
+        StatsSummary persistedDataStats = summary.getPersistedDataStats();
+        assertEquals(persistedData, persistedDataStats.getMinimum());
+        assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
+    }
 
-		SubtaskStateStats latest = mock(SubtaskStateStats.class);
-		when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
+    private CompletedCheckpointStats createCompletedCheckpoint(
+            long checkpointId,
+            long triggerTimestamp,
+            long ackTimestamp,
+            long stateSize,
+            long processedData,
+            long persistedData) {
 
-		Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
-		JobVertexID jobVertexId = new JobVertexID();
-		taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
+        SubtaskStateStats latest = mock(SubtaskStateStats.class);
+        when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
 
-		return new CompletedCheckpointStats(
-			checkpointId,
-			triggerTimestamp,
-			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			1,
-			taskStats,
-			1,
-			stateSize,
-			alignmentBuffered,
-			latest,
-			null);
-	}
+        Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+        JobVertexID jobVertexId = new JobVertexID();
+        taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
+
+        return new CompletedCheckpointStats(
+                checkpointId,
+                triggerTimestamp,
+                CheckpointProperties.forCheckpoint(
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                1,
+                taskStats,
+                1,
+                stateSize,
+                processedData,
+                persistedData,
+                latest,
+                null);
+    }
+
+    /** Simply test that quantiles can be computed and fields are not permuted. */
+    @Test
+    public void testQuantiles() {
+        int stateSize = 100;
+        int processedData = 200;
+        int persistedData = 300;
+        long triggerTimestamp = 1234;
+        long lastAck = triggerTimestamp + 123;
+
+        CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
+        summary.updateSummary(
+                new CompletedCheckpointStats(
+                        1L,
+                        triggerTimestamp,
+                        CheckpointProperties.forSavepoint(false, SavepointFormatType.CANONICAL),
+                        1,
+                        singletonMap(new JobVertexID(), new TaskStateStats(new JobVertexID(), 1)),
+                        1,
+                        stateSize,
+                        processedData,
+                        persistedData,
+                        new SubtaskStateStats(0, lastAck),
+                        ""));
+        CompletedCheckpointStatsSummarySnapshot snapshot = summary.createSnapshot();
+        assertEquals(stateSize, snapshot.getStateSizeStats().getQuantile(1), 0);
+        assertEquals(processedData, snapshot.getProcessedDataStats().getQuantile(1), 0);
+        assertEquals(persistedData, snapshot.getPersistedDataStats().getQuantile(1), 0);
+        assertEquals(
+                lastAck - triggerTimestamp, snapshot.getEndToEndDurationStats().getQuantile(1), 0);
+    }
 }

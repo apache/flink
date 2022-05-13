@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -31,74 +27,80 @@ import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.util.Visitor;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 /**
- * The optimizer's internal representation of the partial solution that is input to a bulk iteration.
+ * The optimizer's internal representation of the partial solution that is input to a bulk
+ * iteration.
  */
 public abstract class AbstractPartialSolutionNode extends OptimizerNode {
-	
-	protected AbstractPartialSolutionNode(Operator<?> contract) {
-		super(contract);
-	}
 
-	// --------------------------------------------------------------------------------------------
-	
-	protected void copyEstimates(OptimizerNode node) {
-		this.estimatedNumRecords = node.estimatedNumRecords;
-		this.estimatedOutputSize = node.estimatedOutputSize;
-	}
-	
-	public abstract IterationNode getIterationNode();
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public boolean isOnDynamicPath() {
-		return true;
-	}
-	
-	public void identifyDynamicPath(int costWeight) {
-		this.onDynamicPath = true;
-		this.costWeight = costWeight;
-	}
+    protected AbstractPartialSolutionNode(Operator<?> contract) {
+        super(contract);
+    }
 
-	@Override
-	public List<DagConnection> getIncomingConnections() {
-		return Collections.emptyList();
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode dataExchangeMode) {}
+    protected void copyEstimates(OptimizerNode node) {
+        this.estimatedNumRecords = node.estimatedNumRecords;
+        this.estimatedOutputSize = node.estimatedOutputSize;
+    }
 
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		// we do nothing here, because the estimates can only be copied from the iteration input
-	}
-	
-	@Override
-	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
-		// no children, so nothing to compute
-	}
+    public abstract IterationNode getIterationNode();
 
-	@Override
-	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
-		if (this.cachedPlans != null) {
-			return this.cachedPlans;
-		} else {
-			throw new IllegalStateException();
-		}
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public SemanticProperties getSemanticProperties() {
-		return new EmptySemanticProperties();
-	}
-	
-	@Override
-	protected void readStubAnnotations() {}
+    public boolean isOnDynamicPath() {
+        return true;
+    }
 
-	@Override
-	public void accept(Visitor<OptimizerNode> visitor) {
-		if (visitor.preVisit(this)) {
-			visitor.postVisit(this);
-		}
-	}
+    public void identifyDynamicPath(int costWeight) {
+        this.onDynamicPath = true;
+        this.costWeight = costWeight;
+    }
+
+    @Override
+    public List<DagConnection> getIncomingConnections() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void setInput(
+            Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode dataExchangeMode) {}
+
+    @Override
+    protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+        // we do nothing here, because the estimates can only be copied from the iteration input
+    }
+
+    @Override
+    public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
+        // no children, so nothing to compute
+    }
+
+    @Override
+    public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
+        if (this.cachedPlans != null) {
+            return this.cachedPlans;
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    @Override
+    public SemanticProperties getSemanticProperties() {
+        return new EmptySemanticProperties();
+    }
+
+    @Override
+    protected void readStubAnnotations() {}
+
+    @Override
+    public void accept(Visitor<OptimizerNode> visitor) {
+        if (visitor.preVisit(this)) {
+            visitor.postVisit(this);
+        }
+    }
 }

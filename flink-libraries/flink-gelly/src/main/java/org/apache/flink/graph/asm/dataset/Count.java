@@ -29,49 +29,44 @@ import java.io.IOException;
  *
  * @param <T> element type
  */
-public class Count<T>
-extends DataSetAnalyticBase<T, Long> {
+public class Count<T> extends DataSetAnalyticBase<T, Long> {
 
-	private static final String COUNT = "count";
+    private static final String COUNT = "count";
 
-	private CountHelper<T> countHelper;
+    private CountHelper<T> countHelper;
 
-	@Override
-	public Count<T> run(DataSet<T> input)
-			throws Exception {
-		super.run(input);
+    @Override
+    public Count<T> run(DataSet<T> input) throws Exception {
+        super.run(input);
 
-		countHelper = new CountHelper<>();
+        countHelper = new CountHelper<>();
 
-		input
-			.output(countHelper)
-				.name("Count");
+        input.output(countHelper).name("Count");
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	public Long getResult() {
-		return countHelper.getAccumulator(env, COUNT);
-	}
+    @Override
+    public Long getResult() {
+        return countHelper.getAccumulator(env, COUNT);
+    }
 
-	/**
-	 * Helper class to count elements.
-	 *
-	 * @param <U> element type
-	 */
-	private static class CountHelper<U>
-	extends AnalyticHelper<U> {
-		private long count;
+    /**
+     * Helper class to count elements.
+     *
+     * @param <U> element type
+     */
+    private static class CountHelper<U> extends AnalyticHelper<U> {
+        private long count;
 
-		@Override
-		public void writeRecord(U record) throws IOException {
-			count++;
-		}
+        @Override
+        public void writeRecord(U record) throws IOException {
+            count++;
+        }
 
-		@Override
-		public void close() throws IOException {
-			addAccumulator(COUNT, new LongCounter(count));
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            addAccumulator(COUNT, new LongCounter(count));
+        }
+    }
 }

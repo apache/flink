@@ -18,53 +18,33 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import javax.annotation.Nullable;
+import java.util.Collection;
 
 /**
- * Dispatcher implementation which spawns a {@link JobMaster} for each
- * submitted {@link JobGraph} within in the same process. This dispatcher
- * can be used as the default for all different session clusters.
+ * Dispatcher implementation which spawns a {@link JobMaster} for each submitted {@link JobGraph}
+ * within in the same process. This dispatcher can be used as the default for all different session
+ * clusters.
  */
 public class StandaloneDispatcher extends Dispatcher {
-	public StandaloneDispatcher(
-			RpcService rpcService,
-			String endpointId,
-			Configuration configuration,
-			HighAvailabilityServices highAvailabilityServices,
-			ResourceManagerGateway resourceManagerGateway,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			JobManagerMetricGroup jobManagerMetricGroup,
-			@Nullable String metricQueryServicePath,
-			ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			JobManagerRunnerFactory jobManagerRunnerFactory,
-			FatalErrorHandler fatalErrorHandler,
-			HistoryServerArchivist historyServerArchivist) throws Exception {
-		super(
-			rpcService,
-			endpointId,
-			configuration,
-			highAvailabilityServices,
-			highAvailabilityServices.getSubmittedJobGraphStore(),
-			resourceManagerGateway,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServicePath,
-			archivedExecutionGraphStore,
-			jobManagerRunnerFactory,
-			fatalErrorHandler,
-			historyServerArchivist);
-	}
+    public StandaloneDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            DispatcherServices dispatcherServices)
+            throws Exception {
+        super(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                recoveredDirtyJobResults,
+                dispatcherBootstrapFactory,
+                dispatcherServices);
+    }
 }

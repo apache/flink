@@ -22,33 +22,32 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 
 /**
- * {@link MessageHeaders} for
- * {@link org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler}.
+ * {@link MessageHeaders} for {@link
+ * org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler}.
  */
-public final class TaskManagerMetricsHeaders extends
-	AbstractMetricsHeaders<TaskManagerMetricsMessageParameters> {
+public final class TaskManagerMetricsHeaders
+        extends AbstractMetricsHeaders<TaskManagerMetricsMessageParameters> {
 
-	private static final TaskManagerMetricsHeaders INSTANCE = new TaskManagerMetricsHeaders();
+    private static final TaskManagerMetricsHeaders INSTANCE = new TaskManagerMetricsHeaders();
 
-	private TaskManagerMetricsHeaders() {
-	}
+    private TaskManagerMetricsHeaders() {}
 
-	@Override
-	public TaskManagerMetricsMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMetricsMessageParameters();
-	}
+    @Override
+    public TaskManagerMetricsMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMetricsMessageParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/taskmanagers/:" + TaskManagerIdPathParameter.KEY + "/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/taskmanagers/:" + TaskManagerIdPathParameter.KEY + "/metrics";
+    }
 
-	public static TaskManagerMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to task manager metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to task manager metrics.";
+    }
 }

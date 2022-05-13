@@ -25,31 +25,25 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParam
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Tests for {@link TaskManagerMetricsHandler}.
- */
-public class TaskManagerMetricsHandlerTest extends
-	MetricsHandlerTestBase<TaskManagerMetricsHandler> {
+/** Tests for {@link TaskManagerMetricsHandler}. */
+public class TaskManagerMetricsHandlerTest
+        extends MetricsHandlerTestBase<TaskManagerMetricsHandler> {
 
-	private static final String TEST_TASK_MANAGER_ID = new InstanceID().toString();
+    private static final String TEST_TASK_MANAGER_ID = new InstanceID().toString();
 
-	@Override
-	TaskManagerMetricsHandler getMetricsHandler() {
-		return new TaskManagerMetricsHandler(
-			leaderRetriever,
-			TIMEOUT,
-			TEST_HEADERS,
-			mockMetricFetcher);
-	}
+    @Override
+    TaskManagerMetricsHandler getMetricsHandler() {
+        return new TaskManagerMetricsHandler(
+                leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    }
 
-	@Override
-	QueryScopeInfo getQueryScopeInfo() {
-		return new QueryScopeInfo.TaskManagerQueryScopeInfo(TEST_TASK_MANAGER_ID);
-	}
+    @Override
+    QueryScopeInfo getQueryScopeInfo() {
+        return new QueryScopeInfo.TaskManagerQueryScopeInfo(TEST_TASK_MANAGER_ID);
+    }
 
-	@Override
-	Map<String, String> getPathParameters() {
-		return Collections.singletonMap(TaskManagerIdPathParameter.KEY, TEST_TASK_MANAGER_ID);
-	}
-
+    @Override
+    Map<String, String> getPathParameters() {
+        return Collections.singletonMap(TaskManagerIdPathParameter.KEY, TEST_TASK_MANAGER_ID);
+    }
 }

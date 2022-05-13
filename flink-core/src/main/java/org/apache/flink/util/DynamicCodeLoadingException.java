@@ -23,8 +23,8 @@ import org.apache.flink.annotation.Public;
 /**
  * An exception that is thrown if the dynamic instantiation of code fails.
  *
- * <p>This exception is supposed to "sum up" the zoo of exceptions typically thrown around
- * dynamic code loading and instantiations:
+ * <p>This exception is supposed to "sum up" the zoo of exceptions typically thrown around dynamic
+ * code loading and instantiations:
  *
  * <pre>{@code
  * try {
@@ -38,24 +38,24 @@ import org.apache.flink.annotation.Public;
 @Public
 public class DynamicCodeLoadingException extends FlinkException {
 
-	private static final long serialVersionUID = -25138443817255490L;
+    private static final long serialVersionUID = -25138443817255490L;
 
-	/**
-	 * Creates a new exception with the given cause.
-	 *
-	 * @param cause The exception that caused this exception
-	 */
-	public DynamicCodeLoadingException(Throwable cause) {
-		super(cause);
-	}
+    /**
+     * Creates a new exception with the given cause.
+     *
+     * @param cause The exception that caused this exception
+     */
+    public DynamicCodeLoadingException(Throwable cause) {
+        super(cause);
+    }
 
-	/**
-	 * Creates a new exception with the given message and cause.
-	 *
-	 * @param message The exception message
-	 * @param cause The exception that caused this exception
-	 */
-	public DynamicCodeLoadingException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * Creates a new exception with the given message and cause.
+     *
+     * @param message The exception message
+     * @param cause The exception that caused this exception
+     */
+    public DynamicCodeLoadingException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

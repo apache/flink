@@ -21,40 +21,40 @@ package org.apache.flink.optimizer.plan;
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- * A special subclass for the union to make it identifiable.
- */
+/** A special subclass for the union to make it identifiable. */
 public class BinaryUnionPlanNode extends DualInputPlanNode {
-	
-	/**
-	 * @param template
-	 */
-	public BinaryUnionPlanNode(BinaryUnionNode template, Channel in1, Channel in2) {
-		super(template, "Union", in1, in2, DriverStrategy.UNION);
-	}
-	
-	public BinaryUnionPlanNode(BinaryUnionPlanNode toSwapFrom) {
-		super(toSwapFrom.getOptimizerNode(), "Union-With-Cached", toSwapFrom.getInput2(), toSwapFrom.getInput1(),
-				DriverStrategy.UNION_WITH_CACHED);
-		
-		this.globalProps = toSwapFrom.globalProps;
-		this.localProps = toSwapFrom.localProps;
-		this.nodeCosts = toSwapFrom.nodeCosts;
-		this.cumulativeCosts = toSwapFrom.cumulativeCosts;
-		
-		setParallelism(toSwapFrom.getParallelism());
-	}
-	
-	public BinaryUnionNode getOptimizerNode() {
-		return (BinaryUnionNode) this.template;
-	}
-	
-	public boolean unionsStaticAndDynamicPath() {
-		return getInput1().isOnDynamicPath() != getInput2().isOnDynamicPath();
-	}
-	
-	@Override
-	public int getMemoryConsumerWeight() {
-		return 0;
-	}
+
+    /** @param template */
+    public BinaryUnionPlanNode(BinaryUnionNode template, Channel in1, Channel in2) {
+        super(template, "Union", in1, in2, DriverStrategy.UNION);
+    }
+
+    public BinaryUnionPlanNode(BinaryUnionPlanNode toSwapFrom) {
+        super(
+                toSwapFrom.getOptimizerNode(),
+                "Union-With-Cached",
+                toSwapFrom.getInput2(),
+                toSwapFrom.getInput1(),
+                DriverStrategy.UNION_WITH_CACHED);
+
+        this.globalProps = toSwapFrom.globalProps;
+        this.localProps = toSwapFrom.localProps;
+        this.nodeCosts = toSwapFrom.nodeCosts;
+        this.cumulativeCosts = toSwapFrom.cumulativeCosts;
+
+        setParallelism(toSwapFrom.getParallelism());
+    }
+
+    public BinaryUnionNode getOptimizerNode() {
+        return (BinaryUnionNode) this.template;
+    }
+
+    public boolean unionsStaticAndDynamicPath() {
+        return getInput1().isOnDynamicPath() != getInput2().isOnDynamicPath();
+    }
+
+    @Override
+    public int getMemoryConsumerWeight() {
+        return 0;
+    }
 }

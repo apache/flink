@@ -45,28 +45,28 @@ services:
       KRB_REALM: EXAMPLE.COM
       DOMAIN_REALM: kdc.kerberos.com
 
-  slave1:
+  worker1:
     image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest}
     command: worker
     depends_on:
       - kdc
       - master
-    container_name: "slave1"
-    hostname: slave1.docker-hadoop-cluster-network
+    container_name: "worker1"
+    hostname: worker1.docker-hadoop-cluster-network
     networks:
       - docker-hadoop-cluster-network
     environment:
       KRB_REALM: EXAMPLE.COM
       DOMAIN_REALM: kdc.kerberos.com
 
-  slave2:
+  worker2:
     image: ${DOCKER_HADOOP_IMAGE_NAME:-flink/docker-hadoop-secure-cluster:latest}
     command: worker
     depends_on:
       - kdc
       - master
-    container_name: "slave2"
-    hostname: slave2.docker-hadoop-cluster-network
+    container_name: "worker2"
+    hostname: worker2.docker-hadoop-cluster-network
     networks:
       - docker-hadoop-cluster-network
     environment:

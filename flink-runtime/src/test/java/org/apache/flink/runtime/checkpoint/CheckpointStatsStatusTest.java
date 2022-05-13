@@ -25,24 +25,22 @@ import static org.junit.Assert.assertTrue;
 
 public class CheckpointStatsStatusTest {
 
-	/**
-	 * Tests the getters of each status.
-	 */
-	@Test
-	public void testStatusValues() throws Exception {
-		CheckpointStatsStatus inProgress = CheckpointStatsStatus.IN_PROGRESS;
-		assertTrue(inProgress.isInProgress());
-		assertFalse(inProgress.isCompleted());
-		assertFalse(inProgress.isFailed());
+    /** Tests the getters of each status. */
+    @Test
+    public void testStatusValues() throws Exception {
+        CheckpointStatsStatus inProgress = CheckpointStatsStatus.IN_PROGRESS;
+        assertTrue(inProgress.isInProgress());
+        assertFalse(inProgress.isCompleted());
+        assertFalse(inProgress.isFailed());
 
-		CheckpointStatsStatus completed = CheckpointStatsStatus.COMPLETED;
-		assertFalse(completed.isInProgress());
-		assertTrue(completed.isCompleted());
-		assertFalse(completed.isFailed());
+        CheckpointStatsStatus completed = CheckpointStatsStatus.COMPLETED;
+        assertFalse(completed.isInProgress());
+        assertTrue(completed.isCompleted());
+        assertFalse(completed.isFailed());
 
-		CheckpointStatsStatus failed = CheckpointStatsStatus.FAILED;
-		assertFalse(failed.isInProgress());
-		assertFalse(failed.isCompleted());
-		assertTrue(failed.isFailed());
-	}
+        CheckpointStatsStatus failed = CheckpointStatsStatus.FAILED;
+        assertFalse(failed.isInProgress());
+        assertFalse(failed.isCompleted());
+        assertTrue(failed.isFailed());
+    }
 }

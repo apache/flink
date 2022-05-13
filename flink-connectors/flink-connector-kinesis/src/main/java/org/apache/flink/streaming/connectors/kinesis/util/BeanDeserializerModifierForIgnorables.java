@@ -35,45 +35,47 @@ import java.util.List;
  */
 public class BeanDeserializerModifierForIgnorables extends BeanDeserializerModifier {
 
-	private Class<?> type;
-	private List<String> ignorables;
+    private Class<?> type;
+    private List<String> ignorables;
 
-	public BeanDeserializerModifierForIgnorables(Class clazz, String... properties) {
-		ignorables = new ArrayList<>();
-		for (String property : properties) {
-			ignorables.add(property);
-		}
-		this.type = clazz;
-	}
+    public BeanDeserializerModifierForIgnorables(Class clazz, String... properties) {
+        ignorables = new ArrayList<>();
+        for (String property : properties) {
+            ignorables.add(property);
+        }
+        this.type = clazz;
+    }
 
-	@Override
-	public BeanDeserializerBuilder updateBuilder(
-		DeserializationConfig config, BeanDescription beanDesc,
-		BeanDeserializerBuilder builder) {
-		if (!type.equals(beanDesc.getBeanClass())) {
-			return builder;
-		}
+    @Override
+    public BeanDeserializerBuilder updateBuilder(
+            DeserializationConfig config,
+            BeanDescription beanDesc,
+            BeanDeserializerBuilder builder) {
+        if (!type.equals(beanDesc.getBeanClass())) {
+            return builder;
+        }
 
-		for (String ignorable : ignorables) {
-			builder.addIgnorable(ignorable);
-		}
-		return builder;
-	}
+        for (String ignorable : ignorables) {
+            builder.addIgnorable(ignorable);
+        }
+        return builder;
+    }
 
-	@Override
-	public List<BeanPropertyDefinition> updateProperties(
-		DeserializationConfig config, BeanDescription beanDesc,
-		List<BeanPropertyDefinition> propDefs) {
-		if (!type.equals(beanDesc.getBeanClass())) {
-			return propDefs;
-		}
+    @Override
+    public List<BeanPropertyDefinition> updateProperties(
+            DeserializationConfig config,
+            BeanDescription beanDesc,
+            List<BeanPropertyDefinition> propDefs) {
+        if (!type.equals(beanDesc.getBeanClass())) {
+            return propDefs;
+        }
 
-		List<BeanPropertyDefinition> newPropDefs = new ArrayList<>();
-		for (BeanPropertyDefinition propDef : propDefs) {
-			if (!ignorables.contains(propDef.getName())) {
-				newPropDefs.add(propDef);
-			}
-		}
-		return newPropDefs;
-	}
+        List<BeanPropertyDefinition> newPropDefs = new ArrayList<>();
+        for (BeanPropertyDefinition propDef : propDefs) {
+            if (!ignorables.contains(propDef.getName())) {
+                newPropDefs.add(propDef);
+            }
+        }
+        return newPropDefs;
+    }
 }

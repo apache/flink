@@ -23,18 +23,17 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * An implementation of {@link CassandraFailureHandler} is provided by the user to define how
- * {@link Throwable Throwable} should be handled, e.g. dropping them if the failure is only temporary.
+ * An implementation of {@link CassandraFailureHandler} is provided by the user to define how {@link
+ * Throwable Throwable} should be handled, e.g. dropping them if the failure is only temporary.
  *
  * <p>Example:
  *
  * <pre>{@code
- *
  * 	private static class ExampleFailureHandler implements CassandraFailureHandler {
  *
  * 		@Override
  * 		void onFailure(Throwable failure) throws IOException {
- * 			if (ExceptionUtils.containsThrowable(failure, WriteTimeoutException.class)) {
+ * 			if (ExceptionUtils.findThrowable(failure, WriteTimeoutException.class).isPresent()) {
  * 				// drop exception
  * 			} else {
  * 				// for all other failures, fail the sink;
@@ -46,18 +45,18 @@ import java.io.Serializable;
  *
  * }</pre>
  *
- * <p>The above example will let the sink ignore the WriteTimeoutException, without failing the sink. For all other
- * failures, the sink will fail.
+ * <p>The above example will let the sink ignore the WriteTimeoutException, without failing the
+ * sink. For all other failures, the sink will fail.
  */
 @PublicEvolving
 public interface CassandraFailureHandler extends Serializable {
 
-	/**
-	 * Handle a failed {@link Throwable}.
-	 *
-	 * @param failure the cause of failure
-	 * @throws IOException if the sink should fail on this failure, the implementation should rethrow the throwable or a custom one
-	 */
-	void onFailure(Throwable failure) throws IOException;
-
+    /**
+     * Handle a failed {@link Throwable}.
+     *
+     * @param failure the cause of failure
+     * @throws IOException if the sink should fail on this failure, the implementation should
+     *     rethrow the throwable or a custom one
+     */
+    void onFailure(Throwable failure) throws IOException;
 }

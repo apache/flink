@@ -26,45 +26,49 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-/**
- * Test join with a slow source.
- */
+/** Test join with a slow source. */
 public class ConsumePipelinedAndBlockingResultITCase extends JavaProgramTestBase {
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataSet<Tuple1<Long>> pipelinedSource = env.fromElements(new Tuple1<Long>(1L));
+        DataSet<Tuple1<Long>> pipelinedSource = env.fromElements(new Tuple1<Long>(1L));
 
-		DataSet<Tuple1<Long>> slowBlockingSource = env.generateSequence(0, 10).map(
-				new MapFunction<Long, Tuple1<Long>>() {
-					@Override
-					public Tuple1<Long> map(Long value) throws Exception {
-						Thread.sleep(200);
+        DataSet<Tuple1<Long>> slowBlockingSource =
+                env.generateSequence(0, 10)
+                        .map(
+                                new MapFunction<Long, Tuple1<Long>>() {
+                                    @Override
+                                    public Tuple1<Long> map(Long value) throws Exception {
+                                        Thread.sleep(200);
 
-						return new Tuple1<Long>(value);
-					}
-				}
-		);
+                                        return new Tuple1<Long>(value);
+                                    }
+                                });
 
-		slowBlockingSource.join(slowBlockingSource)
-				.where(0).equalTo(0).output(new DiscardingOutputFormat<Tuple2<Tuple1<Long>, Tuple1<Long>>>());
+        slowBlockingSource
+                .join(slowBlockingSource)
+                .where(0)
+                .equalTo(0)
+                .output(new DiscardingOutputFormat<Tuple2<Tuple1<Long>, Tuple1<Long>>>());
 
-		// Join the slow blocking and the pipelined source. This test should verify that this works
-		// w/o problems and the blocking result is not requested too early.
-		pipelinedSource.join(slowBlockingSource)
-				.where(0).equalTo(0)
-				.output(new DiscardingOutputFormat<Tuple2<Tuple1<Long>, Tuple1<Long>>>());
+        // Join the slow blocking and the pipelined source. This test should verify that this works
+        // w/o problems and the blocking result is not requested too early.
+        pipelinedSource
+                .join(slowBlockingSource)
+                .where(0)
+                .equalTo(0)
+                .output(new DiscardingOutputFormat<Tuple2<Tuple1<Long>, Tuple1<Long>>>());
 
-		env.execute("Consume one pipelined and one blocking result test job");
-	}
+        env.execute("Consume one pipelined and one blocking result test job");
+    }
 
-	@Override
-	protected boolean skipCollectionExecution() {
-		// Skip collection execution as it is independent of the runtime environment functionality,
-		// which is under test.
-		return true;
-	}
+    @Override
+    protected boolean skipCollectionExecution() {
+        // Skip collection execution as it is independent of the runtime environment functionality,
+        // which is under test.
+        return true;
+    }
 }

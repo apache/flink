@@ -34,47 +34,53 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @see org.apache.flink.api.common.functions.FlatMapFunction
- */
+/** @see org.apache.flink.api.common.functions.FlatMapFunction */
 @Internal
-public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
-	
-	public FlatMapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(udf, operatorInfo, name);
-	}
+public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>>
+        extends SingleInputOperator<IN, OUT, FT> {
 
-	public FlatMapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
-	}
+    public FlatMapOperatorBase(
+            UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(udf, operatorInfo, name);
+    }
 
-	public FlatMapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
-	}
+    public FlatMapOperatorBase(
+            FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
+    }
 
-	// ------------------------------------------------------------------------
+    public FlatMapOperatorBase(
+            Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+        super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+    }
 
-	@Override
-	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
-		FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
-		
-		FunctionUtils.setFunctionRuntimeContext(function, ctx);
-		FunctionUtils.openFunction(function, parameters);
+    // ------------------------------------------------------------------------
 
-		ArrayList<OUT> result = new ArrayList<OUT>(input.size());
+    @Override
+    protected List<OUT> executeOnCollections(
+            List<IN> input, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
+        FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
 
-		TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
-		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+        FunctionUtils.setFunctionRuntimeContext(function, ctx);
+        FunctionUtils.openFunction(function, parameters);
 
-		CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+        ArrayList<OUT> result = new ArrayList<OUT>(input.size());
 
-		for (IN element : input) {
-			IN inCopy = inSerializer.copy(element);
-			function.flatMap(inCopy, resultCollector);
-		}
+        TypeSerializer<IN> inSerializer =
+                getOperatorInfo().getInputType().createSerializer(executionConfig);
+        TypeSerializer<OUT> outSerializer =
+                getOperatorInfo().getOutputType().createSerializer(executionConfig);
 
-		FunctionUtils.closeFunction(function);
+        CopyingListCollector<OUT> resultCollector =
+                new CopyingListCollector<OUT>(result, outSerializer);
 
-		return result;
-	}
+        for (IN element : input) {
+            IN inCopy = inSerializer.copy(element);
+            function.flatMap(inCopy, resultCollector);
+        }
+
+        FunctionUtils.closeFunction(function);
+
+        return result;
+    }
 }

@@ -30,28 +30,29 @@ import org.apache.flink.types.NullValue;
  * @param <K> graph ID type
  */
 public abstract class GeneratedMultiGraph<K extends Comparable<K>>
-extends GeneratedGraph<LongValue> {
+        extends GeneratedGraph<LongValue> {
 
-	private Simplify simplify = new Simplify(this);
+    private Simplify simplify = new Simplify(this);
 
-	/**
-	 * Get the short string representation of the simplify transformation.
-	 *
-	 * @return short string representation of the simplify transformation
-	 */
-	protected String getSimplifyShortString() {
-		return simplify.getShortString();
-	}
+    /**
+     * Get the short string representation of the simplify transformation.
+     *
+     * @return short string representation of the simplify transformation
+     */
+    protected String getSimplifyShortString() {
+        return simplify.getShortString();
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env)
-			throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = generate(env);
+    @Override
+    public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env)
+            throws Exception {
+        Graph<LongValue, NullValue, NullValue> graph = generate(env);
 
-		// simplify after the translation to improve the performance of the
-		// simplify operators by processing smaller data types
-		return simplify.simplify(graph, parallelism.getValue().intValue());
-	}
+        // simplify after the translation to improve the performance of the
+        // simplify operators by processing smaller data types
+        return simplify.simplify(graph, parallelism.getValue().intValue());
+    }
 
-	public abstract Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception;
+    public abstract Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env)
+            throws Exception;
 }

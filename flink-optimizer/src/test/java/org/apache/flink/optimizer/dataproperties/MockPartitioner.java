@@ -22,11 +22,11 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 class MockPartitioner implements Partitioner<Tuple2<Long, Integer>> {
-	
-	private static final long serialVersionUID = 1L;
 
-	@Override
-	public int partition(Tuple2<Long, Integer> key, int numPartitions) {
-		return 0;
-	}
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public int partition(Tuple2<Long, Integer> key, int numPartitions) {
+        return 0;
+    }
 }

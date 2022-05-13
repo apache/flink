@@ -19,32 +19,32 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.JobID;
+
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class JobIdTest {
 
-	@Test
-	public void testConvertToByteBuffer() {
-		try {
-			JobID origID = new JobID();
+    @Test
+    public void testConvertToByteBuffer() {
+        try {
+            JobID origID = new JobID();
 
-			byte[] bytes = origID.getBytes();
-			ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            byte[] bytes = origID.getBytes();
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
 
-			JobID copy1 = JobID.fromByteBuffer(buffer);
-			JobID copy2 = JobID.fromByteArray(bytes);
+            JobID copy1 = JobID.fromByteBuffer(buffer);
+            JobID copy2 = JobID.fromByteArray(bytes);
 
-			assertEquals(origID, copy1);
-			assertEquals(origID, copy2);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
+            assertEquals(origID, copy1);
+            assertEquals(origID, copy2);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

@@ -32,30 +32,29 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Tests for {@link TriangleEnumerator}.
- */
+/** Tests for {@link TriangleEnumerator}. */
 @RunWith(Parameterized.class)
 public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 
-	public TriangleEnumeratorITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public TriangleEnumeratorITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testTriangleEnumerator() throws Exception	{
+    @Test
+    public void testTriangleEnumerator() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
-				env);
+        Graph<Long, NullValue, NullValue> graph =
+                Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env), env);
 
-		List<Tuple3<Long, Long, Long>> actualOutput = graph.run(new TriangleEnumerator<>()).collect();
-		List<Tuple3<Long, Long, Long>> expectedResult = TriangleCountData.getListOfTriangles();
+        List<Tuple3<Long, Long, Long>> actualOutput =
+                graph.run(new TriangleEnumerator<>()).collect();
+        List<Tuple3<Long, Long, Long>> expectedResult = TriangleCountData.getListOfTriangles();
 
-		Assert.assertEquals(expectedResult.size(), actualOutput.size());
-		for (Tuple3<Long, Long, Long> resultTriangle:actualOutput)	{
-			Assert.assertTrue(expectedResult.indexOf(resultTriangle) >= 0);
-		}
-	}
+        Assert.assertEquals(expectedResult.size(), actualOutput.size());
+        for (Tuple3<Long, Long, Long> resultTriangle : actualOutput) {
+            Assert.assertTrue(expectedResult.indexOf(resultTriangle) >= 0);
+        }
+    }
 }

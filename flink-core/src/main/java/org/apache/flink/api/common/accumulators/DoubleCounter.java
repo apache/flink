@@ -20,74 +20,70 @@ package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * An accumulator that sums up {@code double} values.
- */
+/** An accumulator that sums up {@code double} values. */
 @PublicEvolving
 public class DoubleCounter implements SimpleAccumulator<Double> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private double localValue = 0;
+    private double localValue = 0;
 
-	public DoubleCounter() {}
+    public DoubleCounter() {}
 
-	public DoubleCounter(double value) {
-		this.localValue = value;
-	}
+    public DoubleCounter(double value) {
+        this.localValue = value;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Accumulator
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Accumulator
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Consider using {@link #add(double)} instead for primitive double values
-	 */
-	@Override
-	public void add(Double value) {
-		localValue += value;
-	}
+    /** Consider using {@link #add(double)} instead for primitive double values */
+    @Override
+    public void add(Double value) {
+        localValue += value;
+    }
 
-	@Override
-	public Double getLocalValue() {
-		return localValue;
-	}
+    @Override
+    public Double getLocalValue() {
+        return localValue;
+    }
 
-	@Override
-	public void merge(Accumulator<Double, Double> other) {
-		this.localValue += other.getLocalValue();
-	}
+    @Override
+    public void merge(Accumulator<Double, Double> other) {
+        this.localValue += other.getLocalValue();
+    }
 
-	@Override
-	public void resetLocal() {
-		this.localValue = 0;
-	}
+    @Override
+    public void resetLocal() {
+        this.localValue = 0;
+    }
 
-	@Override
-	public DoubleCounter clone() {
-		DoubleCounter result = new DoubleCounter();
-		result.localValue = localValue;
-		return result;
-	}
+    @Override
+    public DoubleCounter clone() {
+        DoubleCounter result = new DoubleCounter();
+        result.localValue = localValue;
+        return result;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Primitive Specializations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Primitive Specializations
+    // ------------------------------------------------------------------------
 
-	public void add(double value){
-		localValue += value;
-	}
+    public void add(double value) {
+        localValue += value;
+    }
 
-	public double getLocalValuePrimitive() {
-		return this.localValue;
-	}
+    public double getLocalValuePrimitive() {
+        return this.localValue;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "DoubleCounter " + this.localValue;
-	}
+    @Override
+    public String toString() {
+        return "DoubleCounter " + this.localValue;
+    }
 }

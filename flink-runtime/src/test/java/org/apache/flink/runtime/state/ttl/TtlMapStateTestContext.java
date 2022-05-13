@@ -24,12 +24,14 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
-abstract class TtlMapStateTestContext<UV, GV>
-	extends TtlStateTestContextBase<TtlMapState<?, String, Integer, String>, UV, GV> {
-	@SuppressWarnings("unchecked")
-	@Override
-	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new MapStateDescriptor<>(
-			"TtlTestMapState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-	}
+/** Test suite for {@link TtlMapState}. */
+public abstract class TtlMapStateTestContext<UV, GV>
+        extends TtlStateTestContextBase<TtlMapState<?, String, Integer, String>, UV, GV> {
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>)
+                new MapStateDescriptor<>(
+                        getName(), IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+    }
 }

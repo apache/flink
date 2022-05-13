@@ -18,41 +18,38 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
-import org.apache.flink.util.StringUtils;
+/** Termination mode query parameter. */
+public class TerminationModeQueryParameter
+        extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
-/**
- * Termination mode for the {@link JobTerminationHandler}.
- */
-public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
+    private static final String key = "mode";
 
-	private static final String key = "mode";
+    public TerminationModeQueryParameter() {
+        super(key, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	public TerminationModeQueryParameter() {
-		super(key, MessageParameterRequisiteness.OPTIONAL);
-	}
+    @Override
+    public TerminationMode convertStringToValue(String value) {
+        return TerminationMode.valueOf(value.toUpperCase());
+    }
 
-	@Override
-	public TerminationMode convertStringToValue(String value) {
-		return TerminationMode.valueOf(value.toUpperCase());
-	}
+    @Override
+    public String convertValueToString(TerminationMode value) {
+        return value.name().toLowerCase();
+    }
 
-	@Override
-	public String convertValueToString(TerminationMode value) {
-		return value.name().toLowerCase();
-	}
+    @Override
+    public String getDescription() {
+        return "String value that specifies the termination mode. The only supported value is: \""
+                + TerminationMode.CANCEL.name().toLowerCase()
+                + "\".";
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that specifies the termination mode. Supported values are: " +
-			StringUtils.toQuotedListString(TerminationMode.values()) + '.';
-	}
+    /** Termination mode. */
+    public enum TerminationMode {
+        CANCEL,
 
-	/**
-	 * Supported termination modes.
-	 */
-	public enum TerminationMode {
-		CANCEL,
-		STOP
-	}
+        /** @deprecated Please use the "stop" command instead. */
+        STOP
+    }
 }

@@ -24,59 +24,59 @@ import static org.junit.Assert.assertEquals;
 
 public class LongMaximumTest {
 
-	@Test
-	public void testGet() {
-		LongMaximum max = new LongMaximum();
-		assertEquals(Long.MIN_VALUE, max.getLocalValue().longValue());
-	}
+    @Test
+    public void testGet() {
+        LongMaximum max = new LongMaximum();
+        assertEquals(Long.MIN_VALUE, max.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testResetLocal() {
-		LongMaximum max = new LongMaximum();
-		long value = 9876543210L;
+    @Test
+    public void testResetLocal() {
+        LongMaximum max = new LongMaximum();
+        long value = 9876543210L;
 
-		max.add(value);
-		assertEquals(value, max.getLocalValue().longValue());
+        max.add(value);
+        assertEquals(value, max.getLocalValue().longValue());
 
-		max.resetLocal();
-		assertEquals(Long.MIN_VALUE, max.getLocalValue().longValue());
-	}
+        max.resetLocal();
+        assertEquals(Long.MIN_VALUE, max.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testAdd() {
-		LongMaximum max = new LongMaximum();
+    @Test
+    public void testAdd() {
+        LongMaximum max = new LongMaximum();
 
-		max.add(1234567890);
-		max.add(9876543210L);
-		max.add(-9876543210L);
-		max.add(-1234567890);
+        max.add(1234567890);
+        max.add(9876543210L);
+        max.add(-9876543210L);
+        max.add(-1234567890);
 
-		assertEquals(9876543210L, max.getLocalValue().longValue());
-	}
+        assertEquals(9876543210L, max.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testMerge() {
-		LongMaximum max1 = new LongMaximum();
-		max1.add(1234567890987654321L);
+    @Test
+    public void testMerge() {
+        LongMaximum max1 = new LongMaximum();
+        max1.add(1234567890987654321L);
 
-		LongMaximum max2 = new LongMaximum();
-		max2.add(5678909876543210123L);
+        LongMaximum max2 = new LongMaximum();
+        max2.add(5678909876543210123L);
 
-		max2.merge(max1);
-		assertEquals(5678909876543210123L, max2.getLocalValue().longValue());
+        max2.merge(max1);
+        assertEquals(5678909876543210123L, max2.getLocalValue().longValue());
 
-		max1.merge(max2);
-		assertEquals(5678909876543210123L, max1.getLocalValue().longValue());
-	}
+        max1.merge(max2);
+        assertEquals(5678909876543210123L, max1.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testClone() {
-		LongMaximum max = new LongMaximum();
-		long value = 4242424242424242L;
+    @Test
+    public void testClone() {
+        LongMaximum max = new LongMaximum();
+        long value = 4242424242424242L;
 
-		max.add(value);
+        max.add(value);
 
-		LongMaximum clone = max.clone();
-		assertEquals(value, clone.getLocalValue().longValue());
-	}
+        LongMaximum clone = max.clone();
+        assertEquals(value, clone.getLocalValue().longValue());
+    }
 }

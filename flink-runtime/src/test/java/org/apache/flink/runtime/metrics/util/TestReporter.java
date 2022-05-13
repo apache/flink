@@ -22,26 +22,33 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
-/**
- * No-op reporter implementation.
- */
-public class TestReporter extends AbstractReporter {
+import java.util.Properties;
 
-	@Override
-	public void open(MetricConfig config) {}
+/** No-op reporter implementation. */
+public class TestReporter extends AbstractReporter implements MetricReporterFactory {
 
-	@Override
-	public void close() {}
+    @Override
+    public void open(MetricConfig config) {}
 
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {}
+    @Override
+    public void close() {}
 
-	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
+    @Override
+    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {}
 
-	@Override
-	public String filterCharacters(String input) {
-		return input;
-	}
+    @Override
+    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
+
+    @Override
+    public String filterCharacters(String input) {
+        return input;
+    }
+
+    @Override
+    public MetricReporter createMetricReporter(Properties properties) {
+        return this;
+    }
 }

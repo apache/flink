@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,29 +30,29 @@ package org.apache.hadoop.util;
 @SuppressWarnings("unused")
 public class NativeCodeLoader {
 
-  public static boolean isNativeCodeLoaded() {
-    return false;
-  }
+    public static boolean isNativeCodeLoaded() {
+        return false;
+    }
 
-  public static boolean buildSupportsSnappy() {
-    return false;
-  }
-  
-  public static boolean buildSupportsOpenssl() {
-    return false;
-  }
+    public static boolean buildSupportsSnappy() {
+        return false;
+    }
 
-  public static boolean buildSupportsIsal() {
-    return false;
-  }
+    public static boolean buildSupportsOpenssl() {
+        return false;
+    }
 
-  public static boolean buildSupportsZstd() {
-    return false;
-  }
+    public static boolean buildSupportsIsal() {
+        return false;
+    }
 
-  public static String getLibraryName() {
-    return null;
-  }
+    public static boolean buildSupportsZstd() {
+        return false;
+    }
 
-  private NativeCodeLoader() {}
+    public static String getLibraryName() {
+        return null;
+    }
+
+    private NativeCodeLoader() {}
 }

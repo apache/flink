@@ -23,29 +23,27 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * An exception that is thrown if the failure of a REST operation was detected on the client.
- */
+/** An exception that is thrown if the failure of a REST operation was detected on the client. */
 public class RestClientException extends FlinkException {
 
-	private static final long serialVersionUID = 937914622022344423L;
+    private static final long serialVersionUID = 937914622022344423L;
 
-	private final int responseCode;
+    private final int responseCode;
 
-	public RestClientException(String message, HttpResponseStatus responseStatus) {
-		super(message);
+    public RestClientException(String message, HttpResponseStatus responseStatus) {
+        super(message);
 
-		Preconditions.checkNotNull(responseStatus);
-		responseCode = responseStatus.code();
-	}
+        Preconditions.checkNotNull(responseStatus);
+        responseCode = responseStatus.code();
+    }
 
-	public RestClientException(String message, Throwable cause, HttpResponseStatus responseStatus) {
-		super(message, cause);
+    public RestClientException(String message, Throwable cause, HttpResponseStatus responseStatus) {
+        super(message, cause);
 
-		responseCode = responseStatus.code();
-	}
+        responseCode = responseStatus.code();
+    }
 
-	public HttpResponseStatus getHttpResponseStatus() {
-		return HttpResponseStatus.valueOf(responseCode);
-	}
+    public HttpResponseStatus getHttpResponseStatus() {
+        return HttpResponseStatus.valueOf(responseCode);
+    }
 }

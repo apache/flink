@@ -28,35 +28,32 @@ import org.apache.flink.util.Preconditions;
  * Container for JobManager related registration information, such as the leader id or the job id.
  */
 public class JobManagerRegistration {
-	private final JobID jobID;
+    private final JobID jobID;
 
-	private final ResourceID jobManagerResourceID;
+    private final ResourceID jobManagerResourceID;
 
-	private final JobMasterGateway jobManagerGateway;
+    private final JobMasterGateway jobManagerGateway;
 
-	public JobManagerRegistration(
-			JobID jobID,
-			ResourceID jobManagerResourceID,
-			JobMasterGateway jobManagerGateway) {
-		this.jobID = Preconditions.checkNotNull(jobID);
-		this.jobManagerResourceID = Preconditions.checkNotNull(jobManagerResourceID);
-		this.jobManagerGateway = Preconditions.checkNotNull(jobManagerGateway);
-	}
+    public JobManagerRegistration(
+            JobID jobID, ResourceID jobManagerResourceID, JobMasterGateway jobManagerGateway) {
+        this.jobID = Preconditions.checkNotNull(jobID);
+        this.jobManagerResourceID = Preconditions.checkNotNull(jobManagerResourceID);
+        this.jobManagerGateway = Preconditions.checkNotNull(jobManagerGateway);
+    }
 
-	public JobID getJobID() {
-		return jobID;
-	}
+    public JobID getJobID() {
+        return jobID;
+    }
 
-	public ResourceID getJobManagerResourceID() {
-		return jobManagerResourceID;
-	}
+    public ResourceID getJobManagerResourceID() {
+        return jobManagerResourceID;
+    }
 
-	public JobMasterId getJobMasterId() {
-		return jobManagerGateway.getFencingToken();
-	}
+    public JobMasterId getJobMasterId() {
+        return jobManagerGateway.getFencingToken();
+    }
 
-	public JobMasterGateway getJobManagerGateway() {
-		return jobManagerGateway;
-	}
-
+    public JobMasterGateway getJobManagerGateway() {
+        return jobManagerGateway;
+    }
 }

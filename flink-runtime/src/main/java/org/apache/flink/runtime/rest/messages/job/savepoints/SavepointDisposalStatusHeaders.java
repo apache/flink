@@ -29,52 +29,57 @@ import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link AsynchronousOperationTriggerMessageHeaders} implementation for the {@link SavepointDisposalHandlers.SavepointDisposalStatusHandler}.
+ * {@link AsynchronousOperationTriggerMessageHeaders} implementation for the {@link
+ * SavepointDisposalHandlers.SavepointDisposalStatusHandler}.
  */
-public class SavepointDisposalStatusHeaders extends AsynchronousOperationStatusMessageHeaders<AsynchronousOperationInfo, SavepointDisposalStatusMessageParameters> {
+public class SavepointDisposalStatusHeaders
+        extends AsynchronousOperationStatusMessageHeaders<
+                AsynchronousOperationInfo, SavepointDisposalStatusMessageParameters> {
 
-	private static final SavepointDisposalStatusHeaders INSTANCE = new SavepointDisposalStatusHeaders();
+    private static final SavepointDisposalStatusHeaders INSTANCE =
+            new SavepointDisposalStatusHeaders();
 
-	private static final String URL = String.format("/savepoint-disposal/:%s", TriggerIdPathParameter.KEY);
+    private static final String URL =
+            String.format("/savepoint-disposal/:%s", TriggerIdPathParameter.KEY);
 
-	private SavepointDisposalStatusHeaders() {}
+    private SavepointDisposalStatusHeaders() {}
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public SavepointDisposalStatusMessageParameters getUnresolvedMessageParameters() {
-		return new SavepointDisposalStatusMessageParameters();
-	}
+    @Override
+    public SavepointDisposalStatusMessageParameters getUnresolvedMessageParameters() {
+        return new SavepointDisposalStatusMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SavepointDisposalStatusHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SavepointDisposalStatusHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	protected Class<AsynchronousOperationInfo> getValueClass() {
-		return AsynchronousOperationInfo.class;
-	}
+    @Override
+    public Class<AsynchronousOperationInfo> getValueClass() {
+        return AsynchronousOperationInfo.class;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the status of a savepoint disposal operation.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the status of a savepoint disposal operation.";
+    }
 }

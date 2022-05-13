@@ -18,27 +18,42 @@
 
 package org.apache.flink.runtime.state.testutils;
 
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A bridge between factory lambdas (like {@link Supplier} and the
- * CheckpointStreamFactory class.
+ * A bridge between factory lambdas (like {@link Supplier} and the CheckpointStreamFactory class.
  */
 public class TestCheckpointStreamFactory implements CheckpointStreamFactory {
 
-	private final Supplier<CheckpointStateOutputStream> supplier;
+    private final Supplier<CheckpointStateOutputStream> supplier;
 
-	public TestCheckpointStreamFactory(Supplier<CheckpointStateOutputStream> supplier) {
-		this.supplier = checkNotNull(supplier);
-	}
+    public TestCheckpointStreamFactory(Supplier<CheckpointStateOutputStream> supplier) {
+        this.supplier = checkNotNull(supplier);
+    }
 
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
-		return supplier.get();
-	}
+    @Override
+    public CheckpointStateOutputStream createCheckpointStateOutputStream(
+            CheckpointedStateScope scope) {
+        return supplier.get();
+    }
+
+    @Override
+    public boolean canFastDuplicate(StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+        return false;
+    }
+
+    @Override
+    public List<StreamStateHandle> duplicate(
+            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -19,29 +19,28 @@
 package org.apache.flink.optimizer.dag;
 
 /**
- * Methods for operators / connections that provide estimated about data size and
- * characteristics.
+ * Methods for operators / connections that provide estimated about data size and characteristics.
  */
 public interface EstimateProvider {
-	
-	/**
-	 * Gets the estimated output size from this node.
-	 * 
-	 * @return The estimated output size.
-	 */
-	long getEstimatedOutputSize();
 
-	/**
-	 * Gets the estimated number of records in the output of this node.
-	 * 
-	 * @return The estimated number of records.
-	 */
-	long getEstimatedNumRecords();
-	
-	/**
-	 * Gets the estimated number of bytes per record.
-	 * 
-	 * @return The estimated number of bytes per record.
-	 */
-	float getEstimatedAvgWidthPerOutputRecord();
+    /**
+     * Gets the estimated output size from this node.
+     *
+     * @return The estimated output size.
+     */
+    long getEstimatedOutputSize();
+
+    /**
+     * Gets the estimated number of records in the output of this node.
+     *
+     * @return The estimated number of records.
+     */
+    long getEstimatedNumRecords();
+
+    /**
+     * Gets the estimated number of bytes per record.
+     *
+     * @return The estimated number of bytes per record.
+     */
+    float getEstimatedAvgWidthPerOutputRecord();
 }

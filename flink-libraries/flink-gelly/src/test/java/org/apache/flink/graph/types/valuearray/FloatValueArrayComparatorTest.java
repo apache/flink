@@ -24,32 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.FloatValue;
 
-/**
- * Tests for {@link FloatValueArrayComparator}.
- */
+/** Tests for {@link FloatValueArrayComparator}. */
 public class FloatValueArrayComparatorTest extends ComparatorTestBase<FloatValueArray> {
 
-	@Override
-	protected TypeComparator<FloatValueArray> createComparator(boolean ascending) {
-		return new FloatValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<FloatValueArray> createComparator(boolean ascending) {
+        return new FloatValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<FloatValueArray> createSerializer() {
-		return new FloatValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<FloatValueArray> createSerializer() {
+        return new FloatValueArraySerializer();
+    }
 
-	@Override
-	protected FloatValueArray[] getSortedTestData() {
-		FloatValueArray lva0 = new FloatValueArray();
+    @Override
+    protected FloatValueArray[] getSortedTestData() {
+        FloatValueArray lva0 = new FloatValueArray();
 
-		FloatValueArray lva1 = new FloatValueArray();
-		lva1.add(new FloatValue(5));
+        FloatValueArray lva1 = new FloatValueArray();
+        lva1.add(new FloatValue(5));
 
-		FloatValueArray lva2 = new FloatValueArray();
-		lva2.add(new FloatValue(5));
-		lva2.add(new FloatValue(10));
+        FloatValueArray lva2 = new FloatValueArray();
+        lva2.add(new FloatValue(5));
+        lva2.add(new FloatValue(10));
 
-		return new FloatValueArray[]{ lva0, lva1 };
-	}
+        return new FloatValueArray[] {lva0, lva1};
+    }
 }

@@ -21,20 +21,19 @@ package org.apache.flink.queryablestate;
 import org.apache.flink.util.AbstractID;
 
 /**
- *  Identifier for state instances.
+ * Identifier for state instances.
  *
  * <p>Assigned when registering the state at the state registry.
  */
 public class KvStateID extends AbstractID {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public KvStateID() {
-		super();
-	}
+    public KvStateID() {
+        super();
+    }
 
-	public KvStateID(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
-	}
-
+    public KvStateID(long lowerPart, long upperPart) {
+        super(lowerPart, upperPart);
+    }
 }

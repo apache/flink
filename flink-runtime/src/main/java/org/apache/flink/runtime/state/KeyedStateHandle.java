@@ -18,23 +18,37 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+
+import javax.annotation.Nullable;
+
 /**
- * Base for the handles of the checkpointed states in keyed streams. When
- * recovering from failures, the handle will be passed to all tasks whose key
- * group ranges overlap with it.
+ * Base for the handles of the checkpointed states in keyed streams. When recovering from failures,
+ * the handle will be passed to all tasks whose key group ranges overlap with it.
  */
 public interface KeyedStateHandle extends CompositeStateHandle {
 
-	/**
-	 * Returns the range of the key groups contained in the state.
-	 */
-	KeyGroupRange getKeyGroupRange();
+    /** Returns the range of the key groups contained in the state. */
+    KeyGroupRange getKeyGroupRange();
 
-	/**
-	 * Returns a state over a range that is the intersection between this
-	 * handle's key-group range and the provided key-group range.
-	 *
-	 * @param keyGroupRange The key group range to intersect with
-	 */
-	KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange);
+    /**
+     * Returns a state over a range that is the intersection between this handle's key-group range
+     * and the provided key-group range.
+     *
+     * @param keyGroupRange The key group range to intersect with, will return null if the
+     *     intersection of this handle's key-group and the provided key-group is empty.
+     */
+    @Nullable
+    KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange);
+
+    /**
+     * Returns a unique state handle id to distinguish with other keyed state handles.
+     *
+     * <p><Note>If this state handle would be used as materialized part of {@link
+     * ChangelogStateBackendHandle}, it should persist this state handle id when serializing of
+     * checkpoint and deserialize it back to ensure the state handle id is constant.
+     *
+     * @return A unique state handle id.
+     */
+    StateHandleID getStateHandleId();
 }

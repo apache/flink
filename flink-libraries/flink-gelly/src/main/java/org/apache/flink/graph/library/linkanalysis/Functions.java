@@ -25,21 +25,20 @@ import org.apache.flink.types.DoubleValue;
 
 class Functions {
 
-	private Functions() {}
+    private Functions() {}
 
-	/**
-	 * Sum vertices' scores.
-	 *
-	 * @param <T> ID type
-	 */
-	@ForwardedFields("0")
-	protected static final class SumScore<T>
-		implements ReduceFunction<Tuple2<T, DoubleValue>> {
-		@Override
-		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right)
-			throws Exception {
-			left.f1.setValue(left.f1.getValue() + right.f1.getValue());
-			return left;
-		}
-	}
+    /**
+     * Sum vertices' scores.
+     *
+     * @param <T> ID type
+     */
+    @ForwardedFields("0")
+    protected static final class SumScore<T> implements ReduceFunction<Tuple2<T, DoubleValue>> {
+        @Override
+        public Tuple2<T, DoubleValue> reduce(
+                Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right) throws Exception {
+            left.f1.setValue(left.f1.getValue() + right.f1.getValue());
+            return left;
+        }
+    }
 }

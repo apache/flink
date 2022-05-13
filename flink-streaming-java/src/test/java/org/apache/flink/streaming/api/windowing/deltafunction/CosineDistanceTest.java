@@ -23,56 +23,50 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link CosineDistance}.
- */
+/** Tests for {@link CosineDistance}. */
 public class CosineDistanceTest {
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	@Test
-	public void testCosineDistance() {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    public void testCosineDistance() {
 
-		//Reference calculated using wolfram alpha
-		double[][][] testdata = {
-				{{0, 0, 0}, {0, 0, 0}},
-				{{0, 0, 0}, {1, 2, 3}},
-				{{1, 2, 3}, {0, 0, 0}},
-				{{1, 2, 3}, {4, 5, 6}},
-				{{1, 2, 3}, {-4, -5, -6}},
-				{{1, 2, -3}, {-4, 5, -6}},
-				{{1, 2, 3, 4}, {5, 6, 7, 8}},
-				{{1, 2}, {3, 4}},
-				{{1}, {2}},
-			};
-		double[] referenceSolutions = {
-				0,
-				0,
-				0,
-				0.025368,
-				1.974631,
-				0.269026,
-				0.031136,
-				0.016130,
-				0
-		};
+        // Reference calculated using wolfram alpha
+        double[][][] testdata = {
+            {{0, 0, 0}, {0, 0, 0}},
+            {{0, 0, 0}, {1, 2, 3}},
+            {{1, 2, 3}, {0, 0, 0}},
+            {{1, 2, 3}, {4, 5, 6}},
+            {{1, 2, 3}, {-4, -5, -6}},
+            {{1, 2, -3}, {-4, 5, -6}},
+            {{1, 2, 3, 4}, {5, 6, 7, 8}},
+            {{1, 2}, {3, 4}},
+            {{1}, {2}},
+        };
+        double[] referenceSolutions = {
+            0, 0, 0, 0.025368, 1.974631, 0.269026, 0.031136, 0.016130, 0
+        };
 
-		for (int i = 0; i < testdata.length; i++) {
-			assertEquals("Wrong result for inputs " + arrayToString(testdata[i][0]) + " and "
-					+ arrayToString(testdata[i][0]), referenceSolutions[i],
-					new CosineDistance().getDelta(testdata[i][0], testdata[i][1]), 0.000001);
-		}
-	}
+        for (int i = 0; i < testdata.length; i++) {
+            assertEquals(
+                    "Wrong result for inputs "
+                            + arrayToString(testdata[i][0])
+                            + " and "
+                            + arrayToString(testdata[i][0]),
+                    referenceSolutions[i],
+                    new CosineDistance().getDelta(testdata[i][0], testdata[i][1]),
+                    0.000001);
+        }
+    }
 
-	private String arrayToString(double[] in){
-		if (in.length == 0) {
-			return "{}";
-		}
+    private String arrayToString(double[] in) {
+        if (in.length == 0) {
+            return "{}";
+        }
 
-		String result = "{";
-		for (double d:in) {
-			result += d + ",";
-		}
-		return result.substring(0, result.length() - 1) + "}";
-	}
-
+        String result = "{";
+        for (double d : in) {
+            result += d + ",";
+        }
+        return result.substring(0, result.length() - 1) + "}";
+    }
 }

@@ -27,25 +27,23 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Factory for XZ decompressors.
- */
+/** Factory for XZ decompressors. */
 @Internal
 public class XZInputStreamFactory implements InflaterInputStreamFactory<XZCompressorInputStream> {
 
-	private static final  XZInputStreamFactory INSTANCE = new XZInputStreamFactory();
+    private static final XZInputStreamFactory INSTANCE = new XZInputStreamFactory();
 
-	public static XZInputStreamFactory getInstance() {
-		return INSTANCE;
-	}
+    public static XZInputStreamFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public XZCompressorInputStream create(InputStream in) throws IOException {
-		return new XZCompressorInputStream(in, true);
-	}
+    @Override
+    public XZCompressorInputStream create(InputStream in) throws IOException {
+        return new XZCompressorInputStream(in, true);
+    }
 
-	@Override
-	public Collection<String> getCommonFileExtensions() {
-		return Collections.singleton("xz");
-	}
+    @Override
+    public Collection<String> getCommonFileExtensions() {
+        return Collections.singleton("xz");
+    }
 }

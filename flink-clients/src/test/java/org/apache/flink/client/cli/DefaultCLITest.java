@@ -18,93 +18,52 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.StandaloneClusterId;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RestOptions;
 
 import org.apache.commons.cli.CommandLine;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
+
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link DefaultCLI}.
- */
-public class DefaultCLITest extends CliFrontendTestBase {
+/** Tests for the {@link DefaultCLI}. */
+public class DefaultCLITest {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    /** Verifies command line options are correctly materialized. */
+    @Test
+    public void testCommandLineMaterialization() throws Exception {
+        final String hostname = "home-sweet-home";
+        final int port = 1234;
+        final String[] args = {"-m", hostname + ':' + port};
 
-	/**
-	 * Tests that the configuration is properly passed via the DefaultCLI to the
-	 * created ClusterDescriptor.
-	 */
-	@Test
-	public void testConfigurationPassing() throws Exception {
-		final Configuration configuration = getConfiguration();
+        final AbstractCustomCommandLine defaultCLI = new DefaultCLI();
+        final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final String localhost = "localhost";
-		final int port = 1234;
+        Configuration configuration = defaultCLI.toConfiguration(commandLine);
 
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
+        assertThat(configuration.get(RestOptions.ADDRESS), is(hostname));
+        assertThat(configuration.get(RestOptions.PORT), is(port));
+    }
 
-		@SuppressWarnings("unchecked")
-		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
-			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
+    @Test
+    public void testDynamicPropertyMaterialization() throws Exception {
+        final String[] args = {
+            "-D" + PipelineOptions.AUTO_WATERMARK_INTERVAL.key() + "=42",
+            "-D" + PipelineOptions.AUTO_GENERATE_UIDS.key() + "=true"
+        };
 
-		final String[] args = {};
+        final AbstractCustomCommandLine defaultCLI = new DefaultCLI();
+        final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+        Configuration configuration = defaultCLI.toConfiguration(commandLine);
 
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
-
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
-
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
-
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(localhost));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(port));
-	}
-
-	/**
-	 * Tests that command line options override the configuration settings.
-	 */
-	@Test
-	public void testManualConfigurationOverride() throws Exception {
-		final String localhost = "localhost";
-		final int port = 1234;
-		final Configuration configuration = getConfiguration();
-
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
-
-		@SuppressWarnings("unchecked")
-		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
-			(AbstractCustomCommandLine<StandaloneClusterId>) getCli(configuration);
-
-		final String manualHostname = "123.123.123.123";
-		final int manualPort = 4321;
-		final String[] args = {"-m", manualHostname + ':' + manualPort};
-
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
-
-		final ClusterDescriptor<StandaloneClusterId> clusterDescriptor =
-			defaultCLI.createClusterDescriptor(commandLine);
-
-		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
-
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
-
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(manualHostname));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(manualPort));
-	}
-
+        assertThat(
+                configuration.get(PipelineOptions.AUTO_WATERMARK_INTERVAL),
+                is(Duration.ofMillis(42L)));
+        assertThat(configuration.get(PipelineOptions.AUTO_GENERATE_UIDS), is(true));
+    }
 }

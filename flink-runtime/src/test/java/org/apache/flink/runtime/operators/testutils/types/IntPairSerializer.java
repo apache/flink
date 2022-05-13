@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils.types;
 
-import java.io.IOException;
-
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -29,123 +25,107 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 
 public class IntPairSerializer extends TypeSerializer<IntPair> {
-	
-	private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public IntPairSerializer duplicate() {
-		return this;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public IntPair createInstance() {
-		return new IntPair();
-	}
-	
-	@Override
-	public IntPair copy(IntPair from) {
-		return new IntPair(from.getKey(), from.getValue());
-	}
+    @Override
+    public IntPairSerializer duplicate() {
+        return this;
+    }
 
-	@Override
-	public IntPair copy(IntPair from, IntPair reuse) {
-		reuse.setKey(from.getKey());
-		reuse.setValue(from.getValue());
-		return reuse;
-	}
-	
+    @Override
+    public IntPair createInstance() {
+        return new IntPair();
+    }
 
-	@Override
-	public int getLength() {
-		return 8;
-	}
+    @Override
+    public IntPair copy(IntPair from) {
+        return new IntPair(from.getKey(), from.getValue());
+    }
 
-	@Override
-	public void serialize(IntPair record, DataOutputView target) throws IOException {
-		target.writeInt(record.getKey());
-		target.writeInt(record.getValue());
-	}
+    @Override
+    public IntPair copy(IntPair from, IntPair reuse) {
+        reuse.setKey(from.getKey());
+        reuse.setValue(from.getValue());
+        return reuse;
+    }
 
-	@Override
-	public IntPair deserialize(DataInputView source) throws IOException {
-		return new IntPair(source.readInt(), source.readInt());
-	}
-	
-	@Override
-	public IntPair deserialize(IntPair reuse, DataInputView source) throws IOException {
-		reuse.setKey(source.readInt());
-		reuse.setValue(source.readInt());
-		return reuse;
-	}
+    @Override
+    public int getLength() {
+        return 8;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, 8);
-	}
+    @Override
+    public void serialize(IntPair record, DataOutputView target) throws IOException {
+        target.writeInt(record.getKey());
+        target.writeInt(record.getValue());
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof IntPairSerializer) {
-			IntPairSerializer other = (IntPairSerializer) obj;
+    @Override
+    public IntPair deserialize(DataInputView source) throws IOException {
+        return new IntPair(source.readInt(), source.readInt());
+    }
 
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public IntPair deserialize(IntPair reuse, DataInputView source) throws IOException {
+        reuse.setKey(source.readInt());
+        reuse.setValue(source.readInt());
+        return reuse;
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntPairSerializer;
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.write(source, 8);
+    }
 
-	@Override
-	public int hashCode() {
-		return IntPairSerializer.class.hashCode();
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof IntPairSerializer;
+    }
 
-	public static final class IntPairSerializerFactory implements TypeSerializerFactory<IntPair> {
+    @Override
+    public int hashCode() {
+        return IntPairSerializer.class.hashCode();
+    }
 
-		@Override
-		public void writeParametersToConfig(Configuration config) {}
+    public static final class IntPairSerializerFactory implements TypeSerializerFactory<IntPair> {
 
-		@Override
-		public void readParametersFromConfig(Configuration config, ClassLoader cl) {}
+        @Override
+        public void writeParametersToConfig(Configuration config) {}
 
-		@Override
-		public IntPairSerializer getSerializer() {
-			return new IntPairSerializer();
-		}
+        @Override
+        public void readParametersFromConfig(Configuration config, ClassLoader cl) {}
 
-		@Override
-		public Class<IntPair> getDataType() {
-			return IntPair.class;
-		}
+        @Override
+        public IntPairSerializer getSerializer() {
+            return new IntPairSerializer();
+        }
 
-		@Override
-		public int hashCode() {
-			return 42;
-		}
+        @Override
+        public Class<IntPair> getDataType() {
+            return IntPair.class;
+        }
 
-		public boolean equals(Object obj) {
-			return obj.getClass() == IntPairSerializerFactory.class;
-		};
-	}
+        @Override
+        public int hashCode() {
+            return 42;
+        }
 
-	@Override
-	public TypeSerializerConfigSnapshot<IntPair> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
-	}
+        public boolean equals(Object obj) {
+            return obj.getClass() == IntPairSerializerFactory.class;
+        };
+    }
 
-	@Override
-	public CompatibilityResult<IntPair> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TypeSerializerConfigSnapshot<IntPair> snapshotConfiguration() {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -25,53 +25,53 @@ import org.apache.flink.runtime.event.RuntimeEvent;
 import java.io.IOException;
 
 /**
- * The CancelCheckpointMarker travels through the data streams, similar to the {@link CheckpointBarrier},
- * but signals that a certain checkpoint should be canceled. Any in-progress alignment for that
- * checkpoint needs to be canceled and regular processing should be resumed.
+ * The CancelCheckpointMarker travels through the data streams, similar to the {@link
+ * CheckpointBarrier}, but signals that a certain checkpoint should be canceled. Any in-progress
+ * alignment for that checkpoint needs to be canceled and regular processing should be resumed.
  */
 public class CancelCheckpointMarker extends RuntimeEvent {
 
-	/** The id of the checkpoint to be canceled. */
-	private final long checkpointId;
+    /** The id of the checkpoint to be canceled. */
+    private final long checkpointId;
 
-	public CancelCheckpointMarker(long checkpointId) {
-		this.checkpointId = checkpointId;
-	}
+    public CancelCheckpointMarker(long checkpointId) {
+        this.checkpointId = checkpointId;
+    }
 
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	// ------------------------------------------------------------------------
-	// These known and common event go through special code paths, rather than
-	// through generic serialization.
+    // ------------------------------------------------------------------------
+    // These known and common event go through special code paths, rather than
+    // through generic serialization.
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		throw new UnsupportedOperationException("this method should never be called");
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        throw new UnsupportedOperationException("this method should never be called");
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		throw new UnsupportedOperationException("this method should never be called");
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        throw new UnsupportedOperationException("this method should never be called");
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return (int) (checkpointId ^ (checkpointId >>> 32));
-	}
+    @Override
+    public int hashCode() {
+        return (int) (checkpointId ^ (checkpointId >>> 32));
+    }
 
-	@Override
-	public boolean equals(Object other) {
-		return other != null &&
-				other.getClass() == CancelCheckpointMarker.class &&
-				this.checkpointId == ((CancelCheckpointMarker) other).checkpointId;
-	}
+    @Override
+    public boolean equals(Object other) {
+        return other != null
+                && other.getClass() == CancelCheckpointMarker.class
+                && this.checkpointId == ((CancelCheckpointMarker) other).checkpointId;
+    }
 
-	@Override
-	public String toString() {
-		return "CancelCheckpointMarker " + checkpointId;
-	}
+    @Override
+    public String toString() {
+        return "CancelCheckpointMarker " + checkpointId;
+    }
 }

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.operators.Ordering;
@@ -36,92 +35,93 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * The optimizer's internal representation of a <i>SortPartition</i> operator node.
- */
+/** The optimizer's internal representation of a <i>SortPartition</i> operator node. */
 public class SortPartitionNode extends SingleInputNode {
 
-	private final List<OperatorDescriptorSingle> possibleProperties;
+    private final List<OperatorDescriptorSingle> possibleProperties;
 
-	public SortPartitionNode(SortPartitionOperatorBase<?> operator) {
-		super(operator);
-		
-		OperatorDescriptorSingle descr = new SortPartitionDescriptor(operator.getPartitionOrdering());
-		this.possibleProperties = Collections.singletonList(descr);
-	}
+    public SortPartitionNode(SortPartitionOperatorBase<?> operator) {
+        super(operator);
 
-	@Override
-	public SortPartitionOperatorBase<?> getOperator() {
-		return (SortPartitionOperatorBase<?>) super.getOperator();
-	}
+        OperatorDescriptorSingle descr =
+                new SortPartitionDescriptor(operator.getPartitionOrdering());
+        this.possibleProperties = Collections.singletonList(descr);
+    }
 
-	@Override
-	public String getOperatorName() {
-		return "Sort-Partition";
-	}
+    @Override
+    public SortPartitionOperatorBase<?> getOperator() {
+        return (SortPartitionOperatorBase<?>) super.getOperator();
+    }
 
-	@Override
-	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return this.possibleProperties;
-	}
+    @Override
+    public String getOperatorName() {
+        return "Sort-Partition";
+    }
 
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		// sorting does not change the number of records
-		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
-		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
-	}
-	
-	@Override
-	public SemanticProperties getSemanticProperties() {
-		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static class SortPartitionDescriptor extends OperatorDescriptorSingle {
+    @Override
+    protected List<OperatorDescriptorSingle> getPossibleProperties() {
+        return this.possibleProperties;
+    }
 
-		private Ordering partitionOrder;
+    @Override
+    protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+        // sorting does not change the number of records
+        this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
+        this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
+    }
 
-		public SortPartitionDescriptor(Ordering partitionOrder) {
-			this.partitionOrder = partitionOrder;
-		}
-		
-		@Override
-		public DriverStrategy getStrategy() {
-			return DriverStrategy.UNARY_NO_OP;
-		}
+    @Override
+    public SemanticProperties getSemanticProperties() {
+        return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+    }
 
-		@Override
-		public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-			return new SingleInputPlanNode(node, "Sort-Partition", in, DriverStrategy.UNARY_NO_OP);
-		}
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-			// sort partition does not require any global property
-			return Collections.singletonList(new RequestedGlobalProperties());
-		}
+    public static class SortPartitionDescriptor extends OperatorDescriptorSingle {
 
-		@Override
-		protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-			// set partition order as required local property
-			RequestedLocalProperties rlp = new RequestedLocalProperties();
-			rlp.setOrdering(this.partitionOrder);
+        private Ordering partitionOrder;
 
-			return Collections.singletonList(rlp);
-		}
-		
-		@Override
-		public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
-			// sort partition is a no-operation operation, such that all global properties are preserved.
-			return gProps;
-		}
-		
-		@Override
-		public LocalProperties computeLocalProperties(LocalProperties lProps) {
-			// sort partition is a no-operation operation, such that all local properties are preserved.
-			return lProps;
-		}
-	}
+        public SortPartitionDescriptor(Ordering partitionOrder) {
+            this.partitionOrder = partitionOrder;
+        }
+
+        @Override
+        public DriverStrategy getStrategy() {
+            return DriverStrategy.UNARY_NO_OP;
+        }
+
+        @Override
+        public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
+            return new SingleInputPlanNode(node, "Sort-Partition", in, DriverStrategy.UNARY_NO_OP);
+        }
+
+        @Override
+        protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
+            // sort partition does not require any global property
+            return Collections.singletonList(new RequestedGlobalProperties());
+        }
+
+        @Override
+        protected List<RequestedLocalProperties> createPossibleLocalProperties() {
+            // set partition order as required local property
+            RequestedLocalProperties rlp = new RequestedLocalProperties();
+            rlp.setOrdering(this.partitionOrder);
+
+            return Collections.singletonList(rlp);
+        }
+
+        @Override
+        public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
+            // sort partition is a no-operation operation, such that all global properties are
+            // preserved.
+            return gProps;
+        }
+
+        @Override
+        public LocalProperties computeLocalProperties(LocalProperties lProps) {
+            // sort partition is a no-operation operation, such that all local properties are
+            // preserved.
+            return lProps;
+        }
+    }
 }

@@ -19,34 +19,48 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
 import scala.util.Try;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for the Scala {@link TrySerializer}.
  *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * <p>This configuration snapshot class is implemented in Java because Scala does not allow calling
+ * different base class constructors from subclasses, while we need that for the default empty
+ * constructor.
  */
-public class ScalaTrySerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Try<E>> {
+@Deprecated
+public class ScalaTrySerializerConfigSnapshot<E>
+        extends CompositeTypeSerializerConfigSnapshot<Try<E>> {
 
-	private static final int VERSION = 1;
+    private static final int VERSION = 1;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaTrySerializerConfigSnapshot() {}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    public ScalaTrySerializerConfigSnapshot() {}
 
-	public ScalaTrySerializerConfigSnapshot(
-			TypeSerializer<E> elementSerializer,
-			TypeSerializer<Throwable> throwableSerializer) {
+    public ScalaTrySerializerConfigSnapshot(
+            TypeSerializer<E> elementSerializer, TypeSerializer<Throwable> throwableSerializer) {
 
-		super(elementSerializer, throwableSerializer);
-	}
+        super(elementSerializer, throwableSerializer);
+    }
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<Try<E>> resolveSchemaCompatibility(
+            TypeSerializer<Try<E>> newSerializer) {
+
+        return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+                newSerializer,
+                new ScalaTrySerializerSnapshot<>(),
+                getNestedSerializersAndConfigs().get(0).f1,
+                getNestedSerializersAndConfigs().get(1).f1);
+    }
 }

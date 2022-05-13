@@ -19,46 +19,23 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-/**
- * Represents a pending task manager slot in the {@link SlotManager}.
- */
+/** Represents a pending task manager slot in the {@link SlotManager}. */
 public class PendingTaskManagerSlot {
 
-	private final TaskManagerSlotId taskManagerSlotId = TaskManagerSlotId.generate();
+    private final TaskManagerSlotId taskManagerSlotId = TaskManagerSlotId.generate();
 
-	private final ResourceProfile resourceProfile;
+    private final ResourceProfile resourceProfile;
 
-	@Nullable
-	private PendingSlotRequest pendingSlotRequest;
+    public PendingTaskManagerSlot(ResourceProfile resourceProfile) {
+        this.resourceProfile = resourceProfile;
+    }
 
-	public PendingTaskManagerSlot(ResourceProfile resourceProfile) {
-		this.resourceProfile = resourceProfile;
-	}
+    public TaskManagerSlotId getTaskManagerSlotId() {
+        return taskManagerSlotId;
+    }
 
-	public TaskManagerSlotId getTaskManagerSlotId() {
-		return taskManagerSlotId;
-	}
-
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
-	}
-
-	public void assignPendingSlotRequest(@Nonnull PendingSlotRequest pendingSlotRequestToAssign) {
-		Preconditions.checkState(pendingSlotRequest == null);
-		pendingSlotRequest = pendingSlotRequestToAssign;
-	}
-
-	public void unassignPendingSlotRequest() {
-		pendingSlotRequest = null;
-	}
-
-	@Nullable
-	public PendingSlotRequest getAssignedPendingSlotRequest() {
-		return pendingSlotRequest;
-	}
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
 }

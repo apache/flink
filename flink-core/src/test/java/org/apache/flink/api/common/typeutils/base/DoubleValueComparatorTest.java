@@ -27,35 +27,36 @@ import java.util.Random;
 
 public class DoubleValueComparatorTest extends ComparatorTestBase<DoubleValue> {
 
-	@Override
-	protected TypeComparator<DoubleValue> createComparator(boolean ascending) {
-		return new DoubleValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<DoubleValue> createComparator(boolean ascending) {
+        return new DoubleValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<DoubleValue> createSerializer() {
-		return new DoubleValueSerializer();
-	}
-	
-	@Override
-	protected DoubleValue[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		double rndDouble = rnd.nextDouble();
-		if (rndDouble < 0) {
-			rndDouble = -rndDouble;
-		}
-		if (rndDouble == Double.MAX_VALUE) {
-			rndDouble -= 3;
-		}
-		if (rndDouble <= 2) {
-			rndDouble += 3;
-		}
-		return new DoubleValue[]{
-			new DoubleValue(-rndDouble),
-			new DoubleValue(-1.0D),
-			new DoubleValue(0.0D),
-			new DoubleValue(2.0D),
-			new DoubleValue(rndDouble),
-			new DoubleValue(Double.MAX_VALUE)};
-	}
+    @Override
+    protected TypeSerializer<DoubleValue> createSerializer() {
+        return new DoubleValueSerializer();
+    }
+
+    @Override
+    protected DoubleValue[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        double rndDouble = rnd.nextDouble();
+        if (rndDouble < 0) {
+            rndDouble = -rndDouble;
+        }
+        if (rndDouble == Double.MAX_VALUE) {
+            rndDouble -= 3;
+        }
+        if (rndDouble <= 2) {
+            rndDouble += 3;
+        }
+        return new DoubleValue[] {
+            new DoubleValue(-rndDouble),
+            new DoubleValue(-1.0D),
+            new DoubleValue(0.0D),
+            new DoubleValue(2.0D),
+            new DoubleValue(rndDouble),
+            new DoubleValue(Double.MAX_VALUE)
+        };
+    }
 }

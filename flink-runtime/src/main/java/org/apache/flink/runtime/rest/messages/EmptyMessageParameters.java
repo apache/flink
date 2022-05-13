@@ -21,26 +21,24 @@ package org.apache.flink.runtime.rest.messages;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * MessageParameters implementation which has no parameters.
- */
+/** MessageParameters implementation which has no parameters. */
 public class EmptyMessageParameters extends MessageParameters {
 
-	private static final EmptyMessageParameters INSTANCE = new EmptyMessageParameters();
+    private static final EmptyMessageParameters INSTANCE = new EmptyMessageParameters();
 
-	private EmptyMessageParameters() {}
+    private EmptyMessageParameters() {}
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 
-	public static EmptyMessageParameters getInstance() {
-		return INSTANCE;
-	}
+    public static EmptyMessageParameters getInstance() {
+        return INSTANCE;
+    }
 }

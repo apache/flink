@@ -26,51 +26,48 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-
-/**
- *
- */
+/** */
 public class RuntimeAggregatorRegistry {
 
-	private final Map<String, Aggregator<?>> aggregators;
+    private final Map<String, Aggregator<?>> aggregators;
 
-	private final Map<String, Value> previousGlobalAggregate;
+    private final Map<String, Value> previousGlobalAggregate;
 
-	public RuntimeAggregatorRegistry(Collection<AggregatorWithName<?>> aggs) {
-		this.aggregators = new HashMap<String, Aggregator<?>>();
-		this.previousGlobalAggregate = new HashMap<String, Value>();
+    public RuntimeAggregatorRegistry(Collection<AggregatorWithName<?>> aggs) {
+        this.aggregators = new HashMap<String, Aggregator<?>>();
+        this.previousGlobalAggregate = new HashMap<String, Value>();
 
-		for (AggregatorWithName<?> agg : aggs) {
-			this.aggregators.put(agg.getName(), agg.getAggregator());
-		}
-	}
+        for (AggregatorWithName<?> agg : aggs) {
+            this.aggregators.put(agg.getName(), agg.getAggregator());
+        }
+    }
 
-	public Value getPreviousGlobalAggregate(String name) {
-		return this.previousGlobalAggregate.get(name);
-	}
+    public Value getPreviousGlobalAggregate(String name) {
+        return this.previousGlobalAggregate.get(name);
+    }
 
-	@SuppressWarnings("unchecked")
-	public <T extends Aggregator<?>> T getAggregator(String name) {
-		return (T) this.aggregators.get(name);
-	}
+    @SuppressWarnings("unchecked")
+    public <T extends Aggregator<?>> T getAggregator(String name) {
+        return (T) this.aggregators.get(name);
+    }
 
-	public Map<String, Aggregator<?>> getAllAggregators() {
-		return this.aggregators;
-	}
+    public Map<String, Aggregator<?>> getAllAggregators() {
+        return this.aggregators;
+    }
 
-	public void updateGlobalAggregatesAndReset(String[] names, Value[] aggregates) {
-		if (names == null || aggregates == null || names.length != aggregates.length) {
-			throw new IllegalArgumentException();
-		}
+    public void updateGlobalAggregatesAndReset(String[] names, Value[] aggregates) {
+        if (names == null || aggregates == null || names.length != aggregates.length) {
+            throw new IllegalArgumentException();
+        }
 
-		// add global aggregates
-		for (int i = 0; i < names.length; i++) {
-			this.previousGlobalAggregate.put(names[i], aggregates[i]);
-		}
+        // add global aggregates
+        for (int i = 0; i < names.length; i++) {
+            this.previousGlobalAggregate.put(names[i], aggregates[i]);
+        }
 
-		// reset all aggregators
-		for (Aggregator<?> agg : this.aggregators.values()) {
-			agg.reset();
-		}
-	}
+        // reset all aggregators
+        for (Aggregator<?> agg : this.aggregators.values()) {
+            agg.reset();
+        }
+    }
 }

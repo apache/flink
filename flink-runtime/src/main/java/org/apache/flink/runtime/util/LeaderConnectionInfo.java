@@ -18,74 +18,35 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.util.FlinkException;
-
-import akka.actor.Address;
-
-import java.net.MalformedURLException;
 import java.util.UUID;
 
-/**
- * Wrapper class for a pair of connection address and leader session ID.
- */
+/** Wrapper class for a pair of connection address and leader session ID. */
 public class LeaderConnectionInfo {
+    private final UUID leaderSessionId;
 
-	private final String address;
+    private final String address;
 
-	private final UUID leaderSessionID;
+    public LeaderConnectionInfo(UUID leaderSessionId, String address) {
+        this.leaderSessionId = leaderSessionId;
+        this.address = address;
+    }
 
-	private final String hostname;
+    public UUID getLeaderSessionId() {
+        return leaderSessionId;
+    }
 
-	private final int port;
+    public String getAddress() {
+        return address;
+    }
 
-	public LeaderConnectionInfo(String address, UUID leaderSessionID) throws FlinkException {
-		this.address = address;
-		this.leaderSessionID = leaderSessionID;
-
-		final Address akkaAddress;
-		// this only works as long as the address is Akka based
-		try {
-			akkaAddress = AkkaUtils.getAddressFromAkkaURL(address);
-		} catch (MalformedURLException e) {
-			throw new FlinkException("Could not extract the hostname from the given address \'" +
-				address + "\'.", e);
-		}
-
-		if (akkaAddress.host().isDefined()) {
-			hostname = akkaAddress.host().get();
-		} else {
-			hostname = "localhost";
-		}
-
-		if (akkaAddress.port().isDefined()) {
-			port = (int) akkaAddress.port().get();
-		} else {
-			port = -1;
-		}
-	}
-
-	public String getAddress() {
-		return address;
-	}
-
-	public UUID getLeaderSessionID() {
-		return leaderSessionID;
-	}
-
-	public String getHostname() {
-		return hostname;
-	}
-
-	public int getPort() {
-		return port;
-	}
-
-	@Override
-	public String toString() {
-		return "LeaderConnectionInfo{" +
-			"address='" + address + '\'' +
-			", leaderSessionID=" + leaderSessionID +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "LeaderConnectionInfo{"
+                + "leaderSessionId="
+                + leaderSessionId
+                + ", address='"
+                + address
+                + '\''
+                + '}';
+    }
 }

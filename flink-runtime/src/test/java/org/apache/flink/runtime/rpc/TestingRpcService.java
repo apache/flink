@@ -19,124 +19,216 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An RPC Service implementation for testing. This RPC service acts as a replacement for
- * the regular RPC service for cases where tests need to return prepared mock gateways instead of
- * proper RPC gateways.
- * 
- * <p>The TestingRpcService can be used for example in the following fashion,
- * using <i>Mockito</i> for mocks and verification:
- * 
+ * An RPC Service implementation for testing. This RPC service acts as a replacement for the regular
+ * RPC service for cases where tests need to return prepared mock gateways instead of proper RPC
+ * gateways.
+ *
+ * <p>The TestingRpcService can be used for example in the following fashion, using <i>Mockito</i>
+ * for mocks and verification:
+ *
  * <pre>{@code
  * TestingRpcService rpc = new TestingRpcService();
  *
  * ResourceManagerGateway testGateway = mock(ResourceManagerGateway.class);
  * rpc.registerGateway("myAddress", testGateway);
- * 
+ *
  * MyComponentToTest component = new MyComponentToTest();
  * component.triggerSomethingThatCallsTheGateway();
- * 
+ *
  * verify(testGateway, timeout(1000)).theTestMethod(any(UUID.class), anyString());
  * }</pre>
  */
-public class TestingRpcService extends AkkaRpcService {
+public class TestingRpcService implements RpcService {
 
-	/** Map of pre-registered connections */
-	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
+    // load RpcSystem once to save initialization costs
+    // this is safe because it is state-less
+    private static final RpcSystem RPC_SYSTEM_SINGLETON = RpcSystem.load();
 
-	/**
-	 * Creates a new {@code TestingRpcService}. 
-	 */
-	public TestingRpcService() {
-		this(new Configuration());
-	}
+    private static final Function<RpcGateway, CompletableFuture<RpcGateway>>
+            DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION = CompletableFuture::completedFuture;
 
-	/**
-	 * Creates a new {@code TestingRpcService}, using the given configuration. 
-	 */
-	public TestingRpcService(Configuration configuration) {
-		super(AkkaUtils.createLocalActorSystem(configuration),
-			AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+    /** Map of pre-registered connections. */
+    private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 
-		this.registeredConnections = new ConcurrentHashMap<>();
-	}
+    private volatile Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction =
+            DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION;
 
-	// ------------------------------------------------------------------------
+    private final RpcService backingRpcService;
 
-	@Override
-	public CompletableFuture<Void> stopService() {
-		final CompletableFuture<Void> terminationFuture = super.stopService();
+    /** Creates a new {@code TestingRpcService}, using the given configuration. */
+    public TestingRpcService() {
+        try {
+            this.backingRpcService =
+                    RPC_SYSTEM_SINGLETON.localServiceBuilder(new Configuration()).createAndStart();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-		terminationFuture.whenComplete(
-			(Void ignored, Throwable throwable) -> {
-				registeredConnections.clear();
-			});
+        this.registeredConnections = new ConcurrentHashMap<>();
+    }
 
-		return terminationFuture;
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	// connections
-	// ------------------------------------------------------------------------
+    @Override
+    public CompletableFuture<Void> stopService() {
+        final CompletableFuture<Void> terminationFuture = backingRpcService.stopService();
 
-	public void registerGateway(String address, RpcGateway gateway) {
-		checkNotNull(address);
-		checkNotNull(gateway);
+        terminationFuture.whenComplete(
+                (Void ignored, Throwable throwable) -> {
+                    registeredConnections.clear();
+                });
 
-		if (registeredConnections.putIfAbsent(address, gateway) != null) {
-			throw new IllegalStateException("a gateway is already registered under " + address);
-		}
-	}
+        return terminationFuture;
+    }
 
-	@Override
-	public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
-		RpcGateway gateway = registeredConnections.get(address);
+    // ------------------------------------------------------------------------
+    // connections
+    // ------------------------------------------------------------------------
 
-		if (gateway != null) {
-			if (clazz.isAssignableFrom(gateway.getClass())) {
-				@SuppressWarnings("unchecked")
-				C typedGateway = (C) gateway;
-				return CompletableFuture.completedFuture(typedGateway);
-			} else {
-				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
-			}
-		} else {
-			return super.connect(address, clazz);
-		}
-	}
+    public void registerGateway(String address, RpcGateway gateway) {
+        checkNotNull(address);
+        checkNotNull(gateway);
 
-	@Override
-	public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
-			String address,
-			F fencingToken,
-			Class<C> clazz) {
-		RpcGateway gateway = registeredConnections.get(address);
+        if (registeredConnections.putIfAbsent(address, gateway) != null) {
+            throw new IllegalStateException("a gateway is already registered under " + address);
+        }
+    }
 
-		if (gateway != null) {
-			if (clazz.isAssignableFrom(gateway.getClass())) {
-				@SuppressWarnings("unchecked")
-				C typedGateway = (C) gateway;
-				return CompletableFuture.completedFuture(typedGateway);
-			} else {
-				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
-			}
-		} else {
-			return super.connect(address, fencingToken, clazz);
-		}
-	}
+    public void unregisterGateway(String address) {
+        checkNotNull(address);
+        if (registeredConnections.remove(address) == null) {
+            throw new IllegalStateException("no gateway is registered under " + address);
+        }
+    }
 
-	public void clearGateways() {
-		registeredConnections.clear();
-	}
+    @SuppressWarnings("unchecked")
+    private <C extends RpcGateway> CompletableFuture<C> getRpcGatewayFuture(C gateway) {
+        return (CompletableFuture<C>) rpcGatewayFutureFunction.apply(gateway);
+    }
+
+    @Override
+    public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
+        RpcGateway gateway = registeredConnections.get(address);
+
+        if (gateway != null) {
+            if (clazz.isAssignableFrom(gateway.getClass())) {
+                @SuppressWarnings("unchecked")
+                C typedGateway = (C) gateway;
+                return getRpcGatewayFuture(typedGateway);
+            } else {
+                return FutureUtils.completedExceptionally(
+                        new Exception(
+                                "Gateway registered under "
+                                        + address
+                                        + " is not of type "
+                                        + clazz));
+            }
+        } else {
+            return backingRpcService.connect(address, clazz);
+        }
+    }
+
+    @Override
+    public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
+            String address, F fencingToken, Class<C> clazz) {
+        RpcGateway gateway = registeredConnections.get(address);
+
+        if (gateway != null) {
+            if (clazz.isAssignableFrom(gateway.getClass())) {
+                @SuppressWarnings("unchecked")
+                C typedGateway = (C) gateway;
+                return getRpcGatewayFuture(typedGateway);
+            } else {
+                return FutureUtils.completedExceptionally(
+                        new Exception(
+                                "Gateway registered under "
+                                        + address
+                                        + " is not of type "
+                                        + clazz));
+            }
+        } else {
+            return backingRpcService.connect(address, fencingToken, clazz);
+        }
+    }
+
+    public void clearGateways() {
+        registeredConnections.clear();
+    }
+
+    public void resetRpcGatewayFutureFunction() {
+        rpcGatewayFutureFunction = DEFAULT_RPC_GATEWAY_FUTURE_FUNCTION;
+    }
+
+    public void setRpcGatewayFutureFunction(
+            Function<RpcGateway, CompletableFuture<RpcGateway>> rpcGatewayFutureFunction) {
+        this.rpcGatewayFutureFunction = rpcGatewayFutureFunction;
+    }
+
+    // ------------------------------------------------------------------------
+    // simple wrappers
+    // ------------------------------------------------------------------------
+
+    @Override
+    public String getAddress() {
+        return backingRpcService.getAddress();
+    }
+
+    @Override
+    public int getPort() {
+        return backingRpcService.getPort();
+    }
+
+    @Override
+    public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
+        return backingRpcService.startServer(rpcEndpoint);
+    }
+
+    @Override
+    public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
+        return backingRpcService.fenceRpcServer(rpcServer, fencingToken);
+    }
+
+    @Override
+    public void stopServer(RpcServer selfGateway) {
+        backingRpcService.stopServer(selfGateway);
+    }
+
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return backingRpcService.getTerminationFuture();
+    }
+
+    @Override
+    public ScheduledExecutor getScheduledExecutor() {
+        return backingRpcService.getScheduledExecutor();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+        return backingRpcService.scheduleRunnable(runnable, delay, unit);
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+        backingRpcService.execute(runnable);
+    }
+
+    @Override
+    public <T> CompletableFuture<T> execute(Callable<T> callable) {
+        return backingRpcService.execute(callable);
+    }
 }

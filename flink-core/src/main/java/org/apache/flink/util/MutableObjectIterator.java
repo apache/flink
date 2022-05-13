@@ -26,11 +26,10 @@ import java.io.IOException;
  * A simple iterator interface. The key differences to the {@link java.util.Iterator} are
  *
  * <ul>
- *   <li>It has two distinct <code>next()</code>, where one variant allows to pass an object that may
- *       be reused, if the type is mutable.</li>
- *   <li>It consolidates the logic in a single <code>next()</code> function, rather than
- *       splitting it over two different functions such as <code>hasNext()</code> and <code>next()</code>
- *       </li>
+ *   <li>It has two distinct <code>next()</code>, where one variant allows to pass an object that
+ *       may be reused, if the type is mutable.
+ *   <li>It consolidates the logic in a single <code>next()</code> function, rather than splitting
+ *       it over two different functions such as <code>hasNext()</code> and <code>next()</code>
  * </ul>
  *
  * @param <E> The element type of the collection iterated over.
@@ -38,26 +37,24 @@ import java.io.IOException;
 @Internal
 public interface MutableObjectIterator<E> {
 
-	/**
-	 * Gets the next element from the collection. The contents of that next element is put into the
-	 * given reuse object, if the type is mutable.
-	 *
-	 * @param reuse The target object into which to place next element if E is mutable.
-	 * @return The filled object or <code>null</code> if the iterator is exhausted.
-	 *
-	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
-	 *                     serialization / deserialization logic
-	 */
-	E next(E reuse) throws IOException;
+    /**
+     * Gets the next element from the collection. The contents of that next element is put into the
+     * given reuse object, if the type is mutable.
+     *
+     * @param reuse The target object into which to place next element if E is mutable.
+     * @return The filled object or <code>null</code> if the iterator is exhausted.
+     * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
+     *     serialization / deserialization logic
+     */
+    E next(E reuse) throws IOException;
 
-	/**
-	 * Gets the next element from the collection. The iterator implementation
-	 * must obtain a new instance.
-	 *
-	 * @return The object or <code>null</code> if the iterator is exhausted.
-	 *
-	 * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
-	 *                     serialization / deserialization logic
-	 */
-	E next() throws IOException;
+    /**
+     * Gets the next element from the collection. The iterator implementation must obtain a new
+     * instance.
+     *
+     * @return The object or <code>null</code> if the iterator is exhausted.
+     * @throws IOException Thrown, if a problem occurred in the underlying I/O layer or in the
+     *     serialization / deserialization logic
+     */
+    E next() throws IOException;
 }

@@ -27,26 +27,23 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Utility class to work with Apache Hadoop libraries.
- */
+/** Utility class to work with Apache Hadoop libraries. */
 public class HadoopUtils {
-	/**
-	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}.
-	 *
-	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
-	 * @return A {@link ParameterTool}
-	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
-	 * @see GenericOptionsParser
-	 */
-	public static ParameterTool paramsFromGenericOptionsParser(String[] args) throws IOException {
-		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
-		Map<String, String> map = new HashMap<String, String>();
-		for (Option option : options) {
-			String[] split = option.getValue().split("=");
-			map.put(split[0], split[1]);
-		}
-		return ParameterTool.fromMap(map);
-	}
+    /**
+     * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}.
+     *
+     * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
+     * @return A {@link ParameterTool}
+     * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
+     * @see GenericOptionsParser
+     */
+    public static ParameterTool paramsFromGenericOptionsParser(String[] args) throws IOException {
+        Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
+        Map<String, String> map = new HashMap<String, String>();
+        for (Option option : options) {
+            String[] split = option.getValue().split("=");
+            map.put(split[0], split[1]);
+        }
+        return ParameterTool.fromMap(map);
+    }
 }
-

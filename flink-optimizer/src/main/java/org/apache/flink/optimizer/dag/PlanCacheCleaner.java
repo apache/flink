@@ -21,19 +21,19 @@ package org.apache.flink.optimizer.dag;
 import org.apache.flink.util.Visitor;
 
 final class PlanCacheCleaner implements Visitor<OptimizerNode> {
-	
-	static final PlanCacheCleaner INSTANCE = new PlanCacheCleaner();
 
-	@Override
-	public boolean preVisit(OptimizerNode visitable) {
-		if (visitable.cachedPlans != null && visitable.isOnDynamicPath()) {
-			visitable.cachedPlans = null;
-			return true;
-		} else {
-			return false;
-		}
-	}
+    static final PlanCacheCleaner INSTANCE = new PlanCacheCleaner();
 
-	@Override
-	public void postVisit(OptimizerNode visitable) {}
+    @Override
+    public boolean preVisit(OptimizerNode visitable) {
+        if (visitable.cachedPlans != null && visitable.isOnDynamicPath()) {
+            visitable.cachedPlans = null;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public void postVisit(OptimizerNode visitable) {}
 }

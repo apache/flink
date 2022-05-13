@@ -36,55 +36,62 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * @param <IN> The input and result type.
- */
+/** @param <IN> The input and result type. */
 @Internal
 public class SortPartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
 
-	private final Ordering partitionOrdering;
+    private final Ordering partitionOrdering;
 
+    public SortPartitionOperatorBase(
+            UnaryOperatorInformation<IN, IN> operatorInfo,
+            Ordering partitionOrdering,
+            String name) {
+        super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, name);
+        this.partitionOrdering = partitionOrdering;
+    }
 
-	public SortPartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, Ordering partitionOrdering, String name) {
-		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, name);
-		this.partitionOrdering = partitionOrdering;
-	}
+    public Ordering getPartitionOrdering() {
+        return partitionOrdering;
+    }
 
-	public Ordering getPartitionOrdering() {
-		return partitionOrdering;
-	}
+    @Override
+    public SingleInputSemanticProperties getSemanticProperties() {
+        return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+    }
 
-	@Override
-	public SingleInputSemanticProperties getSemanticProperties() {
-		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-	}
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	protected List<IN> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext, ExecutionConfig executionConfig) {
+    @Override
+    protected List<IN> executeOnCollections(
+            List<IN> inputData, RuntimeContext runtimeContext, ExecutionConfig executionConfig) {
 
-		TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
+        TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
 
-		int[] sortColumns = this.partitionOrdering.getFieldPositions();
-		boolean[] sortOrderings = this.partitionOrdering.getFieldSortDirections();
+        int[] sortColumns = this.partitionOrdering.getFieldPositions();
+        boolean[] sortOrderings = this.partitionOrdering.getFieldSortDirections();
 
-		final TypeComparator<IN> sortComparator;
-		if (inputType instanceof CompositeType) {
-			sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
-		} else if (inputType instanceof AtomicType) {
-			sortComparator = ((AtomicType) inputType).createComparator(sortOrderings[0], executionConfig);
-		} else {
-			throw new UnsupportedOperationException("Partition sorting does not support type "+inputType+" yet.");
-		}
+        final TypeComparator<IN> sortComparator;
+        if (inputType instanceof CompositeType) {
+            sortComparator =
+                    ((CompositeType<IN>) inputType)
+                            .createComparator(sortColumns, sortOrderings, 0, executionConfig);
+        } else if (inputType instanceof AtomicType) {
+            sortComparator =
+                    ((AtomicType) inputType).createComparator(sortOrderings[0], executionConfig);
+        } else {
+            throw new UnsupportedOperationException(
+                    "Partition sorting does not support type " + inputType + " yet.");
+        }
 
-		Collections.sort(inputData, new Comparator<IN>() {
-			@Override
-			public int compare(IN o1, IN o2) {
-				return sortComparator.compare(o1, o2);
-			}
-		});
+        Collections.sort(
+                inputData,
+                new Comparator<IN>() {
+                    @Override
+                    public int compare(IN o1, IN o2) {
+                        return sortComparator.compare(o1, o2);
+                    }
+                });
 
-		return inputData;
-	}
+        return inputData;
+    }
 }

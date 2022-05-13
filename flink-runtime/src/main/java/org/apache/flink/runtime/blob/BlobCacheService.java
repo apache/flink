@@ -19,89 +19,98 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The BLOB cache provides access to BLOB services for permanent and transient BLOBs.
- */
-public class BlobCacheService implements BlobService {
+/** The BLOB cache provides access to BLOB services for permanent and transient BLOBs. */
+public class BlobCacheService implements TaskExecutorBlobService {
 
-	/** Caching store for permanent BLOBs. */
-	private final PermanentBlobCache permanentBlobCache;
+    /** Caching store for permanent BLOBs. */
+    private final PermanentBlobCache permanentBlobCache;
 
-	/** Store for transient BLOB files. */
-	private final TransientBlobCache transientBlobCache;
+    /** Store for transient BLOB files. */
+    private final TransientBlobCache transientBlobCache;
 
-	/**
-	 * Instantiates a new BLOB cache.
-	 *
-	 * @param blobClientConfig
-	 * 		global configuration
-	 * @param blobView
-	 * 		(distributed) blob store file system to retrieve files from first
-	 * @param serverAddress
-	 * 		address of the {@link BlobServer} to use for fetching files from or {@code null} if none yet
-	 * @throws IOException
-	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
-	 */
-	public BlobCacheService(
-			final Configuration blobClientConfig,
-			final BlobView blobView,
-			@Nullable final InetSocketAddress serverAddress) throws IOException {
+    public BlobCacheService(
+            final Configuration blobClientConfig,
+            final File storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
+        this(blobClientConfig, Reference.owned(storageDir), blobView, serverAddress);
+    }
 
-		this(new PermanentBlobCache(blobClientConfig, blobView, serverAddress),
-			new TransientBlobCache(blobClientConfig, serverAddress));
-	}
+    /**
+     * Instantiates a new BLOB cache.
+     *
+     * @param blobClientConfig global configuration
+     * @param storageDir storage directory for the cached blobs
+     * @param blobView (distributed) blob store file system to retrieve files from first
+     * @param serverAddress address of the {@link BlobServer} to use for fetching files from or
+     *     {@code null} if none yet
+     * @throws IOException thrown if the (local or distributed) file storage cannot be created or is
+     *     not usable
+     */
+    public BlobCacheService(
+            final Configuration blobClientConfig,
+            final Reference<File> storageDir,
+            final BlobView blobView,
+            @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
 
-	/**
-	 * Instantiates a new BLOB cache.
-	 *
-	 * @param permanentBlobCache
-	 * 		BLOB cache to use for permanent BLOBs
-	 * @param transientBlobCache
-	 * 		BLOB cache to use for transient BLOBs
-	 */
-	public BlobCacheService(
-			PermanentBlobCache permanentBlobCache, TransientBlobCache transientBlobCache) {
-		this.permanentBlobCache = checkNotNull(permanentBlobCache);
-		this.transientBlobCache = checkNotNull(transientBlobCache);
-	}
+        this(
+                new PermanentBlobCache(blobClientConfig, storageDir, blobView, serverAddress),
+                new TransientBlobCache(blobClientConfig, storageDir, serverAddress));
+    }
 
-	@Override
-	public PermanentBlobCache getPermanentBlobService() {
-		return permanentBlobCache;
-	}
+    /**
+     * Instantiates a new BLOB cache.
+     *
+     * @param permanentBlobCache BLOB cache to use for permanent BLOBs
+     * @param transientBlobCache BLOB cache to use for transient BLOBs
+     */
+    public BlobCacheService(
+            PermanentBlobCache permanentBlobCache, TransientBlobCache transientBlobCache) {
+        this.permanentBlobCache = checkNotNull(permanentBlobCache);
+        this.transientBlobCache = checkNotNull(transientBlobCache);
+    }
 
-	@Override
-	public TransientBlobCache getTransientBlobService() {
-		return transientBlobCache;
-	}
+    @Override
+    public PermanentBlobCache getPermanentBlobService() {
+        return permanentBlobCache;
+    }
 
-	/**
-	 * Sets the address of the {@link BlobServer}.
-	 *
-	 * @param blobServerAddress address of the {@link BlobServer}.
-	 */
-	public void setBlobServerAddress(InetSocketAddress blobServerAddress) {
-		permanentBlobCache.setBlobServerAddress(blobServerAddress);
-		transientBlobCache.setBlobServerAddress(blobServerAddress);
-	}
+    @Override
+    public TransientBlobCache getTransientBlobService() {
+        return transientBlobCache;
+    }
 
-	@Override
-	public void close() throws IOException {
-		permanentBlobCache.close();
-		transientBlobCache.close();
-	}
+    /**
+     * Sets the address of the {@link BlobServer}.
+     *
+     * @param blobServerAddress address of the {@link BlobServer}.
+     */
+    public void setBlobServerAddress(InetSocketAddress blobServerAddress) {
+        permanentBlobCache.setBlobServerAddress(blobServerAddress);
+        transientBlobCache.setBlobServerAddress(blobServerAddress);
+    }
 
-	@Override
-	public int getPort() {
-		// NOTE: both blob stores connect to the same server!
-		return permanentBlobCache.getPort();
-	}
+    @Override
+    public void close() throws IOException {
+        permanentBlobCache.close();
+        transientBlobCache.close();
+    }
+
+    @Override
+    public int getPort() {
+        // NOTE: both blob stores connect to the same server!
+        return permanentBlobCache.getPort();
+    }
 }

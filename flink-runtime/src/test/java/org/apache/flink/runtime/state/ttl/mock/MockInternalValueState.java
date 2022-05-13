@@ -24,23 +24,22 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 
 /** In memory mock internal value state. */
-class MockInternalValueState<K, N, T>
-	extends MockInternalKvState<K, N, T> implements InternalValueState<K, N, T> {
+class MockInternalValueState<K, N, T> extends MockInternalKvState<K, N, T>
+        implements InternalValueState<K, N, T> {
 
-	@Override
-	public T value() {
-		return getInternal();
-	}
+    @Override
+    public T value() {
+        return getInternal();
+    }
 
-	@Override
-	public void update(T value) {
-		updateInternal(value);
-	}
+    @Override
+    public void update(T value) {
+        updateInternal(value);
+    }
 
-	@SuppressWarnings({"unchecked", "unused"})
-	static <N, T, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, T> stateDesc) {
-		return (IS) new MockInternalValueState<>();
-	}
+    @SuppressWarnings({"unchecked", "unused"})
+    static <N, T, S extends State, IS extends S> IS createState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, T> stateDesc) {
+        return (IS) new MockInternalValueState<>();
+    }
 }

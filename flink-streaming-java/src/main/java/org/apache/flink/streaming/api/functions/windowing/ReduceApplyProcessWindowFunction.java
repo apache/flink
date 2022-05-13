@@ -30,64 +30,65 @@ import java.util.Collections;
 
 /**
  * Internal {@link ProcessWindowFunction} that is used for implementing a fold on a window
- * configuration that only allows {@link AllWindowFunction} and cannot directly execute a
- * {@link ReduceFunction}.
+ * configuration that only allows {@link AllWindowFunction} and cannot directly execute a {@link
+ * ReduceFunction}.
  */
 @Internal
 public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
-	extends ProcessWindowFunction<T, R, K, W> {
+        extends ProcessWindowFunction<T, R, K, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final ReduceFunction<T> reduceFunction;
-	private final ProcessWindowFunction<T, R, K, W> windowFunction;
-	private transient InternalProcessApplyWindowContext<T, R, K, W> ctx;
+    private final ReduceFunction<T> reduceFunction;
+    private final ProcessWindowFunction<T, R, K, W> windowFunction;
+    private transient InternalProcessApplyWindowContext<T, R, K, W> ctx;
 
-	public ReduceApplyProcessWindowFunction(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> windowFunction) {
-		this.windowFunction = windowFunction;
-		this.reduceFunction = reduceFunction;
-	}
+    public ReduceApplyProcessWindowFunction(
+            ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> windowFunction) {
+        this.windowFunction = windowFunction;
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public void process(K k, final Context context, Iterable<T> input, Collector<R> out) throws Exception {
+    @Override
+    public void process(K k, final Context context, Iterable<T> input, Collector<R> out)
+            throws Exception {
 
-		T curr = null;
-		for (T val: input) {
-			if (curr == null) {
-				curr = val;
-			} else {
-				curr = reduceFunction.reduce(curr, val);
-			}
-		}
+        T curr = null;
+        for (T val : input) {
+            if (curr == null) {
+                curr = val;
+            } else {
+                curr = reduceFunction.reduce(curr, val);
+            }
+        }
 
-		this.ctx.window = context.window();
-		this.ctx.context = context;
-		windowFunction.process(k, ctx, Collections.singletonList(curr), out);
-	}
+        this.ctx.window = context.window();
+        this.ctx.context = context;
+        windowFunction.process(k, ctx, Collections.singletonList(curr), out);
+    }
 
-	@Override
-	public void clear(final Context context) throws Exception {
-		this.ctx.window = context.window();
-		this.ctx.context = context;
-		windowFunction.clear(ctx);
-	}
+    @Override
+    public void clear(final Context context) throws Exception {
+        this.ctx.window = context.window();
+        this.ctx.context = context;
+        windowFunction.clear(ctx);
+    }
 
-	@Override
-	public void open(Configuration configuration) throws Exception {
-		FunctionUtils.openFunction(this.windowFunction, configuration);
-		ctx = new InternalProcessApplyWindowContext<>(windowFunction);
-	}
+    @Override
+    public void open(Configuration configuration) throws Exception {
+        FunctionUtils.openFunction(this.windowFunction, configuration);
+        ctx = new InternalProcessApplyWindowContext<>(windowFunction);
+    }
 
-	@Override
-	public void close() throws Exception {
-		FunctionUtils.closeFunction(this.windowFunction);
-	}
+    @Override
+    public void close() throws Exception {
+        FunctionUtils.closeFunction(this.windowFunction);
+    }
 
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
+    @Override
+    public void setRuntimeContext(RuntimeContext t) {
+        super.setRuntimeContext(t);
 
-		FunctionUtils.setFunctionRuntimeContext(this.windowFunction, t);
-	}
-
+        FunctionUtils.setFunctionRuntimeContext(this.windowFunction, t);
+    }
 }

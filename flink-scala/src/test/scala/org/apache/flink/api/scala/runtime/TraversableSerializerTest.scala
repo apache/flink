@@ -23,11 +23,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TraversableSerializer
-import org.junit.Assert._
-import org.junit.{Assert, Ignore, Test}
 
-import scala.collection.immutable.{BitSet, LinearSeq, SortedSet}
-import scala.collection.{SortedMap, mutable}
+import org.junit.{Assert, Ignore, Test}
+import org.junit.Assert._
+
+import scala.collection.immutable.{BitSet, LinearSeq}
+import scala.collection.mutable
+import scala.ref.WeakReference
+import scala.reflect.internal.util.ScalaClassLoader.URLClassLoader
 
 class TraversableSerializerTest {
 
@@ -35,19 +38,19 @@ class TraversableSerializerTest {
 
   @Test
   def testSeq(): Unit = {
-    val testData = Array(Seq(1,2,3), Seq(2,3))
+    val testData = Array(Seq(1, 2, 3), Seq(2, 3))
     runTests(testData)
   }
 
   @Test
   def testIndexedSeq(): Unit = {
-    val testData = Array(IndexedSeq(1,2,3), IndexedSeq(2,3))
+    val testData = Array(IndexedSeq(1, 2, 3), IndexedSeq(2, 3))
     runTests(testData)
   }
 
   @Test
   def testLinearSeq(): Unit = {
-    val testData = Array(LinearSeq(1,2,3), LinearSeq(2,3))
+    val testData = Array(LinearSeq(1, 2, 3), LinearSeq(2, 3))
     runTests(testData)
   }
 
@@ -59,19 +62,19 @@ class TraversableSerializerTest {
 
   @Test
   def testSet(): Unit = {
-    val testData = Array(Set(1,2,3,3), Set(2,3))
+    val testData = Array(Set(1, 2, 3, 3), Set(2, 3))
     runTests(testData)
   }
 
   @Test
   def testBitSet(): Unit = {
-    val testData = Array(BitSet(1,2,3,4), BitSet(2,3,2))
+    val testData = Array(BitSet(1, 2, 3, 4), BitSet(2, 3, 2))
     runTests(testData)
   }
 
   @Test
   def testMutableList(): Unit = {
-    val testData = Array(mutable.MutableList(1,2,3), mutable.MutableList(2,3,2))
+    val testData = Array(mutable.MutableList(1, 2, 3), mutable.MutableList(2, 3, 2))
     runTests(testData)
   }
 
@@ -97,7 +100,56 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
-  private final def runTests[T : TypeInformation](instances: Array[T]) {
+  @Test
+  def sameClassLoaderAndCodeShouldProvideEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = TraversableSerializer.Key(classLoaderA, "code")
+
+    assertEquals(keyA, keyB)
+  }
+
+  @Test
+  def differentClassLoadersProvideNonEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+    val classLoaderB = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = TraversableSerializer.Key(classLoaderB, "code")
+
+    assertNotEquals(keyA, keyB)
+  }
+
+  @Test
+  def expiredReferenceShouldProduceNonEqualKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "code")
+    val keyB = keyA.copy(classLoaderRef = WeakReference(null))
+
+    assertNotEquals(keyA, keyB)
+  }
+
+  @Test
+  def bootStrapClassLoaderShouldProduceTheSameKeys(): Unit = {
+    val keyA = TraversableSerializer.Key(null, "a")
+    val keyB = TraversableSerializer.Key(null, "a")
+
+    assertEquals(keyA, keyB)
+  }
+
+  @Test
+  def differentCanBuildFromCodeShouldProduceDifferentKeys(): Unit = {
+    val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
+
+    val keyA = TraversableSerializer.Key(classLoaderA, "a")
+    val keyB = TraversableSerializer.Key(classLoaderA, "b")
+
+    assertNotEquals(keyA, keyB)
+  }
+
+  final private def runTests[T: TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
       val serializer = typeInfo.createSerializer(new ExecutionConfig)
@@ -124,6 +176,7 @@ class Pojo(var name: String, var count: Int) {
   }
 }
 
+@Ignore("Prevents this class from being considered a test class by JUnit.")
 class TraversableSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],
@@ -146,13 +199,15 @@ class TraversableSerializerTestInstance[T](
     // check for deep copy if type is immutable and not serialized with Kryo
     // elements of traversable should not have reference equality
     if (!elementSerializer.isImmutableType && !elementSerializer.isInstanceOf[KryoSerializer[_]]) {
-      data.foreach { datum =>
-        val original = datum.asInstanceOf[Traversable[_]].toIterable
-        val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
-        copy.zip(original).foreach { case (c: AnyRef, o: AnyRef) =>
-          assertTrue("Copy of mutable element has reference equality.", c ne o)
-        case _ => // ok
-        }
+      data.foreach {
+        datum =>
+          val original = datum.asInstanceOf[Traversable[_]].toIterable
+          val copy = serializer.copy(datum).asInstanceOf[Traversable[_]].toIterable
+          copy.zip(original).foreach {
+            case (c: AnyRef, o: AnyRef) =>
+              assertTrue("Copy of mutable element has reference equality.", c ne o)
+            case _ => // ok
+          }
       }
     }
   }
@@ -168,8 +223,7 @@ class TraversableSerializerTestInstance[T](
       // We cannot check this because Collection Instances are not always of the type
       // that the user writes, they might have generated names.
       // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
-    }
-    catch {
+    } catch {
       case e: Exception =>
         System.err.println(e.getMessage)
         e.printStackTrace()
@@ -177,22 +231,4 @@ class TraversableSerializerTestInstance[T](
     }
   }
 
-  override protected def deepEquals(message: String, should: T, is: T) {
-    should match {
-      case trav: TraversableOnce[_] =>
-        val isTrav = is.asInstanceOf[TraversableOnce[_]]
-        assertEquals(message, trav.size, isTrav.size)
-        val it = trav.toIterator
-        val isIt = isTrav.toIterator
-        while (it.hasNext) {
-          val should = it.next()
-          val is = isIt.next()
-          assertEquals(message, should, is)
-        }
-
-      case _ =>
-        super.deepEquals(message, should, is)
-    }
-  }
 }
-

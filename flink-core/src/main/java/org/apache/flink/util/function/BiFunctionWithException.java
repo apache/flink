@@ -33,34 +33,35 @@ import java.util.function.BiFunction;
 @FunctionalInterface
 public interface BiFunctionWithException<T, U, R, E extends Throwable> {
 
-	/**
-	 * Apply the given values t and u to obtain the resulting value. The operation can
-	 * throw an exception.
-	 *
-	 * @param t first parameter
-	 * @param u second parameter
-	 * @return result value
-	 * @throws E if the operation fails
-	 */
-	R apply(T t, U u) throws E;
+    /**
+     * Apply the given values t and u to obtain the resulting value. The operation can throw an
+     * exception.
+     *
+     * @param t first parameter
+     * @param u second parameter
+     * @return result value
+     * @throws E if the operation fails
+     */
+    R apply(T t, U u) throws E;
 
-	/**
-	 * Convert at {@link BiFunctionWithException} into a {@link BiFunction}.
-	 *
-	 * @param biFunctionWithException function with exception to convert into a function
-	 * @param <A> input type
-	 * @param <B> output type
-	 * @return {@link BiFunction} which throws all checked exception as an unchecked exception.
-	 */
-	static <A, B, C> BiFunction<A, B, C> unchecked(BiFunctionWithException<A, B, C, ?> biFunctionWithException) {
-		return (A a, B b) -> {
-			try {
-				return biFunctionWithException.apply(a, b);
-			} catch (Throwable t) {
-				ExceptionUtils.rethrow(t);
-				// we need this to appease the compiler :-(
-				return null;
-			}
-		};
-	}
+    /**
+     * Convert at {@link BiFunctionWithException} into a {@link BiFunction}.
+     *
+     * @param biFunctionWithException function with exception to convert into a function
+     * @param <A> input type
+     * @param <B> output type
+     * @return {@link BiFunction} which throws all checked exception as an unchecked exception.
+     */
+    static <A, B, C> BiFunction<A, B, C> unchecked(
+            BiFunctionWithException<A, B, C, ?> biFunctionWithException) {
+        return (A a, B b) -> {
+            try {
+                return biFunctionWithException.apply(a, b);
+            } catch (Throwable t) {
+                ExceptionUtils.rethrow(t);
+                // we need this to appease the compiler :-(
+                return null;
+            }
+        };
+    }
 }

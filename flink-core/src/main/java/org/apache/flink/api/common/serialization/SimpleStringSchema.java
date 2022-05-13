@@ -34,74 +34,78 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>By default, the serializer uses "UTF-8" for string/byte conversion.
  */
 @PublicEvolving
-public class SimpleStringSchema implements DeserializationSchema<String>, SerializationSchema<String> {
+public class SimpleStringSchema
+        implements DeserializationSchema<String>, SerializationSchema<String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The charset to use to convert between strings and bytes.
-	 * The field is transient because we serialize a different delegate object instead */
-	private transient Charset charset;
+    /**
+     * The charset to use to convert between strings and bytes. The field is transient because we
+     * serialize a different delegate object instead
+     */
+    private transient Charset charset;
 
-	/**
-	 * Creates a new SimpleStringSchema that uses "UTF-8" as the encoding.
-	 */
-	public SimpleStringSchema() {
-		this(StandardCharsets.UTF_8);
-	}
+    /** Creates a new SimpleStringSchema that uses "UTF-8" as the encoding. */
+    public SimpleStringSchema() {
+        this(StandardCharsets.UTF_8);
+    }
 
-	/**
-	 * Creates a new SimpleStringSchema that uses the given charset to convert between strings and bytes.
-	 *
-	 * @param charset The charset to use to convert between strings and bytes.
-	 */
-	public SimpleStringSchema(Charset charset) {
-		this.charset = checkNotNull(charset);
-	}
+    /**
+     * Creates a new SimpleStringSchema that uses the given charset to convert between strings and
+     * bytes.
+     *
+     * @param charset The charset to use to convert between strings and bytes.
+     */
+    public SimpleStringSchema(Charset charset) {
+        this.charset = checkNotNull(charset);
+    }
 
-	/**
-	 * Gets the charset used by this schema for serialization.
-	 * @return The charset used by this schema for serialization.
-	 */
-	public Charset getCharset() {
-		return charset;
-	}
+    /**
+     * Gets the charset used by this schema for serialization.
+     *
+     * @return The charset used by this schema for serialization.
+     */
+    public Charset getCharset() {
+        return charset;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Kafka Serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Kafka Serialization
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String deserialize(byte[] message) {
-		return new String(message, charset);
-	}
+    @Override
+    public String deserialize(byte[] message) {
+        return new String(message, charset);
+    }
 
-	@Override
-	public boolean isEndOfStream(String nextElement) {
-		return false;
-	}
+    @Override
+    public boolean isEndOfStream(String nextElement) {
+        return false;
+    }
 
-	@Override
-	public byte[] serialize(String element) {
-		return element.getBytes(charset);
-	}
+    @Override
+    public byte[] serialize(String element) {
+        return element.getBytes(charset);
+    }
 
-	@Override
-	public TypeInformation<String> getProducedType() {
-		return BasicTypeInfo.STRING_TYPE_INFO;
-	}
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return BasicTypeInfo.STRING_TYPE_INFO;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Java Serialization
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Java Serialization
+    // ------------------------------------------------------------------------
 
-	private void writeObject (ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
-		out.writeUTF(charset.name());
-	}
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
+        out.writeUTF(charset.name());
+    }
 
-	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		String charsetName = in.readUTF();
-		this.charset = Charset.forName(charsetName);
-	}
+    private void readObject(java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        String charsetName = in.readUTF();
+        this.charset = Charset.forName(charsetName);
+    }
 }

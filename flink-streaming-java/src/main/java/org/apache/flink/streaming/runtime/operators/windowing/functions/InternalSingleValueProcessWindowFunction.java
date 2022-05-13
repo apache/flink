@@ -28,47 +28,54 @@ import org.apache.flink.util.Collector;
 import java.util.Collections;
 
 /**
- * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an {@code Iterable}
- * when the window state is a single value.
+ * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an {@code
+ * Iterable} when the window state is a single value.
  */
 public final class InternalSingleValueProcessWindowFunction<IN, OUT, KEY, W extends Window>
-		extends WrappingFunction<ProcessWindowFunction<IN, OUT, KEY, W>>
-		implements InternalWindowFunction<IN, OUT, KEY, W> {
+        extends WrappingFunction<ProcessWindowFunction<IN, OUT, KEY, W>>
+        implements InternalWindowFunction<IN, OUT, KEY, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final InternalProcessWindowContext<IN, OUT, KEY, W> ctx;
+    private final InternalProcessWindowContext<IN, OUT, KEY, W> ctx;
 
-	public InternalSingleValueProcessWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
-		super(wrappedFunction);
-		ctx = new InternalProcessWindowContext<>(wrappedFunction);
-	}
+    public InternalSingleValueProcessWindowFunction(
+            ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
+        super(wrappedFunction);
+        ctx = new InternalProcessWindowContext<>(wrappedFunction);
+    }
 
-	@Override
-	public void process(KEY key, final W window, final InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
+    @Override
+    public void process(
+            KEY key,
+            final W window,
+            final InternalWindowContext context,
+            IN input,
+            Collector<OUT> out)
+            throws Exception {
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
 
-		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
-		wrappedFunction.process(key, ctx, Collections.singletonList(input), out);
-	}
+        ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
+        wrappedFunction.process(key, ctx, Collections.singletonList(input), out);
+    }
 
-	@Override
-	public void clear(final W window, final InternalWindowContext context) throws Exception {
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
+    @Override
+    public void clear(final W window, final InternalWindowContext context) throws Exception {
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
 
-		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
-		wrappedFunction.clear(ctx);
-	}
+        ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
+        wrappedFunction.clear(ctx);
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 }

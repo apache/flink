@@ -1,0 +1,93 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+# Docker compose file for a Flink job cluster deployment with NAT network.
+#
+# All the network traffics are intended to go through the Docker host. NAT port mapping is simulated by publishing
+# internal container ports to different external Docker host ports. A container's external hostname is simulated
+# resolvable to all other containers except itself, by adding extra hosts to other containers that maps the hostname to
+# the IP address of the Docker host. 
+#
+# Parameters:
+# * FLINK_DOCKER_IMAGE_NAME - Image name to use for the deployment (default: flink-job:latest)
+# * FLINK_JOB - Name of the Flink job to execute (default: none)
+# * FLINK_JOB_ARGUMENTS - Additional arguments which will be passed to the job cluster (default: none)
+#
+# * INPUT_VOLUME - Volume to be mounted for input.
+# * OUTPUT_VOLUME - Volume to be mounted for output.
+# * INPUT_PATH - Path inside container for the input.
+# * OUTPUT_PATH - Path outside container for the input.
+#
+# * HOST_IP - IP address of the Docker host. This will be used for resolving JM/TM external addresses.
+# * JM_EX_HOSTNAME - External hostname for JM.
+# * TM_1_EX_HOSTNAME - External hostname for TM 1.
+# * TM_2_EX_HOSTNAME - External hostname for TM 2.
+#
+# * JM_RPC_EX_PORT - External RPC port for JM.
+# * JM_RPC_IN_PORT - Internal RPC port for JM.
+# * TM_1_RPC_EX_PORT - External RPC port for TM 1.
+# * TM_2_RPC_EX_PORT - External RPC port for TM 2.
+# * TM_RPC_IN_PORT - Internal RPC port for both TMs.
+#
+# * TM_1_DATA_EX_PORT - External data port for TM 1.
+# * TM_2_DATA_EX_PORT - External data port for TM 2.
+# * TM_DATA_IN_PORT - Internal data port for both TMs.
+
+version: "2.2"
+services:
+  job-cluster:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
+    ports:
+      - "8081:8081"
+      - ${JM_RPC_EX_PORT}:${JM_RPC_IN_PORT}
+    volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
+      - ${INPUT_VOLUME}:${INPUT_PATH}
+      - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
+    command: standalone-job --job-classname ${FLINK_JOB} -Dparallelism.default=2 -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.bind-host=0.0.0.0 -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Djobmanager.rpc.bind-port=${JM_RPC_IN_PORT} ${FLINK_JOB_ARGUMENTS}
+    extra_hosts:
+      - ${TM_1_EX_HOSTNAME}:${HOST_IP}
+      - ${TM_2_EX_HOSTNAME}:${HOST_IP}
+
+  taskmanager1:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
+    ports:
+      - ${TM_1_RPC_EX_PORT}:${TM_RPC_IN_PORT}
+      - ${TM_1_DATA_EX_PORT}:${TM_DATA_IN_PORT}
+    volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
+      - ${INPUT_VOLUME}:${INPUT_PATH}
+      - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
+    command: taskmanager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_1_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_1_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_1_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
+    extra_hosts:
+      - ${JM_EX_HOSTNAME}:${HOST_IP}
+      - ${TM_2_EX_HOSTNAME}:${HOST_IP}
+
+  taskmanager2:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
+    ports:
+      - ${TM_2_RPC_EX_PORT}:${TM_RPC_IN_PORT}
+      - ${TM_2_DATA_EX_PORT}:${TM_DATA_IN_PORT}
+    volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
+      - ${INPUT_VOLUME}:${INPUT_PATH}
+      - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
+    command: taskmanager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_2_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_2_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_2_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
+    extra_hosts:
+      - ${JM_EX_HOSTNAME}:${HOST_IP}
+      - ${TM_1_EX_HOSTNAME}:${HOST_IP}

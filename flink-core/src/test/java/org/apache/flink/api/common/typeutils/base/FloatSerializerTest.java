@@ -18,40 +18,45 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-/**
- * A test for the {@link FloatSerializer}.
- */
+
+import java.util.Random;
+
+/** A test for the {@link org.apache.flink.api.common.typeutils.base.FloatSerializer}. */
 public class FloatSerializerTest extends SerializerTestBase<Float> {
-	
-	@Override
-	protected TypeSerializer<Float> createSerializer() {
-		return new FloatSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 4;
-	}
-	
-	@Override
-	protected Class<Float> getTypeClass() {
-		return Float.class;
-	}
-	
-	@Override
-	protected Float[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
-		
-		return new Float[] {Float.valueOf(0), Float.valueOf(1), Float.valueOf(-1),
-							Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
-							Float.valueOf(rndFloat), Float.valueOf(-rndFloat),
-							Float.valueOf(Float.NaN),
-							Float.valueOf(Float.NEGATIVE_INFINITY), Float.valueOf(Float.POSITIVE_INFINITY)};
-	}
-}	
+
+    @Override
+    protected TypeSerializer<Float> createSerializer() {
+        return new FloatSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 4;
+    }
+
+    @Override
+    protected Class<Float> getTypeClass() {
+        return Float.class;
+    }
+
+    @Override
+    protected Float[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
+
+        return new Float[] {
+            Float.valueOf(0),
+            Float.valueOf(1),
+            Float.valueOf(-1),
+            Float.valueOf(Float.MAX_VALUE),
+            Float.valueOf(Float.MIN_VALUE),
+            Float.valueOf(rndFloat),
+            Float.valueOf(-rndFloat),
+            Float.valueOf(Float.NaN),
+            Float.valueOf(Float.NEGATIVE_INFINITY),
+            Float.valueOf(Float.POSITIVE_INFINITY)
+        };
+    }
+}

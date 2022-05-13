@@ -21,84 +21,71 @@ package org.apache.flink.test.classloading.jar;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.Collector;
 
 import java.util.StringTokenizer;
 
-/**
- * Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}.
- */
+/** Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}. */
 @SuppressWarnings("serial")
 public class StreamingProgram {
 
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
+        DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
 
-		DataStream<Word> counts =
-				text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
+        DataStream<Word> counts = text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
 
-		counts.addSink(new NoOpSink());
+        counts.addSink(new DiscardingSink<>());
 
-		env.execute();
-	}
-	// --------------------------------------------------------------------------------------------
+        env.execute();
+    }
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * POJO with word and count.
-	 */
-	public static class Word {
+    /** POJO with word and count. */
+    public static class Word {
 
-		private String word;
-		private Integer frequency;
+        private String word;
+        private Integer frequency;
 
-		public Word() {
-		}
+        public Word() {}
 
-		public Word(String word, int i) {
-			this.word = word;
-			this.frequency = i;
-		}
+        public Word(String word, int i) {
+            this.word = word;
+            this.frequency = i;
+        }
 
-		public String getWord() {
-			return word;
-		}
+        public String getWord() {
+            return word;
+        }
 
-		public void setWord(String word) {
-			this.word = word;
-		}
+        public void setWord(String word) {
+            this.word = word;
+        }
 
-		public Integer getFrequency() {
-			return frequency;
-		}
+        public Integer getFrequency() {
+            return frequency;
+        }
 
-		public void setFrequency(Integer frequency) {
-			this.frequency = frequency;
-		}
+        public void setFrequency(Integer frequency) {
+            this.frequency = frequency;
+        }
 
-		@Override
-		public String toString() {
-			return "(" + word + ", " + frequency + ")";
-		}
-	}
+        @Override
+        public String toString() {
+            return "(" + word + ", " + frequency + ")";
+        }
+    }
 
-	private static class Tokenizer implements FlatMapFunction<String, Word>{
-		@Override
-		public void flatMap(String value, Collector<Word> out) throws Exception {
-			StringTokenizer tokenizer = new StringTokenizer(value);
-			while (tokenizer.hasMoreTokens()){
-				out.collect(new Word(tokenizer.nextToken(), 1));
-			}
-		}
-	}
-
-	private static class NoOpSink implements SinkFunction<Word>{
-		@Override
-		public void invoke(Word value) throws Exception {
-		}
-	}
+    private static class Tokenizer implements FlatMapFunction<String, Word> {
+        @Override
+        public void flatMap(String value, Collector<Word> out) throws Exception {
+            StringTokenizer tokenizer = new StringTokenizer(value);
+            while (tokenizer.hasMoreTokens()) {
+                out.collect(new Word(tokenizer.nextToken(), 1));
+            }
+        }
+    }
 }

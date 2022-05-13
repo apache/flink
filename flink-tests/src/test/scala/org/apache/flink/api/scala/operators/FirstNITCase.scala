@@ -18,16 +18,16 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class FirstNITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -55,7 +55,7 @@ class FirstNITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val seven = ds.first(7).map( t => new Tuple1(1) ).sum(0)
+    val seven = ds.first(7).map(t => new Tuple1(1)).sum(0)
     seven.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "(7)\n"
@@ -68,7 +68,7 @@ class FirstNITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val first = ds.groupBy(1).first(4).map( t => (t._2, 1)).groupBy(0).sum(1)
+    val first = ds.groupBy(1).first(4).map(t => (t._2, 1)).groupBy(0).sum(1)
     first.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "(1,1)\n(2,2)\n(3,3)\n(4,4)\n(5,4)\n(6,4)\n"
@@ -81,10 +81,11 @@ class FirstNITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val first = ds.groupBy(1)
+    val first = ds
+      .groupBy(1)
       .sortGroup(0, Order.DESCENDING)
       .first(3)
-      .map ( t => (t._2, t._1))
+      .map(t => (t._2, t._1))
     first.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "(1,1)\n" + "(2,3)\n(2,2)\n" + "(3,6)\n(3,5)\n(3,4)\n" + "(4,10)\n(4,9)\n(4," +

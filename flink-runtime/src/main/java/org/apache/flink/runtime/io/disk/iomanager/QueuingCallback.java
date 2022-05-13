@@ -21,25 +21,23 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * A {@link RequestDoneCallback} that adds the memory segments to a blocking queue.
- */
+/** A {@link RequestDoneCallback} that adds the memory segments to a blocking queue. */
 public class QueuingCallback<T> implements RequestDoneCallback<T> {
 
-	private final LinkedBlockingQueue<T> queue;
+    private final LinkedBlockingQueue<T> queue;
 
-	public QueuingCallback(LinkedBlockingQueue<T> queue) {
-		this.queue = queue;
-	}
+    public QueuingCallback(LinkedBlockingQueue<T> queue) {
+        this.queue = queue;
+    }
 
-	@Override
-	public void requestSuccessful(T buffer) {
-		queue.add(buffer);
-	}
+    @Override
+    public void requestSuccessful(T buffer) {
+        queue.add(buffer);
+    }
 
-	@Override
-	public void requestFailed(T buffer, IOException e) {
-		// the I/O error is recorded in the writer already
-		queue.add(buffer);
-	}
+    @Override
+    public void requestFailed(T buffer, IOException e) {
+        // the I/O error is recorded in the writer already
+        queue.add(buffer);
+    }
 }

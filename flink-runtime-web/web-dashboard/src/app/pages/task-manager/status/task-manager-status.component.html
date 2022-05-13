@@ -1,0 +1,71 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div *ngIf="!isLoading" class="wrapper">
+  <div class="name">
+    <h2>{{ taskManagerDetail.path }}</h2>
+  </div>
+  <div class="status">
+    <div class="field">
+      <div>Last Heartbeat:</div>
+      <div>{{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>ID:</div>
+      <div>{{ taskManagerDetail.id }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>Data Port:</div>
+      <div>{{ taskManagerDetail.dataPort }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>Free Slots / All Slots:</div>
+      <div>{{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>CPU Cores:</div>
+      <div>{{ taskManagerDetail.hardware.cpuCores }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>Physical Memory:</div>
+      <div>{{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>JVM Heap Size:</div>
+      <div>{{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}</div>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <div>Flink Managed Memory:</div>
+      <div>{{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}</div>
+    </div>
+  </div>
+  <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
+</div>
+<nz-skeleton
+  [nzActive]="true"
+  *ngIf="isLoading"
+  [nzTitle]="false"
+  [nzParagraph]="{ rows: 4 }"
+></nz-skeleton>

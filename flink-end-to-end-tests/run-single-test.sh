@@ -46,7 +46,14 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+if [ -z "$FLINK_LOG_DIR" ] ; then
+    export FLINK_LOG_DIR="$FLINK_DIR/log"
+fi
+
+source "${END_TO_END_DIR}/../tools/ci/maven-utils.sh"
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
+
+cleanup_tmp_files
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P )`" # absolutized and normalized
 

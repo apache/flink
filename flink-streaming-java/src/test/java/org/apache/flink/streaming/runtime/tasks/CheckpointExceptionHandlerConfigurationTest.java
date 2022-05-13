@@ -18,17 +18,11 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -39,103 +33,70 @@ import org.junit.Test;
  */
 public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 
-	@Test
-	public void testConfigurationFailOnException() throws Exception {
-		testConfigForwarding(true);
-	}
+    @Test
+    public void testCheckpointConfigDefault() {
+        StreamExecutionEnvironment streamExecutionEnvironment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
+        Assert.assertTrue(checkpointConfig.isFailOnCheckpointingErrors());
+        Assert.assertEquals(0, checkpointConfig.getTolerableCheckpointFailureNumber());
+    }
 
-	@Test
-	public void testConfigurationDeclineOnException() throws Exception {
-		testConfigForwarding(false);
-	}
+    @Test
+    public void testSetCheckpointConfig() {
+        StreamExecutionEnvironment streamExecutionEnvironment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
 
-	@Test
-	public void testFailIsDefaultConfig() {
-		ExecutionConfig newExecutionConfig = new ExecutionConfig();
-		Assert.assertTrue(newExecutionConfig.isFailTaskOnCheckpointError());
-	}
+        // use deprecated API to set not fail on checkpoint errors
+        checkpointConfig.setFailOnCheckpointingErrors(false);
+        Assert.assertFalse(checkpointConfig.isFailOnCheckpointingErrors());
+        Assert.assertEquals(
+                CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER,
+                checkpointConfig.getTolerableCheckpointFailureNumber());
 
-	private void testConfigForwarding(boolean failOnException) throws Exception {
+        // use new API to set tolerable declined checkpoint number
+        checkpointConfig.setTolerableCheckpointFailureNumber(5);
+        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
 
-		final boolean expectedHandlerFlag = failOnException;
+        // after we configure the tolerable declined checkpoint number, deprecated API would not
+        // take effect
+        checkpointConfig.setFailOnCheckpointingErrors(true);
+        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
+    }
 
-		final DummyEnvironment environment = new DummyEnvironment("test", 1, 0);
-		environment.setTaskStateManager(new TestTaskStateManager());
-		environment.getExecutionConfig().setFailTaskOnCheckpointError(expectedHandlerFlag);
+    @Test
+    public void testPropagationFailFromCheckpointConfig() {
+        try {
+            doTestPropagationFromCheckpointConfig(true);
+        } catch (IllegalArgumentException ignored) {
+            // ignored
+        }
+    }
 
-		final CheckpointExceptionHandlerFactory inspectingFactory = new CheckpointExceptionHandlerFactory() {
+    @Test
+    public void testPropagationDeclineFromCheckpointConfig() {
+        doTestPropagationFromCheckpointConfig(false);
+    }
 
-			@Override
-			public CheckpointExceptionHandler createCheckpointExceptionHandler(
-				boolean failTaskOnCheckpointException,
-				Environment environment) {
+    public void doTestPropagationFromCheckpointConfig(boolean failTaskOnCheckpointErrors) {
+        StreamExecutionEnvironment streamExecutionEnvironment =
+                StreamExecutionEnvironment.getExecutionEnvironment();
+        streamExecutionEnvironment.setParallelism(1);
+        streamExecutionEnvironment.getCheckpointConfig().setCheckpointInterval(1000);
+        streamExecutionEnvironment
+                .getCheckpointConfig()
+                .setFailOnCheckpointingErrors(failTaskOnCheckpointErrors);
+        streamExecutionEnvironment
+                .addSource(
+                        new SourceFunction<Integer>() {
 
-				Assert.assertEquals(expectedHandlerFlag, failTaskOnCheckpointException);
-				return super.createCheckpointExceptionHandler(failTaskOnCheckpointException, environment);
-			}
-		};
+                            @Override
+                            public void run(SourceContext<Integer> ctx) {}
 
-		StreamTask streamTask = new StreamTask(environment, null) {
-			@Override
-			protected void init() throws Exception {}
-
-			@Override
-			protected void run() throws Exception {}
-
-			@Override
-			protected void cleanup() throws Exception {}
-
-			@Override
-			protected void cancelTask() throws Exception {}
-
-			@Override
-			protected CheckpointExceptionHandlerFactory createCheckpointExceptionHandlerFactory() {
-				return inspectingFactory;
-			}
-		};
-
-		streamTask.invoke();
-	}
-
-	@Test
-	public void testCheckpointConfigDefault() throws Exception {
-		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		Assert.assertTrue(streamExecutionEnvironment.getCheckpointConfig().isFailOnCheckpointingErrors());
-	}
-
-	@Test
-	public void testPropagationFailFromCheckpointConfig() throws Exception {
-		doTestPropagationFromCheckpointConfig(true);
-	}
-
-	@Test
-	public void testPropagationDeclineFromCheckpointConfig() throws Exception {
-		doTestPropagationFromCheckpointConfig(false);
-	}
-
-	public void doTestPropagationFromCheckpointConfig(boolean failTaskOnCheckpointErrors) throws Exception {
-		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		streamExecutionEnvironment.setParallelism(1);
-		streamExecutionEnvironment.getCheckpointConfig().setCheckpointInterval(1000);
-		streamExecutionEnvironment.getCheckpointConfig().setFailOnCheckpointingErrors(failTaskOnCheckpointErrors);
-		streamExecutionEnvironment.addSource(new SourceFunction<Integer>() {
-
-			@Override
-			public void run(SourceContext<Integer> ctx) throws Exception {
-			}
-
-			@Override
-			public void cancel() {
-			}
-
-		}).addSink(new DiscardingSink<>());
-
-		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph();
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-		SerializedValue<ExecutionConfig> serializedExecutionConfig = jobGraph.getSerializedExecutionConfig();
-		ExecutionConfig executionConfig =
-			serializedExecutionConfig.deserializeValue(Thread.currentThread().getContextClassLoader());
-
-		Assert.assertEquals(failTaskOnCheckpointErrors, executionConfig.isFailTaskOnCheckpointError());
-	}
+                            @Override
+                            public void cancel() {}
+                        })
+                .addSink(new DiscardingSink<>());
+    }
 }

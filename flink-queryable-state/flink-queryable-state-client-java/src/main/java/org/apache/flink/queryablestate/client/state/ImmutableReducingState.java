@@ -30,40 +30,39 @@ import java.io.IOException;
 /**
  * A read-only {@link ReducingState} that does not allow for modifications.
  *
- * <p>This is the result returned when querying Flink's keyed state using the
- * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
- * providing an {@link ReducingStateDescriptor}.
+ * <p>This is the result returned when querying Flink's keyed state using the {@link
+ * org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and providing
+ * an {@link ReducingStateDescriptor}.
  */
 public final class ImmutableReducingState<V> extends ImmutableState implements ReducingState<V> {
 
-	private final V value;
+    private final V value;
 
-	private ImmutableReducingState(V value) {
-		this.value = Preconditions.checkNotNull(value);
-	}
+    private ImmutableReducingState(V value) {
+        this.value = Preconditions.checkNotNull(value);
+    }
 
-	@Override
-	public V get() {
-		return value;
-	}
+    @Override
+    public V get() {
+        return value;
+    }
 
-	@Override
-	public void add(V newValue) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void add(V newValue) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public void clear() {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void clear() {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <V, S extends State> S createState(
-		StateDescriptor<S, V> stateDescriptor,
-		byte[] serializedState) throws IOException {
-		final V state = KvStateSerializer.deserializeValue(
-			serializedState,
-			stateDescriptor.getSerializer());
-		return (S) new ImmutableReducingState<>(state);
-	}
+    @SuppressWarnings("unchecked")
+    public static <V, S extends State> S createState(
+            StateDescriptor<S, V> stateDescriptor, byte[] serializedState) throws IOException {
+        final V state =
+                KvStateSerializer.deserializeValue(
+                        serializedState, stateDescriptor.getSerializer());
+        return (S) new ImmutableReducingState<>(state);
+    }
 }

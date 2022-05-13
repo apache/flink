@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.{KeyedStream, SingleOutputStrea
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
+
 import org.junit.Test
 
 class OnDataStreamTest extends AcceptPFTestBase {
@@ -29,81 +30,69 @@ class OnDataStreamTest extends AcceptPFTestBase {
   @Test
   def testMapWithOnTuple(): Unit = {
     val test =
-      tuples.mapWith {
-        case (id, value) => s"$id $value"
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      tuples.mapWith { case (id, value) => s"$id $value" }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "mapWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testMapWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.mapWith {
-        case KeyValuePair(id, value) => s"$id $value"
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      caseObjects.mapWith { case KeyValuePair(id, value) => s"$id $value" }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "mapWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testFlatMapWithOnTuple(): Unit = {
     val test =
-      tuples.flatMapWith {
-        case (id, value) => List(id.toString, value)
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      tuples.flatMapWith { case (id, value) => List(id.toString, value) }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "flatMapWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testFlatMapWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.flatMapWith {
-        case KeyValuePair(id, value) => List(id.toString, value)
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      caseObjects.flatMapWith { case KeyValuePair(id, value) => List(id.toString, value) }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "flatMapWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testFilterWithOnTuple(): Unit = {
     val test =
-      tuples.filterWith {
-        case (id, value) => id == 1
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      tuples.filterWith { case (id, value) => id == 1 }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "filterWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testFilterWithOnCaseClass(): Unit = {
     val test =
-      caseObjects.filterWith {
-        case KeyValuePair(id, value) => id == 1
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      caseObjects.filterWith { case KeyValuePair(id, value) => id == 1 }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "filterWith should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testKeyingByOnTuple(): Unit = {
     val test =
-      tuples.keyingBy {
-        case (id, _) => id
-      }
-    assert(test.javaStream.isInstanceOf[KeyedStream[_, _]],
-      "keyingBy should produce a KeyedStream")
+      tuples.keyingBy { case (id, _) => id }
+    assert(test.javaStream.isInstanceOf[KeyedStream[_, _]], "keyingBy should produce a KeyedStream")
   }
 
   @Test
   def testKeyingByOnCaseClass(): Unit = {
     val test =
-      caseObjects.keyingBy {
-        case KeyValuePair(id, _) => id
-      }
-    assert(test.javaStream.isInstanceOf[KeyedStream[_, _]],
-      "keyingBy should produce a KeyedStream")
+      caseObjects.keyingBy { case KeyValuePair(id, _) => id }
+    assert(test.javaStream.isInstanceOf[KeyedStream[_, _]], "keyingBy should produce a KeyedStream")
   }
 
 }

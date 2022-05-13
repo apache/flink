@@ -23,25 +23,27 @@ import org.apache.flink.annotation.Internal;
 /**
  * Simple helper class to initialize the concurrency checks for tests.
  *
- * <p>The flag is automatically set to true when assertions are activated (tests)
- * and can be set to true manually in other tests as well;
+ * <p>The flag is automatically set to true when assertions are activated (tests) and can be set to
+ * true manually in other tests as well;
  */
 @Internal
 class AvroSerializerDebugInitHelper {
 
-	/** This captures the initial setting after initialization. It is used to
-	 * validate in tests that we never change the default to true. */
-	static final boolean INITIAL_SETTING;
+    /**
+     * This captures the initial setting after initialization. It is used to validate in tests that
+     * we never change the default to true.
+     */
+    static final boolean INITIAL_SETTING;
 
-	/** The flag that is used to initialize the KryoSerializer's concurrency check flag. */
-	static boolean setToDebug = false;
+    /** The flag that is used to initialize the KryoSerializer's concurrency check flag. */
+    static boolean setToDebug = false;
 
-	static {
-		// capture the default setting, for tests
-		INITIAL_SETTING = setToDebug;
+    static {
+        // capture the default setting, for tests
+        INITIAL_SETTING = setToDebug;
 
-		// if assertions are active, the check should be activated
-		//noinspection AssertWithSideEffects,ConstantConditions
-		assert setToDebug = true;
-	}
+        // if assertions are active, the check should be activated
+        //noinspection AssertWithSideEffects,ConstantConditions
+        assert setToDebug = true;
+    }
 }

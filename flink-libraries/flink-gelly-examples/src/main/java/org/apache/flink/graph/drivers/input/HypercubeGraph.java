@@ -26,30 +26,28 @@ import org.apache.flink.types.NullValue;
 
 import static org.apache.flink.graph.generator.HypercubeGraph.MINIMUM_DIMENSIONS;
 
-/**
- * Generate a {@link org.apache.flink.graph.generator.HypercubeGraph}.
- */
-public class HypercubeGraph
-extends GeneratedGraph {
+/** Generate a {@link org.apache.flink.graph.generator.HypercubeGraph}. */
+public class HypercubeGraph extends GeneratedGraph {
 
-	private LongParameter dimensions = new LongParameter(this, "dimensions")
-		.setMinimumValue(MINIMUM_DIMENSIONS)
-		.setMaximumValue(63);
+    private LongParameter dimensions =
+            new LongParameter(this, "dimensions")
+                    .setMinimumValue(MINIMUM_DIMENSIONS)
+                    .setMaximumValue(63);
 
-	@Override
-	public String getIdentity() {
-		return getName() + " (" + dimensions + ")";
-	}
+    @Override
+    public String getIdentity() {
+        return getName() + " (" + dimensions + ")";
+    }
 
-	@Override
-	protected long vertexCount() {
-		return 1L << dimensions.getValue();
-	}
+    @Override
+    protected long vertexCount() {
+        return 1L << dimensions.getValue();
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
-		return new org.apache.flink.graph.generator.HypercubeGraph(env, dimensions.getValue())
-			.setParallelism(parallelism.getValue().intValue())
-			.generate();
-	}
+    @Override
+    public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
+        return new org.apache.flink.graph.generator.HypercubeGraph(env, dimensions.getValue())
+                .setParallelism(parallelism.getValue().intValue())
+                .generate();
+    }
 }

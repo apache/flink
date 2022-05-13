@@ -18,147 +18,179 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
+import java.io.IOException;
+
+import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot;
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 @Internal
-public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
+public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T>
+        implements SelfResolvingTypeSerializer<T> {
 
-	private static final long serialVersionUID = 1L;
-	
-	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		super(tupleClass, fieldSerializers);
-	}
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public TupleSerializer<T> duplicate() {
-		boolean stateful = false;
-		TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer<?>[fieldSerializers.length];
+    public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
+        super(tupleClass, fieldSerializers);
+    }
 
-		for (int i = 0; i < fieldSerializers.length; i++) {
-			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
-			if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
-				// at least one of them is stateful
-				stateful = true;
-			}
-		}
+    @Override
+    public TupleSerializer<T> duplicate() {
+        boolean stateful = false;
+        TypeSerializer<?>[] duplicateFieldSerializers =
+                new TypeSerializer<?>[fieldSerializers.length];
 
-		if (stateful) {
-			return new TupleSerializer<T>(tupleClass, duplicateFieldSerializers);
-		} else {
-			return this;
-		}
-	}
+        for (int i = 0; i < fieldSerializers.length; i++) {
+            duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
+            if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
+                // at least one of them is stateful
+                stateful = true;
+            }
+        }
 
-	@Override
-	public T createInstance() {
-		try {
-			T t = tupleClass.newInstance();
-		
-			for (int i = 0; i < arity; i++) {
-				t.setField(fieldSerializers[i].createInstance(), i);
-			}
-			
-			return t;
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot instantiate tuple.", e);
-		}
-	}
+        if (stateful) {
+            return new TupleSerializer<T>(tupleClass, duplicateFieldSerializers);
+        } else {
+            return this;
+        }
+    }
 
-	@Override
-	public T createInstance(Object[] fields) {
+    @Override
+    public T createInstance() {
+        try {
+            T t = tupleClass.newInstance();
 
-		try {
-			T t = tupleClass.newInstance();
+            for (int i = 0; i < arity; i++) {
+                t.setField(fieldSerializers[i].createInstance(), i);
+            }
 
-			for (int i = 0; i < arity; i++) {
-				t.setField(fields[i], i);
-			}
+            return t;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot instantiate tuple.", e);
+        }
+    }
 
-			return t;
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot instantiate tuple.", e);
-		}
-	}
+    @Override
+    public T createInstance(Object[] fields) {
 
-	@Override
-	public T createOrReuseInstance(Object[] fields, T reuse) {
-		for (int i = 0; i < arity; i++) {
-			reuse.setField(fields[i], i);
-		}
-		return reuse;
-	}
+        try {
+            T t = tupleClass.newInstance();
 
-	@Override
-	public T copy(T from) {
-		T target = instantiateRaw();
-		for (int i = 0; i < arity; i++) {
-			Object copy = fieldSerializers[i].copy(from.getField(i));
-			target.setField(copy, i);
-		}
-		return target;
-	}
-	
-	@Override
-	public T copy(T from, T reuse) {
-		for (int i = 0; i < arity; i++) {
-			Object copy = fieldSerializers[i].copy((Object)from.getField(i), reuse.getField(i));
-			reuse.setField(copy, i);
-		}
-		
-		return reuse;
-	}
+            for (int i = 0; i < arity; i++) {
+                t.setField(fields[i], i);
+            }
 
-	@Override
-	public void serialize(T value, DataOutputView target) throws IOException {
-		for (int i = 0; i < arity; i++) {
-			Object o = value.getField(i);
-			try {
-				fieldSerializers[i].serialize(o, target);
-			} catch (NullPointerException npex) {
-				throw new NullFieldException(i, npex);
-			}
-		}
-	}
+            return t;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot instantiate tuple.", e);
+        }
+    }
 
-	@Override
-	public T deserialize(DataInputView source) throws IOException {
-		T tuple = instantiateRaw();
-		for (int i = 0; i < arity; i++) {
-			Object field = fieldSerializers[i].deserialize(source);
-			tuple.setField(field, i);
-		}
-		return tuple;
-	}
-	
-	@Override
-	public T deserialize(T reuse, DataInputView source) throws IOException {
-		for (int i = 0; i < arity; i++) {
-			Object field = fieldSerializers[i].deserialize(reuse.getField(i), source);
-			reuse.setField(field, i);
-		}
-		return reuse;
-	}
-	
-	private T instantiateRaw() {
-		try {
-			return tupleClass.newInstance();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot instantiate tuple.", e);
-		}
-	}
+    @Override
+    public T createOrReuseInstance(Object[] fields, T reuse) {
+        for (int i = 0; i < arity; i++) {
+            reuse.setField(fields[i], i);
+        }
+        return reuse;
+    }
 
-	@Override
-	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		return new TupleSerializer<>(tupleClass, fieldSerializers);
-	}
+    @Override
+    public T copy(T from) {
+        if (from == null) {
+            return null;
+        }
+
+        T target = instantiateRaw();
+        for (int i = 0; i < arity; i++) {
+            Object copy = fieldSerializers[i].copy(from.getField(i));
+            target.setField(copy, i);
+        }
+        return target;
+    }
+
+    @Override
+    public T copy(T from, T reuse) {
+        if (from == null) {
+            return null;
+        }
+
+        for (int i = 0; i < arity; i++) {
+            Object copy = fieldSerializers[i].copy((Object) from.getField(i), reuse.getField(i));
+            reuse.setField(copy, i);
+        }
+
+        return reuse;
+    }
+
+    @Override
+    public void serialize(T value, DataOutputView target) throws IOException {
+        for (int i = 0; i < arity; i++) {
+            Object o = value.getField(i);
+            try {
+                fieldSerializers[i].serialize(o, target);
+            } catch (NullPointerException npex) {
+                throw new NullFieldException(i, npex);
+            }
+        }
+    }
+
+    @Override
+    public T deserialize(DataInputView source) throws IOException {
+        T tuple = instantiateRaw();
+        for (int i = 0; i < arity; i++) {
+            Object field = fieldSerializers[i].deserialize(source);
+            tuple.setField(field, i);
+        }
+        return tuple;
+    }
+
+    @Override
+    public T deserialize(T reuse, DataInputView source) throws IOException {
+        for (int i = 0; i < arity; i++) {
+            Object field = fieldSerializers[i].deserialize(reuse.getField(i), source);
+            reuse.setField(field, i);
+        }
+        return reuse;
+    }
+
+    @Override
+    public TypeSerializerSnapshot<T> snapshotConfiguration() {
+        return new TupleSerializerSnapshot<>(this);
+    }
+
+    private T instantiateRaw() {
+        try {
+            return tupleClass.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot instantiate tuple.", e);
+        }
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<T>
+            resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+                    TypeSerializerConfigSnapshot<T> deprecatedConfigSnapshot) {
+        checkArgument(deprecatedConfigSnapshot instanceof TupleSerializerConfigSnapshot);
+
+        final TupleSerializerConfigSnapshot<T> configSnapshot =
+                (TupleSerializerConfigSnapshot<T>) deprecatedConfigSnapshot;
+        TypeSerializerSnapshot[] nestedSnapshots =
+                configSnapshot.getNestedSerializersAndConfigs().stream()
+                        .map(t -> t.f1)
+                        .toArray(TypeSerializerSnapshot[]::new);
+
+        TupleSerializerSnapshot<T> newCompositeSnapshot =
+                new TupleSerializerSnapshot<>(configSnapshot.getTupleClass());
+        return delegateCompatibilityCheckToNewSnapshot(this, newCompositeSnapshot, nestedSnapshots);
+    }
 }

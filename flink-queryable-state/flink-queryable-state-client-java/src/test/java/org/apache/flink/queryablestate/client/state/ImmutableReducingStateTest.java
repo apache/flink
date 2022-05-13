@@ -31,54 +31,49 @@ import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests the {@link ImmutableReducingState}.
- */
+/** Tests the {@link ImmutableReducingState}. */
 public class ImmutableReducingStateTest {
 
-	private final ReducingStateDescriptor<Long> reducingStateDesc =
-			new ReducingStateDescriptor<>("test", new SumReduce(), BasicTypeInfo.LONG_TYPE_INFO);
+    private final ReducingStateDescriptor<Long> reducingStateDesc =
+            new ReducingStateDescriptor<>("test", new SumReduce(), BasicTypeInfo.LONG_TYPE_INFO);
 
-	private ReducingState<Long> reduceState;
+    private ReducingState<Long> reduceState;
 
-	@Before
-	public void setUp() throws Exception {
-		if (!reducingStateDesc.isSerializerInitialized()) {
-			reducingStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
-		}
+    @Before
+    public void setUp() throws Exception {
+        if (!reducingStateDesc.isSerializerInitialized()) {
+            reducingStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
+        }
 
-		reduceState = ImmutableReducingState.createState(
-				reducingStateDesc,
-				ByteBuffer.allocate(Long.BYTES).putLong(42L).array()
-		);
-	}
+        reduceState =
+                ImmutableReducingState.createState(
+                        reducingStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() throws Exception {
-		long value = reduceState.get();
-		assertEquals(42L, value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testUpdate() throws Exception {
+        long value = reduceState.get();
+        assertEquals(42L, value);
 
-		reduceState.add(54L);
-	}
+        reduceState.add(54L);
+    }
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() throws Exception {
-		long value = reduceState.get();
-		assertEquals(42L, value);
+    @Test(expected = UnsupportedOperationException.class)
+    public void testClear() throws Exception {
+        long value = reduceState.get();
+        assertEquals(42L, value);
 
-		reduceState.clear();
-	}
+        reduceState.clear();
+    }
 
-	/**
-	 * Test {@link ReduceFunction} summing up its two arguments.
-	 */
-	private static class SumReduce implements ReduceFunction<Long> {
+    /** Test {@link ReduceFunction} summing up its two arguments. */
+    private static class SumReduce implements ReduceFunction<Long> {
 
-		private static final long serialVersionUID = 6041237513913189144L;
+        private static final long serialVersionUID = 6041237513913189144L;
 
-		@Override
-		public Long reduce(Long value1, Long value2) throws Exception {
-			return value1 + value2;
-		}
-	}
+        @Override
+        public Long reduce(Long value1, Long value2) throws Exception {
+            return value1 + value2;
+        }
+    }
 }

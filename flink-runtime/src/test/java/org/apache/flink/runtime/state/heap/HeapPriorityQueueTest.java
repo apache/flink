@@ -27,73 +27,69 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 
-/**
- * Test for {@link HeapPriorityQueue}.
- */
+/** Test for {@link HeapPriorityQueue}. */
 public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
-	@Test
-	public void testClear() {
-		HeapPriorityQueue<TestElement> priorityQueueSet =
-			newPriorityQueue(1);
+    @Test
+    public void testClear() {
+        HeapPriorityQueue<TestElement> priorityQueueSet = newPriorityQueue(1);
 
-		int count = 10;
-		HashSet<TestElement> checkSet = new HashSet<>(count);
-		insertRandomElements(priorityQueueSet, checkSet, count);
-		Assert.assertEquals(count, priorityQueueSet.size());
-		priorityQueueSet.clear();
-		Assert.assertEquals(0, priorityQueueSet.size());
-	}
+        int count = 10;
+        HashSet<TestElement> checkSet = new HashSet<>(count);
+        insertRandomElements(priorityQueueSet, checkSet, count);
+        Assert.assertEquals(count, priorityQueueSet.size());
+        priorityQueueSet.clear();
+        Assert.assertEquals(0, priorityQueueSet.size());
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testToArray() {
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testToArray() {
 
-		final int testSize = 10;
+        final int testSize = 10;
 
-		List<TestElement[]> tests = new ArrayList<>(2);
-		tests.add(new TestElement[0]);
-		tests.add(new TestElement[testSize]);
-		tests.add(new TestElement[testSize + 1]);
+        List<TestElement[]> tests = new ArrayList<>(2);
+        tests.add(new TestElement[0]);
+        tests.add(new TestElement[testSize]);
+        tests.add(new TestElement[testSize + 1]);
 
-		for (TestElement[] testArray : tests) {
+        for (TestElement[] testArray : tests) {
 
-			Arrays.fill(testArray, new TestElement(42L, 4711L));
+            Arrays.fill(testArray, new TestElement(42L, 4711L));
 
-			HashSet<TestElement> checkSet = new HashSet<>(testSize);
+            HashSet<TestElement> checkSet = new HashSet<>(testSize);
 
-			HeapPriorityQueue<TestElement> timerPriorityQueue =
-				newPriorityQueue(1);
+            HeapPriorityQueue<TestElement> timerPriorityQueue = newPriorityQueue(1);
 
-			Assert.assertEquals(testArray.length, timerPriorityQueue.toArray(testArray).length);
+            Assert.assertEquals(testArray.length, timerPriorityQueue.toArray(testArray).length);
 
-			insertRandomElements(timerPriorityQueue, checkSet, testSize);
+            insertRandomElements(timerPriorityQueue, checkSet, testSize);
 
-			TestElement[] toArray = timerPriorityQueue.toArray(testArray);
+            TestElement[] toArray = timerPriorityQueue.toArray(testArray);
 
-			Assert.assertEquals((testArray.length >= testSize), (testArray == toArray));
+            Assert.assertEquals((testArray.length >= testSize), (testArray == toArray));
 
-			int count = 0;
-			for (TestElement o : toArray) {
-				if (o == null) {
-					break;
-				}
-				Assert.assertTrue(checkSet.remove(o));
-				++count;
-			}
+            int count = 0;
+            for (TestElement o : toArray) {
+                if (o == null) {
+                    break;
+                }
+                Assert.assertTrue(checkSet.remove(o));
+                ++count;
+            }
 
-			Assert.assertEquals(timerPriorityQueue.size(), count);
-			Assert.assertTrue(checkSet.isEmpty());
-		}
-	}
+            Assert.assertEquals(timerPriorityQueue.size(), count);
+            Assert.assertTrue(checkSet.isEmpty());
+        }
+    }
 
-	@Override
-	protected HeapPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
-		return new HeapPriorityQueue<>(TEST_ELEMENT_PRIORITY_COMPARATOR, initialCapacity);
-	}
+    @Override
+    protected HeapPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
+        return new HeapPriorityQueue<>(TEST_ELEMENT_PRIORITY_COMPARATOR, initialCapacity);
+    }
 
-	@Override
-	protected boolean testSetSemanticsAgainstDuplicateElements() {
-		return false;
-	}
+    @Override
+    protected boolean testSetSemanticsAgainstDuplicateElements() {
+        return false;
+    }
 }

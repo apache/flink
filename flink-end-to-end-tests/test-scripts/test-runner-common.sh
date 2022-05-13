@@ -19,6 +19,8 @@
 
 source "${END_TO_END_DIR}"/test-scripts/common.sh
 
+export FLINK_VERSION=$(MVN_RUN_VERBOSE=false run_mvn --file ${END_TO_END_DIR}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
+
 #######################################
 # Prints the given description, runs the given test and prints how long the execution took.
 # Arguments:
@@ -39,17 +41,23 @@ function run_test {
     export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
-    backup_config
+    backup_flink_dir
     start_timer
 
     function test_error() {
       echo "[FAIL] Test script contains errors."
       post_test_validation 1 "$description" "$skip_check_exceptions"
     }
+    # set a trap to catch a test execution error
     trap 'test_error' ERR
+
+    # Always enable unaligned checkpoint
+    set_config_key "execution.checkpointing.unaligned" "true"
 
     ${command}
     exit_code="$?"
+    # remove trap for test execution
+    trap - ERR
     post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
 }
 
@@ -88,21 +96,43 @@ function post_test_validation {
 
     if [[ ${exit_code} == 0 ]]; then
         cleanup
+        log_environment_info
     else
+        log_environment_info
         exit "${exit_code}"
     fi
+}
+
+function log_environment_info {
+    echo "##[group]Environment Information"
+    echo "Jps"
+    jps
+
+    echo "Disk information"
+    df -hH
+
+    if sudo -n true 2>/dev/null; then
+      echo "Allocated ports"
+      sudo netstat -tulpn
+    else
+      echo "Could not retrieve allocated ports because no sudo rights."
+    fi
+
+    echo "Running docker containers"
+    docker ps -a
+    echo "##[endgroup]"
 }
 
 # Shuts down cluster and reverts changes to cluster configs
 function cleanup_proc {
     shutdown_all
-    revert_default_config
+    revert_flink_dir
 }
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    rm ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
+    rm -f $FLINK_LOG_DIR/*
+    echo "Deleted all files under $FLINK_LOG_DIR/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
     echo "Deleted ${TEST_DATA_DIR}"
@@ -115,4 +145,4 @@ function cleanup {
 }
 
 trap cleanup SIGINT
-trap cleanup_proc EXIT
+on_exit cleanup_proc

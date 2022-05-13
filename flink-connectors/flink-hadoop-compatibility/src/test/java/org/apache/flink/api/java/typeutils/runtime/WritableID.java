@@ -26,57 +26,55 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Test object that is both {@link Comparable} and {@link Writable}.
- */
+/** Test object that is both {@link Comparable} and {@link Writable}. */
 public class WritableID implements WritableComparable<WritableID> {
-	private UUID uuid;
+    private UUID uuid;
 
-	public WritableID() {
-		this.uuid = UUID.randomUUID();
-	}
+    public WritableID() {
+        this.uuid = UUID.randomUUID();
+    }
 
-	public WritableID(UUID uuid) {
-		this.uuid = uuid;
-	}
+    public WritableID(UUID uuid) {
+        this.uuid = uuid;
+    }
 
-	@Override
-	public int compareTo(WritableID o) {
-		return this.uuid.compareTo(o.uuid);
-	}
+    @Override
+    public int compareTo(WritableID o) {
+        return this.uuid.compareTo(o.uuid);
+    }
 
-	@Override
-	public void write(DataOutput dataOutput) throws IOException {
-		dataOutput.writeLong(uuid.getMostSignificantBits());
-		dataOutput.writeLong(uuid.getLeastSignificantBits());
-	}
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+        dataOutput.writeLong(uuid.getMostSignificantBits());
+        dataOutput.writeLong(uuid.getLeastSignificantBits());
+    }
 
-	@Override
-	public void readFields(DataInput dataInput) throws IOException {
-		this.uuid = new UUID(dataInput.readLong(), dataInput.readLong());
-	}
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+        this.uuid = new UUID(dataInput.readLong(), dataInput.readLong());
+    }
 
-	@Override
-	public String toString() {
-		return uuid.toString();
-	}
+    @Override
+    public String toString() {
+        return uuid.toString();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		WritableID id = (WritableID) o;
+        WritableID id = (WritableID) o;
 
-		return !(uuid != null ? !uuid.equals(id.uuid) : id.uuid != null);
-	}
+        return !(uuid != null ? !uuid.equals(id.uuid) : id.uuid != null);
+    }
 
-	@Override
-	public int hashCode() {
-		return uuid != null ? uuid.hashCode() : 0;
-	}
+    @Override
+    public int hashCode() {
+        return uuid != null ? uuid.hashCode() : 0;
+    }
 }

@@ -32,57 +32,57 @@ import org.apache.flink.graph.utils.proxy.OptionalBoolean;
  * @param <R> result type
  */
 public abstract class TriangleListingBase<K, VV, EV, R>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, R> {
+        extends GraphAlgorithmWrappingDataSet<K, VV, EV, R> {
 
-	// Optional configuration
-	protected boolean permuteResults;
+    // Optional configuration
+    protected boolean permuteResults;
 
-	protected OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
+    protected OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
 
-	/**
-	 * By default only one result is output for each triangle, whether vertices
-	 * are sorted or unsorted. When permutation is enabled a result is instead
-	 * output for each of the six permutations of the three vertex IDs.
-	 *
-	 * @param permuteResults whether output results should be permuted
-	 * @return this
-	 */
-	public TriangleListingBase<K, VV, EV, R> setPermuteResults(boolean permuteResults) {
-		this.permuteResults = permuteResults;
+    /**
+     * By default only one result is output for each triangle, whether vertices are sorted or
+     * unsorted. When permutation is enabled a result is instead output for each of the six
+     * permutations of the three vertex IDs.
+     *
+     * @param permuteResults whether output results should be permuted
+     * @return this
+     */
+    public TriangleListingBase<K, VV, EV, R> setPermuteResults(boolean permuteResults) {
+        this.permuteResults = permuteResults;
 
-		return this;
-	}
+        return this;
+    }
 
-	/**
-	 * Normalize the triangle listing such that for each result (K0, K1, K2)
-	 * the vertex IDs are sorted K0 < K1 < K2.
-	 *
-	 * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
-	 * @return this
-	 */
-	public TriangleListingBase<K, VV, EV, R> setSortTriangleVertices(boolean sortTriangleVertices) {
-		this.sortTriangleVertices.set(sortTriangleVertices);
+    /**
+     * Normalize the triangle listing such that for each result (K0, K1, K2) the vertex IDs are
+     * sorted K0 < K1 < K2.
+     *
+     * @param sortTriangleVertices whether to output each triangle's vertices in sorted order
+     * @return this
+     */
+    public TriangleListingBase<K, VV, EV, R> setSortTriangleVertices(boolean sortTriangleVertices) {
+        this.sortTriangleVertices.set(sortTriangleVertices);
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
-		if (!super.canMergeConfigurationWith(other)) {
-			return false;
-		}
+    @Override
+    protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+        if (!super.canMergeConfigurationWith(other)) {
+            return false;
+        }
 
-		TriangleListingBase rhs = (TriangleListingBase) other;
+        TriangleListingBase rhs = (TriangleListingBase) other;
 
-		return permuteResults == rhs.permuteResults;
-	}
+        return permuteResults == rhs.permuteResults;
+    }
 
-	@Override
-	protected final void mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		super.mergeConfiguration(other);
+    @Override
+    protected final void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+        super.mergeConfiguration(other);
 
-		TriangleListingBase rhs = (TriangleListingBase) other;
+        TriangleListingBase rhs = (TriangleListingBase) other;
 
-		sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
-	}
+        sortTriangleVertices.mergeWith(rhs.sortTriangleVertices);
+    }
 }

@@ -18,20 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import java.io.File;
-
 /**
  * Query parameter specifying the name of the entry point class.
- * @see org.apache.flink.client.program.PackagedProgram#PackagedProgram(File, String, String...)
+ *
+ * @see org.apache.flink.client.program.PackagedProgram.Builder#setEntryPointClassName(String)
  */
 public class EntryClassQueryParameter extends StringQueryParameter {
-	public EntryClassQueryParameter() {
-		super("entry-class", MessageParameterRequisiteness.OPTIONAL);
-	}
+    public EntryClassQueryParameter() {
+        super("entry-class", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that specifies the fully qualified name of the entry point class. " +
-			"Overrides the class defined in the jar file manifest.";
-	}
+    @Override
+    public String getDescription() {
+        return "String value that specifies the fully qualified name of the entry point class. "
+                + "Overrides the class defined in the jar file manifest.";
+    }
 }

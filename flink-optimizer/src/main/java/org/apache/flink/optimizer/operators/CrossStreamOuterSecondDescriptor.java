@@ -21,31 +21,32 @@ package org.apache.flink.optimizer.operators;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-
 public class CrossStreamOuterSecondDescriptor extends CartesianProductDescriptor {
-	
-	public CrossStreamOuterSecondDescriptor() {
-		this(true, true);
-	}
-	
-	public CrossStreamOuterSecondDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
-		super(allowBroadcastFirst, allowBroadcastSecond);
-	}
-	
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND;
-	}
 
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		// uniqueness becomes grouping with streamed nested loops
-		if ((in2.getGroupedFields() == null || in2.getGroupedFields().size() == 0) &&
-				in2.getUniqueFields() != null && in2.getUniqueFields().size() > 0)
-		{
-			return LocalProperties.forGrouping(in2.getUniqueFields().iterator().next().toFieldList());
-		} else {
-			return in2.clearUniqueFieldSets();
-		}
-	}
+    public CrossStreamOuterSecondDescriptor() {
+        this(true, true);
+    }
+
+    public CrossStreamOuterSecondDescriptor(
+            boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
+        super(allowBroadcastFirst, allowBroadcastSecond);
+    }
+
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND;
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        // uniqueness becomes grouping with streamed nested loops
+        if ((in2.getGroupedFields() == null || in2.getGroupedFields().size() == 0)
+                && in2.getUniqueFields() != null
+                && in2.getUniqueFields().size() > 0) {
+            return LocalProperties.forGrouping(
+                    in2.getUniqueFields().iterator().next().toFieldList());
+        } else {
+            return in2.clearUniqueFieldSets();
+        }
+    }
 }

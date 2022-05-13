@@ -21,12 +21,10 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Public;
 
 /**
- * This interface acts as a marker for input formats for inputs which cannot be split.
- * Data sources with a non-parallel input formats are always executed with a parallelism
- * of one.
- * 
+ * This interface acts as a marker for input formats for inputs which cannot be split. Data sources
+ * with a non-parallel input formats are always executed with a parallelism of one.
+ *
  * @see InputFormat
  */
 @Public
-public interface NonParallelInput {
-}
+public interface NonParallelInput {}

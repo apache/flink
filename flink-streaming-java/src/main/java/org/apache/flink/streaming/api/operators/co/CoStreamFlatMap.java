@@ -25,42 +25,41 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * {@link org.apache.flink.streaming.api.operators.StreamOperator} for processing
- * {@link CoFlatMapFunction CoFlatMapFunctions}.
+ * {@link org.apache.flink.streaming.api.operators.StreamOperator} for processing {@link
+ * CoFlatMapFunction CoFlatMapFunctions}.
  */
 @Internal
 public class CoStreamFlatMap<IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+        extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
+        implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient TimestampedCollector<OUT> collector;
+    private transient TimestampedCollector<OUT> collector;
 
-	public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
-		super(flatMapper);
-	}
+    public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
+        super(flatMapper);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		collector = new TimestampedCollector<OUT>(output);
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        collector = new TimestampedCollector<OUT>(output);
+    }
 
-	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
-		collector.setTimestamp(element);
-		userFunction.flatMap1(element.getValue(), collector);
+    @Override
+    public void processElement1(StreamRecord<IN1> element) throws Exception {
+        collector.setTimestamp(element);
+        userFunction.flatMap1(element.getValue(), collector);
+    }
 
-	}
+    @Override
+    public void processElement2(StreamRecord<IN2> element) throws Exception {
+        collector.setTimestamp(element);
+        userFunction.flatMap2(element.getValue(), collector);
+    }
 
-	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		collector.setTimestamp(element);
-		userFunction.flatMap2(element.getValue(), collector);
-	}
-
-	protected TimestampedCollector<OUT> getCollector() {
-		return collector;
-	}
+    protected TimestampedCollector<OUT> getCollector() {
+        return collector;
+    }
 }

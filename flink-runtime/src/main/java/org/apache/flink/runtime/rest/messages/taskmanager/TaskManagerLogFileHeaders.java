@@ -23,38 +23,38 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandl
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 
-/**
- * Headers for the {@link TaskManagerLogFileHandler}.
- */
-public class TaskManagerLogFileHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
+/** Headers for the {@link TaskManagerLogFileHandler}. */
+public class TaskManagerLogFileHeaders
+        implements UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> {
 
-	private static final TaskManagerLogFileHeaders INSTANCE = new TaskManagerLogFileHeaders();
+    private static final TaskManagerLogFileHeaders INSTANCE = new TaskManagerLogFileHeaders();
 
-	private static final String URL = String.format("/taskmanagers/:%s/log", TaskManagerIdPathParameter.KEY);
+    private static final String URL =
+            String.format("/taskmanagers/:%s/log", TaskManagerIdPathParameter.KEY);
 
-	private TaskManagerLogFileHeaders() {}
+    private TaskManagerLogFileHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
-	}
+    @Override
+    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagerLogFileHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerLogFileHeaders getInstance() {
+        return INSTANCE;
+    }
 }

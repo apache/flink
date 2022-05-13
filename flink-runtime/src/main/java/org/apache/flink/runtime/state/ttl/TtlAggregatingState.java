@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -32,50 +33,56 @@ import java.util.Collection;
  * @param <IN> Type of the value added to the state
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> Type of the value extracted from the state
- *
  */
 class TtlAggregatingState<K, N, IN, ACC, OUT>
-	extends AbstractTtlState<K, N, ACC, TtlValue<ACC>, InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>>
-	implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+        extends AbstractTtlState<
+                K, N, ACC, TtlValue<ACC>, InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>>
+        implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
-	TtlAggregatingState(
-		InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<ACC> valueSerializer,
-		TtlAggregateFunction<IN, ACC, OUT> aggregateFunction) {
-		super(originalState, config, timeProvider, valueSerializer);
-		aggregateFunction.stateClear = originalState::clear;
-		aggregateFunction.updater = originalState::updateInternal;
-	}
+    TtlAggregatingState(
+            TtlStateContext<InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>, ACC>
+                    ttlStateContext,
+            TtlAggregateFunction<IN, ACC, OUT> aggregateFunction) {
+        super(ttlStateContext);
+        aggregateFunction.stateClear = ttlStateContext.original::clear;
+        aggregateFunction.updater = ttlStateContext.original::updateInternal;
+    }
 
-	@Override
-	public OUT get() throws Exception {
-		return original.get();
-	}
+    @Override
+    public OUT get() throws Exception {
+        accessCallback.run();
+        return original.get();
+    }
 
-	@Override
-	public void add(IN value) throws Exception {
-		original.add(value);
-	}
+    @Override
+    public void add(IN value) throws Exception {
+        accessCallback.run();
+        original.add(value);
+    }
 
-	@Override
-	public void clear() {
-		original.clear();
-	}
+    @Nullable
+    @Override
+    public TtlValue<ACC> getUnexpiredOrNull(@Nonnull TtlValue<ACC> ttlValue) {
+        return expired(ttlValue) ? null : ttlValue;
+    }
 
-	@Override
-	public ACC getInternal() throws Exception {
-		return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
-	}
+    @Override
+    public void clear() {
+        original.clear();
+    }
 
-	@Override
-	public void updateInternal(ACC valueToStore) throws Exception {
-		original.updateInternal(wrapWithTs(valueToStore));
-	}
+    @Override
+    public ACC getInternal() throws Exception {
+        return getWithTtlCheckAndUpdate(original::getInternal, original::updateInternal);
+    }
 
-	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
-		original.mergeNamespaces(target, sources);
-	}
+    @Override
+    public void updateInternal(ACC valueToStore) throws Exception {
+        original.updateInternal(wrapWithTs(valueToStore));
+    }
+
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+        original.mergeNamespaces(target, sources);
+    }
 }

@@ -22,12 +22,12 @@ import java.io.IOException;
 
 public interface BlockChannelWriterWithCallback<T> extends FileIOChannel {
 
-	/**
-	 * Writes the given block. The request may be executed synchronously, or asynchronously, depending
-	 * on the implementation.
-	 *
-	 * @param block The segment to be written (transferring ownership to this writer).
-	 * @throws IOException Thrown, when the writer encounters an I/O error.
-	 */
-	void writeBlock(T block) throws IOException;
+    /**
+     * Writes the given block. The request may be executed synchronously, or asynchronously,
+     * depending on the implementation.
+     *
+     * @param block The segment to be written (transferring ownership to this writer).
+     * @throws IOException Thrown, when the writer encounters an I/O error.
+     */
+    void writeBlock(T block) throws IOException;
 }

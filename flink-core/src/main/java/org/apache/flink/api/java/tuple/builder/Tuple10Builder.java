@@ -46,15 +46,16 @@ import java.util.List;
 @Public
 public class Tuple10Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> {
 
-	private List<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tuples = new ArrayList<>();
+    private List<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tuples = new ArrayList<>();
 
-	public Tuple10Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9){
-		tuples.add(new Tuple10<>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9));
-		return this;
-	}
+    public Tuple10Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> add(
+            T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7, T8 f8, T9 f9) {
+        tuples.add(new Tuple10<>(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9));
+        return this;
+    }
 
-	@SuppressWarnings("unchecked")
-	public Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>[] build(){
-		return tuples.toArray(new Tuple10[tuples.size()]);
-	}
+    @SuppressWarnings("unchecked")
+    public Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>[] build() {
+        return tuples.toArray(new Tuple10[tuples.size()]);
+    }
 }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.configuration.description;
 
-/**
- * Part of a {@link Description} that can be converted into String representation.
- */
+import org.apache.flink.annotation.PublicEvolving;
+
+/** Part of a {@link Description} that can be converted into String representation. */
+@PublicEvolving
 interface DescriptionElement {
-	/**
-	 * Transforms itself into String representation using given format.
-	 *
-	 * @param formatter formatter to use.
-	 */
-	void format(Formatter formatter);
+    /**
+     * Transforms itself into String representation using given format.
+     *
+     * @param formatter formatter to use.
+     */
+    void format(Formatter formatter);
 }

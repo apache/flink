@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.BlockingQueue;
@@ -40,140 +41,158 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * These tests verify the behavior of a source function that triggers checkpoints
- * in response to received events.
+ * These tests verify the behavior of a source function that triggers checkpoints in response to
+ * received events.
  */
 @SuppressWarnings("serial")
 public class SourceExternalCheckpointTriggerTest {
 
-	private static final OneShotLatch ready = new OneShotLatch();
-	private static final MultiShotLatch sync = new MultiShotLatch();
+    private static OneShotLatch ready = new OneShotLatch();
+    private static MultiShotLatch sync = new MultiShotLatch();
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testCheckpointsTriggeredBySource() throws Exception {
-		// set up the basic test harness
-		final StreamTaskTestHarness<Long> testHarness = new StreamTaskTestHarness<>(
-				SourceStreamTask::new,
-				BasicTypeInfo.LONG_TYPE_INFO);
+    @Before
+    public void resetLatches() {
+        ready = new OneShotLatch();
+        sync = new MultiShotLatch();
+    }
 
-		testHarness.setupOutputForSingletonOperatorChain();
-		testHarness.getExecutionConfig().setLatencyTrackingInterval(-1);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCheckpointsTriggeredBySource() throws Exception {
+        // set up the basic test harness
+        final StreamTaskTestHarness<Long> testHarness =
+                new StreamTaskTestHarness<>(SourceStreamTask::new, BasicTypeInfo.LONG_TYPE_INFO);
 
-		final long numElements = 10;
-		final long checkpointEvery = 3;
+        testHarness.setupOutputForSingletonOperatorChain();
+        testHarness.getExecutionConfig().setLatencyTrackingInterval(-1);
 
-		// set up the source function
-		ExternalCheckpointsSource source = new ExternalCheckpointsSource(numElements, checkpointEvery);
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-		StreamSource<Long, ?> sourceOperator = new StreamSource<>(source);
-		streamConfig.setStreamOperator(sourceOperator);
-		streamConfig.setOperatorID(new OperatorID());
+        final long numElements = 10;
+        final long checkpointEvery = 3;
 
-		// this starts the source thread
-		testHarness.invoke();
+        // set up the source function
+        ExternalCheckpointsSource source =
+                new ExternalCheckpointsSource(numElements, checkpointEvery);
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+        StreamSource<Long, ?> sourceOperator = new StreamSource<>(source);
+        streamConfig.setStreamOperator(sourceOperator);
+        streamConfig.setOperatorID(new OperatorID());
 
-		final StreamTask<Long, ?> sourceTask = testHarness.getTask();
+        // this starts the source thread
+        testHarness.invoke();
 
-		ready.await();
+        final StreamTask<Long, ?> sourceTask = testHarness.getTask();
 
-		// now send an external trigger that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpointWithDefaultLocation()));
+        ready.await();
 
-		// step by step let the source thread emit elements
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 1L);
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 2L);
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 3L);
+        // now send an external trigger that should be ignored
+        assertTrue(
+                sourceTask
+                        .triggerCheckpointAsync(
+                                new CheckpointMetaData(32, 829),
+                                CheckpointOptions.forCheckpointWithDefaultLocation())
+                        .get());
 
-		verifyCheckpointBarrier(testHarness.getOutput(), 1L);
+        // step by step let the source thread emit elements
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 1L);
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 2L);
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 3L);
 
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 4L);
+        verifyCheckpointBarrier(testHarness.getOutput(), 1L);
 
-		// now send an regular trigger command that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpointWithDefaultLocation()));
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 4L);
 
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 5L);
-		sync.trigger();
-		verifyNextElement(testHarness.getOutput(), 6L);
+        // now send an regular trigger command that should be ignored
+        assertTrue(
+                sourceTask
+                        .triggerCheckpointAsync(
+                                new CheckpointMetaData(34, 900),
+                                CheckpointOptions.forCheckpointWithDefaultLocation())
+                        .get());
 
-		verifyCheckpointBarrier(testHarness.getOutput(), 2L);
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 5L);
+        sync.trigger();
+        verifyNextElement(testHarness.getOutput(), 6L);
 
-		// let the remainder run
+        verifyCheckpointBarrier(testHarness.getOutput(), 2L);
 
-		for (long l = 7L, checkpoint = 3L; l <= numElements; l++) {
-			sync.trigger();
-			verifyNextElement(testHarness.getOutput(), l);
+        // let the remainder run
 
-			if (l % checkpointEvery == 0) {
-				verifyCheckpointBarrier(testHarness.getOutput(), checkpoint++);
-			}
-		}
+        for (long l = 7L, checkpoint = 3L; l <= numElements; l++) {
+            sync.trigger();
+            verifyNextElement(testHarness.getOutput(), l);
 
-		// done!
-	}
+            if (l % checkpointEvery == 0) {
+                verifyCheckpointBarrier(testHarness.getOutput(), checkpoint++);
+            }
+        }
 
-	@SuppressWarnings("unchecked")
-	private void verifyNextElement(BlockingQueue<Object> output, long expectedElement) throws InterruptedException {
-		Object next = output.take();
-		assertTrue("next element is not an event", next instanceof StreamRecord);
-		assertEquals("wrong event", expectedElement, ((StreamRecord<Long>) next).getValue().longValue());
-	}
+        // done!
+    }
 
-	private void verifyCheckpointBarrier(BlockingQueue<Object> output, long checkpointId) throws InterruptedException {
-		Object next = output.take();
-		assertTrue("next element is not a checkpoint barrier", next instanceof CheckpointBarrier);
-		assertEquals("wrong checkpoint id", checkpointId, ((CheckpointBarrier) next).getId());
-	}
+    @SuppressWarnings("unchecked")
+    private void verifyNextElement(BlockingQueue<Object> output, long expectedElement)
+            throws InterruptedException {
+        Object next = output.take();
+        assertTrue("next element is not an event", next instanceof StreamRecord);
+        assertEquals(
+                "wrong event", expectedElement, ((StreamRecord<Long>) next).getValue().longValue());
+    }
 
-	// ------------------------------------------------------------------------
+    private void verifyCheckpointBarrier(BlockingQueue<Object> output, long checkpointId)
+            throws InterruptedException {
+        Object next = output.take();
+        assertTrue("next element is not a checkpoint barrier", next instanceof CheckpointBarrier);
+        assertEquals("wrong checkpoint id", checkpointId, ((CheckpointBarrier) next).getId());
+    }
 
-	private static class ExternalCheckpointsSource
-			implements ParallelSourceFunction<Long>, ExternallyInducedSource<Long, Object> {
+    // ------------------------------------------------------------------------
 
-		private final long numEvents;
-		private final long checkpointFrequency;
+    private static class ExternalCheckpointsSource
+            implements ParallelSourceFunction<Long>, ExternallyInducedSource<Long, Object> {
 
-		private CheckpointTrigger trigger;
+        private final long numEvents;
+        private final long checkpointFrequency;
 
-		ExternalCheckpointsSource(long numEvents, long checkpointFrequency) {
-			this.numEvents = numEvents;
-			this.checkpointFrequency = checkpointFrequency;
-		}
+        private CheckpointTrigger trigger;
 
-		@Override
-		public void run(SourceContext<Long> ctx) throws Exception {
-			ready.trigger();
+        ExternalCheckpointsSource(long numEvents, long checkpointFrequency) {
+            this.numEvents = numEvents;
+            this.checkpointFrequency = checkpointFrequency;
+        }
 
-			// for simplicity in this test, we just trigger checkpoints in ascending order
-			long checkpoint = 1;
+        @Override
+        public void run(SourceContext<Long> ctx) throws Exception {
+            ready.trigger();
 
-			for (long num = 1; num <= numEvents; num++) {
-				sync.await();
-				ctx.collect(num);
-				if (num % checkpointFrequency == 0) {
-					trigger.triggerCheckpoint(checkpoint++);
-				}
-			}
-		}
+            // for simplicity in this test, we just trigger checkpoints in ascending order
+            long checkpoint = 1;
 
-		@Override
-		public void cancel() {}
+            for (long num = 1; num <= numEvents; num++) {
+                sync.await();
+                ctx.collect(num);
+                if (num % checkpointFrequency == 0) {
+                    trigger.triggerCheckpoint(checkpoint++);
+                }
+            }
+        }
 
-		@Override
-		public void setCheckpointTrigger(CheckpointTrigger checkpointTrigger) {
-			this.trigger = checkpointTrigger;
-		}
+        @Override
+        public void cancel() {}
 
-		@Override
-		public MasterTriggerRestoreHook<Object> createMasterTriggerRestoreHook() {
-			// not relevant in this test
-			throw new UnsupportedOperationException("not implemented");
-		}
-	}
+        @Override
+        public void setCheckpointTrigger(CheckpointTrigger checkpointTrigger) {
+            this.trigger = checkpointTrigger;
+        }
+
+        @Override
+        public MasterTriggerRestoreHook<Object> createMasterTriggerRestoreHook() {
+            // not relevant in this test
+            throw new UnsupportedOperationException("not implemented");
+        }
+    }
 }
-

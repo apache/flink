@@ -20,23 +20,25 @@ package org.apache.flink.testutils;
 import java.util.Set;
 
 /**
- * Utility classloader used in tests that allows simulating {@link ClassNotFoundException}s for specific classes.
+ * Utility classloader used in tests that allows simulating {@link ClassNotFoundException}s for
+ * specific classes.
  */
 public class ArtificialCNFExceptionThrowingClassLoader extends ClassLoader {
 
-	private final Set<String> cnfThrowingClassnames;
+    private final Set<String> cnfThrowingClassnames;
 
-	public ArtificialCNFExceptionThrowingClassLoader(ClassLoader parent, Set<String> cnfThrowingClassnames) {
-		super(parent);
-		this.cnfThrowingClassnames = cnfThrowingClassnames;
-	}
+    public ArtificialCNFExceptionThrowingClassLoader(
+            ClassLoader parent, Set<String> cnfThrowingClassnames) {
+        super(parent);
+        this.cnfThrowingClassnames = cnfThrowingClassnames;
+    }
 
-	@Override
-	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-		if (cnfThrowingClassnames.contains(name)) {
-			throw new ClassNotFoundException();
-		} else {
-			return super.loadClass(name, resolve);
-		}
-	}
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if (cnfThrowingClassnames.contains(name)) {
+            throw new ClassNotFoundException();
+        } else {
+            return super.loadClass(name, resolve);
+        }
+    }
 }

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -46,128 +47,127 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Update state with TTL for each verifier.
  *
- * <p>This function for each verifier from {@link TtlStateVerifier#VERIFIERS}
- * - creates state with TTL
- * - creates state of previous updates for further verification against it
- * - receives random state update
- * - gets state value before update
- * - updates state with random value
- * - gets state value after update
- * - checks if this update clashes with any previous updates
- * - if clashes, clears state and recreate update
- * - verifies last update against previous updates
- * - emits verification context in case of failure
+ * <p>This function for each verifier from {@link TtlStateVerifier#VERIFIERS} - creates state with
+ * TTL - creates state of previous updates for further verification against it - receives random
+ * state update - gets state value before update - updates state with random value - gets state
+ * value after update - checks if this update clashes with any previous updates - if clashes, clears
+ * state and recreate update - verifies last update against previous updates - emits verification
+ * context in case of failure
  */
-class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String> implements CheckpointedFunction {
+class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String>
+        implements CheckpointedFunction {
+    private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LoggerFactory.getLogger(TtlVerifyUpdateFunction.class);
 
-	private static final long serialVersionUID = 1L;
+    @Nonnull private final StateTtlConfig ttlConfig;
+    private final UpdateStat stat;
 
-	private static final Logger LOG = LoggerFactory.getLogger(TtlVerifyUpdateFunction.class);
+    private transient Map<String, State> states;
+    private transient Map<String, ListState<ValueWithTs<?>>> prevUpdatesByVerifierId;
 
-	@Nonnull
-	private final StateTtlConfig ttlConfig;
-	private final MonotonicTTLTimeProvider ttlTimeProvider;
-	private final UpdateStat stat;
+    TtlVerifyUpdateFunction(@Nonnull StateTtlConfig ttlConfig, long reportStatAfterUpdatesNum) {
+        this.ttlConfig = ttlConfig;
+        this.stat = new UpdateStat(reportStatAfterUpdatesNum);
+    }
 
-	private transient Map<String, State> states;
-	private transient Map<String, ListState<ValueWithTs<?>>> prevUpdatesByVerifierId;
+    @Override
+    public void flatMap(TtlStateUpdate updates, Collector<String> out) throws Exception {
+        for (TtlStateVerifier<?, ?> verifier : TtlStateVerifier.VERIFIERS) {
+            TtlVerificationContext<?, ?> verificationContext =
+                    generateUpdateAndVerificationContext(updates, verifier);
+            if (!verifier.verify(verificationContext)) {
+                // Please do **NOT** change the prefix, it's used in test_stream_state_ttl.sh for
+                // test verifying
+                out.collect("TTL verification failed: " + verificationContext.toString());
+            }
+        }
+    }
 
-	TtlVerifyUpdateFunction(
-			@Nonnull StateTtlConfig ttlConfig,
-			MonotonicTTLTimeProvider ttlTimeProvider,
-			long reportStatAfterUpdatesNum) {
-		this.ttlConfig = ttlConfig;
-		this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
-		this.stat = new UpdateStat(reportStatAfterUpdatesNum);
-	}
+    private TtlVerificationContext<?, ?> generateUpdateAndVerificationContext(
+            TtlStateUpdate updates, TtlStateVerifier<?, ?> verifier) throws Exception {
 
-	@Override
-	public void flatMap(TtlStateUpdate updates, Collector<String> out) throws Exception {
-		for (TtlStateVerifier<?, ?> verifier : TtlStateVerifier.VERIFIERS) {
-			TtlVerificationContext<?, ?> verificationContext = generateUpdateAndVerificationContext(updates, verifier);
-			if (!verifier.verify(verificationContext)) {
-				out.collect(verificationContext.toString());
-			}
-		}
-	}
+        List<ValueWithTs<?>> prevUpdates = getPrevUpdates(verifier.getId());
+        Object update = updates.getUpdate(verifier.getId());
+        TtlUpdateContext<?, ?> updateContext = performUpdate(verifier, update);
+        stat.update(prevUpdates.size());
+        prevUpdatesByVerifierId.get(verifier.getId()).add(updateContext.getUpdateWithTs());
+        return new TtlVerificationContext<>(
+                updates.getKey(), verifier.getId(), prevUpdates, updateContext);
+    }
 
-	private TtlVerificationContext<?, ?> generateUpdateAndVerificationContext(
-			TtlStateUpdate updates,
-			TtlStateVerifier<?, ?> verifier) throws Exception {
+    private List<ValueWithTs<?>> getPrevUpdates(String verifierId) throws Exception {
+        return StreamSupport.stream(
+                        prevUpdatesByVerifierId.get(verifierId).get().spliterator(), false)
+                .collect(Collectors.toList());
+    }
 
-		List<ValueWithTs<?>> prevUpdates = getPrevUpdates(verifier.getId());
-		Object update = updates.getUpdate(verifier.getId());
-		TtlUpdateContext<?, ?> updateContext = performUpdate(verifier, update);
-		stat.update(prevUpdates.size());
-		prevUpdatesByVerifierId.get(verifier.getId()).add(updateContext.getUpdateWithTs());
-		return new TtlVerificationContext<>(updates.getKey(), verifier.getId(), prevUpdates, updateContext);
-	}
+    private TtlUpdateContext<?, ?> performUpdate(TtlStateVerifier<?, ?> verifier, Object update)
+            throws Exception {
 
-	private List<ValueWithTs<?>> getPrevUpdates(String verifierId) throws Exception {
-		return StreamSupport
-			.stream(prevUpdatesByVerifierId.get(verifierId).get().spliterator(), false)
-			.collect(Collectors.toList());
-	}
+        return MonotonicTTLTimeProvider.doWithFrozenTime(
+                frozenTimestamp -> {
+                    State state = states.get(verifier.getId());
+                    Object valueBeforeUpdate = verifier.get(state);
+                    verifier.update(state, update);
+                    Object updatedValue = verifier.get(state);
+                    return new TtlUpdateContext<>(
+                            valueBeforeUpdate, update, updatedValue, frozenTimestamp);
+                });
+    }
 
-	private TtlUpdateContext<?, ?> performUpdate(
-			TtlStateVerifier<?, ?> verifier,
-			Object update) throws Exception {
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) {}
 
-		final long timestampBeforeUpdate = ttlTimeProvider.currentTimestamp();
-		State state = states.get(verifier.getId());
-		Object valueBeforeUpdate = verifier.get(state);
-		verifier.update(state, update);
-		Object updatedValue = verifier.get(state);
-		final long timestampAfterUpdate = ttlTimeProvider.unfreezeTime();
+    @Override
+    public void initializeState(FunctionInitializationContext context) {
+        states =
+                TtlStateVerifier.VERIFIERS.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        TtlStateVerifier::getId,
+                                        v -> v.createState(context, ttlConfig)));
+        prevUpdatesByVerifierId =
+                TtlStateVerifier.VERIFIERS.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        TtlStateVerifier::getId,
+                                        v -> {
+                                            checkNotNull(v);
+                                            final TypeSerializer<ValueWithTs<?>> typeSerializer =
+                                                    new ValueWithTs.Serializer(
+                                                            v.getUpdateSerializer(),
+                                                            LongSerializer.INSTANCE);
 
-		checkState(
-				timestampAfterUpdate == timestampBeforeUpdate,
-				"Timestamps before and after the update do not match."
-		);
+                                            ListStateDescriptor<ValueWithTs<?>> stateDesc =
+                                                    new ListStateDescriptor<>(
+                                                            "TtlPrevValueState_" + v.getId(),
+                                                            typeSerializer);
+                                            KeyedStateStore store = context.getKeyedStateStore();
+                                            return store.getListState(stateDesc);
+                                        }));
+    }
 
-		return new TtlUpdateContext<>(valueBeforeUpdate, update, updatedValue, timestampAfterUpdate);
-	}
+    private static class UpdateStat implements Serializable {
+        private static final long serialVersionUID = -4557720969995878873L;
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) {
+        final long reportStatAfterUpdatesNum;
+        long updates = 0;
+        long prevUpdatesNum = 0;
 
-	}
+        UpdateStat(long reportStatAfterUpdatesNum) {
+            this.reportStatAfterUpdatesNum = reportStatAfterUpdatesNum;
+        }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) {
-		states = TtlStateVerifier.VERIFIERS.stream()
-			.collect(Collectors.toMap(TtlStateVerifier::getId, v -> v.createState(context, ttlConfig)));
-		prevUpdatesByVerifierId = TtlStateVerifier.VERIFIERS.stream()
-			.collect(Collectors.toMap(TtlStateVerifier::getId, v -> {
-				checkNotNull(v);
-				TypeSerializer<ValueWithTs<?>> typeSerializer = new ValueWithTs.Serializer(v.getUpdateSerializer());
-				ListStateDescriptor<ValueWithTs<?>> stateDesc = new ListStateDescriptor<>(
-					"TtlPrevValueState_" + v.getId(), typeSerializer);
-				KeyedStateStore store = context.getKeyedStateStore();
-				return store.getListState(stateDesc);
-			}));
-	}
-
-	private static class UpdateStat implements Serializable {
-		final long reportStatAfterUpdatesNum;
-		long updates = 0;
-		long prevUpdatesNum = 0;
-
-		UpdateStat(long reportStatAfterUpdatesNum) {
-			this.reportStatAfterUpdatesNum = reportStatAfterUpdatesNum;
-		}
-
-		void update(long prevUpdatesSize) {
-			updates++;
-			prevUpdatesNum += prevUpdatesSize;
-			if (updates % reportStatAfterUpdatesNum == 0) {
-				LOG.info(String.format("Avg update chain length: %d", prevUpdatesNum / updates));
-			}
-		}
-	}
+        void update(long prevUpdatesSize) {
+            updates++;
+            prevUpdatesNum += prevUpdatesSize;
+            if (updates % reportStatAfterUpdatesNum == 0) {
+                LOG.info(String.format("Avg update chain length: %d", prevUpdatesNum / updates));
+            }
+        }
+    }
 }

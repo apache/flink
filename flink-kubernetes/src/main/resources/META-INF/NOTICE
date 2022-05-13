@@ -1,0 +1,44 @@
+flink-kubernetes
+Copyright 2014-2021 The Apache Software Foundation
+
+This project includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.fasterxml.jackson.core:jackson-annotations:2.13.2
+- com.fasterxml.jackson.core:jackson-core:2.13.2
+- com.fasterxml.jackson.core:jackson-databind:2.13.2.2
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2
+- com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.2
+- com.squareup.okhttp3:logging-interceptor:3.14.9
+- com.squareup.okhttp3:okhttp:3.14.9
+- com.squareup.okio:okio:1.17.2
+- io.fabric8:kubernetes-client:5.5.0
+- io.fabric8:kubernetes-model-core:5.5.0
+- io.fabric8:kubernetes-model-common:5.5.0
+- io.fabric8:kubernetes-model-rbac:5.5.0
+- io.fabric8:kubernetes-model-admissionregistration:5.5.0
+- io.fabric8:kubernetes-model-apps:5.5.0
+- io.fabric8:kubernetes-model-autoscaling:5.5.0
+- io.fabric8:kubernetes-model-apiextensions:5.5.0
+- io.fabric8:kubernetes-model-batch:5.5.0
+- io.fabric8:kubernetes-model-certificates:5.5.0
+- io.fabric8:kubernetes-model-coordination:5.5.0
+- io.fabric8:kubernetes-model-discovery:5.5.0
+- io.fabric8:kubernetes-model-events:5.5.0
+- io.fabric8:kubernetes-model-extensions:5.5.0
+- io.fabric8:kubernetes-model-flowcontrol:5.5.0
+- io.fabric8:kubernetes-model-networking:5.5.0
+- io.fabric8:kubernetes-model-metrics:5.5.0
+- io.fabric8:kubernetes-model-policy:5.5.0
+- io.fabric8:kubernetes-model-scheduling:5.5.0
+- io.fabric8:kubernetes-model-storageclass:5.5.0
+- io.fabric8:kubernetes-model-node:5.5.0
+- io.fabric8:zjsonpatch:0.3.0
+- org.yaml:snakeyaml:1.27
+
+This project bundles the following dependencies under the BSD License.
+See bundled license files for details.
+
+- dk.brics.automaton:automaton:1.11-8

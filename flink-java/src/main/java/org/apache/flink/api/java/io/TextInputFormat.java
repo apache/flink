@@ -27,83 +27,79 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-/**
- * Input Format that reads text files. Each line results in another element.
- */
+/** Input Format that reads text files. Each line results in another element. */
 @PublicEvolving
 public class TextInputFormat extends DelimitedInputFormat<String> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Code of \r, used to remove \r from a line when the line ends with \r\n.
-	 */
-	private static final byte CARRIAGE_RETURN = (byte) '\r';
+    /** Code of \r, used to remove \r from a line when the line ends with \r\n. */
+    private static final byte CARRIAGE_RETURN = (byte) '\r';
 
-	/**
-	 * Code of \n, used to identify if \n is used as delimiter.
-	 */
-	private static final byte NEW_LINE = (byte) '\n';
+    /** Code of \n, used to identify if \n is used as delimiter. */
+    private static final byte NEW_LINE = (byte) '\n';
 
-	/**
-	 * The name of the charset to use for decoding.
-	 */
-	private String charsetName = "UTF-8";
+    /** The name of the charset to use for decoding. */
+    private String charsetName = "UTF-8";
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public TextInputFormat(Path filePath) {
-		super(filePath, null);
-	}
+    public TextInputFormat(Path filePath) {
+        super(filePath, null);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public String getCharsetName() {
-		return charsetName;
-	}
+    public String getCharsetName() {
+        return charsetName;
+    }
 
-	public void setCharsetName(String charsetName) {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset must not be null.");
-		}
+    public void setCharsetName(String charsetName) {
+        if (charsetName == null) {
+            throw new IllegalArgumentException("Charset must not be null.");
+        }
 
-		this.charsetName = charsetName;
-	}
+        this.charsetName = charsetName;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void configure(Configuration parameters) {
-		super.configure(parameters);
+    @Override
+    public void configure(Configuration parameters) {
+        super.configure(parameters);
 
-		if (charsetName == null || !Charset.isSupported(charsetName)) {
-			throw new RuntimeException("Unsupported charset: " + charsetName);
-		}
-	}
+        if (charsetName == null || !Charset.isSupported(charsetName)) {
+            throw new RuntimeException("Unsupported charset: " + charsetName);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
-		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
-		if (this.getDelimiter() != null && this.getDelimiter().length == 1
-				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
-			numBytes -= 1;
-		}
+    @Override
+    public String readRecord(String reusable, byte[] bytes, int offset, int numBytes)
+            throws IOException {
+        // Check if \n is used as delimiter and the end of this line is a \r, then remove \r from
+        // the line
+        if (this.getDelimiter() != null
+                && this.getDelimiter().length == 1
+                && this.getDelimiter()[0] == NEW_LINE
+                && offset + numBytes >= 1
+                && bytes[offset + numBytes - 1] == CARRIAGE_RETURN) {
+            numBytes -= 1;
+        }
 
-		return new String(bytes, offset, numBytes, this.charsetName);
-	}
+        return new String(bytes, offset, numBytes, this.charsetName);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "TextInputFormat (" + Arrays.toString(getFilePaths()) + ") - " + this.charsetName;
-	}
+    @Override
+    public String toString() {
+        return "TextInputFormat (" + Arrays.toString(getFilePaths()) + ") - " + this.charsetName;
+    }
 
-	@Override
-	public boolean supportsMultiPaths() {
-		return true;
-	}
+    @Override
+    public boolean supportsMultiPaths() {
+        return true;
+    }
 }

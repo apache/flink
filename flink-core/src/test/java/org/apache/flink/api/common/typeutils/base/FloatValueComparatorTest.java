@@ -27,35 +27,36 @@ import java.util.Random;
 
 public class FloatValueComparatorTest extends ComparatorTestBase<FloatValue> {
 
-	@Override
-	protected TypeComparator<FloatValue> createComparator(boolean ascending) {
-		return new FloatValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<FloatValue> createComparator(boolean ascending) {
+        return new FloatValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<FloatValue> createSerializer() {
-		return new FloatValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<FloatValue> createSerializer() {
+        return new FloatValueSerializer();
+    }
 
-	@Override
-	protected FloatValue[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		float rndFloat = rnd.nextFloat();
-		if (rndFloat < 0) {
-			rndFloat = -rndFloat;
-		}
-		if (rndFloat == Float.MAX_VALUE) {
-			rndFloat -= 3;
-		}
-		if (rndFloat <= 2) {
-			rndFloat += 3;
-		}
-		return new FloatValue[]{
-			new FloatValue(-rndFloat),
-			new FloatValue(-1.0F),
-			new FloatValue(0.0F),
-			new FloatValue(2.0F),
-			new FloatValue(rndFloat),
-			new FloatValue(Float.MAX_VALUE)};
-	}
+    @Override
+    protected FloatValue[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        float rndFloat = rnd.nextFloat();
+        if (rndFloat < 0) {
+            rndFloat = -rndFloat;
+        }
+        if (rndFloat == Float.MAX_VALUE) {
+            rndFloat -= 3;
+        }
+        if (rndFloat <= 2) {
+            rndFloat += 3;
+        }
+        return new FloatValue[] {
+            new FloatValue(-rndFloat),
+            new FloatValue(-1.0F),
+            new FloatValue(0.0F),
+            new FloatValue(2.0F),
+            new FloatValue(rndFloat),
+            new FloatValue(Float.MAX_VALUE)
+        };
+    }
 }

@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.testfunctions;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 
 public class IdentityCrosser<T> implements CrossFunction<T, T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T cross(T first, T second) {
-		return first;
-	}
+    @Override
+    public T cross(T first, T second) {
+        return first;
+    }
 }

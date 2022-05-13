@@ -18,119 +18,73 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-
-import javax.annotation.Nullable;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobID;
 
 import java.io.IOException;
 
 /**
- * CheckpointStorage implements the durable storage of checkpoint data and metadata streams.
- * An individual checkpoint or savepoint is stored to a {@link CheckpointStorageLocation},
- * created by this class.
+ * CheckpointStorage defines how {@link StateBackend}'s store their state for fault tolerance in
+ * streaming applications. Various implementations store their checkpoints in different fashions and
+ * have different requirements and availability guarantees.
+ *
+ * <p>For example, {@link org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+ * JobManagerCheckpointStorage} stores checkpoints in the memory of the JobManager. It is
+ * lightweight and without additional dependencies but is not scalable and only supports small state
+ * sizes. This checkpoint storage policy is convenient for local testing and development.
+ *
+ * <p>{@link org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
+ * FileSystemCheckpointStorage} stores checkpoints in a filesystem. For systems like HDFS, NFS
+ * Drives, S3, and GCS, this storage policy supports large state size, in the magnitude of many
+ * terabytes while providing a highly available foundation for stateful applications. This
+ * checkpoint storage policy is recommended for most production deployments.
+ *
+ * <h2>Raw Bytes Storage</h2>
+ *
+ * <p>The {@code CheckpointStorage} creates services for <i>raw bytes storage</i>.
+ *
+ * <p>The <i>raw bytes storage</i> (through the {@link CheckpointStreamFactory}) is the fundamental
+ * service that simply stores bytes in a fault tolerant fashion. This service is used by the
+ * JobManager to store checkpoint and recovery metadata and is typically also used by the keyed- and
+ * operator state backends to store checkpointed state.
+ *
+ * <h2>Serializability</h2>
+ *
+ * <p>Implementations need to be {@link java.io.Serializable serializable}, because they distributed
+ * across parallel processes (for distributed execution) together with the streaming application
+ * code.
+ *
+ * <p>Because of that, {@code CheckpointStorage} implementations are meant to be like
+ * <i>factories</i> that create the proper states stores that provide access to the persistent. That
+ * way, the Checkpoint Storage can be very lightweight (contain only configurations) which makes it
+ * easier to be serializable.
+ *
+ * <h2>Thread Safety</h2>
+ *
+ * <p>Checkpoint storage implementations have to be thread-safe. Multiple threads may be creating
+ * streams concurrently.
  */
-public interface CheckpointStorage {
+@PublicEvolving
+public interface CheckpointStorage extends java.io.Serializable {
 
-	/**
-	 * Checks whether this backend supports highly available storage of data.
-	 *
-	 * <p>Some state backends may not support highly-available durable storage, with default settings,
-	 * which makes them suitable for zero-config prototyping, but not for actual production setups.
-	 */
-	boolean supportsHighlyAvailableStorage();
+    /**
+     * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
+     * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
+     *
+     * @param externalPointer The external checkpoint pointer to resolve.
+     * @return The checkpoint location handle.
+     * @throws IOException Thrown, if the state backend does not understand the pointer, or if the
+     *     pointer could not be resolved due to an I/O error.
+     */
+    CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
-	/**
-	 * Checks whether the storage has a default savepoint location configured.
-	 */
-	boolean hasDefaultSavepointLocation();
-
-	/**
-	 * Resolves the given pointer to a checkpoint/savepoint into a checkpoint location. The location
-	 * supports reading the checkpoint metadata, or disposing the checkpoint storage location.
-	 *
-	 * <p>If the state backend cannot understand the format of the pointer (for example because it
-	 * was created by a different state backend) this method should throw an {@code IOException}.
-	 *
-	 * @param externalPointer The external checkpoint pointer to resolve.
-	 * @return The checkpoint location handle.
-	 *
-	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
-	 *                     the pointer could not be resolved due to an I/O error.
-	 */
-	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
-
-	/**
-	 * Initializes a storage location for new checkpoint with the given ID.
-	 *
-	 * <p>The returned storage location can be used to write the checkpoint data and metadata
-	 * to and to obtain the pointers for the location(s) where the actual checkpoint data should be
-	 * stored.
-	 *
-	 * @param checkpointId The ID (logical timestamp) of the checkpoint that should be persisted.
-	 * @return A storage location for the data and metadata of the given checkpoint.
-	 *
-	 * @throws IOException Thrown if the storage location cannot be initialized due to an I/O exception.
-	 */
-	CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException;
-
-	/**
-	 * Initializes a storage location for new savepoint with the given ID.
-	 *
-	 * <p>If an external location pointer is passed, the savepoint storage location
-	 * will be initialized at the location of that pointer. If the external location pointer is null,
-	 * the default savepoint location will be used. If no default savepoint location is configured,
-	 * this will throw an exception. Whether a default savepoint location is configured can be
-	 * checked via {@link #hasDefaultSavepointLocation()}.
-	 *
-	 * @param checkpointId The ID (logical timestamp) of the savepoint's checkpoint.
-	 * @param externalLocationPointer Optionally, a pointer to the location where the savepoint should
-	 *                                be stored. May be null.
-	 *
-	 * @return A storage location for the data and metadata of the savepoint.
-	 *
-	 * @throws IOException Thrown if the storage location cannot be initialized due to an I/O exception.
-	 */
-	CheckpointStorageLocation initializeLocationForSavepoint(
-			long checkpointId,
-			@Nullable String externalLocationPointer) throws IOException;
-
-	/**
-	 * Resolves a storage location reference into a CheckpointStreamFactory.
-	 *
-	 * <p>The reference may be the {@link CheckpointStorageLocationReference#isDefaultReference() default reference},
-	 * in which case the method should return the default location, taking existing configuration
-	 * and checkpoint ID into account.
-	 *
-	 * @param checkpointId The ID of the checkpoint that the location is initialized for.
-	 * @param reference The checkpoint location reference.
-	 *
-	 * @return A checkpoint storage location reflecting the reference and checkpoint ID.
-	 *
-	 * @throws IOException Thrown, if the storage location cannot be initialized from the reference.
-	 */
-	CheckpointStreamFactory resolveCheckpointStorageLocation(
-			long checkpointId,
-			CheckpointStorageLocationReference reference) throws IOException;
-
-	/**
-	 * Opens a stream to persist checkpoint state data that is owned strictly by tasks and
-	 * not attached to the life cycle of a specific checkpoint.
-	 *
-	 * <p>This method should be used when the persisted data cannot be immediately dropped once
-	 * the checkpoint that created it is dropped. Examples are write-ahead-logs.
-	 * For those, the state can only be dropped once the data has been moved to the target system,
-	 * which may sometimes take longer than one checkpoint (if the target system is temporarily unable
-	 * to keep up).
-	 *
-	 * <p>The fact that the job manager does not own the life cycle of this type of state means also
-	 * that it is strictly the responsibility of the tasks to handle the cleanup of this data.
-	 *
-	 * <p>Developer note: In the future, we may be able to make this a special case of "shared state",
-	 * where the task re-emits the shared state reference as long as it needs to hold onto the
-	 * persisted state data.
-	 *
-	 * @return A checkpoint state stream to the location for state owned by tasks.
-	 * @throws IOException Thrown, if the stream cannot be opened.
-	 */
-	CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException;
+    /**
+     * Creates a storage for checkpoints for the given job. The checkpoint storage is used to write
+     * checkpoint data and metadata.
+     *
+     * @param jobId The job to store checkpoint data for.
+     * @return A checkpoint storage for the given job.
+     * @throws IOException Thrown if the checkpoint storage cannot be initialized.
+     */
+    CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException;
 }

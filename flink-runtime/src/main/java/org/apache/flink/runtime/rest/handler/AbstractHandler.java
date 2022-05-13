@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.rest.FileUploadHandler;
+import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -28,12 +29,15 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Ascii;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,9 +55,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}.
@@ -64,179 +70,262 @@ import java.util.concurrent.CompletableFuture;
  * @param <R> type of the incoming request
  * @param <M> type of the message parameters
  */
-public abstract class AbstractHandler<T extends RestfulGateway, R extends RequestBody, M extends MessageParameters> extends LeaderRetrievalHandler<T> implements AutoCloseableAsync {
+public abstract class AbstractHandler<
+                T extends RestfulGateway, R extends RequestBody, M extends MessageParameters>
+        extends LeaderRetrievalHandler<T> implements AutoCloseableAsync {
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+    protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
 
-	private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
+    /**
+     * Other response payload overhead (in bytes). If we truncate response payload, we should leave
+     * enough buffer for this overhead.
+     */
+    private static final int OTHER_RESP_PAYLOAD_OVERHEAD = 1024;
 
-	/**
-	 * Used to ensure that the handler is not closed while there are still in-flight requests.
-	 */
-	private final InFlightRequestTracker inFlightRequestTracker;
+    private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
 
-	protected AbstractHandler(
-			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
-			@Nonnull Time timeout,
-			@Nonnull Map<String, String> responseHeaders,
-			@Nonnull UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders);
+    /** Used to ensure that the handler is not closed while there are still in-flight requests. */
+    private final InFlightRequestTracker inFlightRequestTracker;
 
-		this.untypedResponseMessageHeaders = Preconditions.checkNotNull(untypedResponseMessageHeaders);
-		this.inFlightRequestTracker = new InFlightRequestTracker();
-	}
+    /** CompletableFuture object that ensures calls to {@link #closeAsync()} idempotent. */
+    private CompletableFuture<Void> terminationFuture;
 
-	@Override
-	protected void respondAsLeader(ChannelHandlerContext ctx, RoutedRequest routedRequest, T gateway) {
-		HttpRequest httpRequest = routedRequest.getRequest();
-		if (log.isTraceEnabled()) {
-			log.trace("Received request " + httpRequest.uri() + '.');
-		}
+    /** Lock object to prevent concurrent calls to {@link #closeAsync()}. */
+    private final Object lock = new Object();
 
-		FileUploads uploadedFiles = null;
-		try {
-			inFlightRequestTracker.registerRequest();
-			if (!(httpRequest instanceof FullHttpRequest)) {
-				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
-				// FullHttpRequests.
-				log.error("Implementation error: Received a request that wasn't a FullHttpRequest.");
-				throw new RestHandlerException("Bad request received.", HttpResponseStatus.BAD_REQUEST);
-			}
+    protected AbstractHandler(
+            @Nonnull GatewayRetriever<? extends T> leaderRetriever,
+            @Nonnull Time timeout,
+            @Nonnull Map<String, String> responseHeaders,
+            @Nonnull UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders);
 
-			final ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
+        this.untypedResponseMessageHeaders =
+                Preconditions.checkNotNull(untypedResponseMessageHeaders);
+        this.inFlightRequestTracker = new InFlightRequestTracker();
+    }
 
-			uploadedFiles = FileUploadHandler.getMultipartFileUploads(ctx);
+    @Override
+    protected void respondAsLeader(
+            ChannelHandlerContext ctx, RoutedRequest routedRequest, T gateway) {
+        HttpRequest httpRequest = routedRequest.getRequest();
+        if (log.isTraceEnabled()) {
+            log.trace("Received request " + httpRequest.uri() + '.');
+        }
 
-			if (!untypedResponseMessageHeaders.acceptsFileUploads() && !uploadedFiles.getUploadedFiles().isEmpty()) {
-				throw new RestHandlerException("File uploads not allowed.", HttpResponseStatus.BAD_REQUEST);
-			}
+        FileUploads uploadedFiles = null;
+        try {
+            if (!inFlightRequestTracker.registerRequest()) {
+                log.debug(
+                        "The handler instance for {} had already been closed.",
+                        untypedResponseMessageHeaders.getTargetRestEndpointURL());
+                ctx.channel().close();
+                return;
+            }
 
-			R request;
-			if (msgContent.capacity() == 0) {
-				try {
-					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
-				} catch (JsonParseException | JsonMappingException je) {
-					throw new RestHandlerException("Bad request received. Request did not conform to expected format.", HttpResponseStatus.BAD_REQUEST, je);
-				}
-			} else {
-				try {
-					ByteBufInputStream in = new ByteBufInputStream(msgContent);
-					request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
-				} catch (JsonParseException | JsonMappingException je) {
-					throw new RestHandlerException(
-						String.format("Request did not match expected format %s.", untypedResponseMessageHeaders.getRequestClass().getSimpleName()),
-						HttpResponseStatus.BAD_REQUEST,
-						je);
-				}
-			}
+            if (!(httpRequest instanceof FullHttpRequest)) {
+                // The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always
+                // returns
+                // FullHttpRequests.
+                log.error(
+                        "Implementation error: Received a request that wasn't a FullHttpRequest.");
+                throw new RestHandlerException(
+                        "Bad request received.", HttpResponseStatus.BAD_REQUEST);
+            }
 
-			final HandlerRequest<R, M> handlerRequest;
+            final ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
-			try {
-				handlerRequest = new HandlerRequest<R, M>(
-					request,
-					untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
-					routedRequest.getRouteResult().pathParams(),
-					routedRequest.getRouteResult().queryParams(),
-					uploadedFiles.getUploadedFiles());
-			} catch (HandlerRequestException hre) {
-				log.error("Could not create the handler request.", hre);
-				throw new RestHandlerException(
-					String.format("Bad request, could not parse parameters: %s", hre.getMessage()),
-					HttpResponseStatus.BAD_REQUEST,
-					hre);
-			}
+            uploadedFiles = FileUploadHandler.getMultipartFileUploads(ctx);
 
-			log.trace("Starting request processing.");
-			CompletableFuture<Void> requestProcessingFuture = respondToRequest(
-				ctx,
-				httpRequest,
-				handlerRequest,
-				gateway);
+            if (!untypedResponseMessageHeaders.acceptsFileUploads()
+                    && !uploadedFiles.getUploadedFiles().isEmpty()) {
+                throw new RestHandlerException(
+                        "File uploads not allowed.", HttpResponseStatus.BAD_REQUEST);
+            }
 
-			final FileUploads finalUploadedFiles = uploadedFiles;
-			requestProcessingFuture
-				.whenComplete((Void ignored, Throwable throwable) -> {
-					if (throwable != null) {
-						handleException(ExceptionUtils.stripCompletionException(throwable), ctx, httpRequest)
-							.whenComplete((Void ignored2, Throwable throwable2) -> finalizeRequestProcessing(finalUploadedFiles));
-					} else {
-						finalizeRequestProcessing(finalUploadedFiles);
-					}
-				});
-		} catch (Throwable e) {
-			final FileUploads finalUploadedFiles = uploadedFiles;
-			handleException(e, ctx, httpRequest)
-				.whenComplete((Void ignored, Throwable throwable) -> finalizeRequestProcessing(finalUploadedFiles));
-		}
-	}
+            R request;
+            if (msgContent.capacity() == 0) {
+                try {
+                    request =
+                            MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
+                } catch (JsonParseException | JsonMappingException je) {
+                    throw new RestHandlerException(
+                            "Bad request received. Request did not conform to expected format.",
+                            HttpResponseStatus.BAD_REQUEST,
+                            je);
+                }
+            } else {
+                try {
+                    InputStream in = new ByteBufInputStream(msgContent);
+                    request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
+                } catch (JsonParseException | JsonMappingException je) {
+                    throw new RestHandlerException(
+                            String.format(
+                                    "Request did not match expected format %s.",
+                                    untypedResponseMessageHeaders
+                                            .getRequestClass()
+                                            .getSimpleName()),
+                            HttpResponseStatus.BAD_REQUEST,
+                            je);
+                }
+            }
 
-	private void finalizeRequestProcessing(FileUploads uploadedFiles) {
-		inFlightRequestTracker.deregisterRequest();
-		cleanupFileUploads(uploadedFiles);
-	}
+            final HandlerRequest<R> handlerRequest;
 
-	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
-		if (throwable instanceof RestHandlerException) {
-			RestHandlerException rhe = (RestHandlerException) throwable;
-			if (log.isDebugEnabled()) {
-				log.error("Exception occurred in REST handler.", rhe);
-			} else {
-				log.error("Exception occurred in REST handler: {}", rhe.getMessage());
-			}
-			return HandlerUtils.sendErrorResponse(
-				ctx,
-				httpRequest,
-				new ErrorResponseBody(rhe.getMessage()),
-				rhe.getHttpResponseStatus(),
-				responseHeaders);
-		} else {
-			log.error("Implementation error: Unhandled exception.", throwable);
-			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
-				ExceptionUtils.stringifyException(throwable));
-			return HandlerUtils.sendErrorResponse(
-				ctx,
-				httpRequest,
-				new ErrorResponseBody(Arrays.asList("Internal server error.", stackTrace)),
-				HttpResponseStatus.INTERNAL_SERVER_ERROR,
-				responseHeaders);
-		}
-	}
+            try {
+                handlerRequest =
+                        HandlerRequest.resolveParametersAndCreate(
+                                request,
+                                untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
+                                routedRequest.getRouteResult().pathParams(),
+                                routedRequest.getRouteResult().queryParams(),
+                                uploadedFiles.getUploadedFiles());
+            } catch (HandlerRequestException hre) {
+                log.error("Could not create the handler request.", hre);
+                throw new RestHandlerException(
+                        String.format(
+                                "Bad request, could not parse parameters: %s", hre.getMessage()),
+                        HttpResponseStatus.BAD_REQUEST,
+                        hre);
+            }
 
-	@Override
-	public final CompletableFuture<Void> closeAsync() {
-		return FutureUtils.composeAfterwards(closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
-	}
+            log.trace("Starting request processing.");
+            CompletableFuture<Void> requestProcessingFuture =
+                    respondToRequest(ctx, httpRequest, handlerRequest, gateway);
 
-	protected CompletableFuture<Void> closeHandlerAsync() {
-		return CompletableFuture.completedFuture(null);
-	}
+            final FileUploads finalUploadedFiles = uploadedFiles;
+            requestProcessingFuture
+                    .handle(
+                            (Void ignored, Throwable throwable) -> {
+                                if (throwable != null) {
+                                    return handleException(
+                                            ExceptionUtils.stripCompletionException(throwable),
+                                            ctx,
+                                            httpRequest);
+                                }
+                                return CompletableFuture.<Void>completedFuture(null);
+                            })
+                    .thenCompose(Function.identity())
+                    .whenComplete(
+                            (Void ignored, Throwable throwable) -> {
+                                if (throwable != null) {
+                                    log.warn(
+                                            "An exception occurred while handling another exception.",
+                                            throwable);
+                                }
+                                finalizeRequestProcessing(finalUploadedFiles);
+                            });
+        } catch (Throwable e) {
+            final FileUploads finalUploadedFiles = uploadedFiles;
+            handleException(e, ctx, httpRequest)
+                    .whenComplete(
+                            (Void ignored, Throwable throwable) ->
+                                    finalizeRequestProcessing(finalUploadedFiles));
+        }
+    }
 
-	private void cleanupFileUploads(@Nullable FileUploads uploadedFiles) {
-		if (uploadedFiles != null) {
-			try {
-				uploadedFiles.close();
-			} catch (IOException e) {
-				log.warn("Could not cleanup uploaded files.", e);
-			}
-		}
-	}
+    private void finalizeRequestProcessing(FileUploads uploadedFiles) {
+        inFlightRequestTracker.deregisterRequest();
+        cleanupFileUploads(uploadedFiles);
+    }
 
-	/**
-	 * Respond to the given {@link HandlerRequest}.
-	 *
-	 * @param ctx channel handler context to write the response
-	 * @param httpRequest original http request
-	 * @param handlerRequest typed handler request
-	 * @param gateway leader gateway
-	 * @return Future which is completed once the request has been processed
-	 * @throws RestHandlerException if an exception occurred while responding
-	 */
-	protected abstract CompletableFuture<Void> respondToRequest(
-		ChannelHandlerContext ctx,
-		HttpRequest httpRequest,
-		HandlerRequest<R, M> handlerRequest,
-		T gateway) throws RestHandlerException;
+    private CompletableFuture<Void> handleException(
+            Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+        ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
+
+        FlinkHttpObjectAggregator flinkHttpObjectAggregator =
+                ctx.pipeline().get(FlinkHttpObjectAggregator.class);
+        if (flinkHttpObjectAggregator == null) {
+            log.warn("The connection was unexpectedly closed by the client.");
+            return CompletableFuture.completedFuture(null);
+        }
+        int maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
+        if (throwable instanceof RestHandlerException) {
+            RestHandlerException rhe = (RestHandlerException) throwable;
+            String stackTrace = ExceptionUtils.stringifyException(rhe);
+            String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
+            if (log.isDebugEnabled()) {
+                log.error("Exception occurred in REST handler.", rhe);
+            } else if (rhe.logException()) {
+                log.error("Exception occurred in REST handler: {}", rhe.getMessage());
+            }
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody(truncatedStackTrace),
+                    rhe.getHttpResponseStatus(),
+                    responseHeaders);
+        } else if (throwable instanceof EndpointNotStartedException) {
+            log.debug("A queried endpoint was not ready: {}", throwable.getMessage());
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody(throwable.getMessage()),
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    responseHeaders);
+        } else {
+            log.error("Unhandled exception.", throwable);
+            String stackTrace =
+                    String.format(
+                            "<Exception on server side:%n%s%nEnd of exception on server side>",
+                            ExceptionUtils.stringifyException(throwable));
+            String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
+            return HandlerUtils.sendErrorResponse(
+                    ctx,
+                    httpRequest,
+                    new ErrorResponseBody(
+                            Arrays.asList("Internal server error.", truncatedStackTrace)),
+                    HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    responseHeaders);
+        }
+    }
+
+    @Override
+    public final CompletableFuture<Void> closeAsync() {
+        synchronized (lock) {
+            if (terminationFuture == null) {
+                this.terminationFuture =
+                        FutureUtils.composeAfterwards(
+                                closeHandlerAsync(), inFlightRequestTracker::awaitAsync);
+            } else {
+                log.warn(
+                        "The handler instance for {} had already been closed, but another attempt at closing it was made.",
+                        untypedResponseMessageHeaders.getTargetRestEndpointURL());
+            }
+            return this.terminationFuture;
+        }
+    }
+
+    protected CompletableFuture<Void> closeHandlerAsync() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void cleanupFileUploads(@Nullable FileUploads uploadedFiles) {
+        if (uploadedFiles != null) {
+            try {
+                uploadedFiles.close();
+            } catch (IOException e) {
+                log.warn("Could not cleanup uploaded files.", e);
+            }
+        }
+    }
+
+    /**
+     * Respond to the given {@link HandlerRequest}.
+     *
+     * @param ctx channel handler context to write the response
+     * @param httpRequest original http request
+     * @param handlerRequest typed handler request
+     * @param gateway leader gateway
+     * @return Future which is completed once the request has been processed
+     * @throws RestHandlerException if an exception occurred while responding
+     */
+    protected abstract CompletableFuture<Void> respondToRequest(
+            ChannelHandlerContext ctx,
+            HttpRequest httpRequest,
+            HandlerRequest<R> handlerRequest,
+            T gateway)
+            throws RestHandlerException;
 }

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -27,94 +28,77 @@ import javax.annotation.Nullable;
 import java.util.Set;
 
 /**
- * A snapshot of internal timers, containing event and processing timers and
- * the serializers to use to write / read them.
+ * A snapshot of internal timers, containing event and processing timers and the serializers to use
+ * to write / read them.
  */
 public class InternalTimersSnapshot<K, N> {
 
-	private TypeSerializer<K> keySerializer;
-	private TypeSerializerSnapshot<K> keySerializerConfigSnapshot;
-	private TypeSerializer<N> namespaceSerializer;
-	private TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot;
+    private TypeSerializerSnapshot<K> keySerializerSnapshot;
+    private TypeSerializerSnapshot<N> namespaceSerializerSnapshot;
 
-	private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
-	private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
+    private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
+    private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
 
-	/** Empty constructor used when restoring the timers. */
-	public InternalTimersSnapshot() {}
+    /** Empty constructor used when restoring the timers. */
+    public InternalTimersSnapshot() {}
 
-	/** Constructor to use when snapshotting the timers. */
-	public InternalTimersSnapshot(
-			TypeSerializer<K> keySerializer,
-			TypeSerializerSnapshot<K> keySerializerConfigSnapshot,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot,
-			@Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
-			@Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
+    /** Constructor to use when snapshotting the timers. */
+    public InternalTimersSnapshot(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            @Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
+            @Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
-		this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
-		this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializerConfigSnapshot);
-		this.eventTimeTimers = eventTimeTimers;
-		this.processingTimeTimers = processingTimeTimers;
-	}
+        Preconditions.checkNotNull(keySerializer);
+        this.keySerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(keySerializer);
+        Preconditions.checkNotNull(namespaceSerializer);
+        this.namespaceSerializerSnapshot =
+                TypeSerializerUtils.snapshotBackwardsCompatible(namespaceSerializer);
 
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
+        this.eventTimeTimers = eventTimeTimers;
+        this.processingTimeTimers = processingTimeTimers;
+    }
 
-	public void setKeySerializer(TypeSerializer<K> keySerializer) {
-		this.keySerializer = keySerializer;
-	}
+    public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+        return keySerializerSnapshot;
+    }
 
-	public TypeSerializerSnapshot<K> getKeySerializerConfigSnapshot() {
-		return keySerializerConfigSnapshot;
-	}
+    public void setKeySerializerSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
+        this.keySerializerSnapshot = keySerializerConfigSnapshot;
+    }
 
-	public void setKeySerializerConfigSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
-		this.keySerializerConfigSnapshot = keySerializerConfigSnapshot;
-	}
+    public TypeSerializerSnapshot<N> getNamespaceSerializerSnapshot() {
+        return namespaceSerializerSnapshot;
+    }
 
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
+    public void setNamespaceSerializerSnapshot(
+            TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot) {
+        this.namespaceSerializerSnapshot = namespaceSerializerConfigSnapshot;
+    }
 
-	public void setNamespaceSerializer(TypeSerializer<N> namespaceSerializer) {
-		this.namespaceSerializer = namespaceSerializer;
-	}
+    public Set<TimerHeapInternalTimer<K, N>> getEventTimeTimers() {
+        return eventTimeTimers;
+    }
 
-	public TypeSerializerSnapshot<N> getNamespaceSerializerConfigSnapshot() {
-		return namespaceSerializerConfigSnapshot;
-	}
+    public void setEventTimeTimers(Set<TimerHeapInternalTimer<K, N>> eventTimeTimers) {
+        this.eventTimeTimers = eventTimeTimers;
+    }
 
-	public void setNamespaceSerializerConfigSnapshot(TypeSerializerSnapshot<N> namespaceSerializerConfigSnapshot) {
-		this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
-	}
+    public Set<TimerHeapInternalTimer<K, N>> getProcessingTimeTimers() {
+        return processingTimeTimers;
+    }
 
-	public Set<TimerHeapInternalTimer<K, N>> getEventTimeTimers() {
-		return eventTimeTimers;
-	}
+    public void setProcessingTimeTimers(Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
+        this.processingTimeTimers = processingTimeTimers;
+    }
 
-	public void setEventTimeTimers(Set<TimerHeapInternalTimer<K, N>> eventTimeTimers) {
-		this.eventTimeTimers = eventTimeTimers;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
+    }
 
-	public Set<TimerHeapInternalTimer<K, N>> getProcessingTimeTimers() {
-		return processingTimeTimers;
-	}
-
-	public void setProcessingTimeTimers(Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
-		this.processingTimeTimers = processingTimeTimers;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		return super.equals(obj);
-	}
-
-	@Override
-	public int hashCode() {
-		return super.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
 }

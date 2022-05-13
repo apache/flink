@@ -23,31 +23,29 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.UUID;
 
-/**
- * Tests for the {@link WritableSerializer} with {@link WritableID}.
- */
+/** Tests for the {@link WritableSerializer} with {@link WritableID}. */
 public class WritableSerializerUUIDTest extends SerializerTestBase<WritableID> {
-	@Override
-	protected TypeSerializer<WritableID> createSerializer() {
-		return new WritableSerializer<>(WritableID.class);
-	}
+    @Override
+    protected TypeSerializer<WritableID> createSerializer() {
+        return new WritableSerializer<>(WritableID.class);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<WritableID> getTypeClass() {
-		return WritableID.class;
-	}
+    @Override
+    protected Class<WritableID> getTypeClass() {
+        return WritableID.class;
+    }
 
-	@Override
-	protected WritableID[] getTestData() {
-		return new WritableID[] {
-			new WritableID(new UUID(0, 0)),
-			new WritableID(new UUID(1, 0)),
-			new WritableID(new UUID(1, 1))
-		};
-	}
+    @Override
+    protected WritableID[] getTestData() {
+        return new WritableID[] {
+            new WritableID(new UUID(0, 0)),
+            new WritableID(new UUID(1, 0)),
+            new WritableID(new UUID(1, 1))
+        };
+    }
 }

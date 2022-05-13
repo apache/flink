@@ -25,38 +25,40 @@ import org.apache.flink.graph.drivers.parameter.IterationConvergence;
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
 
-/**
- * Driver for {@link org.apache.flink.graph.library.linkanalysis.HITS}.
- */
-public class HITS<K, VV, EV>
-extends DriverBase<K, VV, EV> {
+/** Driver for {@link org.apache.flink.graph.library.linkanalysis.HITS}. */
+public class HITS<K, VV, EV> extends DriverBase<K, VV, EV> {
 
-	private static final int DEFAULT_ITERATIONS = 10;
+    private static final int DEFAULT_ITERATIONS = 10;
 
-	private IterationConvergence iterationConvergence = new IterationConvergence(this, DEFAULT_ITERATIONS);
+    private IterationConvergence iterationConvergence =
+            new IterationConvergence(this, DEFAULT_ITERATIONS);
 
-	@Override
-	public String getShortDescription() {
-		return "score vertices as hubs and authorities";
-	}
+    @Override
+    public String getShortDescription() {
+        return "score vertices as hubs and authorities";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return WordUtils.wrap(new StrBuilder()
-			.appendln("Hyperlink-Induced Topic Search computes two interdependent scores for " +
-				"each vertex in a directed graph. A good \"hub\" links to good \"authorities\" " +
-				"and good \"authorities\" are linked to from good \"hubs\".")
-			.appendNewLine()
-			.append("The result contains the vertex ID, hub score, and authority score.")
-			.toString(), 80);
-	}
+    @Override
+    public String getLongDescription() {
+        return WordUtils.wrap(
+                new StrBuilder()
+                        .appendln(
+                                "Hyperlink-Induced Topic Search computes two interdependent scores for "
+                                        + "each vertex in a directed graph. A good \"hub\" links to good \"authorities\" "
+                                        + "and good \"authorities\" are linked to from good \"hubs\".")
+                        .appendNewLine()
+                        .append(
+                                "The result contains the vertex ID, hub score, and authority score.")
+                        .toString(),
+                80);
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		return graph
-			.run(new org.apache.flink.graph.library.linkanalysis.HITS<K, VV, EV>(
-					iterationConvergence.getValue().iterations,
-					iterationConvergence.getValue().convergenceThreshold)
-				.setParallelism(parallelism.getValue().intValue()));
-	}
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        return graph.run(
+                new org.apache.flink.graph.library.linkanalysis.HITS<K, VV, EV>(
+                                iterationConvergence.getValue().iterations,
+                                iterationConvergence.getValue().convergenceThreshold)
+                        .setParallelism(parallelism.getValue().intValue()));
+    }
 }

@@ -19,11 +19,11 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,86 +40,91 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the LIST command.
- */
+/** Tests for the LIST command. */
 public class CliFrontendListTest extends CliFrontendTestBase {
 
-	@BeforeClass
-	public static void init() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
+    @BeforeClass
+    public static void init() {
+        CliFrontendTestUtils.pipeSystemOutToNull();
+    }
 
-	@AfterClass
-	public static void shutdown() {
-		CliFrontendTestUtils.restoreSystemOut();
-	}
+    @AfterClass
+    public static void shutdown() {
+        CliFrontendTestUtils.restoreSystemOut();
+    }
 
-	@Test
-	public void testListOptions() throws Exception {
-		// test configure all job
-		{
-			String[] parameters = {"-a"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertTrue(options.showAll());
-			assertFalse(options.showRunning());
-			assertFalse(options.showScheduled());
-		}
+    @Test
+    public void testListOptions() throws Exception {
+        // test configure all job
+        {
+            String[] parameters = {"-a"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertTrue(options.showAll());
+            assertFalse(options.showRunning());
+            assertFalse(options.showScheduled());
+        }
 
-		// test configure running job
-		{
-			String[] parameters = {"-r"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.showAll());
-			assertTrue(options.showRunning());
-			assertFalse(options.showScheduled());
-		}
+        // test configure running job
+        {
+            String[] parameters = {"-r"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertFalse(options.showAll());
+            assertTrue(options.showRunning());
+            assertFalse(options.showScheduled());
+        }
 
-		// test configure scheduled job
-		{
-			String[] parameters = {"-s"};
-			ListOptions options = new ListOptions(CliFrontendParser.parse(
-				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.showAll());
-			assertFalse(options.showRunning());
-			assertTrue(options.showScheduled());
-		}
-	}
+        // test configure scheduled job
+        {
+            String[] parameters = {"-s"};
+            ListOptions options =
+                    new ListOptions(
+                            CliFrontendParser.parse(
+                                    CliFrontendParser.getListCommandOptions(), parameters, true));
+            assertFalse(options.showAll());
+            assertFalse(options.showRunning());
+            assertTrue(options.showScheduled());
+        }
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testUnrecognizedOption() throws Exception {
-		String[] parameters = {"-v", "-k"};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.list(parameters);
-	}
+    @Test(expected = CliArgsException.class)
+    public void testUnrecognizedOption() throws Exception {
+        String[] parameters = {"-v", "-k"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.list(parameters);
+    }
 
-	@Test
-	public void testList() throws Exception {
-		// test list properly
-		{
-			String[] parameters = {"-r", "-s", "-a"};
-			ClusterClient<String> clusterClient = createClusterClient();
-			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			testFrontend.list(parameters);
-			Mockito.verify(clusterClient, times(1))
-				.listJobs();
-		}
-	}
+    @Test
+    public void testList() throws Exception {
+        // test list properly
+        {
+            String[] parameters = {"-r", "-s", "-a"};
+            ClusterClient<String> clusterClient = createClusterClient();
+            MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+            testFrontend.list(parameters);
+            Mockito.verify(clusterClient, times(1)).listJobs();
+        }
+    }
 
-	private static ClusterClient<String> createClusterClient() throws Exception {
-		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
-		when(clusterClient.listJobs()).thenReturn(CompletableFuture.completedFuture(Arrays.asList(
-			new JobStatusMessage(new JobID(), "job1", JobStatus.RUNNING, 1L),
-			new JobStatusMessage(new JobID(), "job2", JobStatus.CREATED, 1L),
-			new JobStatusMessage(new JobID(), "job3", JobStatus.SUSPENDING, 3L),
-			new JobStatusMessage(new JobID(), "job4", JobStatus.SUSPENDING, 2L),
-			new JobStatusMessage(new JobID(), "job5", JobStatus.FINISHED, 3L)
-		)));
-		return clusterClient;
-	}
+    private static ClusterClient<String> createClusterClient() throws Exception {
+        final ClusterClient<String> clusterClient = mock(ClusterClient.class);
+        when(clusterClient.listJobs())
+                .thenReturn(
+                        CompletableFuture.completedFuture(
+                                Arrays.asList(
+                                        new JobStatusMessage(
+                                                new JobID(), "job1", JobStatus.RUNNING, 1L),
+                                        new JobStatusMessage(
+                                                new JobID(), "job2", JobStatus.CREATED, 1L),
+                                        new JobStatusMessage(
+                                                new JobID(), "job3", JobStatus.FINISHED, 3L))));
+        return clusterClient;
+    }
 }

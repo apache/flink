@@ -30,13 +30,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 public class SimpleTriggerTestHarness<W extends Window> extends TriggerTestHarness<Integer, W> {
 
-	public SimpleTriggerTestHarness(
-			Trigger<Integer, W> trigger,
-			TypeSerializer<W> windowSerializer) throws Exception {
-		super(trigger, windowSerializer);
-	}
+    public SimpleTriggerTestHarness(Trigger<Integer, W> trigger, TypeSerializer<W> windowSerializer)
+            throws Exception {
+        super(trigger, windowSerializer);
+    }
 
-	public TriggerResult processElement(Integer element, W window) throws Exception {
-		return super.processElement(new StreamRecord<>(element, element), window);
-	}
+    public TriggerResult processElement(Integer element, W window) throws Exception {
+        return super.processElement(new StreamRecord<>(element, element), window);
+    }
 }

@@ -19,31 +19,47 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
 import scala.Option;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for the Scala {@link OptionSerializer}.
  *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * <p>This configuration snapshot class is implemented in Java because Scala does not allow calling
+ * different base class constructors from subclasses, while we need that for the default empty
+ * constructor.
+ *
+ * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
+ *     compatibility. It is fully replaced by {@link ScalaOptionSerializerSnapshot}.
  */
-public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
+@Deprecated
+public final class ScalaOptionSerializerConfigSnapshot<E>
+        extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
 
-	private static final int VERSION = 1;
+    private static final int VERSION = 1;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaOptionSerializerConfigSnapshot() {}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    public ScalaOptionSerializerConfigSnapshot() {}
 
-	public ScalaOptionSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
-		super(elementSerializer);
-	}
+    public ScalaOptionSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
+        super(elementSerializer);
+    }
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
+
+    @Override
+    public TypeSerializerSchemaCompatibility<Option<E>> resolveSchemaCompatibility(
+            TypeSerializer<Option<E>> newSerializer) {
+        return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+                newSerializer,
+                new ScalaOptionSerializerSnapshot<>(),
+                getSingleNestedSerializerAndConfig().f1);
+    }
 }

@@ -20,38 +20,36 @@ package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Meter;
 
-/**
- * Wrapper to use a Dropwizard {@link com.codahale.metrics.Meter} as a Flink {@link Meter}.
- */
+/** Wrapper to use a Dropwizard {@link com.codahale.metrics.Meter} as a Flink {@link Meter}. */
 public class DropwizardMeterWrapper implements Meter {
 
-	private final com.codahale.metrics.Meter meter;
+    private final com.codahale.metrics.Meter meter;
 
-	public DropwizardMeterWrapper(com.codahale.metrics.Meter meter) {
-		this.meter = meter;
-	}
+    public DropwizardMeterWrapper(com.codahale.metrics.Meter meter) {
+        this.meter = meter;
+    }
 
-	public com.codahale.metrics.Meter getDropwizardMeter() {
-		return meter;
-	}
+    public com.codahale.metrics.Meter getDropwizardMeter() {
+        return meter;
+    }
 
-	@Override
-	public void markEvent() {
-		meter.mark();
-	}
+    @Override
+    public void markEvent() {
+        meter.mark();
+    }
 
-	@Override
-	public void markEvent(long n) {
-		meter.mark(n);
-	}
+    @Override
+    public void markEvent(long n) {
+        meter.mark(n);
+    }
 
-	@Override
-	public double getRate() {
-		return meter.getOneMinuteRate();
-	}
+    @Override
+    public double getRate() {
+        return meter.getOneMinuteRate();
+    }
 
-	@Override
-	public long getCount() {
-		return meter.getCount();
-	}
+    @Override
+    public long getCount() {
+        return meter.getCount();
+    }
 }

@@ -25,70 +25,63 @@ import org.apache.flink.util.StringUtils;
 
 import java.io.IOException;
 
-/**
- * This class provides a simple implementation of an event that holds a string value.
- */
+/** This class provides a simple implementation of an event that holds a string value. */
 public class StringTaskEvent extends TaskEvent {
 
-	/**
-	 * The string encapsulated by this event.
-	 */
-	private String message;
+    /** The string encapsulated by this event. */
+    private String message;
 
-	/**
-	 * The default constructor implementation. It should only be used for deserialization.
-	 */
-	public StringTaskEvent() {}
+    /** The default constructor implementation. It should only be used for deserialization. */
+    public StringTaskEvent() {}
 
-	/**
-	 * Constructs a new string task event with the given string message.
-	 *
-	 * @param message
-	 *        the string message that shall be stored in this event
-	 */
-	public StringTaskEvent(final String message) {
-		this.message = message;
-	}
+    /**
+     * Constructs a new string task event with the given string message.
+     *
+     * @param message the string message that shall be stored in this event
+     */
+    public StringTaskEvent(final String message) {
+        this.message = message;
+    }
 
-	/**
-	 * Returns the stored string.
-	 *
-	 * @return the stored string or <code>null</code> if no string is set
-	 */
-	public String getString() {
-		return this.message;
-	}
+    /**
+     * Returns the stored string.
+     *
+     * @return the stored string or <code>null</code> if no string is set
+     */
+    public String getString() {
+        return this.message;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		StringUtils.writeNullableString(this.message, out);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        StringUtils.writeNullableString(this.message, out);
+    }
 
-	@Override
-	public void read(final DataInputView in) throws IOException {
-		this.message = StringUtils.readNullableString(in);
-	}
+    @Override
+    public void read(final DataInputView in) throws IOException {
+        this.message = StringUtils.readNullableString(in);
+    }
 
-	@Override
-	public int hashCode() {
-		if (this.message == null) {
-			return 0;
-		}
+    @Override
+    public int hashCode() {
+        if (this.message == null) {
+            return 0;
+        }
 
-		return this.message.hashCode();
-	}
+        return this.message.hashCode();
+    }
 
-	@Override
-	public boolean equals(final Object obj) {
-		if (!(obj instanceof StringTaskEvent)) {
-			return false;
-		}
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof StringTaskEvent)) {
+            return false;
+        }
 
-		final StringTaskEvent ste = (StringTaskEvent) obj;
-		if (this.message == null) {
-			return ste.getString() == null;
-		}
+        final StringTaskEvent ste = (StringTaskEvent) obj;
+        if (this.message == null) {
+            return ste.getString() == null;
+        }
 
-		return this.message.equals(ste.getString());
-	}
+        return this.message.equals(ste.getString());
+    }
 }

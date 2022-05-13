@@ -32,90 +32,126 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Http client talking to Datadog.
- */
+/** Http client talking to Datadog. */
 public class DatadogHttpClient {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
 
-	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.com/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
-	private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
-	private static final int TIMEOUT = 3;
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String SERIES_URL_FORMAT =
+            "https://app.datadoghq.%s/api/v1/series?api_key=%s";
+    private static final String VALIDATE_URL_FORMAT =
+            "https://app.datadoghq.%s/api/v1/validate?api_key=%s";
+    private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
+    private static final int TIMEOUT = 3;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-	private final String seriesUrl;
-	private final String validateUrl;
-	private final OkHttpClient client;
-	private final String apiKey;
+    private final String seriesUrl;
+    private final String validateUrl;
+    private final OkHttpClient client;
+    private final String apiKey;
 
-	public DatadogHttpClient(String dgApiKey) {
-		if (dgApiKey == null || dgApiKey.isEmpty()) {
-			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
-		}
+    private final String proxyHost;
+    private final int proxyPort;
 
-		apiKey = dgApiKey;
-		client = new OkHttpClient.Builder()
-			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
-			.build();
+    public DatadogHttpClient(
+            String dgApiKey,
+            String dgProxyHost,
+            int dgProxyPort,
+            DataCenter dataCenter,
+            boolean validateApiKey) {
+        if (dgApiKey == null || dgApiKey.isEmpty()) {
+            throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
+        }
+        apiKey = dgApiKey;
+        proxyHost = dgProxyHost;
+        proxyPort = dgProxyPort;
 
-		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
-		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
-		validateApiKey();
-	}
+        Proxy proxy = getProxy();
 
-	private void validateApiKey() {
-		Request r = new Request.Builder().url(validateUrl).get().build();
+        client =
+                new OkHttpClient.Builder()
+                        .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
+                        .writeTimeout(TIMEOUT, TimeUnit.SECONDS)
+                        .readTimeout(TIMEOUT, TimeUnit.SECONDS)
+                        .proxy(proxy)
+                        .build();
 
-		try (Response response = client.newCall(r).execute()) {
-			if (!response.isSuccessful()) {
-				throw new IllegalArgumentException(
-					String.format("API key: %s is invalid", apiKey));
-			}
-		} catch (IOException e) {
-			throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
-		}
-	}
+        seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
+        validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
 
-	public void send(DatadogHttpReporter.DatadogHttpRequest request) throws Exception {
-		String postBody = serialize(request.getSeries());
+        if (validateApiKey) {
+            validateApiKey();
+        }
+    }
 
-		Request r = new Request.Builder()
-			.url(seriesUrl)
-			.post(RequestBody.create(MEDIA_TYPE, postBody))
-			.build();
+    Proxy getProxy() {
+        if (proxyHost == null) {
+            return Proxy.NO_PROXY;
+        } else {
+            return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+        }
+    }
 
-		client.newCall(r).enqueue(EmptyCallback.getEmptyCallback());
-	}
+    private void validateApiKey() {
+        Request r = new Request.Builder().url(validateUrl).get().build();
 
-	public static String serialize(Object obj) throws JsonProcessingException {
-		return MAPPER.writeValueAsString(obj);
-	}
+        try (Response response = client.newCall(r).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IllegalArgumentException(String.format("API key: %s is invalid", apiKey));
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
+        }
+    }
 
-	public void close() {
-		client.dispatcher().executorService().shutdown();
-		client.connectionPool().evictAll();
-	}
+    public void send(DSeries request) throws Exception {
+        String postBody = serialize(request);
 
-	private static class EmptyCallback implements Callback {
-		private static final EmptyCallback singleton = new EmptyCallback();
+        Request r =
+                new Request.Builder()
+                        .url(seriesUrl)
+                        .post(RequestBody.create(MEDIA_TYPE, postBody))
+                        .build();
 
-		public static Callback getEmptyCallback() {
-			return singleton;
-		}
+        client.newCall(r).enqueue(EmptyCallback.getEmptyCallback());
+    }
 
-		@Override
-		public void onFailure(Call call, IOException e) {
-			LOGGER.debug("Failed sending request to Datadog" , e);
-		}
+    public static String serialize(Object obj) throws JsonProcessingException {
+        return MAPPER.writeValueAsString(obj);
+    }
 
-		@Override
-		public void onResponse(Call call, Response response) throws IOException {
-			response.close();
-		}
-	}
+    public void close() {
+        client.dispatcher().executorService().shutdown();
+        client.connectionPool().evictAll();
+    }
+
+    /**
+     * A handler for OkHttpClient callback. In case of error or failure it logs the error at warning
+     * level.
+     */
+    protected static class EmptyCallback implements Callback {
+
+        private static final EmptyCallback singleton = new EmptyCallback();
+
+        public static Callback getEmptyCallback() {
+            return singleton;
+        }
+
+        @Override
+        public void onFailure(Call call, IOException e) {
+            LOGGER.warn("Failed sending request to Datadog", e);
+        }
+
+        @Override
+        public void onResponse(Call call, Response response) throws IOException {
+            if (!response.isSuccessful()) {
+                LOGGER.warn("Failed to send request to Datadog (response was {})", response);
+            }
+
+            response.close();
+        }
+    }
 }

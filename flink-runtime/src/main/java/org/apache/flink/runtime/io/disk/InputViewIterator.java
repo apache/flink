@@ -16,42 +16,40 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk;
-
-import java.io.EOFException;
-import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class InputViewIterator<E> implements MutableObjectIterator<E>
-{
-	private DataInputView inputView;
+import java.io.EOFException;
+import java.io.IOException;
 
-	private final TypeSerializer<E> serializer;
+public class InputViewIterator<E> implements MutableObjectIterator<E> {
+    private DataInputView inputView;
 
-	public InputViewIterator(DataInputView inputView, TypeSerializer<E> serializer) {
-		this.inputView = inputView;
-		this.serializer = serializer;
-	}
+    private final TypeSerializer<E> serializer;
 
-	@Override
-	public E next(E reuse) throws IOException {
-		try {
-			return this.serializer.deserialize(reuse, this.inputView);
-		} catch (EOFException e) {
-			return null;
-		}
-	}
+    public InputViewIterator(DataInputView inputView, TypeSerializer<E> serializer) {
+        this.inputView = inputView;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public E next() throws IOException {
-		try {
-			return this.serializer.deserialize(this.inputView);
-		} catch (EOFException e) {
-			return null;
-		}
-	}
+    @Override
+    public E next(E reuse) throws IOException {
+        try {
+            return this.serializer.deserialize(reuse, this.inputView);
+        } catch (EOFException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public E next() throws IOException {
+        try {
+            return this.serializer.deserialize(this.inputView);
+        } catch (EOFException e) {
+            return null;
+        }
+    }
 }

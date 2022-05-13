@@ -18,218 +18,243 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.util.LinkedHashMap;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.apache.flink.util.Preconditions;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.LinkedHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Serializer for {@link Value} types. Uses the value's serialization methods, and uses
- * Kryo for deep object copies.
+ * Serializer for {@link Value} types. Uses the value's serialization methods, and uses Kryo for
+ * deep object copies.
  *
  * @param <T> The type serialized.
  */
 @Internal
 public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
-	private static final long serialVersionUID = 1L;
-	
-	private final Class<T> type;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Map of class tag (using classname as tag) to their Kryo registration.
-	 *
-	 * <p>This map serves as a preview of the final registration result of
-	 * the Kryo instance, taking into account registration overwrites.
-	 *
-	 * <p>Currently, we only have one single registration for the value type.
-	 * Nevertheless, we keep this information here for future compatibility.
-	 */
-	private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
+    private final Class<T> type;
 
-	private transient Kryo kryo;
-	
-	private transient T copyInstance;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public ValueSerializer(Class<T> type) {
-		this.type = checkNotNull(type);
-		this.kryoRegistrations = asKryoRegistrations(type);
-	}
+    /**
+     * Map of class tag (using classname as tag) to their Kryo registration.
+     *
+     * <p>This map serves as a preview of the final registration result of the Kryo instance, taking
+     * into account registration overwrites.
+     *
+     * <p>Currently, we only have one single registration for the value type. Nevertheless, we keep
+     * this information here for future compatibility.
+     */
+    private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
 
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    private transient Kryo kryo;
 
-	@Override
-	public ValueSerializer<T> duplicate() {
-		return new ValueSerializer<T>(type);
-	}
-	
-	@Override
-	public T createInstance() {
-		return InstantiationUtil.instantiate(this.type);
-	}
+    private transient T copyInstance;
 
-	@Override
-	public T copy(T from) {
-		checkKryoInitialized();
+    // --------------------------------------------------------------------------------------------
 
-		return KryoUtils.copy(from, kryo, this);
-	}
-	
-	@Override
-	public T copy(T from, T reuse) {
-		checkKryoInitialized();
+    public ValueSerializer(Class<T> type) {
+        this.type = checkNotNull(type);
+        this.kryoRegistrations = asKryoRegistrations(type);
+    }
 
-		return KryoUtils.copy(from, reuse, kryo, this);
-	}
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public void serialize(T value, DataOutputView target) throws IOException {
-		value.write(target);
-	}
+    @Override
+    public ValueSerializer<T> duplicate() {
+        return new ValueSerializer<T>(type);
+    }
 
-	@Override
-	public T deserialize(DataInputView source) throws IOException {
-		return deserialize(createInstance(), source);
-	}
-	
-	@Override
-	public T deserialize(T reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public T createInstance() {
+        return InstantiationUtil.instantiate(this.type);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		if (this.copyInstance == null) {
-			this.copyInstance = InstantiationUtil.instantiate(type);
-		}
-		
-		this.copyInstance.read(source);
-		this.copyInstance.write(target);
-	}
-	
-	private void checkKryoInitialized() {
-		if (this.kryo == null) {
-			this.kryo = new Kryo();
+    @Override
+    public T copy(T from) {
+        checkKryoInitialized();
 
-			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
-			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-			kryo.setInstantiatorStrategy(instantiatorStrategy);
+        return KryoUtils.copy(from, kryo, this);
+    }
 
-			this.kryo.setAsmEnabled(true);
+    @Override
+    public T copy(T from, T reuse) {
+        checkKryoInitialized();
 
-			KryoUtils.applyRegistrations(this.kryo, kryoRegistrations.values());
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return this.type.hashCode();
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ValueSerializer) {
-			ValueSerializer<?> other = (ValueSerializer<?>) obj;
+        return KryoUtils.copy(from, reuse, kryo, this);
+    }
 
-			return other.canEqual(this) && type == other.type;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ValueSerializer;
-	}
+    @Override
+    public void serialize(T value, DataOutputView target) throws IOException {
+        value.write(target);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public T deserialize(DataInputView source) throws IOException {
+        return deserialize(createInstance(), source);
+    }
 
-	@Override
-	public ValueSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new ValueSerializerConfigSnapshot<>(type);
-	}
+    @Override
+    public T deserialize(T reuse, DataInputView source) throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof ValueSerializerConfigSnapshot) {
-			final ValueSerializerConfigSnapshot<T> config = (ValueSerializerConfigSnapshot<T>) configSnapshot;
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        if (this.copyInstance == null) {
+            this.copyInstance = InstantiationUtil.instantiate(type);
+        }
 
-			if (type.equals(config.getTypeClass())) {
-				// currently, simply checking the type of the value class is sufficient;
-				// in the future, if there are more Kryo registrations, we should try to resolve that
-				return CompatibilityResult.compatible();
-			}
-		}
+        this.copyInstance.read(source);
+        this.copyInstance.write(target);
+    }
 
-		return CompatibilityResult.requiresMigration();
-	}
+    private void checkKryoInitialized() {
+        if (this.kryo == null) {
+            this.kryo = new Kryo();
 
-	public static class ValueSerializerConfigSnapshot<T extends Value> extends KryoRegistrationSerializerConfigSnapshot<T> {
+            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
+                    new Kryo.DefaultInstantiatorStrategy();
+            instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+            kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-		private static final int VERSION = 1;
+            this.kryo.setAsmEnabled(true);
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		public ValueSerializerConfigSnapshot() {}
+            KryoUtils.applyRegistrations(
+                    this.kryo, kryoRegistrations.values(), this.kryo.getNextRegistrationId());
+        }
+    }
 
-		public ValueSerializerConfigSnapshot(Class<T> valueTypeClass) {
-			super(valueTypeClass, asKryoRegistrations(valueTypeClass));
-		}
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
-	}
+    @Override
+    public int hashCode() {
+        return this.type.hashCode();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ValueSerializer) {
+            ValueSerializer<?> other = (ValueSerializer<?>) obj;
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
+            return type == other.type;
+        } else {
+            return false;
+        }
+    }
 
-		// kryoRegistrations may be null if this value serializer is deserialized from an old version
-		if (kryoRegistrations == null) {
-			this.kryoRegistrations = asKryoRegistrations(type);
-		}
-	}
+    private Class<T> getValueType() {
+        return type;
+    }
 
-	private static LinkedHashMap<String, KryoRegistration> asKryoRegistrations(Class<?> type) {
-		Preconditions.checkNotNull(type);
+    // --------------------------------------------------------------------------------------------
+    // Serializer configuration snapshotting & compatibility
+    // --------------------------------------------------------------------------------------------
 
-		LinkedHashMap<String, KryoRegistration> registration = new LinkedHashMap<>(1);
-		registration.put(type.getClass().getName(), new KryoRegistration(type));
+    @Override
+    public TypeSerializerSnapshot<T> snapshotConfiguration() {
+        return new ValueSerializerSnapshot<>(type);
+    }
 
-		return registration;
-	}
+    @Deprecated
+    public static class ValueSerializerConfigSnapshot<T extends Value>
+            extends KryoRegistrationSerializerConfigSnapshot<T> {
+
+        public static final long serialVersionUID = 2277251654485371327L;
+
+        private static final int VERSION = 1;
+
+        /** This empty nullary constructor is required for deserializing the configuration. */
+        public ValueSerializerConfigSnapshot() {}
+
+        public ValueSerializerConfigSnapshot(Class<T> valueTypeClass) {
+            super(valueTypeClass, asKryoRegistrations(valueTypeClass));
+        }
+
+        @Override
+        public int getVersion() {
+            return VERSION;
+        }
+
+        @Override
+        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+                TypeSerializer<T> newSerializer) {
+            return new ValueSerializerSnapshot<>(getTypeClass())
+                    .resolveSchemaCompatibility(newSerializer);
+        }
+    }
+
+    /** {@link ValueSerializer} snapshot class. */
+    public static final class ValueSerializerSnapshot<T extends Value>
+            extends GenericTypeSerializerSnapshot<T, ValueSerializer> {
+
+        @SuppressWarnings("unused")
+        public ValueSerializerSnapshot() {}
+
+        ValueSerializerSnapshot(Class<T> typeClass) {
+            super(typeClass);
+        }
+
+        @Override
+        protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
+            return new ValueSerializer<>(typeClass);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        protected Class<T> getTypeClass(ValueSerializer serializer) {
+            return serializer.type;
+        }
+
+        @Override
+        protected Class<?> serializerClass() {
+            return ValueSerializer.class;
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+
+        // kryoRegistrations may be null if this value serializer is deserialized from an old
+        // version
+        if (kryoRegistrations == null) {
+            this.kryoRegistrations = asKryoRegistrations(type);
+        }
+    }
+
+    private static LinkedHashMap<String, KryoRegistration> asKryoRegistrations(Class<?> type) {
+        checkNotNull(type);
+
+        LinkedHashMap<String, KryoRegistration> registration = new LinkedHashMap<>(1);
+        registration.put(type.getClass().getName(), new KryoRegistration(type));
+
+        return registration;
+    }
 }

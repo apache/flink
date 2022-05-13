@@ -18,33 +18,33 @@
 
 package org.apache.flink.test.state.operator.restore.keyed;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
-/**
- * Test state restoration for a keyed operator restore tests.
- */
+/** Test state restoration for a keyed operator restore tests. */
 public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
-	public KeyedComplexChainTest(MigrationVersion migrationVersion) {
-		super(migrationVersion);
-	}
+    public KeyedComplexChainTest(FlinkVersion flinkVersion) {
+        super(flinkVersion);
+    }
 
-	@Override
-	protected void createRestoredJob(StreamExecutionEnvironment env) {
-		/**
-		 * Source -> keyBy -> C(Window -> StatefulMap2) -> StatefulMap1
-		 */
-		SingleOutputStreamOperator<Tuple2<Integer, Integer>> source = KeyedJob.createIntegerTupleSource(env, ExecutionMode.RESTORE);
+    @Override
+    protected void createRestoredJob(StreamExecutionEnvironment env) {
+        /** Source -> keyBy -> C(Window -> StatefulMap2) -> StatefulMap1 */
+        SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
+                KeyedJob.createIntegerTupleSource(env, ExecutionMode.RESTORE);
 
-		SingleOutputStreamOperator<Integer> window = KeyedJob.createWindowFunction(ExecutionMode.RESTORE, source);
+        SingleOutputStreamOperator<Integer> window =
+                KeyedJob.createWindowFunction(ExecutionMode.RESTORE, source);
 
-		SingleOutputStreamOperator<Integer> second = KeyedJob.createSecondStatefulMap(ExecutionMode.RESTORE, window);
+        SingleOutputStreamOperator<Integer> second =
+                KeyedJob.createSecondStatefulMap(ExecutionMode.RESTORE, window);
 
-		SingleOutputStreamOperator<Integer> first = KeyedJob.createFirstStatefulMap(ExecutionMode.RESTORE, second);
-		first.startNewChain();
-	}
+        SingleOutputStreamOperator<Integer> first =
+                KeyedJob.createFirstStatefulMap(ExecutionMode.RESTORE, second);
+        first.startNewChain();
+    }
 }

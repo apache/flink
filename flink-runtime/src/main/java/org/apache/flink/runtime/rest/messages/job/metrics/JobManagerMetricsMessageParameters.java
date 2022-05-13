@@ -26,21 +26,20 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@link MessageParameters} for
- * {@link org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler}.
+ * {@link MessageParameters} for {@link
+ * org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler}.
  */
 public class JobManagerMetricsMessageParameters extends MessageParameters {
 
-	public final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+    public final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(metricsFilterParameter);
-	}
-
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singleton(metricsFilterParameter);
+    }
 }

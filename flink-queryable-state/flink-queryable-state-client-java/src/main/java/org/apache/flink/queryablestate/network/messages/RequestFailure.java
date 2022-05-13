@@ -20,52 +20,47 @@ package org.apache.flink.queryablestate.network.messages;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * A message indicating a protocol-related error.
- */
+/** A message indicating a protocol-related error. */
 @Internal
 public class RequestFailure {
 
-	/** ID of the request responding to. */
-	private final long requestId;
+    /** ID of the request responding to. */
+    private final long requestId;
 
-	/** Failure cause. Not allowed to be a user type. */
-	private final Throwable cause;
+    /** Failure cause. Not allowed to be a user type. */
+    private final Throwable cause;
 
-	/**
-	 * Creates a failure response to a {@link MessageBody}.
-	 *
-	 * @param requestId ID for the request responding to
-	 * @param cause     Failure cause (not allowed to be a user type)
-	 */
-	public RequestFailure(long requestId, Throwable cause) {
-		this.requestId = requestId;
-		this.cause = cause;
-	}
+    /**
+     * Creates a failure response to a {@link MessageBody}.
+     *
+     * @param requestId ID for the request responding to
+     * @param cause Failure cause (not allowed to be a user type)
+     */
+    public RequestFailure(long requestId, Throwable cause) {
+        this.requestId = requestId;
+        this.cause = cause;
+    }
 
-	/**
-	 * Returns the request ID responding to.
-	 *
-	 * @return Request ID responding to
-	 */
-	public long getRequestId() {
-		return requestId;
-	}
+    /**
+     * Returns the request ID responding to.
+     *
+     * @return Request ID responding to
+     */
+    public long getRequestId() {
+        return requestId;
+    }
 
-	/**
-	 * Returns the failure cause.
-	 *
-	 * @return Failure cause
-	 */
-	public Throwable getCause() {
-		return cause;
-	}
+    /**
+     * Returns the failure cause.
+     *
+     * @return Failure cause
+     */
+    public Throwable getCause() {
+        return cause;
+    }
 
-	@Override
-	public String toString() {
-		return "RequestFailure{" +
-				"requestId=" + requestId +
-				", cause=" + cause +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "RequestFailure{" + "requestId=" + requestId + ", cause=" + cause + '}';
+    }
 }

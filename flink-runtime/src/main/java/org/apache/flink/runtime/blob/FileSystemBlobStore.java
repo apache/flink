@@ -19,10 +19,11 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
@@ -44,143 +44,155 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FileSystemBlobStore implements BlobStoreService {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
-	/** The file system in which blobs are stored. */
-	private final FileSystem fileSystem;
+    /** The file system in which blobs are stored. */
+    private final FileSystem fileSystem;
 
-	/** The base path of the blob store. */
-	private final String basePath;
+    /** The base path of the blob store. */
+    private final String basePath;
 
-	public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
-		this.fileSystem = checkNotNull(fileSystem);
-		this.basePath = checkNotNull(storagePath) + "/blob";
+    /** The name of the blob path. */
+    public static final String BLOB_PATH_NAME = "blob";
 
-		LOG.info("Creating highly available BLOB storage directory at {}", basePath);
+    public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
+        this.fileSystem = checkNotNull(fileSystem);
+        this.basePath = checkNotNull(storagePath) + "/" + BLOB_PATH_NAME;
 
-		fileSystem.mkdirs(new Path(basePath));
-		LOG.debug("Created highly available BLOB storage directory at {}", basePath);
-	}
+        LOG.info("Creating highly available BLOB storage directory at {}", basePath);
 
-	// - Put ------------------------------------------------------------------
+        fileSystem.mkdirs(new Path(basePath));
+        LOG.debug("Created highly available BLOB storage directory at {}", basePath);
+    }
 
-	@Override
-	public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
-		return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
-	}
+    // - Put ------------------------------------------------------------------
 
-	private boolean put(File fromFile, String toBlobPath) throws IOException {
-		try (OutputStream os = fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
-			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
-			Files.copy(fromFile, os);
-		}
-		return true;
-	}
+    @Override
+    public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
+        return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
+    }
 
-	// - Get ------------------------------------------------------------------
+    private boolean put(File fromFile, String toBlobPath) throws IOException {
+        try (FSDataOutputStream os =
+                fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
+            LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
+            Files.copy(fromFile, os);
 
-	@Override
-	public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
-		return get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
-	}
+            os.sync();
+        }
+        return true;
+    }
 
-	private boolean get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
-		checkNotNull(fromBlobPath, "Blob path");
-		checkNotNull(toFile, "File");
-		checkNotNull(blobKey, "Blob key");
+    // - Get ------------------------------------------------------------------
 
-		if (!toFile.exists() && !toFile.createNewFile()) {
-			throw new IOException("Failed to create target file to copy to");
-		}
+    @Override
+    public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+        return get(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey), localFile, blobKey);
+    }
 
-		final Path fromPath = new Path(fromBlobPath);
-		MessageDigest md = BlobUtils.createMessageDigest();
+    private boolean get(String fromBlobPath, File toFile, BlobKey blobKey) throws IOException {
+        checkNotNull(fromBlobPath, "Blob path");
+        checkNotNull(toFile, "File");
+        checkNotNull(blobKey, "Blob key");
 
-		final int buffSize = 4096; // like IOUtils#BLOCKSIZE, for chunked file copying
+        if (!toFile.exists() && !toFile.createNewFile()) {
+            throw new IOException("Failed to create target file to copy to");
+        }
 
-		boolean success = false;
-		try (InputStream is = fileSystem.open(fromPath);
-			FileOutputStream fos = new FileOutputStream(toFile)) {
-			LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
+        final Path fromPath = new Path(fromBlobPath);
+        MessageDigest md = BlobUtils.createMessageDigest();
 
-			// not using IOUtils.copyBytes(is, fos) here to be able to create a hash on-the-fly
-			final byte[] buf = new byte[buffSize];
-			int bytesRead = is.read(buf);
-			while (bytesRead >= 0) {
-				fos.write(buf, 0, bytesRead);
-				md.update(buf, 0, bytesRead);
+        final int buffSize = 4096; // like IOUtils#BLOCKSIZE, for chunked file copying
 
-				bytesRead = is.read(buf);
-			}
+        boolean success = false;
+        try (InputStream is = fileSystem.open(fromPath);
+                FileOutputStream fos = new FileOutputStream(toFile)) {
+            LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
 
-			// verify that file contents are correct
-			final byte[] computedKey = md.digest();
-			if (!Arrays.equals(computedKey, blobKey.getHash())) {
-				throw new IOException("Detected data corruption during transfer");
-			}
+            // not using IOUtils.copyBytes(is, fos) here to be able to create a hash on-the-fly
+            final byte[] buf = new byte[buffSize];
+            int bytesRead = is.read(buf);
+            while (bytesRead >= 0) {
+                fos.write(buf, 0, bytesRead);
+                md.update(buf, 0, bytesRead);
 
-			success = true;
-		} finally {
-			// if the copy fails, we need to remove the target file because
-			// outside code relies on a correct file as long as it exists
-			if (!success) {
-				try {
-					toFile.delete();
-				} catch (Throwable ignored) {}
-			}
-		}
+                bytesRead = is.read(buf);
+            }
 
-		return true; // success is always true here
-	}
+            // verify that file contents are correct
+            final byte[] computedKey = md.digest();
+            if (!Arrays.equals(computedKey, blobKey.getHash())) {
+                throw new IOException("Detected data corruption during transfer");
+            }
 
-	// - Delete ---------------------------------------------------------------
+            success = true;
+        } finally {
+            // if the copy fails, we need to remove the target file because
+            // outside code relies on a correct file as long as it exists
+            if (!success) {
+                try {
+                    toFile.delete();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
 
-	@Override
-	public boolean delete(JobID jobId, BlobKey blobKey) {
-		return delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
-	}
+        return true; // success is always true here
+    }
 
-	@Override
-	public boolean deleteAll(JobID jobId) {
-		return delete(BlobUtils.getStorageLocationPath(basePath, jobId));
-	}
+    // - Delete ---------------------------------------------------------------
 
-	private boolean delete(String blobPath) {
-		try {
-			LOG.debug("Deleting {}.", blobPath);
+    @Override
+    public boolean delete(JobID jobId, BlobKey blobKey) {
+        return delete(BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
+    }
 
-			Path path = new Path(blobPath);
+    @Override
+    public boolean deleteAll(JobID jobId) {
+        return delete(BlobUtils.getStorageLocationPath(basePath, jobId));
+    }
 
-			boolean result = fileSystem.delete(path, true);
+    private boolean delete(String blobPath) {
+        try {
+            LOG.debug("Deleting {}.", blobPath);
 
-			// send a call to delete the directory containing the file. This will
-			// fail (and be ignored) when some files still exist.
-			try {
-				fileSystem.delete(path.getParent(), false);
-				fileSystem.delete(new Path(basePath), false);
-			} catch (IOException ignored) {}
-			return result;
-		}
-		catch (Exception e) {
-			LOG.warn("Failed to delete blob at " + blobPath);
-			return false;
-		}
-	}
+            Path path = new Path(blobPath);
 
-	@Override
-	public void closeAndCleanupAllData() {
-		try {
-			LOG.debug("Cleaning up {}.", basePath);
+            boolean result = true;
+            if (fileSystem.exists(path)) {
+                result = fileSystem.delete(path, true);
+            } else {
+                LOG.debug(
+                        "The given path {} is not present anymore. No deletion is required.", path);
+            }
 
-			fileSystem.delete(new Path(basePath), true);
-		}
-		catch (Exception e) {
-			LOG.error("Failed to clean up recovery directory.", e);
-		}
-	}
+            // send a call to delete the directory containing the file. This will
+            // fail (and be ignored) when some files still exist.
+            try {
+                fileSystem.delete(path.getParent(), false);
+                fileSystem.delete(new Path(basePath), false);
+            } catch (IOException ignored) {
+            }
+            return result;
+        } catch (Exception e) {
+            LOG.warn("Failed to delete blob at " + blobPath);
+            return false;
+        }
+    }
 
-	@Override
-	public void close() throws IOException {
-		// nothing to do for the FileSystemBlobStore
-	}
+    @Override
+    public void closeAndCleanupAllData() {
+        try {
+            LOG.debug("Cleaning up {}.", basePath);
+
+            fileSystem.delete(new Path(basePath), true);
+        } catch (Exception e) {
+            LOG.error("Failed to clean up recovery directory.", e);
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        // nothing to do for the FileSystemBlobStore
+    }
 }

@@ -27,102 +27,101 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link FloatValueArray}.
- */
+/** Tests for {@link FloatValueArray}. */
 public class FloatValueArrayTest {
 
-	@Test
-	public void testBoundedArray() {
-		int count = FloatValueArray.DEFAULT_CAPACITY_IN_BYTES / FloatValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Test
+    public void testBoundedArray() {
+        int count =
+                FloatValueArray.DEFAULT_CAPACITY_IN_BYTES / FloatValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		ValueArray<FloatValue> lva = new FloatValueArray(FloatValueArray.DEFAULT_CAPACITY_IN_BYTES);
+        ValueArray<FloatValue> lva = new FloatValueArray(FloatValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
-		// fill the array
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // fill the array
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new FloatValue((byte) i)));
+            assertTrue(lva.add(new FloatValue((byte) i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array is now full
-		assertTrue(lva.isFull());
-		assertEquals(count, lva.size());
+        // array is now full
+        assertTrue(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (FloatValue lv : lva) {
-			assertEquals((byte) idx++, lv.getValue(), 0.000001);
-		}
+        // verify the array values
+        int idx = 0;
+        for (FloatValue lv : lva) {
+            assertEquals((byte) idx++, lv.getValue(), 0.000001);
+        }
 
-		// add element past end of array
-		assertFalse(lva.add(new FloatValue((byte) count)));
-		assertFalse(lva.addAll(lva));
+        // add element past end of array
+        assertFalse(lva.add(new FloatValue((byte) count)));
+        assertFalse(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		FloatValueArray lvaTo = new FloatValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        FloatValueArray lvaTo = new FloatValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 
-	@Test
-	public void testUnboundedArray() {
-		int count = 4096;
+    @Test
+    public void testUnboundedArray() {
+        int count = 4096;
 
-		ValueArray<FloatValue> lva = new FloatValueArray();
+        ValueArray<FloatValue> lva = new FloatValueArray();
 
-		// add several elements
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // add several elements
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new FloatValue((byte) i)));
+            assertTrue(lva.add(new FloatValue((byte) i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array never fills
-		assertFalse(lva.isFull());
-		assertEquals(count, lva.size());
+        // array never fills
+        assertFalse(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (FloatValue lv : lva) {
-			assertEquals((byte) idx++, lv.getValue(), 0.000001);
-		}
+        // verify the array values
+        int idx = 0;
+        for (FloatValue lv : lva) {
+            assertEquals((byte) idx++, lv.getValue(), 0.000001);
+        }
 
-		// add element past end of array
-		assertTrue(lva.add(new FloatValue((byte) count)));
-		assertTrue(lva.addAll(lva));
+        // add element past end of array
+        assertTrue(lva.add(new FloatValue((byte) count)));
+        assertTrue(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		FloatValueArray lvaTo = new FloatValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        FloatValueArray lvaTo = new FloatValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test mark/reset
-		int size = lva.size();
-		lva.mark();
-		assertTrue(lva.add(new FloatValue()));
-		assertEquals(size + 1, lva.size());
-		lva.reset();
-		assertEquals(size, lva.size());
+        // test mark/reset
+        int size = lva.size();
+        lva.mark();
+        assertTrue(lva.add(new FloatValue()));
+        assertEquals(size + 1, lva.size());
+        lva.reset();
+        assertEquals(size, lva.size());
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 }

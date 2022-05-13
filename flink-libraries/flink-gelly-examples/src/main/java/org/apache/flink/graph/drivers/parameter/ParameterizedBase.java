@@ -27,49 +27,46 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class for a {@link Parameterized} which maintains a list of parameters
- * used to print the command-line usage string and configure parameters.
+ * Base class for a {@link Parameterized} which maintains a list of parameters used to print the
+ * command-line usage string and configure parameters.
  */
-public abstract class ParameterizedBase
-implements Parameterized {
+public abstract class ParameterizedBase implements Parameterized {
 
-	private List<Parameter<?>> parameters = new ArrayList<>();
+    private List<Parameter<?>> parameters = new ArrayList<>();
 
-	/**
-	 * Adds a parameter to the list. Parameter order is preserved when printing
-	 * the command-line usage string.
-	 *
-	 * @param parameter to add to the list of parameters
-	 */
-	public void addParameter(Parameter<?> parameter) {
-		parameters.add(parameter);
-	}
+    /**
+     * Adds a parameter to the list. Parameter order is preserved when printing the command-line
+     * usage string.
+     *
+     * @param parameter to add to the list of parameters
+     */
+    public void addParameter(Parameter<?> parameter) {
+        parameters.add(parameter);
+    }
 
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
+    @Override
+    public String getName() {
+        return this.getClass().getSimpleName();
+    }
 
-	@Override
-	public String getUsage() {
-		StrBuilder strBuilder = new StrBuilder();
+    @Override
+    public String getUsage() {
+        StrBuilder strBuilder = new StrBuilder();
 
-		// print parameters as ordered list
-		for (Parameter<?> parameter : parameters) {
-			if (!parameter.isHidden()) {
-				strBuilder
-					.append(parameter.getUsage())
-					.append(" ");
-			}
-		}
+        // print parameters as ordered list
+        for (Parameter<?> parameter : parameters) {
+            if (!parameter.isHidden()) {
+                strBuilder.append(parameter.getUsage()).append(" ");
+            }
+        }
 
-		return strBuilder.toString();
-	}
+        return strBuilder.toString();
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) throws ProgramParametrizationException {
-		for (Parameter<?> parameter : parameters) {
-			parameter.configure(parameterTool);
-		}
-	}
+    @Override
+    public void configure(ParameterTool parameterTool) throws ProgramParametrizationException {
+        for (Parameter<?> parameter : parameters) {
+            parameter.configure(parameterTool);
+        }
+    }
 }

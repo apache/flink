@@ -20,29 +20,35 @@ package org.apache.flink.cep.scala
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
 import org.apache.flink.cep.scala.conditions.Context
+
 import scala.collection.JavaConverters._
 
 package object pattern {
+
   /**
-    * Utility method to wrap [[org.apache.flink.cep.pattern.Pattern]] and its subclasses
-    * for usage with the Scala API.
-    *
-    * @param javaPattern The underlying pattern from the Java API
-    * @tparam T Base type of the elements appearing in the pattern
-    * @tparam F Subtype of T to which the current pattern operator is constrained
-    * @return A pattern from the Scala API which wraps the pattern from the Java API
-    */
-  private[flink] def wrapPattern[T, F <: T](javaPattern: JPattern[T, F])
-  : Option[Pattern[T, F]] = javaPattern match {
-    case p: JPattern[T, F] => Some(Pattern[T, F](p))
-    case _ => None
-  }
+   * Utility method to wrap [[org.apache.flink.cep.pattern.Pattern]] and its subclasses for usage
+   * with the Scala API.
+   *
+   * @param javaPattern
+   *   The underlying pattern from the Java API
+   * @tparam T
+   *   Base type of the elements appearing in the pattern
+   * @tparam F
+   *   Subtype of T to which the current pattern operator is constrained
+   * @return
+   *   A pattern from the Scala API which wraps the pattern from the Java API
+   */
+  private[flink] def wrapPattern[T, F <: T](javaPattern: JPattern[T, F]): Option[Pattern[T, F]] =
+    javaPattern match {
+      case p: JPattern[T, F] => Some(Pattern[T, F](p))
+      case _ => None
+    }
 
   private[pattern] class JContextWrapper[F](private val jContext: JContext[F])
-    extends Context[F] with Serializable {
+    extends Context[F]
+    with Serializable {
 
     override def getEventsForPattern(name: String): Iterable[F] =
       jContext.getEventsForPattern(name).asScala
   }
 }
-

@@ -20,12 +20,17 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 
 import java.util.Collections;
@@ -35,84 +40,217 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Helper class to build StreamConfig for chain of operators.
- */
-public class StreamConfigChainer {
-	private final StreamConfig headConfig;
-	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
+/** Helper class to build StreamConfig for chain of operators. */
+public class StreamConfigChainer<OWNER> {
+    public static final int MAIN_NODE_ID = 0;
+    private final OWNER owner;
+    private final StreamConfig headConfig;
+    private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
+    private final int numberOfNonChainedOutputs;
+    private int bufferTimeout;
 
-	private StreamConfig tailConfig;
-	private int chainIndex = 0;
+    private StreamConfig tailConfig;
+    private int chainIndex = MAIN_NODE_ID;
 
-	public StreamConfigChainer(OperatorID headOperatorID, StreamOperator<?> headOperator, StreamConfig headConfig) {
-		this.headConfig = checkNotNull(headConfig);
-		this.tailConfig = checkNotNull(headConfig);
+    StreamConfigChainer(
+            OperatorID headOperatorID,
+            StreamConfig headConfig,
+            OWNER owner,
+            int numberOfNonChainedOutputs) {
+        this.owner = checkNotNull(owner);
+        this.headConfig = checkNotNull(headConfig);
+        this.tailConfig = checkNotNull(headConfig);
+        this.numberOfNonChainedOutputs = numberOfNonChainedOutputs;
 
-		head(headOperator, headOperatorID);
-	}
+        head(headOperatorID);
+    }
 
-	private void head(StreamOperator<?> headOperator, OperatorID headOperatorID) {
-		headConfig.setStreamOperator(headOperator);
-		headConfig.setOperatorID(headOperatorID);
-		headConfig.setChainStart();
-		headConfig.setChainIndex(chainIndex);
-	}
+    private void head(OperatorID headOperatorID) {
+        headConfig.setOperatorID(headOperatorID);
+        headConfig.setChainStart();
+        headConfig.setChainIndex(chainIndex);
+    }
 
-	public <T> StreamConfigChainer chain(
-			OperatorID operatorID,
-			OneInputStreamOperator<T, T> operator,
-			TypeSerializer<T> typeSerializer) {
-		return chain(operatorID, operator, typeSerializer, typeSerializer);
-	}
+    public <T> StreamConfigChainer<OWNER> chain(
+            OperatorID operatorID,
+            OneInputStreamOperator<T, T> operator,
+            TypeSerializer<T> typeSerializer,
+            boolean createKeyedStateBackend) {
+        return chain(operatorID, operator, typeSerializer, typeSerializer, createKeyedStateBackend);
+    }
 
-	public <IN, OUT> StreamConfigChainer chain(
-			OperatorID operatorID,
-			OneInputStreamOperator<IN, OUT> operator,
-			TypeSerializer<IN> inputSerializer,
-			TypeSerializer<OUT> outputSerializer) {
-		chainIndex++;
+    public <T> StreamConfigChainer<OWNER> chain(
+            OneInputStreamOperator<T, T> operator, TypeSerializer<T> typeSerializer) {
+        return chain(new OperatorID(), operator, typeSerializer);
+    }
 
-		tailConfig.setChainedOutputs(Collections.singletonList(
-			new StreamEdge(
-				new StreamNode(null, tailConfig.getChainIndex(), null, null, null, null, null, null),
-				new StreamNode(null, chainIndex, null, null, null, null, null, null),
-				0,
-				Collections.<String>emptyList(),
-				null,
-				null)));
-		tailConfig = new StreamConfig(new Configuration());
-		tailConfig.setStreamOperator(checkNotNull(operator));
-		tailConfig.setOperatorID(checkNotNull(operatorID));
-		tailConfig.setTypeSerializerIn1(inputSerializer);
-		tailConfig.setTypeSerializerOut(outputSerializer);
-		tailConfig.setChainIndex(chainIndex);
+    public <T> StreamConfigChainer<OWNER> chain(
+            OperatorID operatorID,
+            OneInputStreamOperator<T, T> operator,
+            TypeSerializer<T> typeSerializer) {
+        return chain(operatorID, operator, typeSerializer, typeSerializer, false);
+    }
 
-		chainedConfigs.put(chainIndex, tailConfig);
+    public <T> StreamConfigChainer<OWNER> chain(
+            OneInputStreamOperatorFactory<T, T> operatorFactory, TypeSerializer<T> typeSerializer) {
+        return chain(new OperatorID(), operatorFactory, typeSerializer);
+    }
 
-		return this;
-	}
+    public <T> StreamConfigChainer<OWNER> chain(
+            OperatorID operatorID,
+            OneInputStreamOperatorFactory<T, T> operatorFactory,
+            TypeSerializer<T> typeSerializer) {
+        return chain(operatorID, operatorFactory, typeSerializer, typeSerializer, false);
+    }
 
-	public void finish() {
+    private <IN, OUT> StreamConfigChainer<OWNER> chain(
+            OperatorID operatorID,
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeSerializer<IN> inputSerializer,
+            TypeSerializer<OUT> outputSerializer,
+            boolean createKeyedStateBackend) {
+        return chain(
+                operatorID,
+                SimpleOperatorFactory.of(operator),
+                inputSerializer,
+                outputSerializer,
+                createKeyedStateBackend);
+    }
 
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		outEdgesInOrder.add(
-			new StreamEdge(
-				new StreamNode(null, chainIndex, null, null, null, null, null, null),
-				new StreamNode(null, chainIndex , null, null, null, null, null, null),
-				0,
-				Collections.<String>emptyList(),
-				new BroadcastPartitioner<Object>(),
-				null));
+    public <IN, OUT> StreamConfigChainer<OWNER> chain(
+            OperatorID operatorID,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeSerializer<IN> inputSerializer,
+            TypeSerializer<OUT> outputSerializer,
+            boolean createKeyedStateBackend) {
 
-		tailConfig.setBufferTimeout(0);
-		tailConfig.setChainEnd();
-		tailConfig.setOutputSelectors(Collections.emptyList());
-		tailConfig.setNumberOfOutputs(1);
-		tailConfig.setOutEdgesInOrder(outEdgesInOrder);
-		tailConfig.setNonChainedOutputs(outEdgesInOrder);
-		headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-		headConfig.setOutEdgesInOrder(outEdgesInOrder);
-	}
+        chainIndex++;
+
+        StreamEdge streamEdge =
+                new StreamEdge(
+                        new StreamNode(
+                                tailConfig.getChainIndex(),
+                                null,
+                                null,
+                                (StreamOperator<?>) null,
+                                null,
+                                null),
+                        new StreamNode(
+                                chainIndex, null, null, (StreamOperator<?>) null, null, null),
+                        0,
+                        null,
+                        null);
+        streamEdge.setBufferTimeout(bufferTimeout);
+        tailConfig.setChainedOutputs(Collections.singletonList(streamEdge));
+        tailConfig = new StreamConfig(new Configuration());
+        tailConfig.setStreamOperatorFactory(checkNotNull(operatorFactory));
+        tailConfig.setOperatorID(checkNotNull(operatorID));
+        tailConfig.setupNetworkInputs(inputSerializer);
+        tailConfig.setTypeSerializerOut(outputSerializer);
+        if (createKeyedStateBackend) {
+            // used to test multiple stateful operators chained in a single task.
+            tailConfig.setStateKeySerializer(inputSerializer);
+            tailConfig.setStateBackendUsesManagedMemory(true);
+            tailConfig.setManagedMemoryFractionOperatorOfUseCase(
+                    ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        }
+        tailConfig.setChainIndex(chainIndex);
+
+        chainedConfigs.put(chainIndex, tailConfig);
+
+        return this;
+    }
+
+    public OWNER finish() {
+        checkState(chainIndex > 0, "Use finishForSingletonOperatorChain");
+        List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
+
+        StreamNode sourceVertex =
+                new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null);
+        for (int i = 0; i < numberOfNonChainedOutputs; ++i) {
+            StreamEdge streamEdge =
+                    new StreamEdge(
+                            sourceVertex,
+                            new StreamNode(
+                                    chainIndex + i,
+                                    null,
+                                    null,
+                                    (StreamOperator<?>) null,
+                                    null,
+                                    null),
+                            0,
+                            new BroadcastPartitioner<>(),
+                            null);
+            streamEdge.setBufferTimeout(1);
+            outEdgesInOrder.add(streamEdge);
+        }
+
+        tailConfig.setChainEnd();
+        tailConfig.setNumberOfOutputs(numberOfNonChainedOutputs);
+        tailConfig.setOutEdgesInOrder(outEdgesInOrder);
+        tailConfig.setNonChainedOutputs(outEdgesInOrder);
+        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
+        headConfig.setOutEdgesInOrder(outEdgesInOrder);
+
+        return owner;
+    }
+
+    public <OUT> OWNER finishForSingletonOperatorChain(TypeSerializer<OUT> outputSerializer) {
+
+        checkState(chainIndex == 0, "Use finishForSingletonOperatorChain");
+        checkState(headConfig == tailConfig);
+        StreamOperator<OUT> dummyOperator =
+                new AbstractStreamOperator<OUT>() {
+                    private static final long serialVersionUID = 1L;
+                };
+        List<StreamEdge> outEdgesInOrder = new LinkedList<>();
+
+        StreamNode sourceVertexDummy =
+                new StreamNode(
+                        MAIN_NODE_ID,
+                        "group",
+                        null,
+                        dummyOperator,
+                        "source dummy",
+                        SourceStreamTask.class);
+        for (int i = 0; i < numberOfNonChainedOutputs; ++i) {
+            StreamNode targetVertexDummy =
+                    new StreamNode(
+                            MAIN_NODE_ID + 1 + i,
+                            "group",
+                            null,
+                            dummyOperator,
+                            "target dummy",
+                            SourceStreamTask.class);
+
+            outEdgesInOrder.add(
+                    new StreamEdge(
+                            sourceVertexDummy,
+                            targetVertexDummy,
+                            0,
+                            new BroadcastPartitioner<>(),
+                            null));
+        }
+
+        headConfig.setVertexID(0);
+        headConfig.setNumberOfOutputs(1);
+        headConfig.setOutEdgesInOrder(outEdgesInOrder);
+        headConfig.setNonChainedOutputs(outEdgesInOrder);
+        headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
+        headConfig.setOutEdgesInOrder(outEdgesInOrder);
+        headConfig.setTypeSerializerOut(outputSerializer);
+
+        return owner;
+    }
+
+    public StreamConfigChainer<OWNER> name(String name) {
+        tailConfig.setOperatorName(name);
+        return this;
+    }
+
+    public void setBufferTimeout(int bufferTimeout) {
+        this.bufferTimeout = bufferTimeout;
+    }
 }

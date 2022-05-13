@@ -24,59 +24,59 @@ import static org.junit.Assert.assertEquals;
 
 public class LongMinimumTest {
 
-	@Test
-	public void testGet() {
-		LongMinimum min = new LongMinimum();
-		assertEquals(Long.MAX_VALUE, min.getLocalValue().longValue());
-	}
+    @Test
+    public void testGet() {
+        LongMinimum min = new LongMinimum();
+        assertEquals(Long.MAX_VALUE, min.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testResetLocal() {
-		LongMinimum min = new LongMinimum();
-		long value = 9876543210L;
+    @Test
+    public void testResetLocal() {
+        LongMinimum min = new LongMinimum();
+        long value = 9876543210L;
 
-		min.add(value);
-		assertEquals(value, min.getLocalValue().longValue());
+        min.add(value);
+        assertEquals(value, min.getLocalValue().longValue());
 
-		min.resetLocal();
-		assertEquals(Long.MAX_VALUE, min.getLocalValue().longValue());
-	}
+        min.resetLocal();
+        assertEquals(Long.MAX_VALUE, min.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testAdd() {
-		LongMinimum min = new LongMinimum();
+    @Test
+    public void testAdd() {
+        LongMinimum min = new LongMinimum();
 
-		min.add(1234567890);
-		min.add(9876543210L);
-		min.add(-9876543210L);
-		min.add(-1234567890);
+        min.add(1234567890);
+        min.add(9876543210L);
+        min.add(-9876543210L);
+        min.add(-1234567890);
 
-		assertEquals(-9876543210L, min.getLocalValue().longValue());
-	}
+        assertEquals(-9876543210L, min.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testMerge() {
-		LongMinimum min1 = new LongMinimum();
-		min1.add(1234567890987654321L);
+    @Test
+    public void testMerge() {
+        LongMinimum min1 = new LongMinimum();
+        min1.add(1234567890987654321L);
 
-		LongMinimum min2 = new LongMinimum();
-		min2.add(5678909876543210123L);
+        LongMinimum min2 = new LongMinimum();
+        min2.add(5678909876543210123L);
 
-		min2.merge(min1);
-		assertEquals(1234567890987654321L, min2.getLocalValue().longValue());
+        min2.merge(min1);
+        assertEquals(1234567890987654321L, min2.getLocalValue().longValue());
 
-		min1.merge(min2);
-		assertEquals(1234567890987654321L, min1.getLocalValue().longValue());
-	}
+        min1.merge(min2);
+        assertEquals(1234567890987654321L, min1.getLocalValue().longValue());
+    }
 
-	@Test
-	public void testClone() {
-		LongMinimum min = new LongMinimum();
-		long value = 4242424242424242L;
+    @Test
+    public void testClone() {
+        LongMinimum min = new LongMinimum();
+        long value = 4242424242424242L;
 
-		min.add(value);
+        min.add(value);
 
-		LongMinimum clone = min.clone();
-		assertEquals(value, clone.getLocalValue().longValue());
-	}
+        LongMinimum clone = min.clone();
+        assertEquals(value, clone.getLocalValue().longValue());
+    }
 }

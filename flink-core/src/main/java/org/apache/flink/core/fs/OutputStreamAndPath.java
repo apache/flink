@@ -20,28 +20,24 @@ package org.apache.flink.core.fs;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An output stream and a path.
- */
+/** An output stream and a path. */
 public final class OutputStreamAndPath {
 
-	private final FSDataOutputStream stream;
+    private final FSDataOutputStream stream;
 
-	private final Path path;
+    private final Path path;
 
-	/**
-	 * Creates a OutputStreamAndPath.
-	 */
-	public OutputStreamAndPath(FSDataOutputStream stream, Path path) {
-		this.stream = checkNotNull(stream);
-		this.path = checkNotNull(path);
-	}
+    /** Creates a OutputStreamAndPath. */
+    public OutputStreamAndPath(FSDataOutputStream stream, Path path) {
+        this.stream = checkNotNull(stream);
+        this.path = checkNotNull(path);
+    }
 
-	public FSDataOutputStream stream() {
-		return stream;
-	}
+    public FSDataOutputStream stream() {
+        return stream;
+    }
 
-	public Path path() {
-		return path;
-	}
+    public Path path() {
+        return path;
+    }
 }

@@ -34,18 +34,18 @@ import java.io.ObjectOutputStream;
  */
 @Internal
 public abstract class HadoopOutputFormatCommonBase<T> extends RichOutputFormat<T> {
-	protected transient Credentials credentials;
+    protected transient Credentials credentials;
 
-	protected HadoopOutputFormatCommonBase(Credentials creds) {
-		this.credentials = creds;
-	}
+    protected HadoopOutputFormatCommonBase(Credentials creds) {
+        this.credentials = creds;
+    }
 
-	protected void write(ObjectOutputStream out) throws IOException {
-		this.credentials.write(out);
-	}
+    protected void write(ObjectOutputStream out) throws IOException {
+        this.credentials.write(out);
+    }
 
-	public void read(ObjectInputStream in) throws IOException {
-		this.credentials = new Credentials();
-		credentials.readFields(in);
-	}
+    public void read(ObjectInputStream in) throws IOException {
+        this.credentials = new Credentials();
+        credentials.readFields(in);
+    }
 }

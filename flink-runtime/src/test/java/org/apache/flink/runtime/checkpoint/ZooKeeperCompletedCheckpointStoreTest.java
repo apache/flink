@@ -18,115 +18,255 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.Function;
 
+import static java.util.Collections.emptyList;
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 
-/**
- * Tests for {@link ZooKeeperCompletedCheckpointStore}.
- */
+/** Tests for {@link DefaultCompletedCheckpointStore} with {@link ZooKeeperStateHandleStore}. */
 public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
-	@ClassRule
-	public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @ClassRule public static ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
-	@Test
-	public void testPathConversion() {
-		final long checkpointId = 42L;
+    private static final ZooKeeperCheckpointStoreUtil zooKeeperCheckpointStoreUtil =
+            ZooKeeperCheckpointStoreUtil.INSTANCE;
 
-		final String path = ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpointId);
+    @Test
+    public void testPathConversion() {
+        final long checkpointId = 42L;
 
-		assertEquals(checkpointId, ZooKeeperCompletedCheckpointStore.pathToCheckpointId(path));
-	}
+        final String path = zooKeeperCheckpointStoreUtil.checkpointIDToName(checkpointId);
 
-	/**
-	 * Tests that subsumed checkpoints are discarded.
-	 */
-	@Test
-	public void testDiscardingSubsumedCheckpoints() throws Exception {
-		final SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		final Configuration configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+        assertEquals(checkpointId, zooKeeperCheckpointStoreUtil.nameToCheckpointID(path));
+    }
 
-		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-		final ZooKeeperCompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
+    @Test
+    public void testRecoverFailsIfDownloadFails() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+        final List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointsInZk =
+                new ArrayList<>();
+        final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper =
+                new ZooKeeperStateHandleStore<CompletedCheckpoint>(
+                        ZooKeeperUtils.startCuratorFramework(
+                                        configuration, NoOpFatalErrorHandler.INSTANCE)
+                                .asCuratorFramework(),
+                        new TestingRetrievableStateStorageHelper<>()) {
+                    @Override
+                    public List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>>
+                            getAllAndLock() {
+                        return checkpointsInZk;
+                    }
+                };
 
-		try {
-			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
+        checkpointsInZk.add(
+                createHandle(
+                        1,
+                        id -> {
+                            throw new ExpectedTestException();
+                        }));
+        final Exception exception =
+                assertThrows(
+                        Exception.class,
+                        () ->
+                                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                        checkpointsInZooKeeper, zooKeeperCheckpointStoreUtil));
+        assertThat(exception, FlinkMatchers.containsCause(ExpectedTestException.class));
+    }
 
-			checkpointStore.addCheckpoint(checkpoint1);
-			assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
+    private Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> createHandle(
+            long id, Function<Long, CompletedCheckpoint> checkpointSupplier) {
+        return Tuple2.of(
+                new CheckpointStateHandle(checkpointSupplier, id),
+                zooKeeperCheckpointStoreUtil.checkpointIDToName(id));
+    }
 
-			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint2 = CompletedCheckpointStoreTest.createCheckpoint(1, sharedStateRegistry);
-			checkpointStore.addCheckpoint(checkpoint2);
-			final List<CompletedCheckpoint> allCheckpoints = checkpointStore.getAllCheckpoints();
-			assertThat(allCheckpoints, Matchers.contains(checkpoint2));
-			assertThat(allCheckpoints, Matchers.not(Matchers.contains(checkpoint1)));
+    /** Tests that subsumed checkpoints are discarded. */
+    @Test
+    public void testDiscardingSubsumedCheckpoints() throws Exception {
+        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 
-			// verify that the subsumed checkpoint is discarded
-			CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
-		} finally {
-			client.close();
-		}
-	}
+        final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+        final CompletedCheckpointStore checkpointStore =
+                createZooKeeperCheckpointStore(curatorFrameworkWrapper.asCuratorFramework());
 
-	/**
-	 * Tests that checkpoints are discarded when the completed checkpoint store is shut
-	 * down with a globally terminal state.
-	 */
-	@Test
-	public void testDiscardingCheckpointsAtShutDown() throws Exception {
-		final SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		final Configuration configuration = new Configuration();
-		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+        try {
+            final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 =
+                    CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-		final ZooKeeperCompletedCheckpointStore checkpointStore = createZooKeeperCheckpointStore(client);
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint1, new CheckpointsCleaner(), () -> {});
+            assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
-		try {
-			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
+            final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint2 =
+                    CompletedCheckpointStoreTest.createCheckpoint(1, sharedStateRegistry);
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint2, new CheckpointsCleaner(), () -> {});
+            final List<CompletedCheckpoint> allCheckpoints = checkpointStore.getAllCheckpoints();
+            assertThat(allCheckpoints, Matchers.contains(checkpoint2));
+            assertThat(allCheckpoints, Matchers.not(Matchers.contains(checkpoint1)));
 
-			checkpointStore.addCheckpoint(checkpoint1);
-			assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
+            // verify that the subsumed checkpoint is discarded
+            CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
+        } finally {
+            curatorFrameworkWrapper.close();
+        }
+    }
 
-			checkpointStore.shutdown(JobStatus.FINISHED);
+    /**
+     * Tests that checkpoints are discarded when the completed checkpoint store is shut down with a
+     * globally terminal state.
+     */
+    @Test
+    public void testDiscardingCheckpointsAtShutDown() throws Exception {
+        final SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 
-			// verify that the checkpoint is discarded
-			CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
-		} finally {
-			client.close();
-		}
-	}
+        final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+        final CompletedCheckpointStore checkpointStore =
+                createZooKeeperCheckpointStore(curatorFrameworkWrapper.asCuratorFramework());
 
-	@Nonnull
-	private ZooKeeperCompletedCheckpointStore createZooKeeperCheckpointStore(CuratorFramework client) throws Exception {
-		final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper = ZooKeeperUtils.createZooKeeperStateHandleStore(
-			client,
-			"/checkpoints",
-			new TestingRetrievableStateStorageHelper<>());
+        try {
+            final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 =
+                    CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-		return new ZooKeeperCompletedCheckpointStore(
-			1,
-			checkpointsInZooKeeper,
-			Executors.directExecutor());
-	}
+            checkpointStore.addCheckpointAndSubsumeOldestOne(
+                    checkpoint1, new CheckpointsCleaner(), () -> {});
+            assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
+            checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
+
+            // verify that the checkpoint is discarded
+            CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);
+        } finally {
+            curatorFrameworkWrapper.close();
+        }
+    }
+
+    @Nonnull
+    private CompletedCheckpointStore createZooKeeperCheckpointStore(CuratorFramework client)
+            throws Exception {
+        final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper =
+                ZooKeeperUtils.createZooKeeperStateHandleStore(
+                        client, "/checkpoints", new TestingRetrievableStateStorageHelper<>());
+        return new DefaultCompletedCheckpointStore<>(
+                1,
+                checkpointsInZooKeeper,
+                zooKeeperCheckpointStoreUtil,
+                Collections.emptyList(),
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
+                Executors.directExecutor());
+    }
+
+    private static class CheckpointStateHandle
+            implements RetrievableStateHandle<CompletedCheckpoint> {
+        private static final long serialVersionUID = 1L;
+        private final Function<Long, CompletedCheckpoint> checkpointSupplier;
+        private final long id;
+
+        CheckpointStateHandle(Function<Long, CompletedCheckpoint> checkpointSupplier, long id) {
+            this.checkpointSupplier = checkpointSupplier;
+            this.id = id;
+        }
+
+        @Override
+        public CompletedCheckpoint retrieveState() {
+            return checkpointSupplier.apply(id);
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
+    }
+
+    /**
+     * Tests that the checkpoint does not exist in the store when we fail to add it into the store
+     * (i.e., there exists an exception thrown by the method).
+     */
+    @Test
+    public void testAddCheckpointWithFailedRemove() throws Exception {
+
+        final int numCheckpointsToRetain = 1;
+        final Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+
+        final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
+
+        final CompletedCheckpointStore store =
+                createZooKeeperCheckpointStore(curatorFrameworkWrapper.asCuratorFramework());
+
+        CountDownLatch discardAttempted = new CountDownLatch(1);
+        for (long i = 0; i < numCheckpointsToRetain + 1; ++i) {
+            CompletedCheckpoint checkpointToAdd =
+                    new CompletedCheckpoint(
+                            new JobID(),
+                            i,
+                            i,
+                            i,
+                            Collections.emptyMap(),
+                            Collections.emptyList(),
+                            CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
+                            new TestCompletedCheckpointStorageLocation(),
+                            null);
+            // shouldn't fail despite the exception
+            store.addCheckpointAndSubsumeOldestOne(
+                    checkpointToAdd,
+                    new CheckpointsCleaner(),
+                    () -> {
+                        discardAttempted.countDown();
+                        throw new RuntimeException();
+                    });
+        }
+        discardAttempted.await();
+    }
 }

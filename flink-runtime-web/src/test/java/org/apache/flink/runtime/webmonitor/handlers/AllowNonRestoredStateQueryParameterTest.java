@@ -18,31 +18,31 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import static org.junit.Assert.assertEquals;
+/** Tests for {@link AllowNonRestoredStateQueryParameter}. */
+class AllowNonRestoredStateQueryParameterTest {
 
-/**
- * Tests for {@link AllowNonRestoredStateQueryParameter}.
- */
-public class AllowNonRestoredStateQueryParameterTest extends TestLogger {
+    private final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter =
+            new AllowNonRestoredStateQueryParameter();
 
-	private final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter =
-		new AllowNonRestoredStateQueryParameter();
+    @Test
+    void testConvertStringToValue() {
+        assertThat(allowNonRestoredStateQueryParameter.convertValueToString(false))
+                .isEqualTo("false");
+        assertThat(allowNonRestoredStateQueryParameter.convertValueToString(true))
+                .isEqualTo("true");
+    }
 
-	@Test
-	public void testConvertStringToValue() {
-		assertEquals("false", allowNonRestoredStateQueryParameter.convertValueToString(false));
-		assertEquals("true", allowNonRestoredStateQueryParameter.convertValueToString(true));
-	}
-
-	@Test
-	public void testConvertValueFromString() {
-		assertEquals(false, allowNonRestoredStateQueryParameter.convertStringToValue("false"));
-		assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("true"));
-		assertEquals(true, allowNonRestoredStateQueryParameter.convertStringToValue("TRUE"));
-	}
-
+    @Test
+    void testConvertValueFromString() {
+        assertThat(allowNonRestoredStateQueryParameter.convertStringToValue("false"))
+                .isEqualTo(false);
+        assertThat(allowNonRestoredStateQueryParameter.convertStringToValue("true"))
+                .isEqualTo(true);
+        assertThat(allowNonRestoredStateQueryParameter.convertStringToValue("TRUE"))
+                .isEqualTo(true);
+    }
 }

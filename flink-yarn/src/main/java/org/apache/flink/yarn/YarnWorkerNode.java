@@ -24,26 +24,25 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.api.records.Container;
 
-/**
- * A stored YARN worker, which contains the YARN container.
- */
+/** A stored YARN worker, which contains the YARN container. */
 public class YarnWorkerNode implements ResourceIDRetrievable {
 
-	private final ResourceID resourceID;
-	private final Container container;
+    private final ResourceID resourceID;
+    private final Container container;
 
-	public YarnWorkerNode(Container container) {
-		Preconditions.checkNotNull(container);
-		this.resourceID = new ResourceID(container.getId().toString());
-		this.container = container;
-	}
+    public YarnWorkerNode(Container container, ResourceID resourceID) {
+        Preconditions.checkNotNull(container);
+        Preconditions.checkNotNull(resourceID);
+        this.resourceID = resourceID;
+        this.container = container;
+    }
 
-	@Override
-	public ResourceID getResourceID() {
-		return resourceID;
-	}
+    @Override
+    public ResourceID getResourceID() {
+        return resourceID;
+    }
 
-	public Container getContainer() {
-		return container;
-	}
+    public Container getContainer() {
+        return container;
+    }
 }

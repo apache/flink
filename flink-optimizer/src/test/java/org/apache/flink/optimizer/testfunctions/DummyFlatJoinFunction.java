@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.testfunctions;
 
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
@@ -24,10 +23,10 @@ import org.apache.flink.util.Collector;
 
 public class DummyFlatJoinFunction<T> extends RichFlatJoinFunction<T, T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void join(T first, T second, Collector<T> out) {
-		out.collect(null);
-	}
+    @Override
+    public void join(T first, T second, Collector<T> out) {
+        out.collect(null);
+    }
 }

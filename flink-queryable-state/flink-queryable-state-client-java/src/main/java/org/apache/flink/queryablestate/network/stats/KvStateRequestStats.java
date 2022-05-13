@@ -18,37 +18,25 @@
 
 package org.apache.flink.queryablestate.network.stats;
 
-/**
- * Simple statistics for monitoring the state server
- * and the client proxy.
- */
+/** Simple statistics for monitoring the state server and the client proxy. */
 public interface KvStateRequestStats {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+    /** Reports an active connection. */
+    void reportActiveConnection();
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
+    /** Reports an inactive connection. */
+    void reportInactiveConnection();
 
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
+    /** Reports an incoming request. */
+    void reportRequest();
 
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
+    /**
+     * Reports a successfully handled request.
+     *
+     * @param durationTotalMillis Duration of the request (in milliseconds).
+     */
+    void reportSuccessfulRequest(long durationTotalMillis);
 
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+    /** Reports a failure during a request. */
+    void reportFailedRequest();
 }

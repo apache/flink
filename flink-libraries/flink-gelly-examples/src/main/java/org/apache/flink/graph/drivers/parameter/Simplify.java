@@ -25,123 +25,130 @@ import org.apache.flink.graph.drivers.parameter.Simplify.Ordering;
 import org.apache.flink.types.NullValue;
 
 /**
- * A simple graph has no self-loops (edges where the source and target vertices
- * are the same) and no duplicate edges. Flink stores an undirected graph as
- * a directed graph where each undirected edge is represented by a directed
- * edge in each direction.
+ * A simple graph has no self-loops (edges where the source and target vertices are the same) and no
+ * duplicate edges. Flink stores an undirected graph as a directed graph where each undirected edge
+ * is represented by a directed edge in each direction.
  *
- * <p>This {@link Parameter} indicates whether to simplify the graph and if the
- * graph should be directed or undirected.
+ * <p>This {@link Parameter} indicates whether to simplify the graph and if the graph should be
+ * directed or undirected.
  */
-public class Simplify
-implements Parameter<Ordering> {
+public class Simplify implements Parameter<Ordering> {
 
-	/**
-	 * Whether and how to simplify the graph.
-	 */
-	public enum Ordering {
-		// leave the graph unchanged
-		NONE,
+    /** Whether and how to simplify the graph. */
+    public enum Ordering {
+        // leave the graph unchanged
+        NONE,
 
-		// create a simple, directed graph
-		DIRECTED,
+        // create a simple, directed graph
+        DIRECTED,
 
-		// create a simple, undirected graph
-		UNDIRECTED,
+        // create a simple, undirected graph
+        UNDIRECTED,
 
-		// create a simple, undirected graph
-		// remove input edges where source < target before symmetrizing the graph
-		UNDIRECTED_CLIP_AND_FLIP,
-	}
+        // create a simple, undirected graph
+        // remove input edges where source < target before symmetrizing the graph
+        UNDIRECTED_CLIP_AND_FLIP,
+    }
 
-	private Ordering value;
+    private Ordering value;
 
-	/**
-	 * Add this parameter to the list of parameters stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 */
-	public Simplify(ParameterizedBase owner) {
-		owner.addParameter(this);
-	}
+    /**
+     * Add this parameter to the list of parameters stored by owner.
+     *
+     * @param owner the {@link Parameterized} using this {@link Parameter}
+     */
+    public Simplify(ParameterizedBase owner) {
+        owner.addParameter(this);
+    }
 
-	@Override
-	public String getUsage() {
-		return "[--simplify <directed | undirected [--clip_and_flip]>] ";
-	}
+    @Override
+    public String getUsage() {
+        return "[--simplify <directed | undirected [--clip_and_flip]>] ";
+    }
 
-	@Override
-	public boolean isHidden() {
-		return false;
-	}
+    @Override
+    public boolean isHidden() {
+        return false;
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) {
-		String ordering = parameterTool.get("simplify");
+    @Override
+    public void configure(ParameterTool parameterTool) {
+        String ordering = parameterTool.get("simplify");
 
-		if (ordering == null) {
-			value = Ordering.NONE;
-		} else {
-			switch (ordering.toLowerCase()) {
-				case "directed":
-					value = Ordering.DIRECTED;
-					break;
-				case "undirected":
-					value = parameterTool.has("clip_and_flip") ? Ordering.UNDIRECTED_CLIP_AND_FLIP : Ordering.UNDIRECTED;
-					break;
-				default:
-					throw new ProgramParametrizationException(
-						"Expected 'directed' or 'undirected' ordering but received '" + ordering + "'");
-			}
-		}
-	}
+        if (ordering == null) {
+            value = Ordering.NONE;
+        } else {
+            switch (ordering.toLowerCase()) {
+                case "directed":
+                    value = Ordering.DIRECTED;
+                    break;
+                case "undirected":
+                    value =
+                            parameterTool.has("clip_and_flip")
+                                    ? Ordering.UNDIRECTED_CLIP_AND_FLIP
+                                    : Ordering.UNDIRECTED;
+                    break;
+                default:
+                    throw new ProgramParametrizationException(
+                            "Expected 'directed' or 'undirected' ordering but received '"
+                                    + ordering
+                                    + "'");
+            }
+        }
+    }
 
-	@Override
-	public Ordering getValue() {
-		return value;
-	}
+    @Override
+    public Ordering getValue() {
+        return value;
+    }
 
-	/**
-	 * Simplify the given graph based on the configured value.
-	 *
-	 * @param graph input graph
-	 * @param <T> graph key type
-	 * @return output graph
-	 * @throws Exception on error
-	 */
-	public <T extends Comparable<T>> Graph<T, NullValue, NullValue> simplify(Graph<T, NullValue, NullValue> graph, int parallelism)
-			throws Exception {
-		switch (value) {
-			case DIRECTED:
-				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.directed.Simplify<T, NullValue, NullValue>()
-						.setParallelism(parallelism));
-				break;
-			case UNDIRECTED:
-				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<T, NullValue, NullValue>(false)
-						.setParallelism(parallelism));
-				break;
-			case UNDIRECTED_CLIP_AND_FLIP:
-				graph = graph
-					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<T, NullValue, NullValue>(true)
-						.setParallelism(parallelism));
-				break;
-		}
+    /**
+     * Simplify the given graph based on the configured value.
+     *
+     * @param graph input graph
+     * @param <T> graph key type
+     * @return output graph
+     * @throws Exception on error
+     */
+    public <T extends Comparable<T>> Graph<T, NullValue, NullValue> simplify(
+            Graph<T, NullValue, NullValue> graph, int parallelism) throws Exception {
+        switch (value) {
+            case DIRECTED:
+                graph =
+                        graph.run(
+                                new org.apache.flink.graph.asm.simple.directed.Simplify<
+                                                T, NullValue, NullValue>()
+                                        .setParallelism(parallelism));
+                break;
+            case UNDIRECTED:
+                graph =
+                        graph.run(
+                                new org.apache.flink.graph.asm.simple.undirected.Simplify<
+                                                T, NullValue, NullValue>(false)
+                                        .setParallelism(parallelism));
+                break;
+            case UNDIRECTED_CLIP_AND_FLIP:
+                graph =
+                        graph.run(
+                                new org.apache.flink.graph.asm.simple.undirected.Simplify<
+                                                T, NullValue, NullValue>(true)
+                                        .setParallelism(parallelism));
+                break;
+        }
 
-		return graph;
-	}
+        return graph;
+    }
 
-	public String getShortString() {
-		switch (value) {
-			case DIRECTED:
-				return "d";
-			case UNDIRECTED:
-				return "u";
-			case UNDIRECTED_CLIP_AND_FLIP:
-				return "ɔ";
-			default:
-				return "";
-		}
-	}
+    public String getShortString() {
+        switch (value) {
+            case DIRECTED:
+                return "d";
+            case UNDIRECTED:
+                return "u";
+            case UNDIRECTED_CLIP_AND_FLIP:
+                return "ɔ";
+            default:
+                return "";
+        }
+    }
 }

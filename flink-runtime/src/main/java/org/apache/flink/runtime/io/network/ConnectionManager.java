@@ -18,34 +18,30 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-
 import java.io.IOException;
 
 /**
- * The connection manager manages physical connections for the (logical) remote
- * input channels at runtime.
+ * The connection manager manages physical connections for the (logical) remote input channels at
+ * runtime.
  */
 public interface ConnectionManager {
 
-	void start(ResultPartitionProvider partitionProvider,
-				TaskEventDispatcher taskEventDispatcher) throws IOException;
+    /**
+     * Starts the internal related components for network connection and communication.
+     *
+     * @return a port to connect to the task executor for shuffle data exchange, -1 if only local
+     *     connection is possible.
+     */
+    int start() throws IOException;
 
-	/**
-	 * Creates a {@link PartitionRequestClient} instance for the given {@link ConnectionID}.
-	 */
-	PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException;
+    /** Creates a {@link PartitionRequestClient} instance for the given {@link ConnectionID}. */
+    PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
+            throws IOException, InterruptedException;
 
-	/**
-	 * Closes opened ChannelConnections in case of a resource release.
-	 */
-	void closeOpenChannelConnections(ConnectionID connectionId);
+    /** Closes opened ChannelConnections in case of a resource release. */
+    void closeOpenChannelConnections(ConnectionID connectionId);
 
-	int getNumberOfActiveConnections();
+    int getNumberOfActiveConnections();
 
-	int getDataPort();
-
-	void shutdown() throws IOException;
-
+    void shutdown() throws IOException;
 }

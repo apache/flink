@@ -21,26 +21,24 @@ package org.apache.flink.streaming.runtime.metrics;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for the {@link MinWatermarkGauge}.
- */
+/** Tests for the {@link MinWatermarkGauge}. */
 public class MinWatermarkGaugeTest {
 
-	@Test
-	public void testSetCurrentLowWatermark() {
-		WatermarkGauge metric1 = new WatermarkGauge();
-		WatermarkGauge metric2 = new WatermarkGauge();
-		MinWatermarkGauge metric = new MinWatermarkGauge(metric1, metric2);
+    @Test
+    public void testSetCurrentLowWatermark() {
+        WatermarkGauge metric1 = new WatermarkGauge();
+        WatermarkGauge metric2 = new WatermarkGauge();
+        MinWatermarkGauge metric = new MinWatermarkGauge(metric1, metric2);
 
-		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
-		metric1.setCurrentWatermark(1);
-		Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        metric1.setCurrentWatermark(1);
+        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
-		metric2.setCurrentWatermark(2);
-		Assert.assertEquals(1L, metric.getValue().longValue());
+        metric2.setCurrentWatermark(2);
+        Assert.assertEquals(1L, metric.getValue().longValue());
 
-		metric1.setCurrentWatermark(3);
-		Assert.assertEquals(2L, metric.getValue().longValue());
-	}
+        metric1.setCurrentWatermark(3);
+        Assert.assertEquals(2L, metric.getValue().longValue());
+    }
 }

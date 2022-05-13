@@ -22,92 +22,86 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.fail;
 
 /**
- * This test validates that the Kryo-based serializer handles classes with custom
- * class loaders correctly.
+ * This test validates that the Kryo-based serializer handles classes with custom class loaders
+ * correctly.
  */
 public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
-	/** Class loader for the object that is not in the test class path */
-	private static final ClassLoader CLASS_LOADER =
-			new URLClassLoader(new URL[0], KryoSerializerClassLoadingTest.class.getClassLoader());
+    /** Class loader and object that is not in the test class path. */
+    private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+            ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 
-	/** An object that is not in the test class path */
-	private static final Serializable OBJECT_OUT_OF_CLASSPATH =
-			CommonTestUtils.createObjectForClassNotInClassPath(CLASS_LOADER);
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    private ClassLoader originalClassLoader;
 
-	private ClassLoader originalClassLoader;
+    @Before
+    public void setupClassLoader() {
+        originalClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
+    }
 
-	@Before
-	public void setupClassLoader() {
-		originalClassLoader = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(CLASS_LOADER);
-	}
+    @After
+    public void restoreOriginalClassLoader() {
+        Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
 
-	@After
-	public void restoreOriginalClassLoader() {
-		Thread.currentThread().setContextClassLoader(originalClassLoader);
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    @Test
+    public void guardTestAssumptions() {
+        try {
+            Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
+            fail("This test's assumptions are broken");
+        } catch (ClassNotFoundException ignored) {
+            // expected
+        }
+    }
 
-	@Test
-	public void guardTestAssumptions() {
-		try {
-			Class.forName(OBJECT_OUT_OF_CLASSPATH.getClass().getName());
-			fail("This test's assumptions are broken");
-		}
-		catch (ClassNotFoundException ignored) {
-			// expected
-		}
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    @Override
+    protected TypeSerializer<Object> createSerializer() {
+        return new KryoSerializer<>(Object.class, new ExecutionConfig());
+    }
 
-	@Override
-	protected TypeSerializer<Object> createSerializer() {
-		return new KryoSerializer<>(Object.class, new ExecutionConfig());
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<Object> getTypeClass() {
+        return Object.class;
+    }
 
-	@Override
-	protected Class<Object> getTypeClass() {
-		return Object.class;
-	}
+    @Override
+    protected Object[] getTestData() {
+        return new Object[] {
+            new Integer(7),
 
-	@Override
-	protected Object[] getTestData() {
-		return new Object[] {
-				new Integer(7),
+            // an object whose class is not on the classpath
+            OUTSIDE_CLASS_LOADING.getObject(),
 
-				// an object whose class is not on the classpath
-				OBJECT_OUT_OF_CLASSPATH,
+            // an object whose class IS on the classpath with a nested object whose class
+            // is NOT on the classpath
+            new Tuple1<>(OUTSIDE_CLASS_LOADING.getObject())
+        };
+    }
 
-				// an object whose class IS on the classpath with a nested object whose class
-				// is NOT on the classpath
-				new Tuple1<>(OBJECT_OUT_OF_CLASSPATH)
-		};
-	}
-
-	@Override
-	public void testInstantiate() {
-		// this serializer does not support instantiation
-	}
+    @Override
+    public void testInstantiate() {
+        // this serializer does not support instantiation
+    }
 }

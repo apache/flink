@@ -24,54 +24,65 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * Tests for the keyed state backend and operator state backend, as created by the
- * {@link FsStateBackend}.
+ * Tests for the keyed state backend and operator state backend, as created by the {@link
+ * FsStateBackend}.
  */
+@RunWith(Parameterized.class)
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Parameterized.Parameters
+    public static List<Boolean> modes() {
+        return Arrays.asList(true, false);
+    }
 
-	@Override
-	protected FsStateBackend getStateBackend() throws Exception {
-		File checkpointPath = tempFolder.newFolder();
-		return new FsStateBackend(checkpointPath.toURI(), useAsyncMode());
-	}
+    @Parameterized.Parameter public boolean useAsyncMode;
 
-	protected boolean useAsyncMode() {
-		return false;
-	}
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Override
-	protected boolean isSerializerPresenceRequiredOnRestore() {
-		return true;
-	}
+    @Override
+    protected ConfigurableStateBackend getStateBackend() throws Exception {
+        File checkpointPath = tempFolder.newFolder();
+        return new FsStateBackend(checkpointPath.toURI(), useAsyncMode);
+    }
 
-	// disable these because the verification does not work for this state backend
-	@Override
-	@Test
-	public void testValueStateRestoreWithWrongSerializers() {}
+    @Override
+    protected boolean isSerializerPresenceRequiredOnRestore() {
+        return true;
+    }
 
-	@Override
-	@Test
-	public void testListStateRestoreWithWrongSerializers() {}
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return useAsyncMode;
+    }
 
-	@Override
-	@Test
-	public void testReducingStateRestoreWithWrongSerializers() {}
+    // disable these because the verification does not work for this state backend
+    @Override
+    @Test
+    public void testValueStateRestoreWithWrongSerializers() {}
 
-	@Override
-	@Test
-	public void testMapStateRestoreWithWrongSerializers() {}
+    @Override
+    @Test
+    public void testListStateRestoreWithWrongSerializers() {}
 
-	@Ignore
-	@Test
-	public void testConcurrentMapIfQueryable() throws Exception {
-		super.testConcurrentMapIfQueryable();
-	}
+    @Override
+    @Test
+    public void testReducingStateRestoreWithWrongSerializers() {}
 
+    @Override
+    @Test
+    public void testMapStateRestoreWithWrongSerializers() {}
+
+    @Ignore
+    @Test
+    public void testConcurrentMapIfQueryable() throws Exception {
+        super.testConcurrentMapIfQueryable();
+    }
 }

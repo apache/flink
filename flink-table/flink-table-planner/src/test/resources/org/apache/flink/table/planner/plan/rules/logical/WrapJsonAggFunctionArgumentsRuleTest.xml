@@ -1,0 +1,95 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testJsonArrayAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL_RETRACT($f1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonArrayAggInGroupWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$1])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAggInGroupWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS EXPR$1])
++- Exchange(distribution=[hash[f0]])
+   +- Calc(select=[f0, f1, JSON_STRING(f0) AS $f2])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f0 VALUE f0) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL_RETRACT($f1, $f1) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

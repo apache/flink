@@ -18,23 +18,21 @@
 
 package org.apache.flink.configuration.description;
 
-/**
- * Represents a line break in the {@link Description}.
- */
-public class LineBreakElement implements BlockElement {
+import org.apache.flink.annotation.PublicEvolving;
 
-	/**
-	 * Creates a line break in the description.
-	 */
-	public static LineBreakElement linebreak() {
-		return new LineBreakElement();
-	}
+/** Represents a line break in the {@link Description}. */
+@PublicEvolving
+public class LineBreakElement implements InlineElement, BlockElement {
 
-	private LineBreakElement() {
-	}
+    /** Creates a line break in the description. */
+    public static LineBreakElement linebreak() {
+        return new LineBreakElement();
+    }
 
-	@Override
-	public void format(Formatter formatter) {
-		formatter.format(this);
-	}
+    private LineBreakElement() {}
+
+    @Override
+    public void format(Formatter formatter) {
+        formatter.format(this);
+    }
 }

@@ -45,152 +45,176 @@ import java.util.Map;
  *
  * @param <T> the {@link Value} type
  */
-public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implements AtomicType<ValueArray<T>> {
+public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>>
+        implements AtomicType<ValueArray<T>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final ValueArrayTypeInfo<ByteValue> BYTE_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.BYTE_VALUE_TYPE_INFO);
-	public static final ValueArrayTypeInfo<IntValue> INT_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.INT_VALUE_TYPE_INFO);
-	public static final ValueArrayTypeInfo<LongValue> LONG_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.LONG_VALUE_TYPE_INFO);
-	public static final ValueArrayTypeInfo<NullValue> NULL_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
-	public static final ValueArrayTypeInfo<StringValue> STRING_VALUE_ARRAY_TYPE_INFO = new ValueArrayTypeInfo<>(ValueTypeInfo.STRING_VALUE_TYPE_INFO);
+    public static final ValueArrayTypeInfo<ByteValue> BYTE_VALUE_ARRAY_TYPE_INFO =
+            new ValueArrayTypeInfo<>(ValueTypeInfo.BYTE_VALUE_TYPE_INFO);
+    public static final ValueArrayTypeInfo<IntValue> INT_VALUE_ARRAY_TYPE_INFO =
+            new ValueArrayTypeInfo<>(ValueTypeInfo.INT_VALUE_TYPE_INFO);
+    public static final ValueArrayTypeInfo<LongValue> LONG_VALUE_ARRAY_TYPE_INFO =
+            new ValueArrayTypeInfo<>(ValueTypeInfo.LONG_VALUE_TYPE_INFO);
+    public static final ValueArrayTypeInfo<NullValue> NULL_VALUE_ARRAY_TYPE_INFO =
+            new ValueArrayTypeInfo<>(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
+    public static final ValueArrayTypeInfo<StringValue> STRING_VALUE_ARRAY_TYPE_INFO =
+            new ValueArrayTypeInfo<>(ValueTypeInfo.STRING_VALUE_TYPE_INFO);
 
-	private final TypeInformation<T> valueType;
+    private final TypeInformation<T> valueType;
 
-	private final Class<T> type;
+    private final Class<T> type;
 
-	public ValueArrayTypeInfo(TypeInformation<T> valueType) {
-		this.valueType = valueType;
-		this.type = valueType == null ? null : valueType.getTypeClass();
-	}
+    public ValueArrayTypeInfo(TypeInformation<T> valueType) {
+        this.valueType = valueType;
+        this.type = valueType == null ? null : valueType.getTypeClass();
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<ValueArray<T>> getTypeClass() {
-		return (Class<ValueArray<T>>) (Class<?>) ValueArray.class;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<ValueArray<T>> getTypeClass() {
+        return (Class<ValueArray<T>>) (Class<?>) ValueArray.class;
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+    @Override
+    public boolean isKeyType() {
+        Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		return Comparable.class.isAssignableFrom(type);
-	}
+        return Comparable.class.isAssignableFrom(type);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializer<ValueArray<T>> createSerializer(ExecutionConfig executionConfig) {
-		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+    @Override
+    @SuppressWarnings("unchecked")
+    public TypeSerializer<ValueArray<T>> createSerializer(ExecutionConfig executionConfig) {
+        Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		if (ByteValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new ByteValueArraySerializer();
-		} else if (CharValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new CharValueArraySerializer();
-		} else if (DoubleValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new DoubleValueArraySerializer();
-		} else if (FloatValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new FloatValueArraySerializer();
-		} else if (IntValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new IntValueArraySerializer();
-		} else if (LongValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new LongValueArraySerializer();
-		} else if (NullValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new NullValueArraySerializer();
-		} else if (ShortValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new ShortValueArraySerializer();
-		} else if (StringValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new StringValueArraySerializer();
-		} else {
-			throw new InvalidTypesException("No ValueArray class exists for " + type);
-		}
-	}
+        if (ByteValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new ByteValueArraySerializer();
+        } else if (CharValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new CharValueArraySerializer();
+        } else if (DoubleValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new DoubleValueArraySerializer();
+        } else if (FloatValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new FloatValueArraySerializer();
+        } else if (IntValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new IntValueArraySerializer();
+        } else if (LongValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new LongValueArraySerializer();
+        } else if (NullValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new NullValueArraySerializer();
+        } else if (ShortValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new ShortValueArraySerializer();
+        } else if (StringValue.class.isAssignableFrom(type)) {
+            return (TypeSerializer<ValueArray<T>>)
+                    (TypeSerializer<?>) new StringValueArraySerializer();
+        } else {
+            throw new InvalidTypesException("No ValueArray class exists for " + type);
+        }
+    }
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public TypeComparator<ValueArray<T>> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
-		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public TypeComparator<ValueArray<T>> createComparator(
+            boolean sortOrderAscending, ExecutionConfig executionConfig) {
+        Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		if (ByteValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new ByteValueArrayComparator(sortOrderAscending);
-		} else if (CharValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CharValueArrayComparator(sortOrderAscending);
-		} else if (DoubleValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new DoubleValueArrayComparator(sortOrderAscending);
-		} else if (FloatValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new FloatValueArrayComparator(sortOrderAscending);
-		} else if (IntValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new IntValueArrayComparator(sortOrderAscending);
-		} else if (LongValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new LongValueArrayComparator(sortOrderAscending);
-		} else if (NullValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new NullValueArrayComparator(sortOrderAscending);
-		} else if (ShortValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new ShortValueArrayComparator(sortOrderAscending);
-		} else if (StringValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new StringValueArrayComparator(sortOrderAscending);
-		} else {
-			throw new InvalidTypesException("No ValueArray class exists for " + type);
-		}
-	}
+        if (ByteValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new ByteValueArrayComparator(sortOrderAscending);
+        } else if (CharValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new CharValueArrayComparator(sortOrderAscending);
+        } else if (DoubleValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new DoubleValueArrayComparator(sortOrderAscending);
+        } else if (FloatValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new FloatValueArrayComparator(sortOrderAscending);
+        } else if (IntValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new IntValueArrayComparator(sortOrderAscending);
+        } else if (LongValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new LongValueArrayComparator(sortOrderAscending);
+        } else if (NullValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new NullValueArrayComparator(sortOrderAscending);
+        } else if (ShortValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new ShortValueArrayComparator(sortOrderAscending);
+        } else if (StringValue.class.isAssignableFrom(type)) {
+            return (TypeComparator<ValueArray<T>>)
+                    (TypeComparator<?>) new StringValueArrayComparator(sortOrderAscending);
+        } else {
+            throw new InvalidTypesException("No ValueArray class exists for " + type);
+        }
+    }
 
-	@Override
-	public Map<String, TypeInformation<?>> getGenericParameters() {
-		Map<String, TypeInformation<?>> m = new HashMap<>(1);
-		m.put("T", valueType);
-		return m;
-	}
+    @Override
+    public Map<String, TypeInformation<?>> getGenericParameters() {
+        Map<String, TypeInformation<?>> m = new HashMap<>(1);
+        m.put("T", valueType);
+        return m;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+    @Override
+    public int hashCode() {
+        Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		return type.hashCode();
-	}
+        return type.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ValueArrayTypeInfo) {
-			@SuppressWarnings("unchecked")
-			ValueArrayTypeInfo<T> valueArrayTypeInfo = (ValueArrayTypeInfo<T>) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ValueArrayTypeInfo) {
+            @SuppressWarnings("unchecked")
+            ValueArrayTypeInfo<T> valueArrayTypeInfo = (ValueArrayTypeInfo<T>) obj;
 
-			return valueArrayTypeInfo.canEqual(this) &&
-				type == valueArrayTypeInfo.type;
-		} else {
-			return false;
-		}
-	}
+            return valueArrayTypeInfo.canEqual(this) && type == valueArrayTypeInfo.type;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ValueArrayTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof ValueArrayTypeInfo;
+    }
 
-	@Override
-	public String toString() {
-		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+    @Override
+    public String toString() {
+        Preconditions.checkNotNull(type, "TypeInformation type class is required");
 
-		return "ValueArrayType<" + type.getSimpleName() + ">";
-	}
+        return "ValueArrayType<" + type.getSimpleName() + ">";
+    }
 }

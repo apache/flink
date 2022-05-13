@@ -29,91 +29,95 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.ScatterFunction;
 
 /**
- * This is an implementation of the Single-Source-Shortest Paths algorithm, using a scatter-gather iteration.
+ * This is an implementation of the Single-Source-Shortest Paths algorithm, using a scatter-gather
+ * iteration.
  */
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K, VV> implements GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
+public class SingleSourceShortestPaths<K, VV>
+        implements GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
 
-	private final K srcVertexId;
-	private final Integer maxIterations;
+    private final K srcVertexId;
+    private final Integer maxIterations;
 
-	/**
-	 * Creates an instance of the SingleSourceShortestPaths algorithm.
-	 *
-	 * @param srcVertexId The ID of the source vertex.
-	 * @param maxIterations The maximum number of iterations to run.
-	 */
-	public SingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
-		this.srcVertexId = srcVertexId;
-		this.maxIterations = maxIterations;
-	}
+    /**
+     * Creates an instance of the SingleSourceShortestPaths algorithm.
+     *
+     * @param srcVertexId The ID of the source vertex.
+     * @param maxIterations The maximum number of iterations to run.
+     */
+    public SingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
+        this.srcVertexId = srcVertexId;
+        this.maxIterations = maxIterations;
+    }
 
-	@Override
-	public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
+    @Override
+    public DataSet<Vertex<K, Double>> run(Graph<K, VV, Double> input) {
 
-		return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
-				.runScatterGatherIteration(new MinDistanceMessenger<>(), new VertexDistanceUpdater<>(),
-				maxIterations).getVertices();
-	}
+        return input.mapVertices(new InitVerticesMapper<>(srcVertexId))
+                .runScatterGatherIteration(
+                        new MinDistanceMessenger<>(), new VertexDistanceUpdater<>(), maxIterations)
+                .getVertices();
+    }
 
-	private static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
+    private static final class InitVerticesMapper<K, VV>
+            implements MapFunction<Vertex<K, VV>, Double> {
 
-		private K srcVertexId;
+        private K srcVertexId;
 
-		public InitVerticesMapper(K srcId) {
-			this.srcVertexId = srcId;
-		}
+        public InitVerticesMapper(K srcId) {
+            this.srcVertexId = srcId;
+        }
 
-		public Double map(Vertex<K, VV> value) {
-			if (value.f0.equals(srcVertexId)) {
-				return 0.0;
-			} else {
-				return Double.MAX_VALUE;
-			}
-		}
-	}
+        public Double map(Vertex<K, VV> value) {
+            if (value.f0.equals(srcVertexId)) {
+                return 0.0;
+            } else {
+                return Double.MAX_VALUE;
+            }
+        }
+    }
 
-	/**
-	 * Distributes the minimum distance associated with a given vertex among all
-	 * the target vertices summed up with the edge's value.
-	 *
-	 * @param <K>
-	 */
-	public static final class MinDistanceMessenger<K> extends ScatterFunction<K, Double, Double, Double> {
+    /**
+     * Distributes the minimum distance associated with a given vertex among all the target vertices
+     * summed up with the edge's value.
+     *
+     * @param <K>
+     */
+    public static final class MinDistanceMessenger<K>
+            extends ScatterFunction<K, Double, Double, Double> {
 
-		@Override
-		public void sendMessages(Vertex<K, Double> vertex) {
-			if (vertex.getValue() < Double.POSITIVE_INFINITY) {
-				for (Edge<K, Double> edge : getEdges()) {
-					sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
-				}
-			}
-		}
-	}
+        @Override
+        public void sendMessages(Vertex<K, Double> vertex) {
+            if (vertex.getValue() < Double.POSITIVE_INFINITY) {
+                for (Edge<K, Double> edge : getEdges()) {
+                    sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+                }
+            }
+        }
+    }
 
-	/**
-	 * Function that updates the value of a vertex by picking the minimum
-	 * distance from all incoming messages.
-	 *
-	 * @param <K>
-	 */
-	public static final class VertexDistanceUpdater<K> extends GatherFunction<K, Double, Double> {
+    /**
+     * Function that updates the value of a vertex by picking the minimum distance from all incoming
+     * messages.
+     *
+     * @param <K>
+     */
+    public static final class VertexDistanceUpdater<K> extends GatherFunction<K, Double, Double> {
 
-		@Override
-		public void updateVertex(Vertex<K, Double> vertex,
-				MessageIterator<Double> inMessages) {
+        @Override
+        public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
 
-			Double minDistance = Double.MAX_VALUE;
+            Double minDistance = Double.MAX_VALUE;
 
-			for (double msg : inMessages) {
-				if (msg < minDistance) {
-					minDistance = msg;
-				}
-			}
+            for (double msg : inMessages) {
+                if (msg < minDistance) {
+                    minDistance = msg;
+                }
+            }
 
-			if (vertex.getValue() > minDistance) {
-				setNewVertexValue(minDistance);
-			}
-		}
-	}
+            if (vertex.getValue() > minDistance) {
+                setNewVertexValue(minDistance);
+            }
+        }
+    }
 }

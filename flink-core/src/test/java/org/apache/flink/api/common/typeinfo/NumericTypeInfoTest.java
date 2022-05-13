@@ -20,20 +20,18 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link NumericTypeInfo}.
- */
+/** Test for {@link NumericTypeInfo}. */
 public class NumericTypeInfoTest extends TypeInformationTestBase<NumericTypeInfo<?>> {
 
-	@Override
-	protected NumericTypeInfo<?>[] getTestData() {
-		return new NumericTypeInfo<?>[] {
-			(NumericTypeInfo<?>) BasicTypeInfo.BYTE_TYPE_INFO,
-			(NumericTypeInfo<?>) BasicTypeInfo.SHORT_TYPE_INFO,
-			(NumericTypeInfo<?>) BasicTypeInfo.INT_TYPE_INFO,
-			(NumericTypeInfo<?>) BasicTypeInfo.LONG_TYPE_INFO,
-			(NumericTypeInfo<?>) BasicTypeInfo.FLOAT_TYPE_INFO,
-			(NumericTypeInfo<?>) BasicTypeInfo.DOUBLE_TYPE_INFO
-		};
-	}
+    @Override
+    protected NumericTypeInfo<?>[] getTestData() {
+        return new NumericTypeInfo<?>[] {
+            (NumericTypeInfo<?>) BasicTypeInfo.BYTE_TYPE_INFO,
+            (NumericTypeInfo<?>) BasicTypeInfo.SHORT_TYPE_INFO,
+            (NumericTypeInfo<?>) BasicTypeInfo.INT_TYPE_INFO,
+            (NumericTypeInfo<?>) BasicTypeInfo.LONG_TYPE_INFO,
+            (NumericTypeInfo<?>) BasicTypeInfo.FLOAT_TYPE_INFO,
+            (NumericTypeInfo<?>) BasicTypeInfo.DOUBLE_TYPE_INFO
+        };
+    }
 }

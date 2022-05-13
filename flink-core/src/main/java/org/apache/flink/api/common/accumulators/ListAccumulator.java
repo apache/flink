@@ -30,39 +30,39 @@ import java.util.ArrayList;
 @Public
 public class ListAccumulator<T> implements Accumulator<T, ArrayList<T>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private ArrayList<T> localValue = new ArrayList<T>();
-	
-	@Override
-	public void add(T value) {
-		localValue.add(value);
-	}
+    private ArrayList<T> localValue = new ArrayList<T>();
 
-	@Override
-	public ArrayList<T> getLocalValue() {
-		return localValue;
-	}
+    @Override
+    public void add(T value) {
+        localValue.add(value);
+    }
 
-	@Override
-	public void resetLocal() {
-		localValue.clear();
-	}
+    @Override
+    public ArrayList<T> getLocalValue() {
+        return localValue;
+    }
 
-	@Override
-	public void merge(Accumulator<T, ArrayList<T>> other) {
-		localValue.addAll(other.getLocalValue());
-	}
+    @Override
+    public void resetLocal() {
+        localValue.clear();
+    }
 
-	@Override
-	public Accumulator<T, ArrayList<T>> clone() {
-		ListAccumulator<T> newInstance = new ListAccumulator<T>();
-		newInstance.localValue = new ArrayList<T>(localValue);
-		return newInstance;
-	}
+    @Override
+    public void merge(Accumulator<T, ArrayList<T>> other) {
+        localValue.addAll(other.getLocalValue());
+    }
 
-	@Override
-	public String toString() {
-		return "List Accumulator " + localValue;
-	}
+    @Override
+    public Accumulator<T, ArrayList<T>> clone() {
+        ListAccumulator<T> newInstance = new ListAccumulator<T>();
+        newInstance.localValue = new ArrayList<T>(localValue);
+        return newInstance;
+    }
+
+    @Override
+    public String toString() {
+        return "List Accumulator " + localValue;
+    }
 }

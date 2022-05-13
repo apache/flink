@@ -26,94 +26,96 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A utility that guards against blocking shutdown hooks that block JVM shutdown.
- * 
- * <p>When the JVM shuts down cleanly (<i>SIGTERM</i> or {@link System#exit(int)}) it runs
- * all installed shutdown hooks. It is possible that any of the shutdown hooks blocks,
- * which causes the JVM to get stuck and not exit at all.
- * 
- * <p>This utility installs a shutdown hook that forcibly terminates the JVM if it is still alive
- * a certain time after clean shutdown was initiated. Even if some shutdown hooks block, the JVM will
+ *
+ * <p>When the JVM shuts down cleanly (<i>SIGTERM</i> or {@link System#exit(int)}) it runs all
+ * installed shutdown hooks. It is possible that any of the shutdown hooks blocks, which causes the
+ * JVM to get stuck and not exit at all.
+ *
+ * <p>This utility installs a shutdown hook that forcibly terminates the JVM if it is still alive a
+ * certain time after clean shutdown was initiated. Even if some shutdown hooks block, the JVM will
  * terminate within a certain time.
  */
 public class JvmShutdownSafeguard extends Thread {
 
-	/** Default delay to wait after clean shutdown was stared, before forcibly terminating the JVM */  
-	private static final long DEFAULT_DELAY = 5000L;
+    /**
+     * Default delay to wait after clean shutdown was stared, before forcibly terminating the JVM
+     */
+    private static final long DEFAULT_DELAY = 5000L;
 
-	/** The exit code returned by the JVM process if it is killed by the safeguard */
-	private static final int EXIT_CODE = -17;
+    /** The exit code returned by the JVM process if it is killed by the safeguard */
+    private static final int EXIT_CODE = -17;
 
-	/** The thread that actually does the termination */
-	private final Thread terminator;
-	
-	private JvmShutdownSafeguard(long delayMillis) {
-		setName("JVM Terminator Launcher");
+    /** The thread that actually does the termination */
+    private final Thread terminator;
 
-		this.terminator = new Thread(new DelayedTerminator(delayMillis), "Jvm Terminator");
-		this.terminator.setDaemon(true);
-	}
+    private JvmShutdownSafeguard(long delayMillis) {
+        setName("JVM Terminator Launcher");
 
-	@Override
-	public void run() {
-		// Because this thread is registered as a shutdown hook, we cannot
-		// wait here and then call for termination. That would always delay the JVM shutdown.
-		// Instead, we spawn a non shutdown hook thread from here. 
-		// That thread is a daemon, so it does not keep the JVM alive.
-		terminator.start();
-	}
+        this.terminator = new Thread(new DelayedTerminator(delayMillis), "Jvm Terminator");
+        this.terminator.setDaemon(true);
+    }
 
-	// ------------------------------------------------------------------------
-	//  The actual Shutdown thread
-	// ------------------------------------------------------------------------
+    @Override
+    public void run() {
+        // Because this thread is registered as a shutdown hook, we cannot
+        // wait here and then call for termination. That would always delay the JVM shutdown.
+        // Instead, we spawn a non shutdown hook thread from here.
+        // That thread is a daemon, so it does not keep the JVM alive.
+        terminator.start();
+    }
 
-	private static class DelayedTerminator implements Runnable {
+    // ------------------------------------------------------------------------
+    //  The actual Shutdown thread
+    // ------------------------------------------------------------------------
 
-		private final long delayMillis;
+    private static class DelayedTerminator implements Runnable {
 
-		private DelayedTerminator(long delayMillis) {
-			this.delayMillis = delayMillis;
-		}
+        private final long delayMillis;
 
-		@Override
-		public void run() {
-			try {
-				Thread.sleep(delayMillis);
-			}
-			catch (Throwable t) {
-				// catch all, including thread death, etc
-			}
+        private DelayedTerminator(long delayMillis) {
+            this.delayMillis = delayMillis;
+        }
 
-			Runtime.getRuntime().halt(EXIT_CODE);
-		}
-	} 
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(delayMillis);
+            } catch (Throwable t) {
+                // catch all, including thread death, etc
+            }
 
-	// ------------------------------------------------------------------------
-	//  Installing as a shutdown hook
-	// ------------------------------------------------------------------------
+            Runtime.getRuntime().halt(EXIT_CODE);
+        }
+    }
 
-	/**
-	 * Installs the safeguard shutdown hook. The maximum time that the JVM is allowed to spend
-	 * on shutdown before being killed is five seconds.
-	 * 
-	 * @param logger The logger to log errors to.
-	 */
-	public static void installAsShutdownHook(Logger logger) {
-		installAsShutdownHook(logger, DEFAULT_DELAY);
-	}
+    // ------------------------------------------------------------------------
+    //  Installing as a shutdown hook
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Installs the safeguard shutdown hook. The maximum time that the JVM is allowed to spend
-	 * on shutdown before being killed is the given number of milliseconds.
-	 * 
-	 * @param logger      The logger to log errors to.
-	 * @param delayMillis The delay (in milliseconds) to wait after clean shutdown was stared,
-	 *                    before forcibly terminating the JVM.
-	 */
-	public static void installAsShutdownHook(Logger logger, long delayMillis) {
-		checkArgument(delayMillis >= 0, "delay must be >= 0");
+    /**
+     * Installs the safeguard shutdown hook. The maximum time that the JVM is allowed to spend on
+     * shutdown before being killed is five seconds.
+     *
+     * @param logger The logger to log errors to.
+     */
+    public static void installAsShutdownHook(Logger logger) {
+        installAsShutdownHook(logger, DEFAULT_DELAY);
+    }
 
-		// install the blocking shutdown hook
-		Thread shutdownHook = new JvmShutdownSafeguard(delayMillis);
-		ShutdownHookUtil.addShutdownHookThread(shutdownHook, JvmShutdownSafeguard.class.getSimpleName(), logger);
-	}
+    /**
+     * Installs the safeguard shutdown hook. The maximum time that the JVM is allowed to spend on
+     * shutdown before being killed is the given number of milliseconds.
+     *
+     * @param logger The logger to log errors to.
+     * @param delayMillis The delay (in milliseconds) to wait after clean shutdown was stared,
+     *     before forcibly terminating the JVM.
+     */
+    public static void installAsShutdownHook(Logger logger, long delayMillis) {
+        checkArgument(delayMillis >= 0, "delay must be >= 0");
+
+        // install the blocking shutdown hook
+        Thread shutdownHook = new JvmShutdownSafeguard(delayMillis);
+        ShutdownHookUtil.addShutdownHookThread(
+                shutdownHook, JvmShutdownSafeguard.class.getSimpleName(), logger);
+    }
 }

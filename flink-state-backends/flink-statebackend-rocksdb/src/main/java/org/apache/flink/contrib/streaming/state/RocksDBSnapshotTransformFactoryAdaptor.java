@@ -28,78 +28,90 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTran
 
 import java.util.Optional;
 
-abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> implements StateSnapshotTransformFactory<SV> {
-	final StateSnapshotTransformFactory<SEV> snapshotTransformFactory;
+abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV>
+        implements StateSnapshotTransformFactory<SV> {
+    final StateSnapshotTransformFactory<SEV> snapshotTransformFactory;
 
-	RocksDBSnapshotTransformFactoryAdaptor(StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
-		this.snapshotTransformFactory = snapshotTransformFactory;
-	}
+    RocksDBSnapshotTransformFactoryAdaptor(
+            StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+        this.snapshotTransformFactory = snapshotTransformFactory;
+    }
 
-	@Override
-	public Optional<StateSnapshotTransformer<SV>> createForDeserializedState() {
-		throw new UnsupportedOperationException("Only serialized state filtering is supported in RocksDB backend");
-	}
+    @Override
+    public Optional<StateSnapshotTransformer<SV>> createForDeserializedState() {
+        throw new UnsupportedOperationException(
+                "Only serialized state filtering is supported in RocksDB backend");
+    }
 
-	@SuppressWarnings("unchecked")
-	static <SV, SEV> StateSnapshotTransformFactory<SV> wrapStateSnapshotTransformFactory(
-		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
-		TypeSerializer<SV> stateSerializer) {
-		if (stateDesc instanceof ListStateDescriptor) {
-			TypeSerializer<SEV> elementSerializer = ((ListSerializer<SEV>) stateSerializer).getElementSerializer();
-			return new RocksDBListStateSnapshotTransformFactory<>(snapshotTransformFactory, elementSerializer);
-		} else if (stateDesc instanceof MapStateDescriptor) {
-			return new RocksDBMapStateSnapshotTransformFactory<>(snapshotTransformFactory);
-		} else {
-			return new RocksDBValueStateSnapshotTransformFactory<>(snapshotTransformFactory);
-		}
-	}
+    @SuppressWarnings("unchecked")
+    static <SV, SEV> StateSnapshotTransformFactory<SV> wrapStateSnapshotTransformFactory(
+            StateDescriptor<?, SV> stateDesc,
+            StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+            TypeSerializer<SV> stateSerializer) {
+        if (stateDesc instanceof ListStateDescriptor) {
+            TypeSerializer<SEV> elementSerializer =
+                    ((ListSerializer<SEV>) stateSerializer).getElementSerializer();
+            return new RocksDBListStateSnapshotTransformFactory<>(
+                    snapshotTransformFactory, elementSerializer);
+        } else if (stateDesc instanceof MapStateDescriptor) {
+            return new RocksDBMapStateSnapshotTransformFactory<>(snapshotTransformFactory);
+        } else {
+            return new RocksDBValueStateSnapshotTransformFactory<>(snapshotTransformFactory);
+        }
+    }
 
-	private static class RocksDBValueStateSnapshotTransformFactory<SV, SEV>
-		extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
+    private static class RocksDBValueStateSnapshotTransformFactory<SV, SEV>
+            extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
 
-		private RocksDBValueStateSnapshotTransformFactory(StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
-			super(snapshotTransformFactory);
-		}
+        private RocksDBValueStateSnapshotTransformFactory(
+                StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+            super(snapshotTransformFactory);
+        }
 
-		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return snapshotTransformFactory.createForSerializedState();
-		}
-	}
+        @Override
+        public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+            return snapshotTransformFactory.createForSerializedState();
+        }
+    }
 
-	private static class RocksDBMapStateSnapshotTransformFactory<SV, SEV>
-		extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
+    private static class RocksDBMapStateSnapshotTransformFactory<SV, SEV>
+            extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
 
-		private RocksDBMapStateSnapshotTransformFactory(StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
-			super(snapshotTransformFactory);
-		}
+        private RocksDBMapStateSnapshotTransformFactory(
+                StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+            super(snapshotTransformFactory);
+        }
 
-		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return snapshotTransformFactory.createForSerializedState()
-				.map(RocksDBMapState.StateSnapshotTransformerWrapper::new);
-		}
-	}
+        @Override
+        public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+            return snapshotTransformFactory
+                    .createForSerializedState()
+                    .map(RocksDBMapState.StateSnapshotTransformerWrapper::new);
+        }
+    }
 
-	private static class RocksDBListStateSnapshotTransformFactory<SV, SEV>
-		extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
+    private static class RocksDBListStateSnapshotTransformFactory<SV, SEV>
+            extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
 
-		private final TypeSerializer<SEV> elementSerializer;
+        private final TypeSerializer<SEV> elementSerializer;
 
-		@SuppressWarnings("unchecked")
-		private RocksDBListStateSnapshotTransformFactory(
-			StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
-			TypeSerializer<SEV> elementSerializer) {
+        @SuppressWarnings("unchecked")
+        private RocksDBListStateSnapshotTransformFactory(
+                StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+                TypeSerializer<SEV> elementSerializer) {
 
-			super(snapshotTransformFactory);
-			this.elementSerializer = elementSerializer;
-		}
+            super(snapshotTransformFactory);
+            this.elementSerializer = elementSerializer;
+        }
 
-		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return snapshotTransformFactory.createForDeserializedState()
-				.map(est -> new RocksDBListState.StateSnapshotTransformerWrapper<>(est, elementSerializer.duplicate()));
-		}
-	}
+        @Override
+        public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+            return snapshotTransformFactory
+                    .createForDeserializedState()
+                    .map(
+                            est ->
+                                    new RocksDBListState.StateSnapshotTransformerWrapper<>(
+                                            est, elementSerializer.duplicate()));
+        }
+    }
 }

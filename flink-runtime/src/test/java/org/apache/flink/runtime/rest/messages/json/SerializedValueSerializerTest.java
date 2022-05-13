@@ -33,50 +33,45 @@ import java.io.Serializable;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link SerializedValueSerializer} and {@link SerializedValueDeserializer}.
- */
+/** Tests for {@link SerializedValueSerializer} and {@link SerializedValueDeserializer}. */
 public class SerializedValueSerializerTest extends TestLogger {
 
-	private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
-	@Before
-	public void setUp() {
-		objectMapper = new ObjectMapper();
-		final SimpleModule simpleModule = new SimpleModule();
-		final JavaType serializedValueWildcardType = objectMapper
-			.getTypeFactory()
-			.constructType(new TypeReference<SerializedValue<?>>() {
-			});
-		simpleModule.addSerializer(new SerializedValueSerializer(serializedValueWildcardType));
-		simpleModule.addDeserializer(
-			SerializedValue.class,
-			new SerializedValueDeserializer(serializedValueWildcardType));
-		objectMapper.registerModule(simpleModule);
-	}
+    @Before
+    public void setUp() {
+        objectMapper = new ObjectMapper();
+        final SimpleModule simpleModule = new SimpleModule();
+        final JavaType serializedValueWildcardType =
+                objectMapper
+                        .getTypeFactory()
+                        .constructType(new TypeReference<SerializedValue<?>>() {});
+        simpleModule.addSerializer(new SerializedValueSerializer(serializedValueWildcardType));
+        simpleModule.addDeserializer(
+                SerializedValue.class,
+                new SerializedValueDeserializer(serializedValueWildcardType));
+        objectMapper.registerModule(simpleModule);
+    }
 
-	@Test
-	public void testSerializationDeserialization() throws Exception {
-		final String json = objectMapper.writeValueAsString(new SerializedValue<>(new TestClass()));
+    @Test
+    public void testSerializationDeserialization() throws Exception {
+        final String json = objectMapper.writeValueAsString(new SerializedValue<>(new TestClass()));
 
-		final SerializedValue<TestClass> serializedValue =
-			objectMapper.readValue(json, new TypeReference<SerializedValue<TestClass>>() {
-			});
-		final TestClass deserializedValue =
-			serializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
+        final SerializedValue<TestClass> serializedValue =
+                objectMapper.readValue(json, new TypeReference<SerializedValue<TestClass>>() {});
+        final TestClass deserializedValue =
+                serializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
 
-		assertEquals("baz", deserializedValue.foo);
-		assertEquals(1, deserializedValue.bar);
-	}
+        assertEquals("baz", deserializedValue.foo);
+        assertEquals(1, deserializedValue.bar);
+    }
 
-	private static class TestClass implements Serializable {
+    private static class TestClass implements Serializable {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private String foo = "baz";
+        private String foo = "baz";
 
-		private int bar = 1;
-
-	}
-
+        private int bar = 1;
+    }
 }

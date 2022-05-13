@@ -18,37 +18,30 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-
 /**
  * A connection manager implementation to bypass setup overhead for task managers running in local
  * execution mode.
  */
 public class LocalConnectionManager implements ConnectionManager {
 
-	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) {
-	}
+    @Override
+    public int start() {
+        return -1;
+    }
 
-	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
-		return null;
-	}
+    @Override
+    public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+        return null;
+    }
 
-	@Override
-	public void closeOpenChannelConnections(ConnectionID connectionId) {}
+    @Override
+    public void closeOpenChannelConnections(ConnectionID connectionId) {}
 
-	@Override
-	public int getNumberOfActiveConnections() {
-		return 0;
-	}
+    @Override
+    public int getNumberOfActiveConnections() {
+        return 0;
+    }
 
-	@Override
-	public int getDataPort() {
-		return -1;
-	}
-
-	@Override
-	public void shutdown() {}
+    @Override
+    public void shutdown() {}
 }

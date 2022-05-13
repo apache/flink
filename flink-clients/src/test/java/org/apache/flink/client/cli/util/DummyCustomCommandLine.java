@@ -19,59 +19,39 @@
 package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.deployment.ClusterDescriptor;
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import javax.annotation.Nullable;
+/** Dummy implementation of the {@link CustomCommandLine} for testing purposes. */
+public class DummyCustomCommandLine implements CustomCommandLine {
 
-/**
- * Dummy implementation of the {@link CustomCommandLine} for testing purposes.
- */
-public class DummyCustomCommandLine<T> implements CustomCommandLine {
-	private final ClusterClient<T> clusterClient;
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        return true;
+    }
 
-	public DummyCustomCommandLine(ClusterClient<T> clusterClient) {
-		this.clusterClient = Preconditions.checkNotNull(clusterClient);
-	}
+    @Override
+    public String getId() {
+        return DummyClusterClientFactory.ID;
+    }
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		return true;
-	}
+    @Override
+    public void addRunOptions(Options baseOptions) {
+        // nothing to add
+    }
 
-	@Override
-	public String getId() {
-		return DummyCustomCommandLine.class.getSimpleName();
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        // nothing to add
+    }
 
-	@Override
-	public void addRunOptions(Options baseOptions) {
-		// nothing to add
-	}
-
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		// nothing to add
-	}
-
-	@Override
-	public ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) {
-		return new DummyClusterDescriptor<>(clusterClient);
-	}
-
-	@Override
-	@Nullable
-	public String getClusterId(CommandLine commandLine) {
-		return "dummy";
-	}
-
-	@Override
-	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
-		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
-	}
+    @Override
+    public Configuration toConfiguration(CommandLine commandLine) {
+        final Configuration configuration = new Configuration();
+        configuration.setString(DeploymentOptions.TARGET, DummyClusterClientFactory.ID);
+        return configuration;
+    }
 }

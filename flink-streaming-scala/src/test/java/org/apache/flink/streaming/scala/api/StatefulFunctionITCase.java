@@ -22,14 +22,11 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
-/**
- * IT case using stateful functions.
- */
+/** IT case using stateful functions. */
 public class StatefulFunctionITCase extends AbstractTestBase {
 
-	@Test
-	public void testProgram() throws Exception {
-		StateTestPrograms.testStatefulFunctions();
-	}
+    @Test
+    public void testProgram() throws Exception {
+        StateTestPrograms.testStatefulFunctions();
+    }
 }
-

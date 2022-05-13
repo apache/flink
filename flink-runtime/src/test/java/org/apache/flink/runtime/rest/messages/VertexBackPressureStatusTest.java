@@ -25,21 +25,23 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}.
- */
+/** Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}. */
 public class VertexBackPressureStatusTest extends TestLogger {
 
-	/**
-	 * Tests that the enum values are serialized correctly.
-	 * Clients, such as the Web UI, expect values to be lower case.
-	 */
-	@Test
-	public void testJsonValue() throws Exception {
-		assertEquals("\"ok\"", RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.OK));
-		assertEquals("\"deprecated\"", RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.DEPRECATED));
-	}
-
+    /**
+     * Tests that the enum values are serialized correctly. Clients, such as the Web UI, expect
+     * values to be lower case.
+     */
+    @Test
+    public void testJsonValue() throws Exception {
+        assertEquals(
+                "\"ok\"",
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.OK));
+        assertEquals(
+                "\"deprecated\"",
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(
+                                JobVertexBackPressureInfo.VertexBackPressureStatus.DEPRECATED));
+    }
 }

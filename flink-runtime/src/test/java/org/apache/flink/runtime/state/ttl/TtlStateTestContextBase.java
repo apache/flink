@@ -22,31 +22,47 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
-abstract class TtlStateTestContextBase<S extends InternalKvState<?, String, ?>, UV, GV> {
-	S ttlState;
+import java.util.Objects;
 
-	UV updateEmpty;
-	UV updateUnexpired;
-	UV updateExpired;
+/** Base class for state TTL test context. */
+public abstract class TtlStateTestContextBase<S extends InternalKvState<?, String, ?>, UV, GV> {
+    public S ttlState;
 
-	GV getUpdateEmpty;
-	GV getUnexpired;
-	GV getUpdateExpired;
+    public UV updateEmpty;
+    public UV updateUnexpired;
+    public UV updateExpired;
 
-	GV emptyValue = null;
+    public GV getUpdateEmpty;
+    public GV getUnexpired;
+    GV getUpdateExpired;
 
-	abstract void initTestValues();
+    public GV emptyValue = null;
+    public String currentNamespace = "defaultNamespace";
 
-	abstract <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor();
+    abstract void initTestValues();
 
-	abstract void update(UV value) throws Exception;
+    public abstract <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor();
 
-	abstract GV get() throws Exception;
+    public abstract void update(UV value) throws Exception;
 
-	abstract Object getOriginal() throws Exception;
+    public abstract GV get() throws Exception;
 
-	@Override
-	public String toString() {
-		return this.getClass().getSimpleName();
-	}
+    public abstract Object getOriginal() throws Exception;
+
+    public boolean isOriginalEmptyValue() throws Exception {
+        return Objects.equals(emptyValue, getOriginal());
+    }
+
+    public String getName() {
+        return this.getClass().getSimpleName();
+    }
+
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName();
+    }
+
+    public void setCurrentNamespace(String currentNamespace) {
+        this.currentNamespace = currentNamespace;
+    }
 }

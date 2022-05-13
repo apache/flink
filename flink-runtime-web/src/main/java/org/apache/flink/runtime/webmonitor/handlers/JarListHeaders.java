@@ -25,53 +25,52 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JarListHandler}.
- */
-public class JarListHeaders implements MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
+/** Message headers for the {@link JarListHandler}. */
+public class JarListHeaders
+        implements MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
 
-	public static final String URL = "/jars";
+    public static final String URL = "/jars";
 
-	private static final JarListHeaders INSTANCE = new JarListHeaders();
+    private static final JarListHeaders INSTANCE = new JarListHeaders();
 
-	private JarListHeaders() {}
+    private JarListHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JarListInfo> getResponseClass() {
-		return JarListInfo.class;
-	}
+    @Override
+    public Class<JarListInfo> getResponseClass() {
+        return JarListInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JarListHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JarListHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns a list of all jars previously uploaded via '" + JarUploadHeaders.URL + "'.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns a list of all jars previously uploaded via '" + JarUploadHeaders.URL + "'.";
+    }
 }

@@ -23,124 +23,130 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/**
- * IO metrics information.
- */
+/** IO metrics information. */
 public final class IOMetricsInfo {
 
-	private static final String FIELD_NAME_BYTES_READ = "read-bytes";
+    private static final String FIELD_NAME_BYTES_READ = "read-bytes";
 
-	private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
+    private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
+    private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
 
-	private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
+    private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
-	private static final String FIELD_NAME_RECORDS_READ = "read-records";
+    private static final String FIELD_NAME_RECORDS_READ = "read-records";
 
-	private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
+    private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
+    private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
 
-	private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
+    private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
 
-	@JsonProperty(FIELD_NAME_BYTES_READ)
-	private final long bytesRead;
+    @JsonProperty(FIELD_NAME_BYTES_READ)
+    private final long bytesRead;
 
-	@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE)
-	private final boolean bytesReadComplete;
+    @JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE)
+    private final boolean bytesReadComplete;
 
-	@JsonProperty(FIELD_NAME_BYTES_WRITTEN)
-	private final long bytesWritten;
+    @JsonProperty(FIELD_NAME_BYTES_WRITTEN)
+    private final long bytesWritten;
 
-	@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
-	private final boolean bytesWrittenComplete;
+    @JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
+    private final boolean bytesWrittenComplete;
 
-	@JsonProperty(FIELD_NAME_RECORDS_READ)
-	private final long recordsRead;
+    @JsonProperty(FIELD_NAME_RECORDS_READ)
+    private final long recordsRead;
 
-	@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE)
-	private final boolean recordsReadComplete;
+    @JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE)
+    private final boolean recordsReadComplete;
 
-	@JsonProperty(FIELD_NAME_RECORDS_WRITTEN)
-	private final long recordsWritten;
+    @JsonProperty(FIELD_NAME_RECORDS_WRITTEN)
+    private final long recordsWritten;
 
-	@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
-	private final boolean recordsWrittenComplete;
+    @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
+    private final boolean recordsWrittenComplete;
 
-	@JsonCreator
-	public IOMetricsInfo(
-			@JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
-			@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
-			@JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
-			@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
-			@JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
-			@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
-			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
-			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
-		this.bytesRead = bytesRead;
-		this.bytesReadComplete = bytesReadComplete;
-		this.bytesWritten = bytesWritten;
-		this.bytesWrittenComplete = bytesWrittenComplete;
-		this.recordsRead = recordsRead;
-		this.recordsReadComplete = recordsReadComplete;
-		this.recordsWritten = recordsWritten;
-		this.recordsWrittenComplete = recordsWrittenComplete;
-	}
+    @JsonCreator
+    public IOMetricsInfo(
+            @JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
+            @JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
+            @JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
+            @JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
+            @JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
+            @JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
+        this.bytesRead = bytesRead;
+        this.bytesReadComplete = bytesReadComplete;
+        this.bytesWritten = bytesWritten;
+        this.bytesWrittenComplete = bytesWrittenComplete;
+        this.recordsRead = recordsRead;
+        this.recordsReadComplete = recordsReadComplete;
+        this.recordsWritten = recordsWritten;
+        this.recordsWrittenComplete = recordsWrittenComplete;
+    }
 
-	public long getBytesRead() {
-		return bytesRead;
-	}
+    public long getBytesRead() {
+        return bytesRead;
+    }
 
-	public boolean isBytesReadComplete() {
-		return bytesReadComplete;
-	}
+    public boolean isBytesReadComplete() {
+        return bytesReadComplete;
+    }
 
-	public long getBytesWritten() {
-		return bytesWritten;
-	}
+    public long getBytesWritten() {
+        return bytesWritten;
+    }
 
-	public boolean isBytesWrittenComplete() {
-		return bytesWrittenComplete;
-	}
+    public boolean isBytesWrittenComplete() {
+        return bytesWrittenComplete;
+    }
 
-	public long getRecordsRead() {
-		return recordsRead;
-	}
+    public long getRecordsRead() {
+        return recordsRead;
+    }
 
-	public boolean isRecordsReadComplete() {
-		return recordsReadComplete;
-	}
+    public boolean isRecordsReadComplete() {
+        return recordsReadComplete;
+    }
 
-	public long getRecordsWritten() {
-		return recordsWritten;
-	}
+    public long getRecordsWritten() {
+        return recordsWritten;
+    }
 
-	public boolean isRecordsWrittenComplete() {
-		return recordsWrittenComplete;
-	}
+    public boolean isRecordsWrittenComplete() {
+        return recordsWrittenComplete;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		IOMetricsInfo that = (IOMetricsInfo) o;
-		return bytesRead == that.bytesRead &&
-			bytesReadComplete == that.bytesReadComplete &&
-			bytesWritten == that.bytesWritten &&
-			bytesWrittenComplete == that.bytesWrittenComplete &&
-			recordsRead == that.recordsRead &&
-			recordsReadComplete == that.recordsReadComplete &&
-			recordsWritten == that.recordsWritten &&
-			recordsWrittenComplete == that.recordsWrittenComplete;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        IOMetricsInfo that = (IOMetricsInfo) o;
+        return bytesRead == that.bytesRead
+                && bytesReadComplete == that.bytesReadComplete
+                && bytesWritten == that.bytesWritten
+                && bytesWrittenComplete == that.bytesWrittenComplete
+                && recordsRead == that.recordsRead
+                && recordsReadComplete == that.recordsReadComplete
+                && recordsWritten == that.recordsWritten
+                && recordsWrittenComplete == that.recordsWrittenComplete;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                bytesRead,
+                bytesReadComplete,
+                bytesWritten,
+                bytesWrittenComplete,
+                recordsRead,
+                recordsReadComplete,
+                recordsWritten,
+                recordsWrittenComplete);
+    }
 }

@@ -37,71 +37,68 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the configuration of the default file system scheme.
- */
+/** Tests for the configuration of the default file system scheme. */
 public class FilesystemSchemeConfigTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@After
-	public void clearFsSettings() throws IOException {
-		FileSystem.initialize(new Configuration());
-	}
+    @After
+    public void clearFsSettings() throws IOException {
+        FileSystem.initialize(new Configuration());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Test
-	public void testDefaultsToLocal() throws Exception {
-		URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-		assertNull(justPath.getScheme());
+    @Test
+    public void testDefaultsToLocal() throws Exception {
+        URI justPath = new URI(tempFolder.newFile().toURI().getPath());
+        assertNull(justPath.getScheme());
 
-		FileSystem fs = FileSystem.get(justPath);
-		assertEquals("file", fs.getUri().getScheme());
-	}
+        FileSystem fs = FileSystem.get(justPath);
+        assertEquals("file", fs.getUri().getScheme());
+    }
 
-	@Test
-	public void testExplicitlySetToLocal() throws Exception {
-		final Configuration conf = new Configuration();
-		conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, LocalFileSystem.getLocalFsURI().toString());
-		FileSystem.initialize(conf);
+    @Test
+    public void testExplicitlySetToLocal() throws Exception {
+        final Configuration conf = new Configuration();
+        conf.setString(
+                CoreOptions.DEFAULT_FILESYSTEM_SCHEME, LocalFileSystem.getLocalFsURI().toString());
+        FileSystem.initialize(conf);
 
-		URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-		assertNull(justPath.getScheme());
+        URI justPath = new URI(tempFolder.newFile().toURI().getPath());
+        assertNull(justPath.getScheme());
 
-		FileSystem fs = FileSystem.get(justPath);
-		assertEquals("file", fs.getUri().getScheme());
-	}
+        FileSystem fs = FileSystem.get(justPath);
+        assertEquals("file", fs.getUri().getScheme());
+    }
 
-	@Test
-	public void testExplicitlySetToOther() throws Exception {
-		final Configuration conf = new Configuration();
-		conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
-		FileSystem.initialize(conf);
+    @Test
+    public void testExplicitlySetToOther() throws Exception {
+        final Configuration conf = new Configuration();
+        conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
+        FileSystem.initialize(conf);
 
-		URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-		assertNull(justPath.getScheme());
+        URI justPath = new URI(tempFolder.newFile().toURI().getPath());
+        assertNull(justPath.getScheme());
 
-		try {
-			FileSystem.get(justPath);
-			fail("should have failed with an exception");
-		}
-		catch (UnsupportedFileSystemSchemeException e) {
-			assertTrue(e.getMessage().contains("otherFS"));
-		}
-	}
+        try {
+            FileSystem.get(justPath);
+            fail("should have failed with an exception");
+        } catch (UnsupportedFileSystemSchemeException e) {
+            assertTrue(e.getMessage().contains("otherFS"));
+        }
+    }
 
-	@Test
-	public void testExplicitlyPathTakesPrecedence() throws Exception {
-		final Configuration conf = new Configuration();
-		conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
-		FileSystem.initialize(conf);
+    @Test
+    public void testExplicitlyPathTakesPrecedence() throws Exception {
+        final Configuration conf = new Configuration();
+        conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
+        FileSystem.initialize(conf);
 
-		URI pathAndScheme = tempFolder.newFile().toURI();
-		assertNotNull(pathAndScheme.getScheme());
+        URI pathAndScheme = tempFolder.newFile().toURI();
+        assertNotNull(pathAndScheme.getScheme());
 
-		FileSystem fs = FileSystem.get(pathAndScheme);
-		assertEquals("file", fs.getUri().getScheme());
-	}
+        FileSystem fs = FileSystem.get(pathAndScheme);
+        assertEquals("file", fs.getUri().getScheme());
+    }
 }

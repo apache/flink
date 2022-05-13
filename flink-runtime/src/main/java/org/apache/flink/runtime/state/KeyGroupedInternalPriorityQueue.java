@@ -23,16 +23,16 @@ import javax.annotation.Nonnull;
 import java.util.Set;
 
 /**
- * This interface exists as (temporary) adapter between the new {@link InternalPriorityQueue} and the old way in which
- * timers are written in a snapshot. This interface can probably go away once timer state becomes part of the
- * keyed state backend snapshot.
+ * This interface exists as (temporary) adapter between the new {@link InternalPriorityQueue} and
+ * the old way in which timers are written in a snapshot. This interface can probably go away once
+ * timer state becomes part of the keyed state backend snapshot.
  */
 public interface KeyGroupedInternalPriorityQueue<T> extends InternalPriorityQueue<T> {
 
-	/**
-	 * Returns the subset of elements in the priority queue that belongs to the given key-group, within the operator's
-	 * key-group range.
-	 */
-	@Nonnull
-	Set<T> getSubsetForKeyGroup(int keyGroupId);
+    /**
+     * Returns the subset of elements in the priority queue that belongs to the given key-group,
+     * within the operator's key-group range.
+     */
+    @Nonnull
+    Set<T> getSubsetForKeyGroup(int keyGroupId);
 }

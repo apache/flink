@@ -19,11 +19,11 @@
 package org.apache.flink.queryablestate.client.state;
 
 /**
- * A base class for the <b>read-only</b> types of state returned
- * as results from the Queryable State Client.
+ * A base class for the <b>read-only</b> types of state returned as results from the Queryable State
+ * Client.
  */
 abstract class ImmutableState {
 
-	protected static final UnsupportedOperationException MODIFICATION_ATTEMPT_ERROR =
-			new UnsupportedOperationException("State is read-only. No modifications allowed.");
+    protected static final UnsupportedOperationException MODIFICATION_ATTEMPT_ERROR =
+            new UnsupportedOperationException("State is read-only. No modifications allowed.");
 }

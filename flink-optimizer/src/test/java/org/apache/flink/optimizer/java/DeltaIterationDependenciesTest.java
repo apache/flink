@@ -18,60 +18,67 @@
 
 package org.apache.flink.optimizer.java;
 
-import static org.junit.Assert.fail;
-
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.junit.Test;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.CompilerException;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 
+import org.junit.Test;
+
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class DeltaIterationDependenciesTest extends CompilerTestBase {
 
-	@Test
-	public void testExceptionWhenNewWorksetNotDependentOnWorkset() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testExceptionWhenNewWorksetNotDependentOnWorkset() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> input = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+            DataSet<Tuple2<Long, Long>> input = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
 
-			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> deltaIteration = input.iterateDelta(input, 10,0);
+            DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> deltaIteration =
+                    input.iterateDelta(input, 10, 0);
 
-			DataSet<Tuple2<Long, Long>> delta = deltaIteration.getSolutionSet().join(deltaIteration.getWorkset())
-														.where(0).equalTo(0)
-														.projectFirst(1).projectSecond(1);
+            DataSet<Tuple2<Long, Long>> delta =
+                    deltaIteration
+                            .getSolutionSet()
+                            .join(deltaIteration.getWorkset())
+                            .where(0)
+                            .equalTo(0)
+                            .projectFirst(1)
+                            .projectSecond(1);
 
-			DataSet<Tuple2<Long, Long>> nextWorkset = deltaIteration.getSolutionSet().join(input)
-														.where(0).equalTo(0)
-														.projectFirst(1).projectSecond(1);
-			
+            DataSet<Tuple2<Long, Long>> nextWorkset =
+                    deltaIteration
+                            .getSolutionSet()
+                            .join(input)
+                            .where(0)
+                            .equalTo(0)
+                            .projectFirst(1)
+                            .projectSecond(1);
 
-			DataSet<Tuple2<Long, Long>> result = deltaIteration.closeWith(delta, nextWorkset);
+            DataSet<Tuple2<Long, Long>> result = deltaIteration.closeWith(delta, nextWorkset);
 
-			result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
-			
-			Plan p = env.createProgramPlan();
-			try {
-				compileNoStats(p);
-				fail("Should not be able to compile, since the next workset does not depend on the workset");
-			}
-			catch (CompilerException e) {
-				// good
-			}
-			catch (Exception e) {
-				fail("wrong exception type");
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
+            Plan p = env.createProgramPlan();
+            try {
+                compileNoStats(p);
+                fail(
+                        "Should not be able to compile, since the next workset does not depend on the workset");
+            } catch (CompilerException e) {
+                // good
+            } catch (Exception e) {
+                fail("wrong exception type");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

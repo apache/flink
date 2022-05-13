@@ -18,261 +18,793 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link ResultPartition}.
- */
+/** Tests for {@link ResultPartition}. */
 public class ResultPartitionTest {
 
-	/** Asynchronous I/O manager. */
-	private static final IOManager ioManager = new IOManagerAsync();
+    private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
-	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
-	}
+    private static FileChannelManager fileChannelManager;
 
-	/**
-	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
-	 */
-	@Test
-	public void testSendScheduleOrUpdateConsumersMessage() throws Exception {
-		{
-			// Pipelined, send message => notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, true);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, times(1))
-				.notifyPartitionConsumable(
-					eq(partition.getJobId()),
-					eq(partition.getPartitionId()),
-					any(TaskActions.class));
-		}
+    private final int bufferSize = 1024;
 
-		{
-			// Pipelined, don't send message => don't notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, false);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
+    @BeforeClass
+    public static void setUp() {
+        fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+    }
 
-		{
-			// Blocking, send message => don't notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, true);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
+    @AfterClass
+    public static void shutdown() throws Exception {
+        fileChannelManager.close();
+    }
 
-		{
-			// Blocking, don't send message => don't notify
-			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, false);
-			partition.addBufferConsumer(createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
-	}
+    @Test
+    public void testResultSubpartitionInfo() {
+        final int numPartitions = 2;
+        final int numSubpartitions = 3;
 
-	@Test
-	public void testAddOnFinishedPipelinedPartition() throws Exception {
-		testAddOnFinishedPartition(ResultPartitionType.PIPELINED);
-	}
+        for (int i = 0; i < numPartitions; i++) {
+            final PipelinedResultPartition partition =
+                    (PipelinedResultPartition)
+                            new ResultPartitionBuilder()
+                                    .setResultPartitionIndex(i)
+                                    .setNumberOfSubpartitions(numSubpartitions)
+                                    .build();
 
-	@Test
-	public void testAddOnFinishedBlockingPartition() throws Exception {
-		testAddOnFinishedPartition(ResultPartitionType.BLOCKING);
-	}
+            ResultSubpartition[] subpartitions = partition.getAllPartitions();
+            for (int j = 0; j < subpartitions.length; j++) {
+                ResultSubpartitionInfo subpartitionInfo = subpartitions[j].getSubpartitionInfo();
 
-	/**
-	 * Tests {@link ResultPartition#addBufferConsumer} on a partition which has already finished.
-	 *
-	 * @param pipelined the result partition type to set up
-	 */
-	protected void testAddOnFinishedPartition(final ResultPartitionType pipelined)
-		throws Exception {
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-		try {
-			ResultPartition partition = createPartition(notifier, pipelined, true);
-			partition.finish();
-			reset(notifier);
-			// partition.add() should fail
-			partition.addBufferConsumer(bufferConsumer, 0);
-			Assert.fail("exception expected");
-		} catch (IllegalStateException e) {
-			// expected => ignored
-		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-				Assert.fail("bufferConsumer not recycled");
-			}
-			// should not have notified either
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
-	}
+                assertEquals(i, subpartitionInfo.getPartitionIdx());
+                assertEquals(j, subpartitionInfo.getSubPartitionIdx());
+            }
+        }
+    }
 
-	@Test
-	public void testAddOnReleasedPipelinedPartition() throws Exception {
-		testAddOnReleasedPartition(ResultPartitionType.PIPELINED);
-	}
+    @Test
+    public void testAddOnFinishedPipelinedPartition() throws Exception {
+        testAddOnFinishedPartition(ResultPartitionType.PIPELINED);
+    }
 
-	@Test
-	public void testAddOnReleasedBlockingPartition() throws Exception {
-		testAddOnReleasedPartition(ResultPartitionType.BLOCKING);
-	}
+    @Test
+    public void testAddOnFinishedBlockingPartition() throws Exception {
+        testAddOnFinishedPartition(ResultPartitionType.BLOCKING);
+    }
 
-	/**
-	 * Tests {@link ResultPartition#addBufferConsumer} on a partition which has already been released.
-	 *
-	 * @param pipelined the result partition type to set up
-	 */
-	protected void testAddOnReleasedPartition(final ResultPartitionType pipelined)
-		throws Exception {
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-		try {
-			ResultPartition partition = createPartition(notifier, pipelined, true);
-			partition.release();
-			// partition.add() silently drops the bufferConsumer but recycles it
-			partition.addBufferConsumer(bufferConsumer, 0);
-		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-				Assert.fail("bufferConsumer not recycled");
-			}
-			// should not have notified either
-			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
-		}
-	}
+    @Test
+    public void testBlockingPartitionIsConsumableMultipleTimesIfNotReleasedOnConsumption()
+            throws IOException {
+        ResultPartitionManager manager = new ResultPartitionManager();
 
-	@Test
-	public void testAddOnPipelinedPartition() throws Exception {
-		testAddOnPartition(ResultPartitionType.PIPELINED);
-	}
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionManager(manager)
+                        .setResultPartitionType(ResultPartitionType.BLOCKING)
+                        .setFileChannelManager(fileChannelManager)
+                        .build();
 
-	@Test
-	public void testAddOnBlockingPartition() throws Exception {
-		testAddOnPartition(ResultPartitionType.BLOCKING);
-	}
+        manager.registerResultPartition(partition);
+        partition.finish();
 
-	/**
-	 * Tests {@link ResultPartition#addBufferConsumer(BufferConsumer, int)} on a working partition.
-	 *
-	 * @param pipelined the result partition type to set up
-	 */
-	protected void testAddOnPartition(final ResultPartitionType pipelined)
-		throws Exception {
-		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
-		ResultPartition partition = createPartition(notifier, pipelined, true);
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		try {
-			// partition.add() adds the bufferConsumer without recycling it (if not spilling)
-			partition.addBufferConsumer(bufferConsumer, 0);
-			assertFalse("bufferConsumer should not be recycled (still in the queue)", bufferConsumer.isRecycled());
-		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-			}
-			// should have been notified for pipelined partitions
-			if (pipelined.isPipelined()) {
-				verify(notifier, times(1))
-					.notifyPartitionConsumable(
-						eq(partition.getJobId()),
-						eq(partition.getPartitionId()),
-						any(TaskActions.class));
-			}
-		}
-	}
+        assertThat(manager.getUnreleasedPartitions(), contains(partition.getPartitionId()));
 
-	@Test
-	public void testReleaseMemoryOnBlockingPartition() throws Exception {
-		testReleaseMemory(ResultPartitionType.BLOCKING);
-	}
+        // a blocking partition that is not released on consumption should be consumable multiple
+        // times
+        for (int x = 0; x < 2; x++) {
+            ResultSubpartitionView subpartitionView1 =
+                    partition.createSubpartitionView(0, () -> {});
+            subpartitionView1.releaseAllResources();
 
-	@Test
-	public void testReleaseMemoryOnPipelinedPartition() throws Exception {
-		testReleaseMemory(ResultPartitionType.PIPELINED);
-	}
+            // partition should not be released on consumption
+            assertThat(manager.getUnreleasedPartitions(), contains(partition.getPartitionId()));
+            assertFalse(partition.isReleased());
+        }
+    }
 
-	/**
-	 * Tests {@link ResultPartition#releaseMemory(int)} on a working partition.
-	 *
-	 * @param resultPartitionType the result partition type to set up
-	 */
-	private void testReleaseMemory(final ResultPartitionType resultPartitionType) throws Exception {
-		final int numAllBuffers = 10;
-		final NetworkEnvironment network = new NetworkEnvironment(numAllBuffers, 128, 0, 0, 2, 8, true);
-		final ResultPartitionConsumableNotifier notifier = new NoOpResultPartitionConsumableNotifier();
-		final ResultPartition resultPartition = createPartition(notifier, resultPartitionType, false);
-		try {
-			network.setupPartition(resultPartition);
+    /**
+     * Tests {@link ResultPartition#emitRecord} on a partition which has already finished.
+     *
+     * @param partitionType the result partition type to set up
+     */
+    private void testAddOnFinishedPartition(final ResultPartitionType partitionType)
+            throws Exception {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(partitionType);
 
-			// take all buffers (more than the minimum required)
-			for (int i = 0; i < numAllBuffers; ++i) {
-				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
-				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
-			}
-			resultPartition.finish();
+        try {
+            bufferWritingResultPartition.finish();
+            // partitionWriter.emitRecord() should fail
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        } catch (IllegalStateException e) {
+            // expected => ignored
+        } finally {
+            assertEquals(0, bufferWritingResultPartition.numBuffersOut.getCount());
+            assertEquals(0, bufferWritingResultPartition.numBytesOut.getCount());
+            assertEquals(
+                    0,
+                    bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
+        }
+    }
 
-			assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+    @Test
+    public void testAddOnReleasedPipelinedPartition() throws Exception {
+        testAddOnReleasedPartition(ResultPartitionType.PIPELINED);
+    }
 
-			// reset the pool size less than the number of requested buffers
-			final int numLocalBuffers = 4;
-			resultPartition.getBufferPool().setNumBuffers(numLocalBuffers);
+    @Test
+    public void testAddOnReleasedBlockingPartition() throws Exception {
+        testAddOnReleasedPartition(ResultPartitionType.BLOCKING);
+    }
 
-			// partition with blocking type should release excess buffers
-			if (!resultPartitionType.hasBackPressure()) {
-				assertEquals(numLocalBuffers, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
-			} else {
-				assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
-			}
-		} finally {
-			resultPartition.release();
-			network.shutdown();
-		}
-	}
+    /**
+     * Tests {@link ResultPartition#emitRecord} on a partition which has already been released.
+     *
+     * @param partitionType the result partition type to set up
+     */
+    private void testAddOnReleasedPartition(ResultPartitionType partitionType) throws Exception {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(partitionType);
 
-	// ------------------------------------------------------------------------
+        try {
+            bufferWritingResultPartition.release(null);
+            // partitionWriter.emitRecord() should silently drop the given record
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        } finally {
+            assertEquals(1, bufferWritingResultPartition.numBuffersOut.getCount());
+            assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
+            // the buffer should be recycled for the result partition has already been released
+            assertEquals(
+                    0,
+                    bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
+        }
+    }
 
-	private static ResultPartition createPartition(
-		ResultPartitionConsumableNotifier notifier,
-		ResultPartitionType type,
-		boolean sendScheduleOrUpdateConsumersMessage) {
-		return new ResultPartition(
-			"TestTask",
-			mock(TaskActions.class),
-			new JobID(),
-			new ResultPartitionID(),
-			type,
-			1,
-			1,
-			mock(ResultPartitionManager.class),
-			notifier,
-			ioManager,
-			sendScheduleOrUpdateConsumersMessage);
-	}
+    @Test
+    public void testAddOnPipelinedPartition() throws Exception {
+        testAddOnPartition(ResultPartitionType.PIPELINED);
+    }
+
+    @Test
+    public void testAddOnBlockingPartition() throws Exception {
+        testAddOnPartition(ResultPartitionType.BLOCKING);
+    }
+
+    /**
+     * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,
+     * BufferAvailabilityListener)} would throw a {@link PartitionNotFoundException} if the
+     * registered partition was released from manager via {@link ResultPartition#fail(Throwable)}
+     * before.
+     */
+    @Test
+    public void testCreateSubpartitionOnFailingPartition() throws Exception {
+        final ResultPartitionManager manager = new ResultPartitionManager();
+        final ResultPartition partition =
+                new ResultPartitionBuilder().setResultPartitionManager(manager).build();
+
+        manager.registerResultPartition(partition);
+
+        partition.fail(null);
+
+        verifyCreateSubpartitionViewThrowsException(manager, partition.getPartitionId());
+    }
+
+    /**
+     * Tests {@link ResultPartition#emitRecord} on a working partition.
+     *
+     * @param partitionType the result partition type to set up
+     */
+    private void testAddOnPartition(final ResultPartitionType partitionType) throws Exception {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(partitionType);
+
+        try {
+            // partitionWriter.emitRecord() will allocate a new buffer and copies the record to it
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        } finally {
+            assertEquals(1, bufferWritingResultPartition.numBuffersOut.getCount());
+            assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
+            assertEquals(
+                    1,
+                    bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers());
+        }
+    }
+
+    /**
+     * Tests {@link ResultPartition#close()} and {@link ResultPartition#release()} on a working
+     * pipelined partition.
+     */
+    @Test
+    public void testReleaseMemoryOnPipelinedPartition() throws Exception {
+        final int numAllBuffers = 10;
+        final NettyShuffleEnvironment network =
+                new NettyShuffleEnvironmentBuilder()
+                        .setNumNetworkBuffers(numAllBuffers)
+                        .setBufferSize(bufferSize)
+                        .build();
+        final ResultPartition resultPartition =
+                createPartition(network, ResultPartitionType.PIPELINED, 1);
+        try {
+            resultPartition.setup();
+
+            // take all buffers (more than the minimum required)
+            for (int i = 0; i < numAllBuffers; ++i) {
+                resultPartition.emitRecord(ByteBuffer.allocate(bufferSize - 1), 0);
+            }
+            assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
+
+            resultPartition.close();
+            assertTrue(resultPartition.getBufferPool().isDestroyed());
+            assertEquals(
+                    numAllBuffers, network.getNetworkBufferPool().getNumberOfUsedMemorySegments());
+
+            resultPartition.release();
+            assertEquals(0, network.getNetworkBufferPool().getNumberOfUsedMemorySegments());
+        } finally {
+            network.close();
+        }
+    }
+
+    /** Tests {@link ResultPartition#getAvailableFuture()}. */
+    @Test
+    public void testIsAvailableOrNot() throws IOException {
+        final int numAllBuffers = 10;
+        final int bufferSize = 1024;
+        final NettyShuffleEnvironment network =
+                new NettyShuffleEnvironmentBuilder()
+                        .setNumNetworkBuffers(numAllBuffers)
+                        .setBufferSize(bufferSize)
+                        .build();
+        final ResultPartition resultPartition =
+                createPartition(network, ResultPartitionType.PIPELINED, 1);
+
+        try {
+            resultPartition.setup();
+
+            resultPartition.getBufferPool().setNumBuffers(2);
+
+            assertTrue(resultPartition.getAvailableFuture().isDone());
+
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            assertFalse(resultPartition.getAvailableFuture().isDone());
+        } finally {
+            resultPartition.release();
+            network.close();
+        }
+    }
+
+    @Test
+    public void testPipelinedPartitionBufferPool() throws Exception {
+        testPartitionBufferPool(ResultPartitionType.PIPELINED_BOUNDED);
+    }
+
+    @Test
+    public void testBlockingPartitionBufferPool() throws Exception {
+        testPartitionBufferPool(ResultPartitionType.BLOCKING);
+    }
+
+    private void testPartitionBufferPool(ResultPartitionType type) throws Exception {
+        // setup
+        final int networkBuffersPerChannel = 2;
+        final int floatingNetworkBuffersPerGate = 8;
+        final NetworkBufferPool globalPool = new NetworkBufferPool(20, 1);
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(type)
+                        .setFileChannelManager(fileChannelManager)
+                        .setNetworkBuffersPerChannel(networkBuffersPerChannel)
+                        .setFloatingNetworkBuffersPerGate(floatingNetworkBuffersPerGate)
+                        .setNetworkBufferPool(globalPool)
+                        .build();
+
+        try {
+            partition.setup();
+            BufferPool bufferPool = partition.getBufferPool();
+            // verify the amount of buffers in created local pool
+            assertEquals(
+                    partition.getNumberOfSubpartitions() + 1,
+                    bufferPool.getNumberOfRequiredMemorySegments());
+            if (type.isBounded()) {
+                final int maxNumBuffers =
+                        networkBuffersPerChannel * partition.getNumberOfSubpartitions()
+                                + floatingNetworkBuffersPerGate;
+                assertEquals(maxNumBuffers, bufferPool.getMaxNumberOfMemorySegments());
+            } else {
+                assertEquals(Integer.MAX_VALUE, bufferPool.getMaxNumberOfMemorySegments());
+            }
+
+        } finally {
+            // cleanup
+            globalPool.destroyAllBufferPools();
+            globalPool.destroy();
+        }
+    }
+
+    private BufferWritingResultPartition createResultPartition(ResultPartitionType partitionType)
+            throws IOException {
+        NettyShuffleEnvironment network =
+                new NettyShuffleEnvironmentBuilder()
+                        .setNumNetworkBuffers(10)
+                        .setBufferSize(bufferSize)
+                        .build();
+        ResultPartition resultPartition =
+                createPartition(network, fileChannelManager, partitionType, 2);
+        resultPartition.setup();
+        return (BufferWritingResultPartition) resultPartition;
+    }
+
+    @Test
+    public void testIdleAndBackPressuredTime() throws IOException, InterruptedException {
+        // setup
+        int bufferSize = 1024;
+        NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
+        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE);
+        BufferWritingResultPartition resultPartition =
+                (BufferWritingResultPartition)
+                        new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
+        resultPartition.setup();
+
+        resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        ResultSubpartitionView readView =
+                resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+        Buffer buffer = readView.getNextBuffer().buffer();
+        assertNotNull(buffer);
+
+        // back-pressured time is zero when there is buffer available.
+        assertThat(resultPartition.getHardBackPressuredTimeMsPerSecond().getValue(), equalTo(0L));
+
+        CountDownLatch syncLock = new CountDownLatch(1);
+        final Thread requestThread =
+                new Thread(
+                        () -> {
+                            try {
+                                // notify that the request thread start to run.
+                                syncLock.countDown();
+                                // wait for buffer.
+                                resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+                            } catch (Exception e) {
+                            }
+                        });
+        requestThread.start();
+
+        // wait until request thread start to run.
+        syncLock.await();
+
+        Thread.sleep(100);
+
+        // recycle the buffer
+        buffer.recycleBuffer();
+        requestThread.join();
+
+        Assert.assertThat(
+                resultPartition.getHardBackPressuredTimeMsPerSecond().getCount(),
+                Matchers.greaterThan(0L));
+        assertNotNull(readView.getNextBuffer().buffer());
+    }
+
+    @Test
+    public void testFlushBoundedBlockingResultPartition() throws IOException {
+        int value = 1024;
+        ResultPartition partition = createResultPartition(ResultPartitionType.BLOCKING);
+
+        ByteBuffer record = ByteBuffer.allocate(4);
+        record.putInt(value);
+
+        record.rewind();
+        partition.emitRecord(record, 0);
+        partition.flush(0);
+
+        record.rewind();
+        partition.emitRecord(record, 0);
+
+        record.rewind();
+        partition.broadcastRecord(record);
+        partition.flushAll();
+
+        record.rewind();
+        partition.broadcastRecord(record);
+        partition.finish();
+        record.rewind();
+
+        ResultSubpartitionView readView1 =
+                partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+        for (int i = 0; i < 4; ++i) {
+            assertEquals(record, readView1.getNextBuffer().buffer().getNioBufferReadable());
+        }
+        assertFalse(readView1.getNextBuffer().buffer().isBuffer());
+        assertNull(readView1.getNextBuffer());
+
+        ResultSubpartitionView readView2 =
+                partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+        for (int i = 0; i < 2; ++i) {
+            assertEquals(record, readView2.getNextBuffer().buffer().getNioBufferReadable());
+        }
+        assertFalse(readView2.getNextBuffer().buffer().isBuffer());
+        assertNull(readView2.getNextBuffer());
+    }
+
+    @Test
+    public void testEmitRecordWithRecordSpanningMultipleBuffers() throws Exception {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED);
+        PipelinedSubpartition pipelinedSubpartition =
+                (PipelinedSubpartition) bufferWritingResultPartition.subpartitions[0];
+        int partialLength = bufferSize / 3;
+
+        try {
+            // emit the first record, record length = partialLength
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(partialLength), 0);
+            // emit the second record, record length = bufferSize
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        } finally {
+            assertEquals(2, pipelinedSubpartition.getNumberOfQueuedBuffers());
+            assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+            assertEquals(
+                    partialLength, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+        }
+    }
+
+    @Test
+    public void testBroadcastRecordWithRecordSpanningMultipleBuffers() throws Exception {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED);
+        int partialLength = bufferSize / 3;
+
+        try {
+            // emit the first record, record length = partialLength
+            bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(partialLength));
+            // emit the second record, record length = bufferSize
+            bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+        } finally {
+            for (ResultSubpartition resultSubpartition :
+                    bufferWritingResultPartition.subpartitions) {
+                PipelinedSubpartition pipelinedSubpartition =
+                        (PipelinedSubpartition) resultSubpartition;
+                assertEquals(2, pipelinedSubpartition.getNumberOfQueuedBuffers());
+                assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+                assertEquals(
+                        partialLength,
+                        pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+            }
+        }
+    }
+
+    @Test
+    public void testWaitForAllRecordProcessed() throws IOException {
+        // Creates a result partition with 2 channels.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        bufferWritingResultPartition.notifyEndOfData(StopMode.DRAIN);
+        CompletableFuture<Void> allRecordsProcessedFuture =
+                bufferWritingResultPartition.getAllDataProcessedFuture();
+        assertFalse(allRecordsProcessedFuture.isDone());
+        for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
+            assertEquals(1, resultSubpartition.getTotalNumberOfBuffersUnsafe());
+            Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
+            assertFalse(nextBuffer.isBuffer());
+            assertEquals(
+                    new EndOfData(StopMode.DRAIN),
+                    EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()));
+        }
+
+        for (int i = 0; i < bufferWritingResultPartition.subpartitions.length; ++i) {
+            ((PipelinedSubpartition) bufferWritingResultPartition.subpartitions[i])
+                    .acknowledgeAllDataProcessed();
+
+            if (i < bufferWritingResultPartition.subpartitions.length - 1) {
+                assertFalse(allRecordsProcessedFuture.isDone());
+            } else {
+                assertTrue(allRecordsProcessedFuture.isDone());
+                assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
+            }
+        }
+    }
+
+    @Test
+    public void testDifferentBufferSizeForSubpartitions() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(10);
+        subpartition1.bufferSize(6);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(2), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(2), 1);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 1);
+
+        // then: The buffer is less or equal to configured.
+        assertEquals(10, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(2, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Reset the buffer size.
+        subpartition0.bufferSize(13);
+        subpartition1.bufferSize(5);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(12), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(8), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(2), 1);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(7), 1);
+
+        // then: The buffer less or equal to configured.
+        // 8 bytes which fitted to the previous unfinished buffer(10 - 2).
+        assertEquals(8, subpartition0.pollBuffer().buffer().getSize());
+        // 12 rest bytes which fitted to a new buffer which has 13 bytes.
+        assertEquals(12, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(5, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(4, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testBufferSizeGreaterOrEqualToFirstRecord() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(10);
+        subpartition1.bufferSize(7);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(12), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(111), 1);
+
+        // then: The buffer can not be less than first record.
+        assertEquals(12, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(111, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testDynamicBufferSizeForBroadcast() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(6);
+        subpartition1.bufferSize(10);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(6));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(6, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(4);
+        subpartition1.bufferSize(12);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(3));
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(7));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(4, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(4, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(8);
+        subpartition1.bufferSize(5);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(3));
+
+        // then: The buffer less or equal to configured.
+        assertEquals(3, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(3, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testBufferSizeGreaterOrEqualToFirstBroadcastRecord() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(6);
+        subpartition1.bufferSize(10);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(31));
+
+        // then: The buffer can not be less than first record.
+        assertEquals(31, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(31, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testBufferSizeNotChanged() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(bufferSize + 1);
+        subpartition1.bufferSize(Integer.MAX_VALUE);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 1);
+
+        // then: The buffer has initial size because new buffer was greater than max.
+        assertEquals(bufferSize, subpartition0.pollBuffer().buffer().getSize());
+
+        // and: The buffer has initial size because new buffer was less than 0.
+        assertEquals(bufferSize, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testNumBytesProducedCounterForUnicast() throws IOException {
+        testNumBytesProducedCounter(false);
+    }
+
+    @Test
+    public void testNumBytesProducedCounterForBroadcast() throws IOException {
+        testNumBytesProducedCounter(true);
+    }
+
+    private void testNumBytesProducedCounter(boolean isBroadcast) throws IOException {
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.BLOCKING);
+
+        if (isBroadcast) {
+            bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+            assertEquals(bufferSize, bufferWritingResultPartition.numBytesProduced.getCount());
+            assertEquals(2 * bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
+        } else {
+            bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            assertEquals(bufferSize, bufferWritingResultPartition.numBytesProduced.getCount());
+            assertEquals(bufferSize, bufferWritingResultPartition.numBytesOut.getCount());
+        }
+    }
+
+    @Test
+    public void testSizeOfQueuedBuffers() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // and: Set the buffers size.
+        subpartition0.bufferSize(10);
+        subpartition1.bufferSize(10);
+
+        // when: Emit different records into different subpartitions.
+        // Emit the record less than buffer size.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(3), 0);
+        assertEquals(3, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(3), 1);
+        assertEquals(6, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Emit the record the equal to buffer size.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 0);
+        assertEquals(16, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(10), 1);
+        assertEquals(26, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Broadcast event.
+        bufferWritingResultPartition.broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
+        assertEquals(34, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Emit one more record to the one subpartition.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(5), 0);
+        assertEquals(39, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Broadcast record.
+        bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(7));
+        assertEquals(53, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // when: Poll finished buffers.
+        assertEquals(10, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(43, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        assertEquals(10, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(33, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Poll records which were unfinished because of broadcasting event.
+        assertEquals(3, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(30, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        assertEquals(3, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(27, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Poll the event.
+        assertEquals(4, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(23, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        assertEquals(4, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(19, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Poll the unfinished buffer.
+        assertEquals(5, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(14, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        // Poll broadcasted record.
+        assertEquals(7, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(7, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+
+        assertEquals(7, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(0, bufferWritingResultPartition.getSizeOfQueuedBuffersUnsafe());
+    }
 }

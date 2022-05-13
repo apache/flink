@@ -27,241 +27,234 @@ import org.apache.flink.types.NullValue;
 import java.io.IOException;
 import java.util.Iterator;
 
-/**
- * An array of {@link NullValue}.
- */
-public class NullValueArray
-implements ValueArray<NullValue> {
+/** An array of {@link NullValue}. */
+public class NullValueArray implements ValueArray<NullValue> {
 
-	// the number of elements currently stored
-	private int position;
+    // the number of elements currently stored
+    private int position;
 
-	// location of the bookmark used by mark() and reset()
-	private transient int mark;
+    // location of the bookmark used by mark() and reset()
+    private transient int mark;
 
-	// hash result stored as normalized key
-	private IntValue hashValue = new IntValue();
+    // hash result stored as normalized key
+    private IntValue hashValue = new IntValue();
 
-	/**
-	 * Initializes an expandable array with default capacity.
-	 */
-	public NullValueArray() {
-	}
+    /** Initializes an expandable array with default capacity. */
+    public NullValueArray() {}
 
-	/**
-	 * Initializes a fixed-size array with the provided number of bytes.
-	 *
-	 * @param bytes number of bytes of the encapsulated array
-	 */
-	public NullValueArray(int bytes) {
-		this();
-	}
+    /**
+     * Initializes a fixed-size array with the provided number of bytes.
+     *
+     * @param bytes number of bytes of the encapsulated array
+     */
+    public NullValueArray(int bytes) {
+        this();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder("[");
-		for (int idx = 0; idx < this.position; idx++) {
-			sb.append("∅");
-			if (idx < position - 1) {
-				sb.append(",");
-			}
-		}
-		sb.append("]");
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("[");
+        for (int idx = 0; idx < this.position; idx++) {
+            sb.append("∅");
+            if (idx < position - 1) {
+                sb.append(",");
+            }
+        }
+        sb.append("]");
 
-		return sb.toString();
-	}
+        return sb.toString();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Iterable
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Iterable
+    // --------------------------------------------------------------------------------------------
 
-	private final ReadIterator iterator = new ReadIterator();
+    private final ReadIterator iterator = new ReadIterator();
 
-	@Override
-	public Iterator<NullValue> iterator() {
-		iterator.reset();
-		return iterator;
-	}
+    @Override
+    public Iterator<NullValue> iterator() {
+        iterator.reset();
+        return iterator;
+    }
 
-	private class ReadIterator
-	implements Iterator<NullValue> {
-		private int pos;
+    private class ReadIterator implements Iterator<NullValue> {
+        private int pos;
 
-		@Override
-		public boolean hasNext() {
-			return pos < position;
-		}
+        @Override
+        public boolean hasNext() {
+            return pos < position;
+        }
 
-		@Override
-		public NullValue next() {
-			pos++;
-			return NullValue.getInstance();
-		}
+        @Override
+        public NullValue next() {
+            pos++;
+            return NullValue.getInstance();
+        }
 
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("remove");
-		}
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("remove");
+        }
 
-		public void reset() {
-			pos = 0;
-		}
-	}
+        public void reset() {
+            pos = 0;
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// IOReadableWritable
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // IOReadableWritable
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(position);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeInt(position);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		position = in.readInt();
-		mark = 0;
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        position = in.readInt();
+        mark = 0;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// NormalizableKey
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // NormalizableKey
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int getMaxNormalizedKeyLen() {
-		return hashValue.getMaxNormalizedKeyLen();
-	}
+    @Override
+    public int getMaxNormalizedKeyLen() {
+        return hashValue.getMaxNormalizedKeyLen();
+    }
 
-	@Override
-	public void copyNormalizedKey(MemorySegment target, int offset, int len) {
-		hashValue.setValue(position);
-		hashValue.copyNormalizedKey(target, offset, len);
-	}
+    @Override
+    public void copyNormalizedKey(MemorySegment target, int offset, int len) {
+        hashValue.setValue(position);
+        hashValue.copyNormalizedKey(target, offset, len);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Comparable
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Comparable
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int compareTo(ValueArray<NullValue> o) {
-		NullValueArray other = (NullValueArray) o;
+    @Override
+    public int compareTo(ValueArray<NullValue> o) {
+        NullValueArray other = (NullValueArray) o;
 
-		return Integer.compare(position, other.position);
-	}
+        return Integer.compare(position, other.position);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Key
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Key
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return position;
-	}
+    @Override
+    public int hashCode() {
+        return position;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof NullValueArray) {
-			NullValueArray other = (NullValueArray) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof NullValueArray) {
+            NullValueArray other = (NullValueArray) obj;
 
-			return position == other.position;
-		}
+            return position == other.position;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// ResettableValue
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // ResettableValue
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void setValue(ValueArray<NullValue> value) {
-		value.copyTo(this);
-	}
+    @Override
+    public void setValue(ValueArray<NullValue> value) {
+        value.copyTo(this);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// CopyableValue
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // CopyableValue
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int getBinaryLength() {
-		return hashValue.getBinaryLength();
-	}
+    @Override
+    public int getBinaryLength() {
+        return hashValue.getBinaryLength();
+    }
 
-	@Override
-	public void copyTo(ValueArray<NullValue> target) {
-		NullValueArray other = (NullValueArray) target;
+    @Override
+    public void copyTo(ValueArray<NullValue> target) {
+        NullValueArray other = (NullValueArray) target;
 
-		other.position = position;
-	}
+        other.position = position;
+    }
 
-	@Override
-	public ValueArray<NullValue> copy() {
-		ValueArray<NullValue> copy = new NullValueArray();
+    @Override
+    public ValueArray<NullValue> copy() {
+        ValueArray<NullValue> copy = new NullValueArray();
 
-		this.copyTo(copy);
+        this.copyTo(copy);
 
-		return copy;
-	}
+        return copy;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, getBinaryLength());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.write(source, getBinaryLength());
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// ValueArray
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // ValueArray
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int size() {
-		return position;
-	}
+    @Override
+    public int size() {
+        return position;
+    }
 
-	@Override
-	public boolean isFull() {
-		return position == Integer.MAX_VALUE;
-	}
+    @Override
+    public boolean isFull() {
+        return position == Integer.MAX_VALUE;
+    }
 
-	@Override
-	public boolean add(NullValue value) {
-		if (position == Integer.MAX_VALUE) {
-			return false;
-		}
+    @Override
+    public boolean add(NullValue value) {
+        if (position == Integer.MAX_VALUE) {
+            return false;
+        }
 
-		position++;
+        position++;
 
-		return true;
-	}
+        return true;
+    }
 
-	@Override
-	public boolean addAll(ValueArray<NullValue> other) {
-		NullValueArray source = (NullValueArray) other;
+    @Override
+    public boolean addAll(ValueArray<NullValue> other) {
+        NullValueArray source = (NullValueArray) other;
 
-		long newPosition = position + (long) source.position;
+        long newPosition = position + (long) source.position;
 
-		if (newPosition > Integer.MAX_VALUE) {
-			return false;
-		}
+        if (newPosition > Integer.MAX_VALUE) {
+            return false;
+        }
 
-		position = (int) newPosition;
+        position = (int) newPosition;
 
-		return true;
-	}
+        return true;
+    }
 
-	@Override
-	public void clear() {
-		position = 0;
-	}
+    @Override
+    public void clear() {
+        position = 0;
+    }
 
-	@Override
-	public void mark() {
-		mark = position;
-	}
+    @Override
+    public void mark() {
+        mark = position;
+    }
 
-	@Override
-	public void reset() {
-		position = mark;
-	}
+    @Override
+    public void reset() {
+        position = mark;
+    }
 }

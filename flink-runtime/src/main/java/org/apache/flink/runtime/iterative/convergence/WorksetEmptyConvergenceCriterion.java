@@ -25,25 +25,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A workset iteration is by definition converged if no records have been updated in the solutionset.
+ * A workset iteration is by definition converged if no records have been updated in the
+ * solutionset.
  */
 public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger log = LoggerFactory.getLogger(WorksetEmptyConvergenceCriterion.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(WorksetEmptyConvergenceCriterion.class);
 
-	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
+    public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
 
-	@Override
-	public boolean isConverged(int iteration, LongValue value) {
+    @Override
+    public boolean isConverged(int iteration, LongValue value) {
 
-		long updatedElements = value.getValue();
+        long updatedElements = value.getValue();
 
-		if (log.isInfoEnabled()) {
-			log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
-		}
+        if (log.isInfoEnabled()) {
+            log.info(
+                    "["
+                            + updatedElements
+                            + "] elements updated in the solutionset in iteration ["
+                            + iteration
+                            + "]");
+        }
 
-		return updatedElements == 0;
-	}
+        return updatedElements == 0;
+    }
 }

@@ -27,57 +27,53 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link StarGraph}.
- */
+/** Tests for {@link StarGraph}. */
 public class StarGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraph() throws Exception {
-		int vertexCount = 10;
+    @Test
+    public void testGraph() throws Exception {
+        int vertexCount = 10;
 
-		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount).generate();
 
-		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
-		String edges = "0,1; 1,0; 0,2; 2,0; 0,3; 3,0; 0,4; 4,0; 0,5; 5,0;" +
-				"0,6; 6,0; 0,7; 7,0; 0,8; 8,0; 0,9; 9,0";
+        String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
+        String edges =
+                "0,1; 1,0; 0,2; 2,0; 0,3; 3,0; 0,4; 4,0; 0,5; 5,0;"
+                        + "0,6; 6,0; 0,7; 7,0; 0,8; 8,0; 0,9; 9,0";
 
-		TestUtils.compareGraph(graph, vertices, edges);
-	}
+        TestUtils.compareGraph(graph, vertices, edges);
+    }
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		int vertexCount = 100;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        int vertexCount = 100;
 
-		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount).generate();
 
-		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(2 * (vertexCount - 1), graph.numberOfEdges());
+        assertEquals(vertexCount, graph.numberOfVertices());
+        assertEquals(2 * (vertexCount - 1), graph.numberOfEdges());
 
-		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
-		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
+        long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
+        long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
+        long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+        long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
-		assertEquals(1, minInDegree);
-		assertEquals(1, minOutDegree);
-		assertEquals(vertexCount - 1, maxInDegree);
-		assertEquals(vertexCount - 1, maxOutDegree);
-	}
+        assertEquals(1, minInDegree);
+        assertEquals(1, minOutDegree);
+        assertEquals(vertexCount - 1, maxInDegree);
+        assertEquals(vertexCount - 1, maxOutDegree);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, 100)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new StarGraph(env, 100).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

@@ -21,20 +21,16 @@ package org.apache.flink.graph.asm.translate.translators;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.LongValue;
 
-/**
- * Translate {@link Long} to {@link LongValue}.
- */
-public class LongToLongValue
-implements TranslateFunction<Long, LongValue> {
+/** Translate {@link Long} to {@link LongValue}. */
+public class LongToLongValue implements TranslateFunction<Long, LongValue> {
 
-	@Override
-	public LongValue translate(Long value, LongValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new LongValue();
-		}
+    @Override
+    public LongValue translate(Long value, LongValue reuse) throws Exception {
+        if (reuse == null) {
+            reuse = new LongValue();
+        }
 
-		reuse.setValue(value);
-		return reuse;
-	}
+        reuse.setValue(value);
+        return reuse;
+    }
 }

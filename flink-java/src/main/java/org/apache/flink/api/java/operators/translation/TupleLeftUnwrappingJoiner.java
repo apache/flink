@@ -26,25 +26,25 @@ import org.apache.flink.util.Collector;
 /**
  * Joiner that unwraps values from the left set before applying the join operation.
  *
- * @param <I1>  type of values in the left set
- * @param <I2>  type of values in the right set
+ * @param <I1> type of values in the left set
+ * @param <I2> type of values in the right set
  * @param <OUT> type of resulting values
- * @param <K>   type of key
+ * @param <K> type of key
  */
 @Internal
 public final class TupleLeftUnwrappingJoiner<I1, I2, OUT, K>
-		extends WrappingFunction<FlatJoinFunction<I1, I2, OUT>>
-		implements FlatJoinFunction<Tuple2<K, I1>, I2, OUT> {
+        extends WrappingFunction<FlatJoinFunction<I1, I2, OUT>>
+        implements FlatJoinFunction<Tuple2<K, I1>, I2, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public TupleLeftUnwrappingJoiner(FlatJoinFunction<I1, I2, OUT> wrapped) {
-		super(wrapped);
-	}
+    public TupleLeftUnwrappingJoiner(FlatJoinFunction<I1, I2, OUT> wrapped) {
+        super(wrapped);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void join(Tuple2<K, I1> value1, I2 value2, Collector<OUT> collector) throws Exception {
-		wrappedFunction.join(value1 == null ? null : (I1) value1.getField(1), value2, collector);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void join(Tuple2<K, I1> value1, I2 value2, Collector<OUT> collector) throws Exception {
+        wrappedFunction.join(value1 == null ? null : (I1) value1.getField(1), value2, collector);
+    }
 }

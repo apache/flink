@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.ValueState;
 
 /**
  * The peer to the {@link ValueState} in the internal state type hierarchy.
- * 
+ *
  * <p>See {@link InternalKvState} for a description of the internal state hierarchy.
  *
  * @param <K> The type of key the state is associated to

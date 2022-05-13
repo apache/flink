@@ -21,48 +21,46 @@ package org.apache.flink.dropwizard.metrics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.util.TestMeter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for the FlinkMeterWrapper.
- */
-public class FlinkMeterWrapperTest {
+/** Tests for the FlinkMeterWrapper. */
+class FlinkMeterWrapperTest {
 
-	private static final double DELTA = 0.0001;
+    private static final double DELTA = 0.0001;
 
-	@Test
-	public void testWrapper() {
-		Meter meter = new TestMeter();
+    @Test
+    void testWrapper() {
+        Meter meter = new TestMeter();
 
-		FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
-		assertEquals(0, wrapper.getMeanRate(), DELTA);
-		assertEquals(5, wrapper.getOneMinuteRate(), DELTA);
-		assertEquals(0, wrapper.getFiveMinuteRate(), DELTA);
-		assertEquals(0, wrapper.getFifteenMinuteRate(), DELTA);
-		assertEquals(100L, wrapper.getCount());
-	}
+        FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
+        assertThat(wrapper.getMeanRate()).isEqualTo(0);
+        assertThat(wrapper.getOneMinuteRate()).isEqualTo(5);
+        assertThat(wrapper.getFiveMinuteRate()).isEqualTo(0);
+        assertThat(wrapper.getFifteenMinuteRate()).isEqualTo(0);
+        assertThat(wrapper.getCount()).isEqualTo(100L);
+    }
 
-	@Test
-	public void testMarkOneEvent() {
-		Meter meter = mock(Meter.class);
+    @Test
+    void testMarkOneEvent() {
+        Meter meter = mock(Meter.class);
 
-		FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
-		wrapper.mark();
+        FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
+        wrapper.mark();
 
-		verify(meter).markEvent();
-	}
+        verify(meter).markEvent();
+    }
 
-	@Test
-	public void testMarkSeveralEvents() {
-		Meter meter = mock(Meter.class);
+    @Test
+    void testMarkSeveralEvents() {
+        Meter meter = mock(Meter.class);
 
-		FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
-		wrapper.mark(5);
+        FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
+        wrapper.mark(5);
 
-		verify(meter).markEvent(5);
-	}
+        verify(meter).markEvent(5);
+    }
 }

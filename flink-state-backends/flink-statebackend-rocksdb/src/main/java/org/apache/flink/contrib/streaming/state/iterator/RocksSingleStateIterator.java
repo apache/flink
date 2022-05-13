@@ -24,45 +24,55 @@ import org.apache.flink.util.IOUtils;
 import javax.annotation.Nonnull;
 
 /**
- * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to the iterator.
- * Used by {@link RocksStatesPerKeyGroupMergeIterator}.
+ * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to
+ * the iterator. Used by {@link RocksStatesPerKeyGroupMergeIterator}.
  */
-class RocksSingleStateIterator implements AutoCloseable {
+class RocksSingleStateIterator implements SingleStateIterator {
 
-	/**
-	 * @param iterator underlying {@link RocksIteratorWrapper}
-	 * @param kvStateId Id of the K/V state to which this iterator belongs.
-	 */
-	RocksSingleStateIterator(@Nonnull RocksIteratorWrapper iterator, int kvStateId) {
-		this.iterator = iterator;
-		this.currentKey = iterator.key();
-		this.kvStateId = kvStateId;
-	}
+    /**
+     * @param iterator underlying {@link RocksIteratorWrapper}
+     * @param kvStateId Id of the K/V state to which this iterator belongs.
+     */
+    RocksSingleStateIterator(@Nonnull RocksIteratorWrapper iterator, int kvStateId) {
+        this.iterator = iterator;
+        this.currentKey = iterator.key();
+        this.kvStateId = kvStateId;
+    }
 
-	@Nonnull
-	private final RocksIteratorWrapper iterator;
-	private byte[] currentKey;
-	private final int kvStateId;
+    @Nonnull private final RocksIteratorWrapper iterator;
+    private byte[] currentKey;
+    private final int kvStateId;
 
-	public byte[] getCurrentKey() {
-		return currentKey;
-	}
+    @Override
+    public void next() {
+        iterator.next();
+        if (iterator.isValid()) {
+            currentKey = iterator.key();
+        }
+    }
 
-	public void setCurrentKey(byte[] currentKey) {
-		this.currentKey = currentKey;
-	}
+    @Override
+    public boolean isValid() {
+        return iterator.isValid();
+    }
 
-	@Nonnull
-	public RocksIteratorWrapper getIterator() {
-		return iterator;
-	}
+    @Override
+    public byte[] key() {
+        return currentKey;
+    }
 
-	public int getKvStateId() {
-		return kvStateId;
-	}
+    @Override
+    public byte[] value() {
+        return iterator.value();
+    }
 
-	@Override
-	public void close() {
-		IOUtils.closeQuietly(iterator);
-	}
+    @Override
+    public int getKvStateId() {
+        return kvStateId;
+    }
+
+    @Override
+    public void close() {
+        IOUtils.closeQuietly(iterator);
+    }
 }

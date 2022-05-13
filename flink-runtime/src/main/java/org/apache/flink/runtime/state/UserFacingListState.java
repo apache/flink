@@ -25,44 +25,44 @@ import java.util.List;
 
 /**
  * Simple wrapper list state that exposes empty state properly as an empty list.
- * 
+ *
  * @param <T> The type of elements in the list state.
  */
 class UserFacingListState<T> implements ListState<T> {
 
-	private final ListState<T> originalState;
+    private final ListState<T> originalState;
 
-	private final Iterable<T> emptyState = Collections.emptyList();
+    private final Iterable<T> emptyState = Collections.emptyList();
 
-	UserFacingListState(ListState<T> originalState) {
-		this.originalState = originalState;
-	}
+    UserFacingListState(ListState<T> originalState) {
+        this.originalState = originalState;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Iterable<T> get() throws Exception {
-		Iterable<T> original = originalState.get();
-		return original != null ? original : emptyState;
-	}
+    @Override
+    public Iterable<T> get() throws Exception {
+        Iterable<T> original = originalState.get();
+        return original != null ? original : emptyState;
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		originalState.add(value);
-	}
+    @Override
+    public void add(T value) throws Exception {
+        originalState.add(value);
+    }
 
-	@Override
-	public void clear() {
-		originalState.clear();
-	}
+    @Override
+    public void clear() {
+        originalState.clear();
+    }
 
-	@Override
-	public void update(List<T> values) throws Exception {
-		originalState.update(values);
-	}
+    @Override
+    public void update(List<T> values) throws Exception {
+        originalState.update(values);
+    }
 
-	@Override
-	public void addAll(List<T> values) throws Exception {
-		originalState.addAll(values);
-	}
+    @Override
+    public void addAll(List<T> values) throws Exception {
+        originalState.addAll(values);
+    }
 }

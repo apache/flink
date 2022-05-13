@@ -27,279 +27,293 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-/**
- * Test base for {@link GenericWriteAheadSink}.
- */
-public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> extends TestLogger {
+/** Test base for {@link GenericWriteAheadSink}. */
+public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>>
+        extends TestLogger {
 
-	protected abstract S createSink() throws Exception;
+    protected abstract S createSink() throws Exception;
 
-	protected abstract TypeInformation<IN> createTypeInfo();
+    protected abstract TypeInformation<IN> createTypeInfo();
 
-	protected abstract IN generateValue(int counter, int checkpointID);
+    protected abstract IN generateValue(int counter, int checkpointID);
 
-	protected abstract void verifyResultsIdealCircumstances(S sink) throws Exception;
+    protected abstract void verifyResultsIdealCircumstances(S sink) throws Exception;
 
-	protected abstract void verifyResultsDataPersistenceUponMissedNotify(S sink) throws Exception;
+    protected abstract void verifyResultsDataPersistenceUponMissedNotify(S sink) throws Exception;
 
-	protected abstract void verifyResultsDataDiscardingUponRestore(S sink) throws Exception;
+    protected abstract void verifyResultsDataDiscardingUponRestore(S sink) throws Exception;
 
-	protected abstract void verifyResultsWhenReScaling(S sink, int startElementCounter, int endElementCounter) throws Exception;
+    protected abstract void verifyResultsWhenReScaling(
+            S sink, int startElementCounter, int endElementCounter) throws Exception;
 
-	@Test
-	public void testIdealCircumstances() throws Exception {
-		S sink = createSink();
+    private final int maxParallelism = 10;
 
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness =
-				new OneInputStreamOperatorTestHarness<>(sink);
+    @Test
+    public void testIdealCircumstances() throws Exception {
+        S sink = createSink();
 
-		testHarness.open();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness =
+                new OneInputStreamOperatorTestHarness<>(sink);
 
-		int elementCounter = 1;
-		int snapshotCount = 0;
+        testHarness.open();
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        int elementCounter = 1;
+        int snapshotCount = 0;
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
-			elementCounter++;
-		}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
+            elementCounter++;
+        }
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
-			elementCounter++;
-		}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
+            elementCounter++;
+        }
 
-		verifyResultsIdealCircumstances(sink);
-	}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-	@Test
-	public void testDataPersistenceUponMissedNotify() throws Exception {
-		S sink = createSink();
+        verifyResultsIdealCircumstances(sink);
+    }
 
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness =
-				new OneInputStreamOperatorTestHarness<>(sink);
+    @Test
+    public void testDataPersistenceUponMissedNotify() throws Exception {
+        S sink = createSink();
 
-		testHarness.open();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness =
+                new OneInputStreamOperatorTestHarness<>(sink);
 
-		int elementCounter = 1;
-		int snapshotCount = 0;
+        testHarness.open();
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        int elementCounter = 1;
+        int snapshotCount = 0;
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
-			elementCounter++;
-		}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-		testHarness.snapshot(snapshotCount++, 0);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
+            elementCounter++;
+        }
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
-			elementCounter++;
-		}
+        testHarness.snapshot(snapshotCount++, 0);
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
+            elementCounter++;
+        }
 
-		verifyResultsDataPersistenceUponMissedNotify(sink);
-	}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-	@Test
-	public void testDataDiscardingUponRestore() throws Exception {
-		S sink = createSink();
+        verifyResultsDataPersistenceUponMissedNotify(sink);
+    }
 
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness =
-				new OneInputStreamOperatorTestHarness<>(sink);
+    @Test
+    public void testDataDiscardingUponRestore() throws Exception {
+        S sink = createSink();
 
-		testHarness.open();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness =
+                new OneInputStreamOperatorTestHarness<>(sink);
 
-		int elementCounter = 1;
-		int snapshotCount = 0;
+        testHarness.open();
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        int elementCounter = 1;
+        int snapshotCount = 0;
 
-		OperatorSubtaskState latestSnapshot = testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
-			elementCounter++;
-		}
+        OperatorSubtaskState latestSnapshot = testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-		testHarness.close();
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 1)));
+            elementCounter++;
+        }
 
-		sink = createSink();
+        testHarness.close();
 
-		testHarness = new OneInputStreamOperatorTestHarness<>(sink);
+        sink = createSink();
 
-		testHarness.setup();
-		testHarness.initializeState(latestSnapshot);
-		testHarness.open();
+        testHarness = new OneInputStreamOperatorTestHarness<>(sink);
 
-		for (int x = 0; x < 20; x++) {
-			testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
-			elementCounter++;
-		}
+        testHarness.setup();
+        testHarness.initializeState(latestSnapshot);
+        testHarness.open();
 
-		testHarness.snapshot(snapshotCount++, 0);
-		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
+        for (int x = 0; x < 20; x++) {
+            testHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 2)));
+            elementCounter++;
+        }
 
-		verifyResultsDataDiscardingUponRestore(sink);
-	}
+        testHarness.snapshot(snapshotCount++, 0);
+        testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
-	@Test
-	public void testScalingDown() throws Exception {
-		S sink1 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
-			new OneInputStreamOperatorTestHarness<>(sink1, 10, 2, 0);
-		testHarness1.open();
+        verifyResultsDataDiscardingUponRestore(sink);
+    }
 
-		S sink2 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
-			new OneInputStreamOperatorTestHarness<>(sink2, 10, 2, 1);
-		testHarness2.open();
+    @Test
+    public void testScalingDown() throws Exception {
+        S sink1 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
+                new OneInputStreamOperatorTestHarness<>(sink1, maxParallelism, 2, 0);
+        testHarness1.open();
 
-		int elementCounter = 1;
-		int snapshotCount = 0;
+        S sink2 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
+                new OneInputStreamOperatorTestHarness<>(sink2, maxParallelism, 2, 1);
+        testHarness2.open();
 
-		for (int x = 0; x < 10; x++) {
-			testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        int elementCounter = 1;
+        int snapshotCount = 0;
 
-		for (int x = 0; x < 11; x++) {
-			testHarness2.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        for (int x = 0; x < 10; x++) {
+            testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		// snapshot at checkpoint 0 for testHarness1 and testHarness 2
-		OperatorSubtaskState snapshot1 = testHarness1.snapshot(snapshotCount, 0);
-		OperatorSubtaskState snapshot2 = testHarness2.snapshot(snapshotCount, 0);
+        for (int x = 0; x < 11; x++) {
+            testHarness2.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		// merge the two partial states
-		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness
-			.repackageState(snapshot1, snapshot2);
+        // snapshot at checkpoint 0 for testHarness1 and testHarness 2
+        OperatorSubtaskState snapshot1 = testHarness1.snapshot(snapshotCount, 0);
+        OperatorSubtaskState snapshot2 = testHarness2.snapshot(snapshotCount, 0);
 
-		testHarness1.close();
-		testHarness2.close();
+        // merge the two partial states
+        OperatorSubtaskState mergedSnapshot =
+                AbstractStreamOperatorTestHarness.repackageState(snapshot1, snapshot2);
 
-		// and create a third instance that operates alone but
-		// has the merged state of the previous 2 instances
+        testHarness1.close();
+        testHarness2.close();
 
-		S sink3 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> mergedTestHarness =
-			new OneInputStreamOperatorTestHarness<>(sink3, 10, 1, 0);
+        // and create a third instance that operates alone but
+        // has the merged state of the previous 2 instances
 
-		mergedTestHarness.setup();
-		mergedTestHarness.initializeState(mergedSnapshot);
-		mergedTestHarness.open();
+        OperatorSubtaskState initState =
+                AbstractStreamOperatorTestHarness.repartitionOperatorState(
+                        mergedSnapshot, maxParallelism, 2, 1, 0);
 
-		for (int x = 0; x < 12; x++) {
-			mergedTestHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        S sink3 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> mergedTestHarness =
+                new OneInputStreamOperatorTestHarness<>(sink3, maxParallelism, 1, 0);
 
-		snapshotCount++;
-		mergedTestHarness.snapshot(snapshotCount, 1);
-		mergedTestHarness.notifyOfCompletedCheckpoint(snapshotCount);
+        mergedTestHarness.setup();
+        mergedTestHarness.initializeState(initState);
+        mergedTestHarness.open();
 
-		verifyResultsWhenReScaling(sink3, 1, 33);
-		mergedTestHarness.close();
-	}
+        for (int x = 0; x < 12; x++) {
+            mergedTestHarness.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-	@Test
-	public void testScalingUp() throws Exception {
+        snapshotCount++;
+        mergedTestHarness.snapshot(snapshotCount, 1);
+        mergedTestHarness.notifyOfCompletedCheckpoint(snapshotCount);
 
-		S sink1 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
-			new OneInputStreamOperatorTestHarness<>(sink1, 10, 1, 0);
+        verifyResultsWhenReScaling(sink3, 1, 33);
+        mergedTestHarness.close();
+    }
 
-		int elementCounter = 1;
-		int snapshotCount = 0;
+    @Test
+    public void testScalingUp() throws Exception {
 
-		testHarness1.open();
+        S sink1 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
+                new OneInputStreamOperatorTestHarness<>(sink1, maxParallelism, 1, 0);
 
-		// put two more checkpoints as pending
+        int elementCounter = 1;
+        int snapshotCount = 0;
 
-		for (int x = 0; x < 10; x++) {
-			testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
-		testHarness1.snapshot(++snapshotCount, 0);
+        testHarness1.open();
 
-		for (int x = 0; x < 11; x++) {
-			testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        // put two more checkpoints as pending
 
-		// this will be the state that will be split between the two new operators
-		OperatorSubtaskState snapshot = testHarness1.snapshot(++snapshotCount, 0);
+        for (int x = 0; x < 10; x++) {
+            testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
+        testHarness1.snapshot(++snapshotCount, 0);
 
-		testHarness1.close();
+        for (int x = 0; x < 11; x++) {
+            testHarness1.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
 
-		// verify no elements are in the sink
-		verifyResultsWhenReScaling(sink1, 0, -1);
+        // this will be the state that will be split between the two new operators
+        OperatorSubtaskState snapshot = testHarness1.snapshot(++snapshotCount, 0);
 
-		// we will create two operator instances, testHarness2 and testHarness3,
-		// that will share the state of testHarness1
+        testHarness1.close();
 
-		++snapshotCount;
+        // verify no elements are in the sink
+        verifyResultsWhenReScaling(sink1, 0, -1);
 
-		S sink2 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
-			new OneInputStreamOperatorTestHarness<>(sink2, 10, 2, 0);
+        // we will create two operator instances, testHarness2 and testHarness3,
+        // that will share the state of testHarness1
 
-		testHarness2.setup();
-		testHarness2.initializeState(snapshot);
-		testHarness2.open();
+        OperatorSubtaskState initState1 =
+                AbstractStreamOperatorTestHarness.repartitionOperatorState(
+                        snapshot, maxParallelism, 1, 2, 0);
 
-		testHarness2.notifyOfCompletedCheckpoint(snapshotCount);
+        OperatorSubtaskState initState2 =
+                AbstractStreamOperatorTestHarness.repartitionOperatorState(
+                        snapshot, maxParallelism, 1, 2, 1);
 
-		verifyResultsWhenReScaling(sink2, 1, 10);
+        ++snapshotCount;
 
-		S sink3 = createSink();
-		OneInputStreamOperatorTestHarness<IN, IN> testHarness3 =
-			new OneInputStreamOperatorTestHarness<>(sink3, 10, 2, 1);
+        S sink2 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
+                new OneInputStreamOperatorTestHarness<>(sink2, maxParallelism, 2, 0);
 
-		testHarness3.setup();
-		testHarness3.initializeState(snapshot);
-		testHarness3.open();
+        testHarness2.setup();
+        testHarness2.initializeState(initState1);
+        testHarness2.open();
 
-		// add some more elements to verify that everything functions normally from now on...
+        testHarness2.notifyOfCompletedCheckpoint(snapshotCount);
 
-		for (int x = 0; x < 10; x++) {
-			testHarness3.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
-			elementCounter++;
-		}
+        verifyResultsWhenReScaling(sink2, 1, 10);
 
-		testHarness3.snapshot(snapshotCount, 1);
-		testHarness3.notifyOfCompletedCheckpoint(snapshotCount);
+        S sink3 = createSink();
+        OneInputStreamOperatorTestHarness<IN, IN> testHarness3 =
+                new OneInputStreamOperatorTestHarness<>(sink3, maxParallelism, 2, 1);
 
-		verifyResultsWhenReScaling(sink3, 11, 31);
+        testHarness3.setup();
+        testHarness3.initializeState(initState2);
+        testHarness3.open();
 
-		testHarness2.close();
-		testHarness3.close();
-	}
+        // add some more elements to verify that everything functions normally from now on...
+
+        for (int x = 0; x < 10; x++) {
+            testHarness3.processElement(new StreamRecord<>(generateValue(elementCounter, 0)));
+            elementCounter++;
+        }
+
+        testHarness3.snapshot(snapshotCount, 1);
+        testHarness3.notifyOfCompletedCheckpoint(snapshotCount);
+
+        verifyResultsWhenReScaling(sink3, 11, 31);
+
+        testHarness2.close();
+        testHarness3.close();
+    }
 }

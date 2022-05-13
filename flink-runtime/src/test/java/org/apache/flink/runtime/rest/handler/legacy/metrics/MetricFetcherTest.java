@@ -29,18 +29,16 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
-import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.dump.TestingMetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.TestingMetricQueryServiceGateway;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -56,183 +54,235 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the MetricFetcher.
- */
+/** Tests for the MetricFetcher. */
 public class MetricFetcherTest extends TestLogger {
-	@Test
-	public void testUpdate() {
-		final Time timeout = Time.seconds(10L);
+    @Test
+    public void testUpdate() {
+        final Time timeout = Time.seconds(10L);
 
-		// ========= setup TaskManager =================================================================================
-		JobID jobID = new JobID();
-		ResourceID tmRID = ResourceID.generate();
+        // ========= setup TaskManager
+        // =================================================================================
 
-		// ========= setup JobManager ==================================================================================
+        JobID jobID = new JobID();
+        ResourceID tmRID = ResourceID.generate();
 
-		final String jmMetricQueryServicePath = "/jm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
-		final String tmMetricQueryServicePath = "/tm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString();
+        // ========= setup QueryServices
+        // ================================================================================
 
-		final TestingRestfulGateway restfulGateway = new TestingRestfulGateway.Builder()
-			.setRequestMultipleJobDetailsSupplier(() -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList())))
-			.setRequestMetricQueryServicePathsSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)))
-			.setRequestTaskManagerMetricQueryServicePathsSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmRID, tmMetricQueryServicePath))))
-			.build();
+        final MetricQueryServiceGateway jmQueryService =
+                new TestingMetricQueryServiceGateway.Builder()
+                        .setQueryMetricsSupplier(
+                                () ->
+                                        CompletableFuture.completedFuture(
+                                                new MetricDumpSerialization
+                                                        .MetricSerializationResult(
+                                                        new byte[0],
+                                                        new byte[0],
+                                                        new byte[0],
+                                                        new byte[0],
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        0)))
+                        .build();
 
-		final GatewayRetriever<RestfulGateway> retriever = () -> CompletableFuture.completedFuture(restfulGateway);
+        MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer =
+                createRequestDumpAnswer(tmRID, jobID);
+        final MetricQueryServiceGateway tmQueryService =
+                new TestingMetricQueryServiceGateway.Builder()
+                        .setQueryMetricsSupplier(
+                                () -> CompletableFuture.completedFuture(requestMetricsAnswer))
+                        .build();
 
-		// ========= setup QueryServices ================================================================================
-		final MetricQueryServiceGateway jmQueryService = new TestingMetricQueryServiceGateway.Builder()
-			.setQueryMetricsSupplier(() -> CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], new byte[0], new byte[0], new byte[0], 0, 0, 0, 0)))
-			.build();
+        // ========= setup JobManager
+        // ==================================================================================
 
-		MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer = createRequestDumpAnswer(tmRID, jobID);
-		final MetricQueryServiceGateway tmQueryService = new TestingMetricQueryServiceGateway.Builder()
-			.setQueryMetricsSupplier(() -> CompletableFuture.completedFuture(requestMetricsAnswer))
-			.build();
+        final TestingRestfulGateway restfulGateway =
+                new TestingRestfulGateway.Builder()
+                        .setRequestMultipleJobDetailsSupplier(
+                                () ->
+                                        CompletableFuture.completedFuture(
+                                                new MultipleJobsDetails(Collections.emptyList())))
+                        .setRequestMetricQueryServiceGatewaysSupplier(
+                                () ->
+                                        CompletableFuture.completedFuture(
+                                                Collections.singleton(jmQueryService.getAddress())))
+                        .setRequestTaskManagerMetricQueryServiceGatewaysSupplier(
+                                () ->
+                                        CompletableFuture.completedFuture(
+                                                Collections.singleton(
+                                                        Tuple2.of(
+                                                                tmRID,
+                                                                tmQueryService.getAddress()))))
+                        .build();
 
-		final MetricQueryServiceRetriever queryServiceRetriever = (path) -> {
-			if (path.equals(jmMetricQueryServicePath))  {
-				return CompletableFuture.completedFuture(jmQueryService);
-			} else if (path.equals(tmMetricQueryServicePath)) {
-				return CompletableFuture.completedFuture(tmQueryService);
-			} else {
-				throw new IllegalArgumentException("Unexpected argument.");
-			}
-		};
+        final GatewayRetriever<RestfulGateway> retriever =
+                () -> CompletableFuture.completedFuture(restfulGateway);
 
-		// ========= start MetricFetcher testing =======================================================================
-		MetricFetcher fetcher = new MetricFetcherImpl<>(
-			retriever,
-			queryServiceRetriever,
-			Executors.directExecutor(),
-			timeout,
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+        // ========= start MetricFetcher testing
+        // =======================================================================
+        MetricFetcher fetcher =
+                new MetricFetcherImpl<>(
+                        retriever,
+                        address -> CompletableFuture.completedFuture(tmQueryService),
+                        Executors.directExecutor(),
+                        timeout,
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
-		// verify that update fetches metrics and updates the store
-		fetcher.update();
-		MetricStore store = fetcher.getMetricStore();
-		synchronized (store) {
-			assertEquals("7", store.getJobManagerMetricStore().getMetric("abc.hist_min"));
-			assertEquals("6", store.getJobManagerMetricStore().getMetric("abc.hist_max"));
-			assertEquals("4.0", store.getJobManagerMetricStore().getMetric("abc.hist_mean"));
-			assertEquals("0.5", store.getJobManagerMetricStore().getMetric("abc.hist_median"));
-			assertEquals("5.0", store.getJobManagerMetricStore().getMetric("abc.hist_stddev"));
-			assertEquals("0.75", store.getJobManagerMetricStore().getMetric("abc.hist_p75"));
-			assertEquals("0.9", store.getJobManagerMetricStore().getMetric("abc.hist_p90"));
-			assertEquals("0.95", store.getJobManagerMetricStore().getMetric("abc.hist_p95"));
-			assertEquals("0.98", store.getJobManagerMetricStore().getMetric("abc.hist_p98"));
-			assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
-			assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
+        // verify that update fetches metrics and updates the store
+        fetcher.update();
+        MetricStore store = fetcher.getMetricStore();
+        synchronized (store) {
+            assertEquals("7", store.getJobManagerMetricStore().getMetric("abc.hist_min"));
+            assertEquals("6", store.getJobManagerMetricStore().getMetric("abc.hist_max"));
+            assertEquals("4.0", store.getJobManagerMetricStore().getMetric("abc.hist_mean"));
+            assertEquals("0.5", store.getJobManagerMetricStore().getMetric("abc.hist_median"));
+            assertEquals("5.0", store.getJobManagerMetricStore().getMetric("abc.hist_stddev"));
+            assertEquals("0.75", store.getJobManagerMetricStore().getMetric("abc.hist_p75"));
+            assertEquals("0.9", store.getJobManagerMetricStore().getMetric("abc.hist_p90"));
+            assertEquals("0.95", store.getJobManagerMetricStore().getMetric("abc.hist_p95"));
+            assertEquals("0.98", store.getJobManagerMetricStore().getMetric("abc.hist_p98"));
+            assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
+            assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
 
-			assertEquals("x", store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.gauge"));
-			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
-			assertEquals("2", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
-			assertEquals("1", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.opname.abc.oc"));
-		}
-	}
+            assertEquals(
+                    "x",
+                    store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.gauge"));
+            assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
+            assertEquals(
+                    "2",
+                    store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
+            assertEquals(
+                    "1",
+                    store.getTaskMetricStore(jobID.toString(), "taskid")
+                            .metrics
+                            .get("2.opname.abc.oc"));
+        }
+    }
 
-	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(ResourceID tmRID, JobID jobID) {
-		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
-		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
-		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
-		Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
+    private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(
+            ResourceID tmRID, JobID jobID) {
+        Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
+        Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
+        Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
+        Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
 
-		SimpleCounter c1 = new SimpleCounter();
-		SimpleCounter c2 = new SimpleCounter();
+        SimpleCounter c1 = new SimpleCounter();
+        SimpleCounter c2 = new SimpleCounter();
 
-		c1.inc(1);
-		c2.inc(2);
+        c1.inc(1);
+        c2.inc(2);
 
-		counters.put(c1, new Tuple2<>(new QueryScopeInfo.OperatorQueryScopeInfo(jobID.toString(), "taskid", 2, "opname", "abc"), "oc"));
-		counters.put(c2, new Tuple2<>(new QueryScopeInfo.TaskQueryScopeInfo(jobID.toString(), "taskid", 2, "abc"), "tc"));
-		meters.put(new Meter() {
-			@Override
-			public void markEvent() {
-			}
+        counters.put(
+                c1,
+                new Tuple2<>(
+                        new QueryScopeInfo.OperatorQueryScopeInfo(
+                                jobID.toString(), "taskid", 2, "opname", "abc"),
+                        "oc"));
+        counters.put(
+                c2,
+                new Tuple2<>(
+                        new QueryScopeInfo.TaskQueryScopeInfo(jobID.toString(), "taskid", 2, "abc"),
+                        "tc"));
+        meters.put(
+                new Meter() {
+                    @Override
+                    public void markEvent() {}
 
-			@Override
-			public void markEvent(long n) {
-			}
+                    @Override
+                    public void markEvent(long n) {}
 
-			@Override
-			public double getRate() {
-				return 5;
-			}
+                    @Override
+                    public double getRate() {
+                        return 5;
+                    }
 
-			@Override
-			public long getCount() {
-				return 10;
-			}
-		}, new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo(jobID.toString(), "abc"), "jc"));
-		gauges.put(new Gauge<String>() {
-			@Override
-			public String getValue() {
-				return "x";
-			}
-		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "gauge"));
-		histograms.put(new TestHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
+                    @Override
+                    public long getCount() {
+                        return 10;
+                    }
+                },
+                new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo(jobID.toString(), "abc"), "jc"));
+        gauges.put(
+                new Gauge<String>() {
+                    @Override
+                    public String getValue() {
+                        return "x";
+                    }
+                },
+                new Tuple2<>(
+                        new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"),
+                        "gauge"));
+        histograms.put(
+                new TestHistogram(),
+                new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
-		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
-		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
-		serializer.close();
+        MetricDumpSerialization.MetricDumpSerializer serializer =
+                new MetricDumpSerialization.MetricDumpSerializer();
+        MetricDumpSerialization.MetricSerializationResult dump =
+                serializer.serialize(counters, gauges, histograms, meters);
+        serializer.close();
 
-		return dump;
-	}
+        return dump;
+    }
 
-	@Test
-	public void testLongUpdateInterval() {
-		final long updateInterval = 1000L;
-		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
-		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+    @Test
+    public void testLongUpdateInterval() {
+        final long updateInterval = 1000L;
+        final AtomicInteger requestMetricQueryServiceGatewaysCounter = new AtomicInteger(0);
+        final RestfulGateway restfulGateway =
+                createRestfulGateway(requestMetricQueryServiceGatewaysCounter);
 
-		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
+        final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
 
-		fetcher.update();
-		fetcher.update();
+        fetcher.update();
+        fetcher.update();
 
-		assertThat(requestMetricQueryServicePathsCounter.get(), is(1));
-	}
+        assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(1));
+    }
 
-	@Test
-	public void testShortUpdateInterval() throws InterruptedException {
-		final long updateInterval = 1L;
-		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
-		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+    @Test
+    public void testShortUpdateInterval() throws InterruptedException {
+        final long updateInterval = 1L;
+        final AtomicInteger requestMetricQueryServiceGatewaysCounter = new AtomicInteger(0);
+        final RestfulGateway restfulGateway =
+                createRestfulGateway(requestMetricQueryServiceGatewaysCounter);
 
-		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
+        final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
 
-		fetcher.update();
+        fetcher.update();
 
-		final long start = System.currentTimeMillis();
-		long difference = 0L;
+        final long start = System.currentTimeMillis();
+        long difference = 0L;
 
-		while (difference <= updateInterval) {
-			Thread.sleep(2L * updateInterval);
-			difference = System.currentTimeMillis() - start;
-		}
+        while (difference <= updateInterval) {
+            Thread.sleep(2L * updateInterval);
+            difference = System.currentTimeMillis() - start;
+        }
 
-		fetcher.update();
+        fetcher.update();
 
-		assertThat(requestMetricQueryServicePathsCounter.get(), is(2));
-	}
+        assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(2));
+    }
 
-	@Nonnull
-	private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {
-		return new MetricFetcherImpl<>(
-			() -> CompletableFuture.completedFuture(restfulGateway),
-			path -> new CompletableFuture<>(),
-			Executors.directExecutor(),
-			Time.seconds(10L),
-			updateInterval);
-	}
+    @Nonnull
+    private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {
+        return new MetricFetcherImpl<>(
+                () -> CompletableFuture.completedFuture(restfulGateway),
+                address -> null,
+                Executors.directExecutor(),
+                Time.seconds(10L),
+                updateInterval);
+    }
 
-	private RestfulGateway createRestfulGateway(AtomicInteger requestMetricQueryServicePathsCounter) {
-		return new TestingRestfulGateway.Builder()
-			.setRequestMetricQueryServicePathsSupplier(() -> {
-				requestMetricQueryServicePathsCounter.incrementAndGet();
-				return new CompletableFuture<>();
-			})
-			.build();
-	}
+    private RestfulGateway createRestfulGateway(
+            AtomicInteger requestMetricQueryServiceGatewaysCounter) {
+        return new TestingRestfulGateway.Builder()
+                .setRequestMetricQueryServiceGatewaysSupplier(
+                        () -> {
+                            requestMetricQueryServiceGatewaysCounter.incrementAndGet();
+                            return new CompletableFuture<>();
+                        })
+                .build();
+    }
 }

@@ -26,147 +26,146 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link StringValueArray}.
- */
+/** Tests for {@link StringValueArray}. */
 public class StringValueArrayTest {
 
-	@Test
-	public void testBoundedArray() {
-		// one byte for length and one byte for character
-		int count = StringValueArray.DEFAULT_CAPACITY_IN_BYTES / 2;
+    @Test
+    public void testBoundedArray() {
+        // one byte for length and one byte for character
+        int count = StringValueArray.DEFAULT_CAPACITY_IN_BYTES / 2;
 
-		ValueArray<StringValue> sva = new StringValueArray(StringValueArray.DEFAULT_CAPACITY_IN_BYTES);
+        ValueArray<StringValue> sva =
+                new StringValueArray(StringValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
-		// fill the array
-		for (int i = 0; i < count; i++) {
-			assertFalse(sva.isFull());
-			assertEquals(i, sva.size());
+        // fill the array
+        for (int i = 0; i < count; i++) {
+            assertFalse(sva.isFull());
+            assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0x7F)))));
+            assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0x7F)))));
 
-			assertEquals(i + 1, sva.size());
-		}
+            assertEquals(i + 1, sva.size());
+        }
 
-		// array is now full
-		assertTrue(sva.isFull());
-		assertEquals(count, sva.size());
+        // array is now full
+        assertTrue(sva.isFull());
+        assertEquals(count, sva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (StringValue sv : sva) {
-			assertEquals((idx++) & 0x7F, sv.getValue().charAt(0));
-		}
+        // verify the array values
+        int idx = 0;
+        for (StringValue sv : sva) {
+            assertEquals((idx++) & 0x7F, sv.getValue().charAt(0));
+        }
 
-		// add element past end of array
-		assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
-		assertFalse(sva.addAll(sva));
+        // add element past end of array
+        assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
+        assertFalse(sva.addAll(sva));
 
-		// test copy
-		assertEquals(sva, sva.copy());
+        // test copy
+        assertEquals(sva, sva.copy());
 
-		// test copyTo
-		StringValueArray svaTo = new StringValueArray();
-		sva.copyTo(svaTo);
-		assertEquals(sva, svaTo);
+        // test copyTo
+        StringValueArray svaTo = new StringValueArray();
+        sva.copyTo(svaTo);
+        assertEquals(sva, svaTo);
 
-		// test clear
-		sva.clear();
-		assertEquals(0, sva.size());
-	}
+        // test clear
+        sva.clear();
+        assertEquals(0, sva.size());
+    }
 
-	@Test
-	public void testBoundedArrayWithVariableLengthCharacters() {
-		// characters alternatingly take 1 and 2 bytes (plus one byte for length)
-		int count = 1280;
+    @Test
+    public void testBoundedArrayWithVariableLengthCharacters() {
+        // characters alternatingly take 1 and 2 bytes (plus one byte for length)
+        int count = 1280;
 
-		ValueArray<StringValue> sva = new StringValueArray(3200);
+        ValueArray<StringValue> sva = new StringValueArray(3200);
 
-		// fill the array
-		for (int i = 0; i < count; i++) {
-			assertFalse(sva.isFull());
-			assertEquals(i, sva.size());
+        // fill the array
+        for (int i = 0; i < count; i++) {
+            assertFalse(sva.isFull());
+            assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0xFF)))));
+            assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0xFF)))));
 
-			assertEquals(i + 1, sva.size());
-		}
+            assertEquals(i + 1, sva.size());
+        }
 
-		// array is now full
-		assertTrue(sva.isFull());
-		assertEquals(count, sva.size());
+        // array is now full
+        assertTrue(sva.isFull());
+        assertEquals(count, sva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (StringValue sv : sva) {
-			assertEquals((idx++) & 0xFF, sv.getValue().charAt(0));
-		}
+        // verify the array values
+        int idx = 0;
+        for (StringValue sv : sva) {
+            assertEquals((idx++) & 0xFF, sv.getValue().charAt(0));
+        }
 
-		// add element past end of array
-		assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
-		assertFalse(sva.addAll(sva));
+        // add element past end of array
+        assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
+        assertFalse(sva.addAll(sva));
 
-		// test copy
-		assertEquals(sva, sva.copy());
+        // test copy
+        assertEquals(sva, sva.copy());
 
-		// test copyTo
-		StringValueArray svaTo = new StringValueArray();
-		sva.copyTo(svaTo);
-		assertEquals(sva, svaTo);
+        // test copyTo
+        StringValueArray svaTo = new StringValueArray();
+        sva.copyTo(svaTo);
+        assertEquals(sva, svaTo);
 
-		// test clear
-		sva.clear();
-		assertEquals(0, sva.size());
-	}
+        // test clear
+        sva.clear();
+        assertEquals(0, sva.size());
+    }
 
-	@Test
-	public void testUnboundedArray() {
-		int count = 4096;
+    @Test
+    public void testUnboundedArray() {
+        int count = 4096;
 
-		ValueArray<StringValue> sva = new StringValueArray();
+        ValueArray<StringValue> sva = new StringValueArray();
 
-		// add several elements
-		for (int i = 0; i < count; i++) {
-			assertFalse(sva.isFull());
-			assertEquals(i, sva.size());
+        // add several elements
+        for (int i = 0; i < count; i++) {
+            assertFalse(sva.isFull());
+            assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(String.valueOf((char) i))));
+            assertTrue(sva.add(new StringValue(String.valueOf((char) i))));
 
-			assertEquals(i + 1, sva.size());
-		}
+            assertEquals(i + 1, sva.size());
+        }
 
-		// array never fills
-		assertFalse(sva.isFull());
-		assertEquals(count, sva.size());
+        // array never fills
+        assertFalse(sva.isFull());
+        assertEquals(count, sva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (StringValue sv : sva) {
-			assertEquals(idx++, sv.getValue().charAt(0));
-		}
+        // verify the array values
+        int idx = 0;
+        for (StringValue sv : sva) {
+            assertEquals(idx++, sv.getValue().charAt(0));
+        }
 
-		// add element past end of array
-		assertTrue(sva.add(new StringValue(String.valueOf((char) count))));
-		assertTrue(sva.addAll(sva));
+        // add element past end of array
+        assertTrue(sva.add(new StringValue(String.valueOf((char) count))));
+        assertTrue(sva.addAll(sva));
 
-		// test copy
-		assertEquals(sva, sva.copy());
+        // test copy
+        assertEquals(sva, sva.copy());
 
-		// test copyTo
-		StringValueArray svaTo = new StringValueArray();
-		sva.copyTo(svaTo);
-		assertEquals(sva, svaTo);
+        // test copyTo
+        StringValueArray svaTo = new StringValueArray();
+        sva.copyTo(svaTo);
+        assertEquals(sva, svaTo);
 
-		// test mark/reset
-		int size = sva.size();
-		sva.mark();
-		assertTrue(sva.add(new StringValue()));
-		assertEquals(size + 1, sva.size());
-		sva.reset();
-		assertEquals(size, sva.size());
+        // test mark/reset
+        int size = sva.size();
+        sva.mark();
+        assertTrue(sva.add(new StringValue()));
+        assertEquals(size + 1, sva.size());
+        sva.reset();
+        assertEquals(size, sva.size());
 
-		// test clear
-		sva.clear();
-		assertEquals(0, sva.size());
-	}
+        // test clear
+        sva.clear();
+        assertEquals(0, sva.size());
+    }
 }

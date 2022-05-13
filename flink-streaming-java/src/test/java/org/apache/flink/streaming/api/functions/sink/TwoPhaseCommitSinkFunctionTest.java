@@ -25,14 +25,13 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.ContentDump;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.logging.TestLoggerResource;
 
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -45,338 +44,383 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link TwoPhaseCommitSinkFunction}.
- */
+/** Tests for {@link TwoPhaseCommitSinkFunction}. */
 public class TwoPhaseCommitSinkFunctionTest {
 
-	private ContentDumpSinkFunction sinkFunction;
-
-	private OneInputStreamOperatorTestHarness<String, Object> harness;
-
-	private AtomicBoolean throwException = new AtomicBoolean();
-
-	private ContentDump targetDirectory;
-
-	private ContentDump tmpDirectory;
-
-	private SettableClock clock;
-
-	private Logger logger;
-
-	private AppenderSkeleton testAppender;
-
-	private List<LoggingEvent> loggingEvents;
-
-	@Before
-	public void setUp() throws Exception {
-		loggingEvents = new ArrayList<>();
-		setupLogger();
-
-		targetDirectory = new ContentDump();
-		tmpDirectory = new ContentDump();
-		clock = new SettableClock();
-
-		setUpTestHarness();
-	}
-
-	@After
-	public void tearDown() throws Exception {
-		closeTestHarness();
-		if (logger != null) {
-			logger.removeAppender(testAppender);
-		}
-		loggingEvents = null;
-	}
-
-	/**
-	 * Setup {@link org.apache.log4j.Logger}, the default logger implementation for tests,
-	 * to append {@link LoggingEvent}s to {@link #loggingEvents} so that we can assert if
-	 * the right messages were logged.
-	 *
-	 * @see #testLogTimeoutAlmostReachedWarningDuringCommit
-	 * @see #testLogTimeoutAlmostReachedWarningDuringRecovery
-	 */
-	private void setupLogger() {
-		Logger.getRootLogger().removeAllAppenders();
-		logger = Logger.getLogger(TwoPhaseCommitSinkFunction.class);
-		testAppender = new AppenderSkeleton() {
-			@Override
-			protected void append(LoggingEvent event) {
-				loggingEvents.add(event);
-			}
-
-			@Override
-			public void close() {
-
-			}
-
-			@Override
-			public boolean requiresLayout() {
-				return false;
-			}
-		};
-		logger.addAppender(testAppender);
-		logger.setLevel(Level.WARN);
-	}
-
-	private void setUpTestHarness() throws Exception {
-		sinkFunction = new ContentDumpSinkFunction();
-		harness = new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sinkFunction), StringSerializer.INSTANCE);
-		harness.setup();
-	}
-
-	private void closeTestHarness() throws Exception {
-		harness.close();
-	}
-
-	@Test
-	public void testNotifyOfCompletedCheckpoint() throws Exception {
-		harness.open();
-		harness.processElement("42", 0);
-		harness.snapshot(0, 1);
-		harness.processElement("43", 2);
-		harness.snapshot(1, 3);
-		harness.processElement("44", 4);
-		harness.snapshot(2, 5);
-		harness.notifyOfCompletedCheckpoint(1);
-
-		assertExactlyOnce(Arrays.asList("42", "43"));
-		assertEquals(2, tmpDirectory.listFiles().size()); // one for checkpointId 2 and second for the currentTransaction
-	}
-
-	@Test
-	public void testFailBeforeNotify() throws Exception {
-		harness.open();
-		harness.processElement("42", 0);
-		harness.snapshot(0, 1);
-		harness.processElement("43", 2);
-		OperatorSubtaskState snapshot = harness.snapshot(1, 3);
-
-		tmpDirectory.setWritable(false);
-		try {
-			harness.processElement("44", 4);
-			harness.snapshot(2, 5);
-			fail("something should fail");
-		} catch (Exception ex) {
-			if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
-				throw ex;
-			}
-			// ignore
-		}
-		closeTestHarness();
-
-		tmpDirectory.setWritable(true);
-
-		setUpTestHarness();
-		harness.initializeState(snapshot);
-
-		assertExactlyOnce(Arrays.asList("42", "43"));
-		closeTestHarness();
-
-		assertEquals(0, tmpDirectory.listFiles().size());
-	}
-
-	@Test
-	public void testIgnoreCommitExceptionDuringRecovery() throws Exception {
-		clock.setEpochMilli(0);
-
-		harness.open();
-		harness.processElement("42", 0);
-
-		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
-		harness.notifyOfCompletedCheckpoint(1);
-
-		throwException.set(true);
-
-		closeTestHarness();
-		setUpTestHarness();
-
-		final long transactionTimeout = 1000;
-		sinkFunction.setTransactionTimeout(transactionTimeout);
-		sinkFunction.ignoreFailuresAfterTransactionTimeout();
-
-		try {
-			harness.initializeState(snapshot);
-			fail("Expected exception not thrown");
-		} catch (RuntimeException e) {
-			assertEquals("Expected exception", e.getMessage());
-		}
-
-		clock.setEpochMilli(transactionTimeout + 1);
-		harness.initializeState(snapshot);
-
-		assertExactlyOnce(Collections.singletonList("42"));
-	}
-
-	@Test
-	public void testLogTimeoutAlmostReachedWarningDuringCommit() throws Exception {
-		clock.setEpochMilli(0);
-
-		final long transactionTimeout = 1000;
-		final double warningRatio = 0.5;
-		sinkFunction.setTransactionTimeout(transactionTimeout);
-		sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
-
-		harness.open();
-		harness.snapshot(0, 1);
-		final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
-		clock.setEpochMilli(elapsedTime);
-		harness.notifyOfCompletedCheckpoint(1);
-
-		final List<String> logMessages =
-			loggingEvents.stream().map(LoggingEvent::getRenderedMessage).collect(Collectors.toList());
-
-		assertThat(
-			logMessages,
-			hasItem(containsString("has been open for 502 ms. " +
-				"This is close to or even exceeding the transaction timeout of 1000 ms.")));
-	}
-
-	@Test
-	public void testLogTimeoutAlmostReachedWarningDuringRecovery() throws Exception {
-		clock.setEpochMilli(0);
-
-		final long transactionTimeout = 1000;
-		final double warningRatio = 0.5;
-		sinkFunction.setTransactionTimeout(transactionTimeout);
-		sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
-
-		harness.open();
-
-		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
-		final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
-		clock.setEpochMilli(elapsedTime);
-
-		closeTestHarness();
-		setUpTestHarness();
-		sinkFunction.setTransactionTimeout(transactionTimeout);
-		sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
-
-		harness.initializeState(snapshot);
-		harness.open();
-
-		final List<String> logMessages =
-			loggingEvents.stream().map(LoggingEvent::getRenderedMessage).collect(Collectors.toList());
-
-		closeTestHarness();
-
-		assertThat(
-			logMessages,
-			hasItem(containsString("has been open for 502 ms. " +
-				"This is close to or even exceeding the transaction timeout of 1000 ms.")));
-	}
-
-	private void assertExactlyOnce(List<String> expectedValues) throws IOException {
-		ArrayList<String> actualValues = new ArrayList<>();
-		for (String name : targetDirectory.listFiles()) {
-			actualValues.addAll(targetDirectory.read(name));
-		}
-		Collections.sort(actualValues);
-		Collections.sort(expectedValues);
-		assertEquals(expectedValues, actualValues);
-	}
-
-	private class ContentDumpSinkFunction extends TwoPhaseCommitSinkFunction<String, ContentTransaction, Void> {
-
-		public ContentDumpSinkFunction() {
-			super(
-				new KryoSerializer<>(ContentTransaction.class, new ExecutionConfig()),
-				VoidSerializer.INSTANCE, clock);
-		}
-
-		@Override
-		protected void invoke(ContentTransaction transaction, String value, Context context) throws Exception {
-			transaction.tmpContentWriter.write(value);
-		}
-
-		@Override
-		protected ContentTransaction beginTransaction() throws Exception {
-			return new ContentTransaction(tmpDirectory.createWriter(UUID.randomUUID().toString()));
-		}
-
-		@Override
-		protected void preCommit(ContentTransaction transaction) throws Exception {
-			transaction.tmpContentWriter.flush();
-			transaction.tmpContentWriter.close();
-		}
-
-		@Override
-		protected void commit(ContentTransaction transaction) {
-			if (throwException.get()) {
-				throw new RuntimeException("Expected exception");
-			}
-
-			ContentDump.move(
-				transaction.tmpContentWriter.getName(),
-				tmpDirectory,
-				targetDirectory);
-
-		}
-
-		@Override
-		protected void abort(ContentTransaction transaction) {
-			transaction.tmpContentWriter.close();
-			tmpDirectory.delete(transaction.tmpContentWriter.getName());
-		}
-	}
-
-	private static class ContentTransaction {
-		private ContentDump.ContentWriter tmpContentWriter;
-
-		public ContentTransaction(ContentDump.ContentWriter tmpContentWriter) {
-			this.tmpContentWriter = tmpContentWriter;
-		}
-
-		@Override
-		public String toString() {
-			return String.format("ContentTransaction[%s]", tmpContentWriter.getName());
-		}
-	}
-
-	private static class SettableClock extends Clock {
-
-		private final ZoneId zoneId;
-
-		private long epochMilli;
-
-		private SettableClock() {
-			this.zoneId = ZoneOffset.UTC;
-		}
-
-		public SettableClock(ZoneId zoneId, long epochMilli) {
-			this.zoneId = zoneId;
-			this.epochMilli = epochMilli;
-		}
-
-		public void setEpochMilli(long epochMilli) {
-			this.epochMilli = epochMilli;
-		}
-
-		@Override
-		public ZoneId getZone() {
-			return zoneId;
-		}
-
-		@Override
-		public Clock withZone(ZoneId zone) {
-			if (zone.equals(this.zoneId)) {
-				return this;
-			}
-			return new SettableClock(zone, epochMilli);
-		}
-
-		@Override
-		public Instant instant() {
-			return Instant.ofEpochMilli(epochMilli);
-		}
-	}
+    private ContentDumpSinkFunction sinkFunction;
+
+    private OneInputStreamOperatorTestHarness<String, Object> harness;
+
+    private AtomicBoolean throwException = new AtomicBoolean();
+
+    private ContentDump targetDirectory;
+
+    private ContentDump tmpDirectory;
+
+    private SettableClock clock;
+
+    @Rule
+    public final TestLoggerResource testLoggerResource =
+            new TestLoggerResource(TwoPhaseCommitSinkFunction.class, Level.WARN);
+
+    @Before
+    public void setUp() throws Exception {
+        targetDirectory = new ContentDump();
+        tmpDirectory = new ContentDump();
+        clock = new SettableClock();
+
+        setUpTestHarness();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        closeTestHarness();
+    }
+
+    private void setUpTestHarness() throws Exception {
+        sinkFunction = new ContentDumpSinkFunction();
+        harness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(sinkFunction), StringSerializer.INSTANCE);
+        harness.setup();
+    }
+
+    private void closeTestHarness() throws Exception {
+        harness.close();
+    }
+
+    /**
+     * This can happen if savepoint and checkpoint are triggered one after another and checkpoints
+     * completes first. See FLINK-10377 and FLINK-14979 for more details.
+     */
+    @Test
+    public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        harness.snapshot(1, 3);
+        harness.processElement("44", 4);
+        harness.snapshot(2, 5);
+        harness.notifyOfCompletedCheckpoint(2);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        assertExactlyOnce(Arrays.asList("42", "43", "44"));
+        assertEquals(1, tmpDirectory.listFiles().size()); // one for currentTransaction
+    }
+
+    @Test
+    public void testNoTransactionAfterSinkFunctionFinish() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        harness.snapshot(1, 3);
+        harness.processElement("44", 4);
+
+        // do not expect new input after finish()
+        sinkFunction.finish();
+
+        harness.snapshot(2, 5);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        // make sure the previous empty transaction will not be pre-committed
+        harness.snapshot(3, 6);
+
+        try {
+            harness.processElement("45", 7);
+            fail(
+                    "TwoPhaseCommitSinkFunctionTest should not process any more input data after finish!");
+        } catch (NullPointerException e) {
+            // expected and do nothing here
+        }
+
+        // Checkpoint2 has not complete
+        assertExactlyOnce(Arrays.asList("42", "43"));
+
+        // transaction for checkpoint2
+        assertEquals(1, tmpDirectory.listFiles().size());
+    }
+
+    @Test
+    public void testRecoverFromStateAfterFinished() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        sinkFunction.finish();
+
+        OperatorSubtaskState operatorSubtaskState = harness.snapshot(2, 5);
+
+        closeTestHarness();
+        setUpTestHarness();
+
+        harness.initializeState(operatorSubtaskState);
+        harness.open();
+        assertEquals(0, sinkFunction.abortedTransactions.size());
+    }
+
+    @Test
+    public void testNotifyOfCompletedCheckpoint() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        harness.snapshot(1, 3);
+        harness.processElement("44", 4);
+        harness.snapshot(2, 5);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        assertExactlyOnce(Arrays.asList("42", "43"));
+        assertEquals(
+                2,
+                tmpDirectory
+                        .listFiles()
+                        .size()); // one for checkpointId 2 and second for the currentTransaction
+    }
+
+    @Test
+    public void testFailBeforeNotify() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        OperatorSubtaskState snapshot = harness.snapshot(1, 3);
+
+        tmpDirectory.setWritable(false);
+        try {
+            harness.processElement("44", 4);
+            harness.snapshot(2, 5);
+            fail("something should fail");
+        } catch (Exception ex) {
+            if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
+                throw ex;
+            }
+            // ignore
+        }
+        closeTestHarness();
+
+        tmpDirectory.setWritable(true);
+
+        setUpTestHarness();
+        harness.initializeState(snapshot);
+
+        assertExactlyOnce(Arrays.asList("42", "43"));
+        closeTestHarness();
+
+        assertEquals(0, tmpDirectory.listFiles().size());
+    }
+
+    @Test
+    public void testIgnoreCommitExceptionDuringRecovery() throws Exception {
+        clock.setEpochMilli(0);
+
+        harness.open();
+        harness.processElement("42", 0);
+
+        final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        throwException.set(true);
+
+        closeTestHarness();
+        setUpTestHarness();
+
+        final long transactionTimeout = 1000;
+        sinkFunction.setTransactionTimeout(transactionTimeout);
+        sinkFunction.ignoreFailuresAfterTransactionTimeout();
+
+        try {
+            harness.initializeState(snapshot);
+            fail("Expected exception not thrown");
+        } catch (RuntimeException e) {
+            assertEquals("Expected exception", e.getMessage());
+        }
+
+        clock.setEpochMilli(transactionTimeout + 1);
+        harness.initializeState(snapshot);
+
+        assertExactlyOnce(Collections.singletonList("42"));
+    }
+
+    @Test
+    public void testLogTimeoutAlmostReachedWarningDuringCommit() throws Exception {
+        clock.setEpochMilli(0);
+
+        final long transactionTimeout = 1000;
+        final double warningRatio = 0.5;
+        sinkFunction.setTransactionTimeout(transactionTimeout);
+        sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
+
+        harness.open();
+        harness.snapshot(0, 1);
+        final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
+        clock.setEpochMilli(elapsedTime);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        assertThat(
+                testLoggerResource.getMessages(),
+                hasItem(
+                        containsString(
+                                "has been open for 502 ms. "
+                                        + "This is close to or even exceeding the transaction timeout of 1000 ms.")));
+    }
+
+    @Test
+    public void testLogTimeoutAlmostReachedWarningDuringRecovery() throws Exception {
+        clock.setEpochMilli(0);
+
+        final long transactionTimeout = 1000;
+        final double warningRatio = 0.5;
+        sinkFunction.setTransactionTimeout(transactionTimeout);
+        sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
+
+        harness.open();
+
+        final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
+        final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
+        clock.setEpochMilli(elapsedTime);
+
+        closeTestHarness();
+        setUpTestHarness();
+        sinkFunction.setTransactionTimeout(transactionTimeout);
+        sinkFunction.enableTransactionTimeoutWarnings(warningRatio);
+
+        harness.initializeState(snapshot);
+        harness.open();
+
+        closeTestHarness();
+
+        assertThat(
+                testLoggerResource.getMessages(),
+                hasItem(
+                        containsString(
+                                "has been open for 502 ms. "
+                                        + "This is close to or even exceeding the transaction timeout of 1000 ms.")));
+    }
+
+    private void assertExactlyOnce(List<String> expectedValues) throws IOException {
+        ArrayList<String> actualValues = new ArrayList<>();
+        for (String name : targetDirectory.listFiles()) {
+            actualValues.addAll(targetDirectory.read(name));
+        }
+        Collections.sort(actualValues);
+        Collections.sort(expectedValues);
+        assertEquals(expectedValues, actualValues);
+    }
+
+    private class ContentDumpSinkFunction
+            extends TwoPhaseCommitSinkFunction<String, ContentTransaction, Void> {
+        final List<ContentTransaction> abortedTransactions = new ArrayList<>();
+
+        public ContentDumpSinkFunction() {
+            super(new ContentTransactionSerializer(), VoidSerializer.INSTANCE, clock);
+        }
+
+        @Override
+        protected void invoke(ContentTransaction transaction, String value, Context context)
+                throws Exception {
+            transaction.tmpContentWriter.write(value);
+        }
+
+        @Override
+        protected ContentTransaction beginTransaction() throws Exception {
+            return new ContentTransaction(tmpDirectory.createWriter(UUID.randomUUID().toString()));
+        }
+
+        @Override
+        protected void preCommit(ContentTransaction transaction) throws Exception {
+            transaction.tmpContentWriter.flush();
+            transaction.tmpContentWriter.close();
+        }
+
+        @Override
+        protected void commit(ContentTransaction transaction) {
+            if (throwException.get()) {
+                throw new RuntimeException("Expected exception");
+            }
+
+            ContentDump.move(transaction.tmpContentWriter.getName(), tmpDirectory, targetDirectory);
+        }
+
+        @Override
+        protected void abort(ContentTransaction transaction) {
+            abortedTransactions.add(transaction);
+            transaction.tmpContentWriter.close();
+            tmpDirectory.delete(transaction.tmpContentWriter.getName());
+        }
+    }
+
+    private static class ContentTransaction {
+        private ContentDump.ContentWriter tmpContentWriter;
+
+        public ContentTransaction(ContentDump.ContentWriter tmpContentWriter) {
+            this.tmpContentWriter = tmpContentWriter;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ContentTransaction[%s]", tmpContentWriter.getName());
+        }
+    }
+
+    private static class ContentTransactionSerializer extends KryoSerializer<ContentTransaction> {
+
+        public ContentTransactionSerializer() {
+            super(ContentTransaction.class, new ExecutionConfig());
+        }
+
+        @Override
+        public KryoSerializer<ContentTransaction> duplicate() {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "ContentTransactionSerializer";
+        }
+    }
+
+    private static class SettableClock extends Clock {
+
+        private final ZoneId zoneId;
+
+        private long epochMilli;
+
+        private SettableClock() {
+            this.zoneId = ZoneOffset.UTC;
+        }
+
+        public SettableClock(ZoneId zoneId, long epochMilli) {
+            this.zoneId = zoneId;
+            this.epochMilli = epochMilli;
+        }
+
+        public void setEpochMilli(long epochMilli) {
+            this.epochMilli = epochMilli;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return zoneId;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            if (zone.equals(this.zoneId)) {
+                return this;
+            }
+            return new SettableClock(zone, epochMilli);
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(epochMilli);
+        }
+    }
 }

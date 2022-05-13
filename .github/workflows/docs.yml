@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "Build documentation"
+on:
+  schedule:
+    - cron: '0 0 * * *' # Deploy every day
+  workflow_dispatch:
+
+jobs:
+  build-documentation:
+    if: github.repository == 'apache/flink'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        branch:
+          - master
+          - release-1.15
+          - release-1.14
+          - release-1.13
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.branch }}
+      - name: Set branch environment variable
+        run: |
+          currentBranch=$(git branch --show-current)
+
+          echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
+
+          if [ "${currentBranch}" = "master" ]; then
+            echo "flink_alias=release-1.16" >> ${GITHUB_ENV}
+          elif [ "${currentBranch}" = "release-1.15" ]; then
+            echo "flink_alias=stable" >> ${GITHUB_ENV}
+          fi
+      - name: Build documentation
+        run: |
+          docker run  --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+      - name: Upload documentation
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: --archive --compress
+          path: docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+      - name: Upload documentation alias
+        if: env.flink_alias != ''
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: --archive --compress
+          path: docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}

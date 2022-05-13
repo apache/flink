@@ -25,40 +25,37 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 
 /**
- * Convenience method to get the count (number of elements) of a Graph
- * as well as the checksum (sum over element hashes). The vertex and
- * edge DataSets are processed in a single job and the resultant counts
- * and checksums are merged locally.
+ * Convenience method to get the count (number of elements) of a Graph as well as the checksum (sum
+ * over element hashes). The vertex and edge DataSets are processed in a single job and the
+ * resultant counts and checksums are merged locally.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class ChecksumHashCode<K, VV, EV>
-extends GraphAnalyticBase<K, VV, EV, Checksum> {
+public class ChecksumHashCode<K, VV, EV> extends GraphAnalyticBase<K, VV, EV, Checksum> {
 
-	private org.apache.flink.graph.asm.dataset.ChecksumHashCode<Vertex<K, VV>> vertexChecksum;
+    private org.apache.flink.graph.asm.dataset.ChecksumHashCode<Vertex<K, VV>> vertexChecksum;
 
-	private org.apache.flink.graph.asm.dataset.ChecksumHashCode<Edge<K, EV>> edgeChecksum;
+    private org.apache.flink.graph.asm.dataset.ChecksumHashCode<Edge<K, EV>> edgeChecksum;
 
-	@Override
-	public ChecksumHashCode<K, VV, EV> run(Graph<K, VV, EV> input)
-			throws Exception {
-		super.run(input);
+    @Override
+    public ChecksumHashCode<K, VV, EV> run(Graph<K, VV, EV> input) throws Exception {
+        super.run(input);
 
-		vertexChecksum = new org.apache.flink.graph.asm.dataset.ChecksumHashCode<>();
-		vertexChecksum.run(input.getVertices());
+        vertexChecksum = new org.apache.flink.graph.asm.dataset.ChecksumHashCode<>();
+        vertexChecksum.run(input.getVertices());
 
-		edgeChecksum = new org.apache.flink.graph.asm.dataset.ChecksumHashCode<>();
-		edgeChecksum.run(input.getEdges());
+        edgeChecksum = new org.apache.flink.graph.asm.dataset.ChecksumHashCode<>();
+        edgeChecksum.run(input.getEdges());
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	public Checksum getResult() {
-		Checksum checksum = vertexChecksum.getResult();
-		checksum.add(edgeChecksum.getResult());
-		return checksum;
-	}
+    @Override
+    public Checksum getResult() {
+        Checksum checksum = vertexChecksum.getResult();
+        checksum.add(edgeChecksum.getResult());
+        return checksum;
+    }
 }

@@ -21,36 +21,36 @@ package org.apache.flink.graph;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
- * Represents the graph's nodes. It carries an ID and a value.
- * For vertices with no value, use {@link org.apache.flink.types.NullValue} as the value type.
+ * Represents the graph's nodes. It carries an ID and a value. For vertices with no value, use
+ * {@link org.apache.flink.types.NullValue} as the value type.
  *
  * @param <K>
  * @param <V>
  */
 public class Vertex<K, V> extends Tuple2<K, V> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public Vertex(){}
+    public Vertex() {}
 
-	public Vertex(K k, V val) {
-		this.f0 = k;
-		this.f1 = val;
-	}
+    public Vertex(K k, V val) {
+        this.f0 = k;
+        this.f1 = val;
+    }
 
-	public K getId() {
-		return this.f0;
-	}
+    public K getId() {
+        return this.f0;
+    }
 
-	public V getValue() {
-		return this.f1;
-	}
+    public V getValue() {
+        return this.f1;
+    }
 
-	public void setId(K id) {
-		this.f0 = id;
-	}
+    public void setId(K id) {
+        this.f0 = id;
+    }
 
-	public void setValue(V val) {
-		this.f1 = val;
-	}
+    public void setValue(V val) {
+        this.f1 = val;
+    }
 }

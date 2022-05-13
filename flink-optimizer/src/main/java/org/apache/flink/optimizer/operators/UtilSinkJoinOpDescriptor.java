@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.SinkJoiner;
@@ -34,58 +30,67 @@ import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkJoinerPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- *
- */
+import java.util.Collections;
+import java.util.List;
+
+/** */
 public class UtilSinkJoinOpDescriptor extends OperatorDescriptorDual {
-	
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.BINARY_NO_OP;
-	}
-	
-	@Override
-	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new GlobalPropertiesPair(
-			new RequestedGlobalProperties(), new RequestedGlobalProperties()));
-	}
 
-	@Override
-	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(
-			new RequestedLocalProperties(), new RequestedLocalProperties()));
-	}
-	
-	@Override
-	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
-			GlobalProperties produced1, GlobalProperties produced2) {
-		return true;
-	}
-	
-	@Override
-	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
-			LocalProperties produced1, LocalProperties produced2) {
-		return true;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.BINARY_NO_OP;
+    }
 
-	@Override
-	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		if (node instanceof SinkJoiner) {
-			return new SinkJoinerPlanNode((SinkJoiner) node, in1, in2);
-		} else {
-			throw new CompilerException();
-		}
-	}
+    @Override
+    protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
+        // all properties are possible
+        return Collections.singletonList(
+                new GlobalPropertiesPair(
+                        new RequestedGlobalProperties(), new RequestedGlobalProperties()));
+    }
 
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		return new LocalProperties();
-	}
+    @Override
+    protected List<LocalPropertiesPair> createPossibleLocalProperties() {
+        // all properties are possible
+        return Collections.singletonList(
+                new LocalPropertiesPair(
+                        new RequestedLocalProperties(), new RequestedLocalProperties()));
+    }
 
-	@Override
-	public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
-		return GlobalProperties.combine(in1, in2);
-	}
+    @Override
+    public boolean areCompatible(
+            RequestedGlobalProperties requested1,
+            RequestedGlobalProperties requested2,
+            GlobalProperties produced1,
+            GlobalProperties produced2) {
+        return true;
+    }
+
+    @Override
+    public boolean areCoFulfilled(
+            RequestedLocalProperties requested1,
+            RequestedLocalProperties requested2,
+            LocalProperties produced1,
+            LocalProperties produced2) {
+        return true;
+    }
+
+    @Override
+    public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+        if (node instanceof SinkJoiner) {
+            return new SinkJoinerPlanNode((SinkJoiner) node, in1, in2);
+        } else {
+            throw new CompilerException();
+        }
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        return new LocalProperties();
+    }
+
+    @Override
+    public GlobalProperties computeGlobalProperties(GlobalProperties in1, GlobalProperties in2) {
+        return GlobalProperties.combine(in1, in2);
+    }
 }

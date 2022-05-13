@@ -21,27 +21,25 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-/**
- * {@link MessageQueryParameter} for selecting task managers when aggregating metrics.
- */
+/** {@link MessageQueryParameter} for selecting task managers when aggregating metrics. */
 public class TaskManagersFilterQueryParameter extends MessageQueryParameter<ResourceID> {
 
-	TaskManagersFilterQueryParameter() {
-		super("taskmanagers", MessageParameterRequisiteness.OPTIONAL);
-	}
+    TaskManagersFilterQueryParameter() {
+        super("taskmanagers", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public ResourceID convertStringToValue(String value) {
-		return new ResourceID(value);
-	}
+    @Override
+    public ResourceID convertStringToValue(String value) {
+        return new ResourceID(value);
+    }
 
-	@Override
-	public String convertValueToString(ResourceID value) {
-		return value.getResourceIdString();
-	}
+    @Override
+    public String convertValueToString(ResourceID value) {
+        return value.getResourceIdString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of 32-character hexadecimal strings to select specific task managers.";
-	}
+    @Override
+    public String getDescription() {
+        return "Comma-separated list of 32-character hexadecimal strings to select specific task managers.";
+    }
 }

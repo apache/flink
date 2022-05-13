@@ -26,47 +26,46 @@ import java.nio.channels.FileChannel;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Helper class to read {@link Buffer}s from files into objects.
- */
+/** Helper class to read {@link Buffer}s from files into objects. */
 public class BufferFileChannelReader {
-	private final ByteBuffer header = ByteBuffer.allocateDirect(8);
-	private final FileChannel fileChannel;
+    private final ByteBuffer header = ByteBuffer.allocateDirect(8);
+    private final FileChannel fileChannel;
 
-	BufferFileChannelReader(FileChannel fileChannel) {
-		this.fileChannel = fileChannel;
-	}
+    BufferFileChannelReader(FileChannel fileChannel) {
+        this.fileChannel = fileChannel;
+    }
 
-	/**
-	 * Reads data from the object's file channel into the given buffer.
-	 *
-	 * @param buffer the buffer to read into
-	 *
-	 * @return whether the end of the file has been reached (<tt>true</tt>) or not (<tt>false</tt>)
-	 */
-	public boolean readBufferFromFileChannel(Buffer buffer) throws IOException {
-		checkArgument(fileChannel.size() - fileChannel.position() > 0);
+    /**
+     * Reads data from the object's file channel into the given buffer.
+     *
+     * @param buffer the buffer to read into
+     * @return whether the end of the file has been reached (<tt>true</tt>) or not (<tt>false</tt>)
+     */
+    public boolean readBufferFromFileChannel(Buffer buffer) throws IOException {
+        checkArgument(fileChannel.size() - fileChannel.position() > 0);
 
-		// Read header
-		header.clear();
-		fileChannel.read(header);
-		header.flip();
+        // Read header
+        header.clear();
+        fileChannel.read(header);
+        header.flip();
 
-		final boolean isBuffer = header.getInt() == 1;
-		final int size = header.getInt();
+        final boolean isBuffer = header.getInt() == 1;
+        final int size = header.getInt();
 
-		if (size > buffer.getMaxCapacity()) {
-			throw new IllegalStateException("Buffer is too small for data: " + buffer.getMaxCapacity() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
-		}
-		checkArgument(buffer.getSize() == 0, "Buffer not empty");
+        if (size > buffer.getMaxCapacity()) {
+            throw new IllegalStateException(
+                    "Buffer is too small for data: "
+                            + buffer.getMaxCapacity()
+                            + " bytes available, but "
+                            + size
+                            + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
+        }
+        checkArgument(buffer.getSize() == 0, "Buffer not empty");
 
-		fileChannel.read(buffer.getNioBuffer(0, size));
-		buffer.setSize(size);
+        fileChannel.read(buffer.getNioBuffer(0, size));
+        buffer.setSize(size);
+        buffer.setDataType(isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER);
 
-		if (!isBuffer) {
-			buffer.tagAsEvent();
-		}
-
-		return fileChannel.size() - fileChannel.position() == 0;
-	}
+        return fileChannel.size() - fileChannel.position() == 0;
+    }
 }

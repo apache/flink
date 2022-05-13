@@ -24,57 +24,55 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link Projection}.
- */
+/** Tests for {@link Projection}. */
 public class ProjectionTest {
 
-	private static final int ID = 10;
+    private static final int ID = 10;
 
-	private static final String VERTEX_VALUE = "vertex-value";
-	private static final String SOURCE_EDGE_VALUE = "source-edge-value";
-	private static final String TARGET_EDGE_VALUE = "target-edge-value";
-	private static final String SOURCE_VERTEX_VALUE = "source-vertex-value";
-	private static final String TARGET_VERTEX_VALUE = "target-vertex-value";
+    private static final String VERTEX_VALUE = "vertex-value";
+    private static final String SOURCE_EDGE_VALUE = "source-edge-value";
+    private static final String TARGET_EDGE_VALUE = "target-edge-value";
+    private static final String SOURCE_VERTEX_VALUE = "source-vertex-value";
+    private static final String TARGET_VERTEX_VALUE = "target-vertex-value";
 
-	private Projection<Integer, String, String, String> projection = createProjection();
+    private Projection<Integer, String, String, String> projection = createProjection();
 
-	@Test
-	public void testIntermediateVertexGetId() {
-		assertEquals(Integer.valueOf(ID), projection.getIntermediateVertexId());
-	}
+    @Test
+    public void testIntermediateVertexGetId() {
+        assertEquals(Integer.valueOf(ID), projection.getIntermediateVertexId());
+    }
 
-	@Test
-	public void testGetIntermediateVertexValue() {
-		assertEquals(VERTEX_VALUE, projection.getIntermediateVertexValue());
-	}
+    @Test
+    public void testGetIntermediateVertexValue() {
+        assertEquals(VERTEX_VALUE, projection.getIntermediateVertexValue());
+    }
 
-	@Test
-	public void testGetSourceEdgeValue() {
-		assertEquals(SOURCE_EDGE_VALUE, projection.getSourceEdgeValue());
-	}
+    @Test
+    public void testGetSourceEdgeValue() {
+        assertEquals(SOURCE_EDGE_VALUE, projection.getSourceEdgeValue());
+    }
 
-	@Test
-	public void testGetTargetEdgeValue() {
-		assertEquals(TARGET_EDGE_VALUE, projection.getTargetEdgeValue());
-	}
+    @Test
+    public void testGetTargetEdgeValue() {
+        assertEquals(TARGET_EDGE_VALUE, projection.getTargetEdgeValue());
+    }
 
-	@Test
-	public void testGetSourceVertexValue() {
-		assertEquals(SOURCE_VERTEX_VALUE, projection.getsSourceVertexValue());
-	}
+    @Test
+    public void testGetSourceVertexValue() {
+        assertEquals(SOURCE_VERTEX_VALUE, projection.getsSourceVertexValue());
+    }
 
-	@Test
-	public void testGetTargetVertexValue() {
-		assertEquals(TARGET_VERTEX_VALUE, projection.getTargetVertexValue());
-	}
+    @Test
+    public void testGetTargetVertexValue() {
+        assertEquals(TARGET_VERTEX_VALUE, projection.getTargetVertexValue());
+    }
 
-	private Projection<Integer, String, String, String> createProjection() {
-		return new Projection<>(
-			new Vertex<>(ID, VERTEX_VALUE),
-			SOURCE_VERTEX_VALUE,
-			TARGET_VERTEX_VALUE,
-			SOURCE_EDGE_VALUE,
-			TARGET_EDGE_VALUE);
-	}
+    private Projection<Integer, String, String, String> createProjection() {
+        return new Projection<>(
+                new Vertex<>(ID, VERTEX_VALUE),
+                SOURCE_VERTEX_VALUE,
+                TARGET_VERTEX_VALUE,
+                SOURCE_EDGE_VALUE,
+                TARGET_EDGE_VALUE);
+    }
 }

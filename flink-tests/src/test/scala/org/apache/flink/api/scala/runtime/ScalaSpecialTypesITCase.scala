@@ -17,14 +17,14 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+
 import org.junit._
 import org.junit.rules.TemporaryFolder
-
-import org.apache.flink.api.scala._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -49,11 +49,15 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = eithers.map{
-      _ match {
-      case Left(i) => i
-      case Right(i) => i
-    }}.reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map {
+        _ match {
+          case Left(i) => i
+          case Right(i) => i
+        }
+      }
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -72,9 +76,12 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = eithers.map(_ match {
-      case Left(i) => i
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map(_ match {
+        case Left(i) => i
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -93,9 +100,12 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = eithers.map(_ match {
-      case Right(i) => i
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map(_ match {
+        case Right(i) => i
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -114,11 +124,15 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = trys.map{
-      _ match {
-        case Success(i) => i
-        case Failure(t) => t.getMessage.toInt
-      }}.reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = trys
+      .map {
+        _ match {
+          case Success(i) => i
+          case Failure(t) => t.getMessage.toInt
+        }
+      }
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -137,9 +151,12 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = trys.map(_ match {
-      case Success(i) => i
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = trys
+      .map(_ match {
+        case Success(i) => i
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -158,9 +175,12 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = trys.map(_ match {
-      case Failure(t) => t.getMessage.toInt
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = trys
+      .map(_ match {
+        case Failure(t) => t.getMessage.toInt
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -179,11 +199,13 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-
-    val result = eithers.map(_ match {
-      case Some(i) => i
-      case None => 20
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map(_ match {
+        case Some(i) => i
+        case None => 20
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -202,9 +224,12 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = eithers.map(_ match {
-      case Some(i) => i
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map(_ match {
+        case Some(i) => i
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
@@ -223,13 +248,15 @@ class ScalaSpecialTypesITCase(mode: TestExecutionMode) extends MultipleProgramsT
 
     val resultPath = tempFolder.newFile().toURI.toString
 
-    val result = eithers.map(_ match {
-      case None => 20
-    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+    val result = eithers
+      .map(_ match {
+        case None => 20
+      })
+      .reduce(_ + _)
+      .writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
 
     TestBaseUtils.compareResultsByLinesInMemory("80", resultPath)
   }
 }
-

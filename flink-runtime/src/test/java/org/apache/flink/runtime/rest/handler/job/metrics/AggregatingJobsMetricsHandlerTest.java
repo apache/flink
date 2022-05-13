@@ -35,45 +35,48 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Tests for the {@link AggregatingJobsMetricsHandler}.
- */
-public class AggregatingJobsMetricsHandlerTest extends AggregatingMetricsHandlerTestBase<AggregatingJobsMetricsHandler, AggregatedJobMetricsParameters> {
+/** Tests for the {@link AggregatingJobsMetricsHandler}. */
+public class AggregatingJobsMetricsHandlerTest
+        extends AggregatingMetricsHandlerTestBase<
+                AggregatingJobsMetricsHandler, AggregatedJobMetricsParameters> {
 
-	private static final JobID JOB_ID_1 = JobID.generate();
-	private static final JobID JOB_ID_2 = JobID.generate();
-	private static final JobID JOB_ID_3 = JobID.generate();
+    private static final JobID JOB_ID_1 = JobID.generate();
+    private static final JobID JOB_ID_2 = JobID.generate();
+    private static final JobID JOB_ID_3 = JobID.generate();
 
-	@Override
-	protected Tuple2<String, List<String>> getFilter() {
-		return Tuple2.of("jobs", Arrays.asList(JOB_ID_1.toString(), JOB_ID_3.toString()));
-	}
+    @Override
+    protected Tuple2<String, List<String>> getFilter() {
+        return Tuple2.of("jobs", Arrays.asList(JOB_ID_1.toString(), JOB_ID_3.toString()));
+    }
 
-	@Override
-	protected Collection<MetricDump> getMetricDumps() {
-		Collection<MetricDump> dumps = new ArrayList<>(3);
-		QueryScopeInfo.JobQueryScopeInfo job = new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_1.toString(), "abc");
-		MetricDump.CounterDump cd1 = new MetricDump.CounterDump(job, "metric1", 1);
-		dumps.add(cd1);
+    @Override
+    protected Collection<MetricDump> getMetricDumps() {
+        Collection<MetricDump> dumps = new ArrayList<>(3);
+        QueryScopeInfo.JobQueryScopeInfo job =
+                new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_1.toString(), "abc");
+        MetricDump.CounterDump cd1 = new MetricDump.CounterDump(job, "metric1", 1);
+        dumps.add(cd1);
 
-		QueryScopeInfo.JobQueryScopeInfo job2 = new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_2.toString(), "abc");
-		MetricDump.CounterDump cd2 = new MetricDump.CounterDump(job2, "metric1", 3);
-		dumps.add(cd2);
+        QueryScopeInfo.JobQueryScopeInfo job2 =
+                new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_2.toString(), "abc");
+        MetricDump.CounterDump cd2 = new MetricDump.CounterDump(job2, "metric1", 3);
+        dumps.add(cd2);
 
-		QueryScopeInfo.JobQueryScopeInfo job3 = new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_3.toString(), "abc");
-		MetricDump.CounterDump cd3 = new MetricDump.CounterDump(job3, "metric2", 5);
-		dumps.add(cd3);
-		return dumps;
-	}
+        QueryScopeInfo.JobQueryScopeInfo job3 =
+                new QueryScopeInfo.JobQueryScopeInfo(JOB_ID_3.toString(), "abc");
+        MetricDump.CounterDump cd3 = new MetricDump.CounterDump(job3, "metric2", 5);
+        dumps.add(cd3);
+        return dumps;
+    }
 
-	@Override
-	protected AggregatingJobsMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
-		return new AggregatingJobsMetricsHandler(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			executor,
-			fetcher
-		);
-	}
+    @Override
+    protected AggregatingJobsMetricsHandler getHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            Executor executor,
+            MetricFetcher fetcher) {
+        return new AggregatingJobsMetricsHandler(
+                leaderRetriever, timeout, responseHeaders, executor, fetcher);
+    }
 }

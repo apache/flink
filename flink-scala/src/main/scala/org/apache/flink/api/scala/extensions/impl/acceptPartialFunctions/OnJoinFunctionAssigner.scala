@@ -24,23 +24,29 @@ import org.apache.flink.api.scala.{DataSet, JoinFunctionAssigner}
 import scala.reflect.ClassTag
 
 /**
-  * Wraps a join function assigner, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param ds The wrapped join function assigner data set
-  * @tparam L The type of the left data set items
-  * @tparam R The type of the right data set items
-  */
+ * Wraps a join function assigner, allowing to use anonymous partial functions to perform extraction
+ * of items in a tuple, case class instance or collection
+ *
+ * @param ds
+ *   The wrapped join function assigner data set
+ * @tparam L
+ *   The type of the left data set items
+ * @tparam R
+ *   The type of the right data set items
+ */
 class OnJoinFunctionAssigner[L, R](ds: JoinFunctionAssigner[L, R]) {
 
   /**
-    * Joins the data sets using the function `fun` to project elements from both in the
-    * resulting data set
-    *
-    * @param fun The function that defines the projection of the join
-    * @tparam O The return type of the projection, for which type information must be known
-    * @return A fully joined data set of Os
-    */
+   * Joins the data sets using the function `fun` to project elements from both in the resulting
+   * data set
+   *
+   * @param fun
+   *   The function that defines the projection of the join
+   * @tparam O
+   *   The return type of the projection, for which type information must be known
+   * @return
+   *   A fully joined data set of Os
+   */
   @PublicEvolving
   def projecting[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] =
     ds(fun)

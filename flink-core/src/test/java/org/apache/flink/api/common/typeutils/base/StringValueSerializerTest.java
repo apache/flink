@@ -22,35 +22,35 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
-/**
- * A test for the {@link StringValueSerializer}.
- */
+/** A test for the {@link StringValueSerializer}. */
 public class StringValueSerializerTest extends SerializerTestBase<StringValue> {
-	
-	@Override
-	protected TypeSerializer<StringValue> createSerializer() {
-		return new StringValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
-	
-	@Override
-	protected Class<StringValue> getTypeClass() {
-		return StringValue.class;
-	}
-	
-	@Override
-	protected StringValue[] getTestData() {
-		return new StringValue[] {
-				new StringValue("a"),
-				new StringValue(""),
-				new StringValue("bcd"),
-				new StringValue("jbmbmner8 jhk hj \n \t üäßß@µ"),
-				new StringValue(""),
-				new StringValue("non-empty"),
-				new StringValue("http://some-uri.com/that/is/a/common/prefix/to/all(((cmNH`0R)H<tnLa:/;Q,igWY2EdwW^W7T3H6NMRoqR[O2TqQ@SbGKc(:0XOXq-5]ndm-R8?=,o?AW+9Pi_v4eON=Mpje7N4n*-nhFWKn>Sn0cGMlnDquY@-F:QY@-UZ.-//*OL*8\\SIpiZa)tefalZ99-P_-WFIaKPeGbkQ^iRgd,YYkn7:jBAW::PqAYtgl73dTaJ2CIT:11HJ70<ATOXZ]c6b_7EgQU,@uq+SMa=7Z]kg/OZ>TGduw>D7Lu[nEj_l=Ucwo5BQtBESh/4V>N9nj/pDLw[NM)a=ac6R-(FM2U+dwROMUH;);Y=")};
-	}
+
+    @Override
+    protected TypeSerializer<StringValue> createSerializer() {
+        return new StringValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected Class<StringValue> getTypeClass() {
+        return StringValue.class;
+    }
+
+    @Override
+    protected StringValue[] getTestData() {
+        return new StringValue[] {
+            new StringValue("a"),
+            new StringValue(""),
+            new StringValue("bcd"),
+            new StringValue("jbmbmner8 jhk hj \n \t üäßß@µ"),
+            new StringValue(""),
+            new StringValue("non-empty"),
+            new StringValue(
+                    "http://some-uri.com/that/is/a/common/prefix/to/all(((cmNH`0R)H<tnLa:/;Q,igWY2EdwW^W7T3H6NMRoqR[O2TqQ@SbGKc(:0XOXq-5]ndm-R8?=,o?AW+9Pi_v4eON=Mpje7N4n*-nhFWKn>Sn0cGMlnDquY@-F:QY@-UZ.-//*OL*8\\SIpiZa)tefalZ99-P_-WFIaKPeGbkQ^iRgd,YYkn7:jBAW::PqAYtgl73dTaJ2CIT:11HJ70<ATOXZ]c6b_7EgQU,@uq+SMa=7Z]kg/OZ>TGduw>D7Lu[nEj_l=Ucwo5BQtBESh/4V>N9nj/pDLw[NM)a=ac6R-(FM2U+dwROMUH;);Y=")
+        };
+    }
 }

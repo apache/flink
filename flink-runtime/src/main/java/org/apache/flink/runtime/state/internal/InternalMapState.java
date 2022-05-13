@@ -32,4 +32,5 @@ import java.util.Map;
  * @param <UK> Type of the values folded into the state
  * @param <UV> Type of the value in the state
  */
-public interface InternalMapState<K, N, UK, UV> extends InternalKvState<K, N, Map<UK, UV>>, MapState<UK, UV> {}
+public interface InternalMapState<K, N, UK, UV>
+        extends InternalKvState<K, N, Map<UK, UV>>, MapState<UK, UV> {}

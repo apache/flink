@@ -27,154 +27,150 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link OptionalBoolean}.
- */
+/** Tests for {@link OptionalBoolean}. */
 public class OptionalBooleanTest {
 
-	private OptionalBoolean u;
-	private OptionalBoolean f;
-	private OptionalBoolean t;
-	private OptionalBoolean c;
+    private OptionalBoolean u;
+    private OptionalBoolean f;
+    private OptionalBoolean t;
+    private OptionalBoolean c;
 
-	@Before
-	public void setup() {
-		u = new OptionalBoolean(false, true);
-		f = new OptionalBoolean(false, true);
-		t = new OptionalBoolean(false, true);
-		c = new OptionalBoolean(false, true);
+    @Before
+    public void setup() {
+        u = new OptionalBoolean(false, true);
+        f = new OptionalBoolean(false, true);
+        t = new OptionalBoolean(false, true);
+        c = new OptionalBoolean(false, true);
 
-		f.set(false);
-		t.set(true);
+        f.set(false);
+        t.set(true);
 
-		c.set(true);
-		c.mergeWith(f);
-	}
+        c.set(true);
+        c.mergeWith(f);
+    }
 
-	@Test
-	public void testIsMismatchedWith()
-			throws Exception {
-		// unset, unset
-		assertFalse(u.conflictsWith(u));
+    @Test
+    public void testIsMismatchedWith() throws Exception {
+        // unset, unset
+        assertFalse(u.conflictsWith(u));
 
-		// unset, false
-		assertFalse(u.conflictsWith(f));
+        // unset, false
+        assertFalse(u.conflictsWith(f));
 
-		// unset, true
-		assertFalse(u.conflictsWith(t));
+        // unset, true
+        assertFalse(u.conflictsWith(t));
 
-		// unset, conflicting
-		assertTrue(u.conflictsWith(c));
+        // unset, conflicting
+        assertTrue(u.conflictsWith(c));
 
-		// false, unset
-		assertFalse(f.conflictsWith(u));
+        // false, unset
+        assertFalse(f.conflictsWith(u));
 
-		// false, false
-		assertFalse(f.conflictsWith(f));
+        // false, false
+        assertFalse(f.conflictsWith(f));
 
-		// false, true
-		assertTrue(f.conflictsWith(t));
+        // false, true
+        assertTrue(f.conflictsWith(t));
 
-		// false, conflicting
-		assertTrue(f.conflictsWith(c));
+        // false, conflicting
+        assertTrue(f.conflictsWith(c));
 
-		// true, unset
-		assertFalse(t.conflictsWith(u));
+        // true, unset
+        assertFalse(t.conflictsWith(u));
 
-		// true, false
-		assertTrue(t.conflictsWith(f));
+        // true, false
+        assertTrue(t.conflictsWith(f));
 
-		// true, true
-		assertFalse(t.conflictsWith(t));
+        // true, true
+        assertFalse(t.conflictsWith(t));
 
-		// true, conflicting
-		assertTrue(t.conflictsWith(c));
+        // true, conflicting
+        assertTrue(t.conflictsWith(c));
 
-		// conflicting, unset
-		assertTrue(c.conflictsWith(u));
+        // conflicting, unset
+        assertTrue(c.conflictsWith(u));
 
-		// conflicting, false
-		assertTrue(c.conflictsWith(f));
+        // conflicting, false
+        assertTrue(c.conflictsWith(f));
 
-		// conflicting, true
-		assertTrue(c.conflictsWith(t));
+        // conflicting, true
+        assertTrue(c.conflictsWith(t));
 
-		// conflicting, conflicting
-		assertTrue(c.conflictsWith(c));
-	}
+        // conflicting, conflicting
+        assertTrue(c.conflictsWith(c));
+    }
 
-	@Test
-	public void testMergeWith()
-			throws Exception {
-		// unset, unset => unset
-		u.mergeWith(u);
-		assertEquals(State.UNSET, u.getState());
+    @Test
+    public void testMergeWith() throws Exception {
+        // unset, unset => unset
+        u.mergeWith(u);
+        assertEquals(State.UNSET, u.getState());
 
-		// unset, false => false
-		u.mergeWith(f);
-		assertEquals(State.FALSE, u.getState());
-		u.unset();
+        // unset, false => false
+        u.mergeWith(f);
+        assertEquals(State.FALSE, u.getState());
+        u.unset();
 
-		// unset, true => true
-		u.mergeWith(t);
-		assertEquals(State.TRUE, u.getState());
-		u.unset();
+        // unset, true => true
+        u.mergeWith(t);
+        assertEquals(State.TRUE, u.getState());
+        u.unset();
 
-		// unset, conflicting => conflicting
-		u.mergeWith(c);
-		assertEquals(State.CONFLICTING, u.getState());
-		u.unset();
+        // unset, conflicting => conflicting
+        u.mergeWith(c);
+        assertEquals(State.CONFLICTING, u.getState());
+        u.unset();
 
-		// false, unset => false
-		f.mergeWith(u);
-		assertEquals(State.FALSE, f.getState());
+        // false, unset => false
+        f.mergeWith(u);
+        assertEquals(State.FALSE, f.getState());
 
-		// false, false => false
-		f.mergeWith(f);
-		assertEquals(State.FALSE, f.getState());
+        // false, false => false
+        f.mergeWith(f);
+        assertEquals(State.FALSE, f.getState());
 
-		// false, true => conflicting
-		f.mergeWith(t);
-		assertEquals(State.CONFLICTING, f.getState());
-		f.set(false);
+        // false, true => conflicting
+        f.mergeWith(t);
+        assertEquals(State.CONFLICTING, f.getState());
+        f.set(false);
 
-		// false, conflicting => conflicting
-		f.mergeWith(c);
-		assertEquals(State.CONFLICTING, f.getState());
-		f.set(false);
+        // false, conflicting => conflicting
+        f.mergeWith(c);
+        assertEquals(State.CONFLICTING, f.getState());
+        f.set(false);
 
-		// true, unset => true
-		t.mergeWith(u);
-		assertEquals(State.TRUE, t.getState());
+        // true, unset => true
+        t.mergeWith(u);
+        assertEquals(State.TRUE, t.getState());
 
-		// true, false => conflicting
-		t.mergeWith(f);
-		assertEquals(State.CONFLICTING, t.getState());
-		t.set(true);
+        // true, false => conflicting
+        t.mergeWith(f);
+        assertEquals(State.CONFLICTING, t.getState());
+        t.set(true);
 
-		// true, true => true
-		t.mergeWith(t);
-		assertEquals(State.TRUE, t.getState());
+        // true, true => true
+        t.mergeWith(t);
+        assertEquals(State.TRUE, t.getState());
 
-		// true, conflicting => conflicting
-		t.mergeWith(c);
-		assertEquals(State.CONFLICTING, t.getState());
-		t.set(true);
+        // true, conflicting => conflicting
+        t.mergeWith(c);
+        assertEquals(State.CONFLICTING, t.getState());
+        t.set(true);
 
-		// conflicting, unset => conflicting
-		c.mergeWith(u);
-		assertEquals(State.CONFLICTING, c.getState());
+        // conflicting, unset => conflicting
+        c.mergeWith(u);
+        assertEquals(State.CONFLICTING, c.getState());
 
-		// conflicting, false => conflicting
-		c.mergeWith(f);
-		assertEquals(State.CONFLICTING, c.getState());
+        // conflicting, false => conflicting
+        c.mergeWith(f);
+        assertEquals(State.CONFLICTING, c.getState());
 
-		// conflicting, true => conflicting
-		c.mergeWith(t);
-		assertEquals(State.CONFLICTING, c.getState());
+        // conflicting, true => conflicting
+        c.mergeWith(t);
+        assertEquals(State.CONFLICTING, c.getState());
 
-		// conflicting, conflicting => conflicting
-		c.mergeWith(c);
-		assertEquals(State.CONFLICTING, c.getState());
-	}
+        // conflicting, conflicting => conflicting
+        c.mergeWith(c);
+        assertEquals(State.CONFLICTING, c.getState());
+    }
 }

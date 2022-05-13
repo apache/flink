@@ -19,66 +19,57 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
+import java.util.Collection;
 
-/**
- * {@link DispatcherFactory} which creates a {@link MiniDispatcher}.
- */
-public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
+import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE;
 
-	private final JobGraphRetriever jobGraphRetriever;
+/** {@link DispatcherFactory} which creates a {@link MiniDispatcher}. */
+public enum JobDispatcherFactory implements DispatcherFactory {
+    INSTANCE;
 
-	public JobDispatcherFactory(JobGraphRetriever jobGraphRetriever) {
-		this.jobGraphRetriever = jobGraphRetriever;
-	}
+    @Override
+    public MiniDispatcher createDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents)
+            throws Exception {
+        final JobGraph recoveredJobGraph = Iterables.getOnlyElement(recoveredJobs, null);
+        final JobResult recoveredDirtyJob =
+                Iterables.getOnlyElement(recoveredDirtyJobResults, null);
 
-	@Override
-	public MiniDispatcher createDispatcher(
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			ResourceManagerGateway resourceManagerGateway,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			JobManagerMetricGroup jobManagerMetricGroup,
-			@Nullable String metricQueryServicePath,
-			ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			FatalErrorHandler fatalErrorHandler,
-			HistoryServerArchivist historyServerArchivist) throws Exception {
-		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
+        Preconditions.checkArgument(
+                recoveredJobGraph == null ^ recoveredDirtyJob == null,
+                "Either the JobGraph or the recovered JobResult needs to be specified.");
 
-		final String executionModeValue = configuration.getString(EXECUTION_MODE);
+        final Configuration configuration =
+                partialDispatcherServicesWithJobPersistenceComponents.getConfiguration();
+        final String executionModeValue = configuration.getString(INTERNAL_CLUSTER_EXECUTION_MODE);
+        final ClusterEntrypoint.ExecutionMode executionMode =
+                ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 
-		final ClusterEntrypoint.ExecutionMode executionMode = ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
-
-		return new MiniDispatcher(
-			rpcService,
-			Dispatcher.DISPATCHER_NAME,
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGateway,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServicePath,
-			archivedExecutionGraphStore,
-			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
-			fatalErrorHandler,
-			historyServerArchivist,
-			jobGraph,
-			executionMode);
-	}
+        return new MiniDispatcher(
+                rpcService,
+                fencingToken,
+                DispatcherServices.from(
+                        partialDispatcherServicesWithJobPersistenceComponents,
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE,
+                        CheckpointResourcesCleanupRunnerFactory.INSTANCE),
+                recoveredJobGraph,
+                recoveredDirtyJob,
+                dispatcherBootstrapFactory,
+                executionMode);
+    }
 }

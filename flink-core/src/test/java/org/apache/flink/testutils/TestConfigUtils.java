@@ -18,68 +18,65 @@
 
 package org.apache.flink.testutils;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-
-/**
- * Utility class to help test the Flink configuration.
- */
+/** Utility class to help test the Flink configuration. */
 public final class TestConfigUtils {
-	
-	public static Configuration loadGlobalConf(String[] keys, String[] values, File tempDir) throws IOException {
-		return loadGlobalConf(getConfAsString(keys, values), tempDir);
-	}
-	
-	public static Configuration loadGlobalConf(String contents, File tempDir) throws IOException {
-		File confDir;
-		do {
-			confDir = new File(tempDir, TestFileUtils.randomFileName());
-		} while (confDir.exists());
-		
-		try {
-			confDir.mkdirs();
-			final File confFile = new File(confDir, GlobalConfiguration.FLINK_CONF_FILENAME);
-		
-			try {
-				BufferedWriter writer = new BufferedWriter(new FileWriter(confFile));
-				try {
-					writer.write(contents);
-				} finally {
-					writer.close();
-				}
-				return GlobalConfiguration.loadConfiguration(confDir.getAbsolutePath());
-			} finally {
-				confFile.delete();
-			}
-		}
-		finally {
-			confDir.delete();
-		}
-	}
 
-	public static String getConfAsString(String[] keys, String[] values) {
-		if (keys == null || values == null || keys.length != values.length) {
-			throw new IllegalArgumentException();
-		}
+    public static Configuration loadGlobalConf(String[] keys, String[] values, File tempDir)
+            throws IOException {
+        return loadGlobalConf(getConfAsString(keys, values), tempDir);
+    }
 
-		StringBuilder bld = new StringBuilder();
+    public static Configuration loadGlobalConf(String contents, File tempDir) throws IOException {
+        File confDir;
+        do {
+            confDir = new File(tempDir, TestFileUtils.randomFileName());
+        } while (confDir.exists());
 
-		for (int i = 0; i < keys.length; i++) {
-			bld.append(keys[i]);
-			bld.append(": ");
-			bld.append(values[i]);
-			bld.append(System.lineSeparator());
-		}
-		return bld.toString();
-	}
+        try {
+            confDir.mkdirs();
+            final File confFile = new File(confDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
-	// ------------------------------------------------------------------------
+            try {
+                BufferedWriter writer = new BufferedWriter(new FileWriter(confFile));
+                try {
+                    writer.write(contents);
+                } finally {
+                    writer.close();
+                }
+                return GlobalConfiguration.loadConfiguration(confDir.getAbsolutePath());
+            } finally {
+                confFile.delete();
+            }
+        } finally {
+            confDir.delete();
+        }
+    }
 
-	private TestConfigUtils() {}
+    public static String getConfAsString(String[] keys, String[] values) {
+        if (keys == null || values == null || keys.length != values.length) {
+            throw new IllegalArgumentException();
+        }
 
+        StringBuilder bld = new StringBuilder();
+
+        for (int i = 0; i < keys.length; i++) {
+            bld.append(keys[i]);
+            bld.append(": ");
+            bld.append(values[i]);
+            bld.append(System.lineSeparator());
+        }
+        return bld.toString();
+    }
+
+    // ------------------------------------------------------------------------
+
+    private TestConfigUtils() {}
 }

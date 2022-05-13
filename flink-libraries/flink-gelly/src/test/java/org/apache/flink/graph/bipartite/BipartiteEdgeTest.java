@@ -22,51 +22,49 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link BipartiteEdge}.
- */
+/** Tests for {@link BipartiteEdge}. */
 public class BipartiteEdgeTest {
 
-	private static final int BOTTOM_ID = 0;
-	private static final int TOP_ID = 1;
-	private static final String VALUE = "value";
+    private static final int BOTTOM_ID = 0;
+    private static final int TOP_ID = 1;
+    private static final String VALUE = "value";
 
-	private final BipartiteEdge<Integer, Integer, String> edge = createEdge();
+    private final BipartiteEdge<Integer, Integer, String> edge = createEdge();
 
-	@Test
-	public void testGetBottomId() {
-		assertEquals(BOTTOM_ID, (long) edge.getBottomId());
-	}
+    @Test
+    public void testGetBottomId() {
+        assertEquals(BOTTOM_ID, (long) edge.getBottomId());
+    }
 
-	@Test
-	public void testGetTopId() {
-		assertEquals(TOP_ID, (long) edge.getTopId());
-	}
+    @Test
+    public void testGetTopId() {
+        assertEquals(TOP_ID, (long) edge.getTopId());
+    }
 
-	@Test
-	public void testGetValue() {
-		assertEquals(VALUE, edge.getValue());
-	}
+    @Test
+    public void testGetValue() {
+        assertEquals(VALUE, edge.getValue());
+    }
 
-	@Test
-	public void testSetBottomId() {
-		edge.setBottomId(100);
-		assertEquals(100, (long) edge.getBottomId());
-	}
+    @Test
+    public void testSetBottomId() {
+        edge.setBottomId(100);
+        assertEquals(100, (long) edge.getBottomId());
+    }
 
-	@Test
-	public void testSetTopId() {
-		edge.setTopId(100);
-		assertEquals(100, (long) edge.getTopId());
-	}
+    @Test
+    public void testSetTopId() {
+        edge.setTopId(100);
+        assertEquals(100, (long) edge.getTopId());
+    }
 
-	@Test
-	public void testSetValue() {
-		edge.setValue("newVal");
-		assertEquals("newVal", edge.getValue());
-	}
+    @Test
+    public void testSetValue() {
+        edge.setValue("newVal");
+        assertEquals("newVal", edge.getValue());
+    }
 
-	private BipartiteEdge<Integer, Integer, String> createEdge() {
-		return new BipartiteEdge<>(TOP_ID, BOTTOM_ID, VALUE);
-	}
+    private BipartiteEdge<Integer, Integer, String> createEdge() {
+        return new BipartiteEdge<>(TOP_ID, BOTTOM_ID, VALUE);
+    }
 }

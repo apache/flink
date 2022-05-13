@@ -28,56 +28,60 @@ import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link SubtaskExecutionAttemptAccumulatorsHandler}.
- */
-public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters> {
+/** Message headers for the {@link SubtaskExecutionAttemptAccumulatorsHandler}. */
+public class SubtaskExecutionAttemptAccumulatorsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody,
+                SubtaskExecutionAttemptAccumulatorsInfo,
+                SubtaskAttemptMessageParameters> {
 
-	private static final SubtaskExecutionAttemptAccumulatorsHeaders INSTANCE = new SubtaskExecutionAttemptAccumulatorsHeaders();
+    private static final SubtaskExecutionAttemptAccumulatorsHeaders INSTANCE =
+            new SubtaskExecutionAttemptAccumulatorsHeaders();
 
-	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s/accumulators",
-		JobIDPathParameter.KEY,
-		JobVertexIdPathParameter.KEY,
-		SubtaskIndexPathParameter.KEY,
-		SubtaskAttemptPathParameter.KEY);
+    public static final String URL =
+            String.format(
+                    "/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s/accumulators",
+                    JobIDPathParameter.KEY,
+                    JobVertexIdPathParameter.KEY,
+                    SubtaskIndexPathParameter.KEY,
+                    SubtaskAttemptPathParameter.KEY);
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<SubtaskExecutionAttemptAccumulatorsInfo> getResponseClass() {
-		return SubtaskExecutionAttemptAccumulatorsInfo.class;
-	}
+    @Override
+    public Class<SubtaskExecutionAttemptAccumulatorsInfo> getResponseClass() {
+        return SubtaskExecutionAttemptAccumulatorsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public SubtaskAttemptMessageParameters getUnresolvedMessageParameters() {
-		return new SubtaskAttemptMessageParameters();
-	}
+    @Override
+    public SubtaskAttemptMessageParameters getUnresolvedMessageParameters() {
+        return new SubtaskAttemptMessageParameters();
+    }
 
-	public static SubtaskExecutionAttemptAccumulatorsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SubtaskExecutionAttemptAccumulatorsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
+    }
 }

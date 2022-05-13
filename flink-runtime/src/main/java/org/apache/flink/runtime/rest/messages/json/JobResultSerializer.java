@@ -40,68 +40,70 @@ import java.util.Map;
  */
 public class JobResultSerializer extends StdSerializer<JobResult> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	static final String FIELD_NAME_JOB_ID = "id";
+    static final String FIELD_NAME_JOB_ID = "id";
 
-	static final String FIELD_NAME_APPLICATION_STATUS = "application-status";
+    static final String FIELD_NAME_APPLICATION_STATUS = "application-status";
 
-	static final String FIELD_NAME_NET_RUNTIME = "net-runtime";
+    static final String FIELD_NAME_NET_RUNTIME = "net-runtime";
 
-	static final String FIELD_NAME_ACCUMULATOR_RESULTS = "accumulator-results";
+    static final String FIELD_NAME_ACCUMULATOR_RESULTS = "accumulator-results";
 
-	static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
+    static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
 
-	private final JobIDSerializer jobIdSerializer = new JobIDSerializer();
+    private final JobIDSerializer jobIdSerializer = new JobIDSerializer();
 
-	private final SerializedValueSerializer serializedValueSerializer;
+    private final SerializedValueSerializer serializedValueSerializer;
 
-	private final SerializedThrowableSerializer serializedThrowableSerializer = new SerializedThrowableSerializer();
+    private final SerializedThrowableSerializer serializedThrowableSerializer =
+            new SerializedThrowableSerializer();
 
-	public JobResultSerializer() {
-		super(JobResult.class);
+    public JobResultSerializer() {
+        super(JobResult.class);
 
-		final JavaType objectSerializedValueType = TypeFactory.defaultInstance()
-			.constructType(new TypeReference<SerializedValue<Object>>() {
-			});
-		serializedValueSerializer = new SerializedValueSerializer(objectSerializedValueType);
-	}
+        final JavaType objectSerializedValueType =
+                TypeFactory.defaultInstance()
+                        .constructType(new TypeReference<SerializedValue<Object>>() {});
+        serializedValueSerializer = new SerializedValueSerializer(objectSerializedValueType);
+    }
 
-	@Override
-	public void serialize(
-			final JobResult result,
-			final JsonGenerator gen,
-			final SerializerProvider provider) throws IOException {
+    @Override
+    public void serialize(
+            final JobResult result, final JsonGenerator gen, final SerializerProvider provider)
+            throws IOException {
 
-		gen.writeStartObject();
+        gen.writeStartObject();
 
-		gen.writeFieldName(FIELD_NAME_JOB_ID);
-		jobIdSerializer.serialize(result.getJobId(), gen, provider);
+        gen.writeFieldName(FIELD_NAME_JOB_ID);
+        jobIdSerializer.serialize(result.getJobId(), gen, provider);
 
-		gen.writeFieldName(FIELD_NAME_APPLICATION_STATUS);
-		gen.writeString(result.getApplicationStatus().name());
+        gen.writeFieldName(FIELD_NAME_APPLICATION_STATUS);
+        gen.writeString(result.getApplicationStatus().name());
 
-		gen.writeFieldName(FIELD_NAME_ACCUMULATOR_RESULTS);
-		gen.writeStartObject();
-		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = result.getAccumulatorResults();
-		for (final Map.Entry<String, SerializedValue<OptionalFailure<Object>>> nameValue : accumulatorResults.entrySet()) {
-			final String name = nameValue.getKey();
-			final SerializedValue<OptionalFailure<Object>> value = nameValue.getValue();
+        gen.writeFieldName(FIELD_NAME_ACCUMULATOR_RESULTS);
+        gen.writeStartObject();
+        final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults =
+                result.getAccumulatorResults();
+        for (final Map.Entry<String, SerializedValue<OptionalFailure<Object>>> nameValue :
+                accumulatorResults.entrySet()) {
+            final String name = nameValue.getKey();
+            final SerializedValue<OptionalFailure<Object>> value = nameValue.getValue();
 
-			gen.writeFieldName(name);
-			serializedValueSerializer.serialize(value, gen, provider);
-		}
-		gen.writeEndObject();
+            gen.writeFieldName(name);
+            serializedValueSerializer.serialize(value, gen, provider);
+        }
+        gen.writeEndObject();
 
-		gen.writeNumberField(FIELD_NAME_NET_RUNTIME, result.getNetRuntime());
+        gen.writeNumberField(FIELD_NAME_NET_RUNTIME, result.getNetRuntime());
 
-		if (result.getSerializedThrowable().isPresent()) {
-			gen.writeFieldName(FIELD_NAME_FAILURE_CAUSE);
+        if (result.getSerializedThrowable().isPresent()) {
+            gen.writeFieldName(FIELD_NAME_FAILURE_CAUSE);
 
-			final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
-			serializedThrowableSerializer.serialize(serializedThrowable, gen, provider);
-		}
+            final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
+            serializedThrowableSerializer.serialize(serializedThrowable, gen, provider);
+        }
 
-		gen.writeEndObject();
-	}
+        gen.writeEndObject();
+    }
 }

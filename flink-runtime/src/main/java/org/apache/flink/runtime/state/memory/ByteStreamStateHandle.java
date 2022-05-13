@@ -19,131 +19,140 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Optional;
 
-/**
- * A state handle that contains stream state in a byte array.
- */
+/** A state handle that contains stream state in a byte array. */
 public class ByteStreamStateHandle implements StreamStateHandle {
 
-	private static final long serialVersionUID = -5280226231202517594L;
+    private static final long serialVersionUID = -5280226231202517594L;
 
-	/**
-	 * The state data.
-	 */
-	private final byte[] data;
+    /** The state data. */
+    private final byte[] data;
 
-	/**
-	 * A unique name of by which this state handle is identified and compared. Like a filename, all
-	 * {@link ByteStreamStateHandle} with the exact same name must also have the exact same content in data.
-	 */
-	private final String handleName;
+    /**
+     * A unique name of by which this state handle is identified and compared. Like a filename, all
+     * {@link ByteStreamStateHandle} with the exact same name must also have the exact same content
+     * in data.
+     */
+    private final String handleName;
 
-	/**
-	 * Creates a new ByteStreamStateHandle containing the given data.
-	 */
-	public ByteStreamStateHandle(String handleName, byte[] data) {
-		this.handleName = Preconditions.checkNotNull(handleName);
-		this.data = Preconditions.checkNotNull(data);
-	}
+    private final PhysicalStateHandleID physicalID;
 
-	@Override
-	public FSDataInputStream openInputStream() throws IOException {
-		return new ByteStateHandleInputStream(data);
-	}
+    /** Creates a new ByteStreamStateHandle containing the given data. */
+    public ByteStreamStateHandle(String handleName, byte[] data) {
+        this.handleName = Preconditions.checkNotNull(handleName);
+        this.data = Preconditions.checkNotNull(data);
+        this.physicalID = new PhysicalStateHandleID(handleName);
+    }
 
-	public byte[] getData() {
-		return data;
-	}
+    @Override
+    public FSDataInputStream openInputStream() throws IOException {
+        return new ByteStateHandleInputStream(data);
+    }
 
-	public String getHandleName() {
-		return handleName;
-	}
+    @Override
+    public Optional<byte[]> asBytesIfInMemory() {
+        return Optional.of(getData());
+    }
 
-	@Override
-	public void discardState() {
-	}
+    @Override
+    public PhysicalStateHandleID getStreamStateHandleID() {
+        return physicalID;
+    }
 
-	@Override
-	public long getStateSize() {
-		return data.length;
-	}
+    public byte[] getData() {
+        return data;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof ByteStreamStateHandle)) {
-			return false;
-		}
+    public String getHandleName() {
+        return handleName;
+    }
 
-		ByteStreamStateHandle that = (ByteStreamStateHandle) o;
-		return handleName.equals(that.handleName);
-	}
+    @Override
+    public void discardState() {}
 
-	@Override
-	public int hashCode() {
-		return 31 * handleName.hashCode();
-	}
+    @Override
+    public long getStateSize() {
+        return data.length;
+    }
 
-	@Override
-	public String toString() {
-		return "ByteStreamStateHandle{" +
-			"handleName='" + handleName + '\'' +
-			", dataBytes=" + data.length +
-			'}';
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ByteStreamStateHandle)) {
+            return false;
+        }
 
-	/**
-	 * An input stream view on a byte array.
-	 */
-	private static final class ByteStateHandleInputStream extends FSDataInputStream {
+        ByteStreamStateHandle that = (ByteStreamStateHandle) o;
+        return handleName.equals(that.handleName);
+    }
 
-		private final byte[] data;
-		private int index;
+    @Override
+    public int hashCode() {
+        return 31 * handleName.hashCode();
+    }
 
-		public ByteStateHandleInputStream(byte[] data) {
-			this.data = data;
-		}
+    @Override
+    public String toString() {
+        return "ByteStreamStateHandle{"
+                + "handleName='"
+                + handleName
+                + '\''
+                + ", dataBytes="
+                + data.length
+                + '}';
+    }
 
-		@Override
-		public void seek(long desired) throws IOException {
-			if (desired >= 0 && desired <= data.length) {
-				index = (int) desired;
-			} else {
-				throw new IOException("position out of bounds");
-			}
-		}
+    /** An input stream view on a byte array. */
+    private static final class ByteStateHandleInputStream extends FSDataInputStream {
 
-		@Override
-		public long getPos() throws IOException {
-			return index;
-		}
+        private final byte[] data;
+        private int index;
 
-		@Override
-		public int read() throws IOException {
-			return index < data.length ? data[index++] & 0xFF : -1;
-		}
+        public ByteStateHandleInputStream(byte[] data) {
+            this.data = data;
+        }
 
-		@Override
-		public int read(byte[] b, int off, int len) throws IOException {
-			// note that any bounds checking on "byte[] b" happend anyways by the
-			// System.arraycopy() call below, so we don't add extra checks here
+        @Override
+        public void seek(long desired) throws IOException {
+            if (desired >= 0 && desired <= data.length) {
+                index = (int) desired;
+            } else {
+                throw new IOException("position out of bounds");
+            }
+        }
 
-			final int bytesLeft = data.length - index;
-			if (bytesLeft > 0) {
-				final int bytesToCopy = Math.min(len, bytesLeft);
-				System.arraycopy(data, index, b, off, bytesToCopy);
-				index += bytesToCopy;
-				return bytesToCopy;
-			}
-			else {
-				return -1;
-			}
-		}
-	}
+        @Override
+        public long getPos() throws IOException {
+            return index;
+        }
+
+        @Override
+        public int read() throws IOException {
+            return index < data.length ? data[index++] & 0xFF : -1;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            // note that any bounds checking on "byte[] b" happened anyways by the
+            // System.arraycopy() call below, so we don't add extra checks here
+
+            final int bytesLeft = data.length - index;
+            if (bytesLeft > 0) {
+                final int bytesToCopy = Math.min(len, bytesLeft);
+                System.arraycopy(data, index, b, off, bytesToCopy);
+                index += bytesToCopy;
+                return bytesToCopy;
+            } else {
+                return -1;
+            }
+        }
+    }
 }

@@ -18,15 +18,64 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-/**
- *  The type of checkpoint to perform.
- */
-public enum CheckpointType {
+import java.util.Objects;
 
-	/** A checkpoint, full or incremental. */
-	CHECKPOINT,
+/** The type of checkpoint to perform. */
+public final class CheckpointType implements SnapshotType {
 
-	/** A savepoint. */
-	SAVEPOINT;
+    /** A checkpoint, full or incremental. */
+    public static final CheckpointType CHECKPOINT =
+            new CheckpointType("Checkpoint", SharingFilesStrategy.FORWARD_BACKWARD);
 
+    public static final CheckpointType FULL_CHECKPOINT =
+            new CheckpointType("Full Checkpoint", SharingFilesStrategy.FORWARD);
+
+    private final String name;
+
+    private final SharingFilesStrategy sharingFilesStrategy;
+
+    private CheckpointType(final String name, SharingFilesStrategy sharingFilesStrategy) {
+        this.name = name;
+        this.sharingFilesStrategy = sharingFilesStrategy;
+    }
+
+    public boolean isSavepoint() {
+        return false;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public SharingFilesStrategy getSharingFilesStrategy() {
+        return sharingFilesStrategy;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CheckpointType type = (CheckpointType) o;
+        return name.equals(type.name) && sharingFilesStrategy == type.sharingFilesStrategy;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, sharingFilesStrategy);
+    }
+
+    @Override
+    public String toString() {
+        return "CheckpointType{"
+                + "name='"
+                + name
+                + '\''
+                + ", sharingFilesStrategy="
+                + sharingFilesStrategy
+                + '}';
+    }
 }

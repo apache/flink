@@ -1,0 +1,97 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "theme";
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+nz-slider {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  height: 200px;
+  margin-top: -100px;
+}
+
+.graph {
+  user-select: none;
+
+  .edge-marker {
+    color: @text-color;
+    fill: @text-color;
+  }
+
+  .edge-marker-focus {
+    color: @primary-color;
+    fill: @primary-color;
+  }
+
+  .edge {
+    fill: none;
+    stroke: @text-color;
+    stroke-opacity: 0.6;
+    stroke-width: 1px;
+
+    &.focused {
+      stroke: @primary-color;
+      animation: circle-draw 0.3s linear infinite;
+      stroke-dasharray: 10;
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      stroke-opacity: 1;
+    }
+  }
+
+  .link-group {
+    .edge-label {
+      font-size: 10px;
+      fill: @text-color;
+      stroke: none;
+    }
+  }
+
+  .panning-rect {
+    cursor: move;
+    fill: rgba(0, 0, 0, 0);
+  }
+
+  .nodes-chart-overlay {
+    opacity: 0;
+    pointer-events: none;
+    fill: @component-background;
+    -webkit-transition: opacity ease-in 0.45s;
+
+    &.active {
+      -webkit-opacity: 0.7;
+    }
+  }
+}
+
+@keyframes circle-draw {
+  0% {
+    stroke-dashoffset: 20;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}

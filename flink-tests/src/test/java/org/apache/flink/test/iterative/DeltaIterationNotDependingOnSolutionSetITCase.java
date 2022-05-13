@@ -33,57 +33,58 @@ import java.util.List;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Test delta iterations that do not join with the solution set.
- */
+/** Test delta iterations that do not join with the solution set. */
 @SuppressWarnings("serial")
 public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBase {
-	private final List<Tuple2<Long, Long>> result = new ArrayList<>();
+    private final List<Tuple2<Long, Long>> result = new ArrayList<>();
 
-	@Override
-	protected void testProgram() throws Exception {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(1);
+    @Override
+    protected void testProgram() throws Exception {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
 
-			DataSet<Tuple2<Long, Long>> input = env.generateSequence(0, 9).map(new Duplicator<Long>());
+            DataSet<Tuple2<Long, Long>> input =
+                    env.generateSequence(0, 9).map(new Duplicator<Long>());
 
-			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = input.iterateDelta(input, 5, 1);
+            DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+                    input.iterateDelta(input, 5, 1);
 
-			iteration.closeWith(iteration.getWorkset(), iteration.getWorkset().map(new TestMapper()))
-					.output(new LocalCollectionOutputFormat<Tuple2<Long, Long>>(result));
+            iteration
+                    .closeWith(iteration.getWorkset(), iteration.getWorkset().map(new TestMapper()))
+                    .output(new LocalCollectionOutputFormat<Tuple2<Long, Long>>(result));
 
-			env.execute();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            env.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Override
-	protected void postSubmit() {
-		boolean[] present = new boolean[50];
-		for (Tuple2<Long, Long> t : result) {
-			present[t.f0.intValue()] = true;
-		}
+    @Override
+    protected void postSubmit() {
+        boolean[] present = new boolean[50];
+        for (Tuple2<Long, Long> t : result) {
+            present[t.f0.intValue()] = true;
+        }
 
-		for (int i = 0; i < present.length; i++) {
-			assertTrue(String.format("Missing tuple (%d, %d)", i, i), present[i]);
-		}
-	}
+        for (int i = 0; i < present.length; i++) {
+            assertTrue(String.format("Missing tuple (%d, %d)", i, i), present[i]);
+        }
+    }
 
-	private static final class Duplicator<T> implements MapFunction<T, Tuple2<T, T>> {
-		@Override
-		public Tuple2<T, T> map(T value) {
-			return new Tuple2<T, T>(value, value);
-		}
-	}
+    private static final class Duplicator<T> implements MapFunction<T, Tuple2<T, T>> {
+        @Override
+        public Tuple2<T, T> map(T value) {
+            return new Tuple2<T, T>(value, value);
+        }
+    }
 
-	private static final class TestMapper extends RichMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
-		@Override
-		public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
-			return new Tuple2<>(value.f0 + 10, value.f1 + 10);
-		}
-	}
+    private static final class TestMapper
+            extends RichMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+        @Override
+        public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
+            return new Tuple2<>(value.f0 + 10, value.f1 + 10);
+        }
+    }
 }

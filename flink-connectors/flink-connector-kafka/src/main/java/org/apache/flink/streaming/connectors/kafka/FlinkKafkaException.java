@@ -20,27 +20,25 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.FlinkException;
 
-/**
- * Exception used by {@link FlinkKafkaProducer} and {@link FlinkKafkaConsumer}.
- */
+/** Exception used by {@link FlinkKafkaProducer} and {@link FlinkKafkaConsumer}. */
 @PublicEvolving
 public class FlinkKafkaException extends FlinkException {
 
-	private static final long serialVersionUID = 920269130311214200L;
+    private static final long serialVersionUID = 920269130311214200L;
 
-	private final FlinkKafkaErrorCode errorCode;
+    private final FlinkKafkaErrorCode errorCode;
 
-	public FlinkKafkaException(FlinkKafkaErrorCode errorCode, String message) {
-		super(message);
-		this.errorCode = errorCode;
-	}
+    public FlinkKafkaException(FlinkKafkaErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
 
-	public FlinkKafkaException(FlinkKafkaErrorCode errorCode, String message, Throwable cause) {
-		super(message, cause);
-		this.errorCode = errorCode;
-	}
+    public FlinkKafkaException(FlinkKafkaErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
 
-	public FlinkKafkaErrorCode getErrorCode() {
-		return errorCode;
-	}
+    public FlinkKafkaErrorCode getErrorCode() {
+        return errorCode;
+    }
 }

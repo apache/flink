@@ -31,110 +31,125 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A storage location for checkpoints on a file system.
- */
-public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory implements CheckpointStorageLocation {
+/** A storage location for checkpoints on a file system. */
+public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory
+        implements CheckpointStorageLocation {
 
-	private final FileSystem fileSystem;
+    private final FileSystem fileSystem;
 
-	private final Path checkpointDirectory;
+    private final Path checkpointDirectory;
 
-	private final Path sharedStateDirectory;
+    private final Path sharedStateDirectory;
 
-	private final Path taskOwnedStateDirectory;
+    private final Path taskOwnedStateDirectory;
 
-	private final Path metadataFilePath;
+    private final Path metadataFilePath;
 
-	private final CheckpointStorageLocationReference reference;
+    private final CheckpointStorageLocationReference reference;
 
-	private final int fileStateSizeThreshold;
+    private final int fileStateSizeThreshold;
 
-	public FsCheckpointStorageLocation(
-			FileSystem fileSystem,
-			Path checkpointDir,
-			Path sharedStateDir,
-			Path taskOwnedStateDir,
-			CheckpointStorageLocationReference reference,
-			int fileStateSizeThreshold) {
+    private final int writeBufferSize;
 
-		super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold);
+    public FsCheckpointStorageLocation(
+            FileSystem fileSystem,
+            Path checkpointDir,
+            Path sharedStateDir,
+            Path taskOwnedStateDir,
+            CheckpointStorageLocationReference reference,
+            int fileStateSizeThreshold,
+            int writeBufferSize) {
 
-		checkArgument(fileStateSizeThreshold >= 0);
+        super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold, writeBufferSize);
 
-		this.fileSystem = checkNotNull(fileSystem);
-		this.checkpointDirectory = checkNotNull(checkpointDir);
-		this.sharedStateDirectory = checkNotNull(sharedStateDir);
-		this.taskOwnedStateDirectory = checkNotNull(taskOwnedStateDir);
-		this.reference = checkNotNull(reference);
+        checkArgument(fileStateSizeThreshold >= 0);
+        checkArgument(writeBufferSize >= 0);
 
-		// the metadata file should not have entropy in its path
-		Path metadataDir = EntropyInjector.removeEntropyMarkerIfPresent(fileSystem, checkpointDir);
+        this.fileSystem = checkNotNull(fileSystem);
+        this.checkpointDirectory = checkNotNull(checkpointDir);
+        this.sharedStateDirectory = checkNotNull(sharedStateDir);
+        this.taskOwnedStateDirectory = checkNotNull(taskOwnedStateDir);
+        this.reference = checkNotNull(reference);
 
-		this.metadataFilePath = new Path(metadataDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
-		this.fileStateSizeThreshold = fileStateSizeThreshold;
-	}
+        // the metadata file should not have entropy in its path
+        Path metadataDir = EntropyInjector.removeEntropyMarkerIfPresent(fileSystem, checkpointDir);
 
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
+        this.metadataFilePath =
+                new Path(metadataDir, AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME);
+        this.fileStateSizeThreshold = fileStateSizeThreshold;
+        this.writeBufferSize = writeBufferSize;
+    }
 
-	public Path getCheckpointDirectory() {
-		return checkpointDirectory;
-	}
+    // ------------------------------------------------------------------------
+    //  Properties
+    // ------------------------------------------------------------------------
 
-	public Path getSharedStateDirectory() {
-		return sharedStateDirectory;
-	}
+    public Path getCheckpointDirectory() {
+        return checkpointDirectory;
+    }
 
-	public Path getTaskOwnedStateDirectory() {
-		return taskOwnedStateDirectory;
-	}
+    public Path getSharedStateDirectory() {
+        return sharedStateDirectory;
+    }
 
-	public Path getMetadataFilePath() {
-		return metadataFilePath;
-	}
+    public Path getTaskOwnedStateDirectory() {
+        return taskOwnedStateDirectory;
+    }
 
-	// ------------------------------------------------------------------------
-	//  checkpoint metadata
-	// ------------------------------------------------------------------------
+    public Path getMetadataFilePath() {
+        return metadataFilePath;
+    }
 
-	@Override
-	public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
-		return new FsCheckpointMetadataOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
-	}
+    // ------------------------------------------------------------------------
+    //  checkpoint metadata
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void disposeOnFailure() throws IOException {
-		// on a failure, no chunk in the checkpoint directory needs to be saved, so
-		// we can drop it as a whole
-		fileSystem.delete(checkpointDirectory, true);
-	}
+    @Override
+    public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+        return new FsCheckpointMetadataOutputStream(
+                fileSystem, metadataFilePath, checkpointDirectory);
+    }
 
-	@Override
-	public CheckpointStorageLocationReference getLocationReference() {
-		return reference;
-	}
+    @Override
+    public void disposeOnFailure() throws IOException {
+        // on a failure, no chunk in the checkpoint directory needs to be saved, so
+        // we can drop it as a whole
+        fileSystem.delete(checkpointDirectory, true);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    @Override
+    public CheckpointStorageLocationReference getLocationReference() {
+        return reference;
+    }
 
-	@Override
-	public String toString() {
-		return "FsCheckpointStorageLocation {" +
-				"fileSystem=" + fileSystem +
-				", checkpointDirectory=" + checkpointDirectory +
-				", sharedStateDirectory=" + sharedStateDirectory +
-				", taskOwnedStateDirectory=" + taskOwnedStateDirectory +
-				", metadataFilePath=" + metadataFilePath +
-				", reference=" + reference +
-				", fileStateSizeThreshold=" + fileStateSizeThreshold +
-				'}';
-	}
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@VisibleForTesting
-	FileSystem getFileSystem() {
-		return fileSystem;
-	}
+    @Override
+    public String toString() {
+        return "FsCheckpointStorageLocation {"
+                + "fileSystem="
+                + fileSystem
+                + ", checkpointDirectory="
+                + checkpointDirectory
+                + ", sharedStateDirectory="
+                + sharedStateDirectory
+                + ", taskOwnedStateDirectory="
+                + taskOwnedStateDirectory
+                + ", metadataFilePath="
+                + metadataFilePath
+                + ", reference="
+                + reference
+                + ", fileStateSizeThreshold="
+                + fileStateSizeThreshold
+                + ", writeBufferSize="
+                + writeBufferSize
+                + '}';
+    }
+
+    @VisibleForTesting
+    FileSystem getFileSystem() {
+        return fileSystem;
+    }
 }

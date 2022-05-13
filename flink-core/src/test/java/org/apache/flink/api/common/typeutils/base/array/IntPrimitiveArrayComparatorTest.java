@@ -18,27 +18,28 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+
 import org.junit.Assert;
 
 public class IntPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<int[]> {
-	public IntPrimitiveArrayComparatorTest() {
-		super(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
-	}
+    public IntPrimitiveArrayComparatorTest() {
+        super(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+    }
 
-	@Override
-	protected void deepEquals(String message, int[] should, int[] is) {
-		Assert.assertArrayEquals(message, should, is);
-	}
+    @Override
+    protected void deepEquals(String message, int[] should, int[] is) {
+        Assert.assertArrayEquals(message, should, is);
+    }
 
-	@Override
-	protected int[][] getSortedTestData() {
-		return new int[][]{
-			new int[]{-1, 0},
-			new int[]{0, -1},
-			new int[]{0, 0},
-			new int[]{0, 1},
-			new int[]{0, 1, 2},
-			new int[]{2}
-		};
-	}
+    @Override
+    protected int[][] getSortedTestData() {
+        return new int[][] {
+            new int[] {-1, 0},
+            new int[] {0, -1},
+            new int[] {0, 0},
+            new int[] {0, 1},
+            new int[] {0, 1, 2},
+            new int[] {2}
+        };
+    }
 }
