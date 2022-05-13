@@ -77,10 +77,10 @@ class HashCodeGeneratorTest {
     val row3 = GenericRowData.of(
       ji(5),
       new GenericArrayData(Array(1, 5, 7)),
+      new GenericMapData(Map(1 -> null, 5 -> null, 10 -> null)),
       new GenericMapData(
-        Map(1 -> null, 5 -> null, 10 -> null)),
-      new GenericMapData(
-        Map(1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny"), 10 -> null)))
+        Map(1 -> StringData.fromString("ron"), 5 -> StringData.fromString("danny"), 10 -> null))
+    )
     Assert.assertEquals(368915957, hashFunc3.hashCode(row3))
 
     // test hash code for ArrayData
