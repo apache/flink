@@ -119,7 +119,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
 public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
@@ -539,25 +538,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         executionGraph.transitionToRunning();
     }
 
-    protected Optional<ExecutionVertexID> getExecutionVertexId(
-            final ExecutionAttemptID executionAttemptId) {
-        return Optional.ofNullable(executionGraph.getRegisteredExecutions().get(executionAttemptId))
-                .map(this::getExecutionVertexId);
-    }
-
-    protected ExecutionVertexID getExecutionVertexIdOrThrow(
-            final ExecutionAttemptID executionAttemptId) {
-        return getExecutionVertexId(executionAttemptId)
-                .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "Cannot find execution " + executionAttemptId));
-    }
-
-    private ExecutionVertexID getExecutionVertexId(final Execution execution) {
-        return execution.getVertex().getID();
-    }
-
     public ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
         return executionGraph
                 .getAllVertices()
@@ -726,16 +706,14 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @Override
     public final boolean updateTaskExecutionState(
             final TaskExecutionStateTransition taskExecutionState) {
-        final Optional<ExecutionVertexID> executionVertexId =
-                getExecutionVertexId(taskExecutionState.getID());
+        final ExecutionVertexID executionVertexId =
+                taskExecutionState.getID().getExecutionVertexId();
 
         boolean updateSuccess = executionGraph.updateState(taskExecutionState);
 
         if (updateSuccess) {
-            checkState(executionVertexId.isPresent());
-
-            if (isNotifiable(executionVertexId.get(), taskExecutionState)) {
-                updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+            if (isNotifiable(executionVertexId, taskExecutionState)) {
+                updateTaskExecutionStateInternal(executionVertexId, taskExecutionState);
             }
             return true;
         } else {
