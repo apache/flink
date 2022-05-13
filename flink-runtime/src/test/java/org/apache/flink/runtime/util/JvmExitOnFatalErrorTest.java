@@ -227,8 +227,6 @@ public class JvmExitOnFatalErrorTest extends TestLogger {
                                 taskInformation,
                                 executionAttemptID,
                                 slotAllocationId,
-                                0, // subtaskIndex
-                                0, // attemptNumber
                                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                                 memoryManager,

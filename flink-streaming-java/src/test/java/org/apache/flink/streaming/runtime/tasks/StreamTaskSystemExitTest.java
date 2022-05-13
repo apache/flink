@@ -182,8 +182,6 @@ public class StreamTaskSystemExitTest extends TestLogger {
                 taskInformation,
                 new ExecutionAttemptID(),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),

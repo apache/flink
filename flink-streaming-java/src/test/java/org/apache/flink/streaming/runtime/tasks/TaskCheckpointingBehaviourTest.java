@@ -101,6 +101,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.RunnableFuture;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
@@ -216,10 +217,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         return new Task(
                 jobInformation,
                 taskInformation,
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(taskInformation.getJobVertexId()),
                 new AllocationID(),
-                0,
-                0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
                 mock(MemoryManager.class),

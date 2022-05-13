@@ -44,6 +44,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -55,14 +56,12 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 
     private static final JobID jobID = new JobID();
     private static final JobVertexID vertexID = new JobVertexID();
-    private static final ExecutionAttemptID execId = new ExecutionAttemptID();
+    private static final ExecutionAttemptID execId = createExecutionAttemptId(vertexID);
     private static final AllocationID allocationId = new AllocationID();
     private static final String jobName = "job name";
     private static final String taskName = "task name";
     private static final int numberOfKeyGroups = 1;
-    private static final int indexInSubtaskGroup = 0;
     private static final int currentNumberOfSubtasks = 1;
-    private static final int attemptNumber = 0;
     private static final Configuration jobConfiguration = new Configuration();
     private static final Configuration taskConfiguration = new Configuration();
     private static final Class<? extends AbstractInvokable> invokableClass = BatchTask.class;
@@ -161,8 +160,6 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
                 taskInformation,
                 execId,
                 allocationId,
-                indexInSubtaskGroup,
-                attemptNumber,
                 taskRestore,
                 producedResults,
                 inputGates);
