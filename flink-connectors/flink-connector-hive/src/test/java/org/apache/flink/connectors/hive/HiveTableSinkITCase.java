@@ -39,7 +39,6 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
@@ -72,6 +71,7 @@ import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdIn
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests {@link HiveTableSink}. */
@@ -427,17 +427,23 @@ public class HiveTableSinkITCase {
     public void testCustomPartitionCommitPolicyNotFound() {
         String customCommitPolicyClassName = "NotExistPartitionCommitPolicyClass";
 
-        try {
-            testStreamingWriteWithCustomPartitionCommitPolicy(customCommitPolicyClassName);
-            fail("ExecutionException expected");
-        } catch (Exception e) {
-            assertThat(
-                            ExceptionUtils.findThrowableWithMessage(
-                                    e,
-                                    "Can not create new instance for custom class from "
-                                            + customCommitPolicyClassName))
-                    .isPresent();
-        }
+        assertThatThrownBy(
+                        () ->
+                                testStreamingWriteWithCustomPartitionCommitPolicy(
+                                        customCommitPolicyClassName))
+                .satisfies(
+                        (Consumer<Throwable>)
+                                throwable -> {
+                                    List<String> messages = new ArrayList<>();
+                                    while (throwable != null) {
+                                        messages.add(throwable.getMessage());
+                                        throwable = throwable.getCause();
+                                    }
+                                    assertThat(messages)
+                                            .contains(
+                                                    "Can not create new instance for custom class from "
+                                                            + customCommitPolicyClassName);
+                                });
     }
 
     @Test

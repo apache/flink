@@ -64,6 +64,7 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_IN_TEST;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TXN_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests that need to run with hive runner. Since hive runner is heavy, make sure to add test cases
@@ -570,25 +571,20 @@ public class HiveRunnerITCase {
             tableEnv.executeSql("create table db1.src (x string,y string)");
             hiveShell.execute(
                     "create table db1.dest (x string,y string) clustered by (x) into 3 buckets stored as orc tblproperties ('transactional'='true')");
-            List<Exception> exceptions = new ArrayList<>();
-            try {
-                tableEnv.executeSql("insert into db1.src select * from db1.dest").await();
-            } catch (Exception e) {
-                exceptions.add(e);
-            }
-            try {
-                tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
-            } catch (Exception e) {
-                exceptions.add(e);
-            }
-            assertThat(exceptions).hasSize(2);
-            exceptions.forEach(
-                    e -> {
-                        assertThat(e).isInstanceOf(FlinkHiveException.class);
-                        assertThat(e.getMessage())
-                                .isEqualTo(
-                                        "Reading or writing ACID table db1.dest is not supported.");
-                    });
+            assertThatThrownBy(
+                            () ->
+                                    tableEnv.executeSql(
+                                                    "insert into db1.src select * from db1.dest")
+                                            .await())
+                    .isInstanceOf(FlinkHiveException.class)
+                    .hasMessage("Reading or writing ACID table db1.dest is not supported.");
+            assertThatThrownBy(
+                            () ->
+                                    tableEnv.executeSql(
+                                                    "insert into db1.dest select * from db1.src")
+                                            .await())
+                    .isInstanceOf(FlinkHiveException.class)
+                    .hasMessage("Reading or writing ACID table db1.dest is not supported.");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }

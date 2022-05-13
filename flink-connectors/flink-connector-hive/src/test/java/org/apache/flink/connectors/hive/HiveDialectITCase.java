@@ -77,7 +77,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
@@ -743,18 +743,18 @@ public class HiveDialectITCase {
                                         "show partitions tbl partition (dt='2020-05-01',country='japan')")
                                 .collect());
         assertThat(partitions).isEmpty();
-        try {
-            CollectionUtil.iteratorToList(
-                    tableEnv.executeSql(
-                                    "show partitions tbl partition (de='2020-04-30',city='china')")
-                            .collect());
-        } catch (TableException e) {
-            assertThat(e)
-                    .hasMessage(
-                            String.format(
-                                    "Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)",
-                                    hiveCatalog.getName(), tablePath));
-        }
+
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tableEnv.executeSql(
+                                                        "show partitions tbl partition (de='2020-04-30',city='china')")
+                                                .collect()))
+                .isInstanceOf(TableException.class)
+                .hasMessage(
+                        String.format(
+                                "Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)",
+                                hiveCatalog.getName(), tablePath));
 
         tableEnv.executeSql(
                 "alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
@@ -817,15 +817,10 @@ public class HiveDialectITCase {
     }
 
     private void verifyUnsupportedOperation(String ddl) {
-        try {
-            tableEnv.executeSql(ddl);
-            fail("We don't support " + ddl);
-        } catch (ValidationException e) {
-            // expected
-            assertThat(e.getCause())
-                    .as("Expect UnsupportedOperationException for " + ddl)
-                    .isInstanceOf(UnsupportedOperationException.class);
-        }
+        assertThatThrownBy(() -> tableEnv.executeSql(ddl))
+                .isInstanceOf(ValidationException.class)
+                .getCause()
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     private static String locationPath(String locationURI) throws URISyntaxException {

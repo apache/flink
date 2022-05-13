@@ -33,7 +33,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
@@ -53,6 +52,7 @@ import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONI
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link HiveDynamicTableFactory}. */
 public class HiveDynamicTableFactoryTest {
@@ -95,16 +95,10 @@ public class HiveDynamicTableFactoryTest {
                         STREAMING_SOURCE_ENABLE.key(), STREAMING_SOURCE_PARTITION_INCLUDE.key()));
         DynamicTableSource tableSource2 = getTableSource("table2");
         assertThat(tableSource2).isInstanceOf(HiveLookupTableSource.class);
-        try {
-            tableEnv.executeSql("select * from table2");
-        } catch (Throwable t) {
-            assertThat(
-                            ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The only supported 'streaming-source.partition.include' is 'all' in"
-                                            + " hive table scan, but is 'latest'"))
-                    .isPresent();
-        }
+        assertThatThrownBy(() -> tableEnv.executeSql("select * from table2"))
+                .hasMessage(
+                        "The only supported 'streaming-source.partition.include' is 'all' in"
+                                + " hive table scan, but is 'latest'");
 
         // test table support 'partition-name' in option 'streaming-source.partition.order'.
         tableEnv.executeSql(
@@ -216,7 +210,7 @@ public class HiveDynamicTableFactoryTest {
     }
 
     @Test
-    public void testInvalidOptions() throws Exception {
+    public void testInvalidOptions() {
         tableEnv.executeSql(
                 String.format(
                         "create table table9 (x int, y string, z int)"
@@ -225,17 +219,11 @@ public class HiveDynamicTableFactoryTest {
                         STREAMING_SOURCE_PARTITION_INCLUDE.key(),
                         STREAMING_SOURCE_MONITOR_INTERVAL.key(),
                         STREAMING_SOURCE_CONSUME_START_OFFSET.key()));
-
-        try {
-            getTableSource("table9");
-        } catch (Throwable t) {
-            assertThat(
-                            ExceptionUtils.findThrowableWithMessage(
-                                    t,
-                                    "The 'streaming-source.consume-start-offset' is not supported when "
-                                            + "set 'streaming-source.partition.include' to 'latest'"))
-                    .isPresent();
-        }
+        assertThatThrownBy(() -> getTableSource("table9"))
+                .getRootCause()
+                .hasMessage(
+                        "The 'streaming-source.consume-start-offset' is not supported when "
+                                + "set 'streaming-source.partition.include' to 'latest'");
     }
 
     @Test
