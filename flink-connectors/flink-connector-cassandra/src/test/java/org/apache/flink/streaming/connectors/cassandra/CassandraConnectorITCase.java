@@ -60,6 +60,7 @@ import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.annotations.Table;
 import net.bytebuddy.ByteBuddy;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.AfterClass;
@@ -93,8 +94,6 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.samePropertyValuesAs;
 
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
@@ -725,7 +724,12 @@ public class CassandraConnectorITCase
 
         final List<? extends Pojo> result = readPojosWithInputFormat(annotatedPojoClass);
         assertThat(result).hasSize(20);
-        assertThat(result).satisfies(matching(samePropertyValuesAs(pojos)));
+        assertThat(result)
+                .usingRecursiveComparison(
+                        RecursiveComparisonConfiguration.builder()
+                                .withIgnoreCollectionOrder(true)
+                                .build())
+                .isEqualTo(pojos);
     }
 
     @Test
