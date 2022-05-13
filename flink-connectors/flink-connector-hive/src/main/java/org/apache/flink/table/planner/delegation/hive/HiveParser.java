@@ -148,7 +148,6 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_CREATETABLE,
                                 HiveASTParser.TOK_CREATEFUNCTION,
                                 HiveASTParser.TOK_DROPFUNCTION,
-                                HiveASTParser.TOK_RELOADFUNCTION,
                                 HiveASTParser.TOK_CREATEVIEW,
                                 HiveASTParser.TOK_ALTERDATABASE_LOCATION,
                                 HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
@@ -214,7 +213,11 @@ public class HiveParser extends ParserImpl {
             // parse statement to get AST
             final HiveParserASTNode node = HiveASTParseUtils.parse(cmd, context);
             Operation operation;
-            if (DDL_NODES.contains(node.getType())) {
+            if (node.getType() == HiveASTParser.TOK_RELOADFUNCTION) {
+                // because Flink will retrieve function from Hive's metastore in every function
+                // call, we need do nothing for Hive's reload function
+                return Collections.singletonList(new NopOperation());
+            } else if (DDL_NODES.contains(node.getType())) {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
