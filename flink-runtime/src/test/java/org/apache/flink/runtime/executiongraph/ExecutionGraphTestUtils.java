@@ -429,7 +429,11 @@ public class ExecutionGraphTestUtils {
     }
 
     public static ExecutionAttemptID createExecutionAttemptId() {
-        return createExecutionAttemptId(new JobVertexID(0, 0), 0, 0);
+        return createExecutionAttemptId(new JobVertexID(0, 0));
+    }
+
+    public static ExecutionAttemptID createExecutionAttemptId(JobVertexID jobVertexId) {
+        return createExecutionAttemptId(jobVertexId, 0, 0);
     }
 
     public static ExecutionAttemptID createExecutionAttemptId(

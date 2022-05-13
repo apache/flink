@@ -163,7 +163,7 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
             throws IOException {
 
-        return TaskDeploymentDescriptorFactory.fromExecutionVertex(ev, 0)
+        return TaskDeploymentDescriptorFactory.fromExecutionVertex(ev)
                 .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
     }
 

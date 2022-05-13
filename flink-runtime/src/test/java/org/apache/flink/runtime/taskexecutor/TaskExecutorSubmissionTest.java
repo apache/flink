@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
@@ -78,6 +77,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.instanceOf;
@@ -104,7 +104,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      */
     @Test
     public void testTaskSubmission() throws Exception {
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
                 createTestTaskDeploymentDescriptor(
@@ -134,7 +134,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      */
     @Test
     public void testSubmitTaskFailure() throws Exception {
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
                 createTestTaskDeploymentDescriptor(
@@ -160,8 +160,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /** Tests that we can cancel the task of the TaskManager given that we've submitted it. */
     @Test
     public void testTaskSubmissionAndCancelling() throws Exception {
-        final ExecutionAttemptID eid1 = new ExecutionAttemptID();
-        final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+        final ExecutionAttemptID eid1 = createExecutionAttemptId();
+        final ExecutionAttemptID eid2 = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd1 =
                 createTestTaskDeploymentDescriptor("test task", eid1, BlockingNoOpInvokable.class);
@@ -210,8 +210,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      */
     @Test
     public void testGateChannelEdgeMismatch() throws Exception {
-        final ExecutionAttemptID eid1 = new ExecutionAttemptID();
-        final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+        final ExecutionAttemptID eid1 = createExecutionAttemptId();
+        final ExecutionAttemptID eid2 = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd1 =
                 createTestTaskDeploymentDescriptor(
@@ -444,7 +444,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /** Tests that the TaskManager fails the task if the partition update fails. */
     @Test
     public void testUpdateTaskInputPartitionsFailure() throws Exception {
-        final ExecutionAttemptID eid = new ExecutionAttemptID();
+        final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
                 createTestTaskDeploymentDescriptor("test task", eid, BlockingNoOpInvokable.class);
@@ -570,7 +570,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         new ShuffleDescriptor[] {shuffleDescriptor});
         return createTestTaskDeploymentDescriptor(
                 "Receiver",
-                new ExecutionAttemptID(),
+                createExecutionAttemptId(),
                 TestingAbstractInvokables.Receiver.class,
                 1,
                 Collections.emptyList(),
@@ -617,9 +617,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 new SerializedValue<>(new ExecutionConfig()),
                 taskName,
                 maxNumberOfSubtasks,
-                0,
                 1,
-                0,
                 new Configuration(),
                 new Configuration(),
                 abstractInvokable.getName(),
@@ -636,9 +634,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             SerializedValue<ExecutionConfig> serializedExecutionConfig,
             String taskName,
             int maxNumberOfSubtasks,
-            int subtaskIndex,
             int numberOfSubtasks,
-            int attemptNumber,
             Configuration jobConfiguration,
             Configuration taskConfiguration,
             String invokableClassName,
@@ -659,7 +655,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
         TaskInformation taskInformation =
                 new TaskInformation(
-                        new JobVertexID(),
+                        executionAttemptId.getJobVertexId(),
                         taskName,
                         numberOfSubtasks,
                         maxNumberOfSubtasks,
@@ -677,8 +673,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobVertexInformation),
                 executionAttemptId,
                 new AllocationID(),
-                subtaskIndex,
-                attemptNumber,
                 null,
                 producedPartitions,
                 inputGates);

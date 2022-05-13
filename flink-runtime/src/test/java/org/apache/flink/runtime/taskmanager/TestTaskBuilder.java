@@ -202,8 +202,6 @@ public final class TestTaskBuilder {
                 taskInformation,
                 executionAttemptId,
                 allocationID,
-                0,
-                0,
                 resultPartitions,
                 inputGates,
                 MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),

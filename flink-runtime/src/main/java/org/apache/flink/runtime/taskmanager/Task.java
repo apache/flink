@@ -299,8 +299,6 @@ public class Task
             TaskInformation taskInformation,
             ExecutionAttemptID executionAttemptID,
             AllocationID slotAllocationId,
-            int subtaskIndex,
-            int attemptNumber,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
             MemoryManager memManager,
@@ -326,16 +324,13 @@ public class Task
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
 
-        Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
-        Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
-
         this.taskInfo =
                 new TaskInfo(
                         taskInformation.getTaskName(),
                         taskInformation.getMaxNumberOfSubtasks(),
-                        subtaskIndex,
+                        executionAttemptID.getSubtaskIndex(),
                         taskInformation.getNumberOfSubtasks(),
-                        attemptNumber,
+                        executionAttemptID.getAttemptNumber(),
                         String.valueOf(slotAllocationId));
 
         this.jobId = jobInformation.getJobId();

@@ -557,7 +557,7 @@ public class Execution
                     slot.getAllocationId());
 
             final TaskDeploymentDescriptor deployment =
-                    TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
+                    TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex)
                             .createDeploymentDescriptor(
                                     slot.getAllocationId(),
                                     taskRestore,
