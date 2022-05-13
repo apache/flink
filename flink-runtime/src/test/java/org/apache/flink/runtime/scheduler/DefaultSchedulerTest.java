@@ -991,8 +991,7 @@ public class DefaultSchedulerTest extends TestLogger {
                 vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
         final ExecutionAttemptID attemptId2 =
                 vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
-        final ExecutionVertexID executionVertex2 =
-                scheduler.getExecutionVertexIdOrThrow(attemptId2);
+        final ExecutionVertexID executionVertex2 = attemptId2.getExecutionVertexId();
 
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
