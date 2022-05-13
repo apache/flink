@@ -289,6 +289,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         /** The modification time of the last created file. */
         private long lastCreatedModTime = Long.MIN_VALUE;
 
+        @Override()
         public void run() {
             try {
                 for (int i = 0; i < NO_OF_FILES; i++) {
