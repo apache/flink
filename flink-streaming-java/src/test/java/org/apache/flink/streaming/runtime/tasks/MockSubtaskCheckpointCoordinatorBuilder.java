@@ -112,7 +112,8 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
                 unalignedCheckpointEnabled,
                 enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
-                maxRecordAbortedCheckpoints);
+                maxRecordAbortedCheckpoints,
+                (callable, duration) -> () -> {});
     }
 
     private static class NonHandleAsyncException implements AsyncExceptionHandler {

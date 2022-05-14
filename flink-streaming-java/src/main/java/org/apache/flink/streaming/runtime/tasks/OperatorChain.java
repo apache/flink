@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -332,6 +333,18 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
         for (RecordWriterOutput<?> streamOutput : streamOutputs) {
             streamOutput.broadcastEvent(event, isPriorityEvent);
+        }
+    }
+
+    public void alignedBarrierTimeout(long checkpointId) throws IOException {
+        for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+            streamOutput.alignedBarrierTimeout(checkpointId);
+        }
+    }
+
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+            streamOutput.abortCheckpoint(checkpointId, cause);
         }
     }
 
