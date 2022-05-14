@@ -24,6 +24,9 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
@@ -72,6 +75,48 @@ interface ChannelStateWriteRequest {
                 (writer, buffer) -> writer.writeOutput(info, buffer));
     }
 
+    static ChannelStateWriteRequest write(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            CompletableFuture<List<Buffer>> dataFuture) {
+        return buildFutureWriteRequest(
+                checkpointId,
+                "writeOutputFuture",
+                dataFuture,
+                (writer, buffer) -> writer.writeOutput(info, buffer));
+    }
+
+    static ChannelStateWriteRequest buildFutureWriteRequest(
+            long checkpointId,
+            String name,
+            CompletableFuture<List<Buffer>> dataFuture,
+            BiConsumer<ChannelStateCheckpointWriter, Buffer> bufferConsumer) {
+        return new CheckpointInProgressRequest(
+                name,
+                checkpointId,
+                writer -> {
+                    List<Buffer> buffers;
+                    try {
+                        buffers = dataFuture.get();
+                    } catch (ExecutionException e) {
+                        // If dataFuture fails, fail only the single related writer
+                        writer.fail(e);
+                        return;
+                    }
+                    for (Buffer buffer : buffers) {
+                        checkBufferIsBuffer(buffer);
+                        bufferConsumer.accept(writer, buffer);
+                    }
+                },
+                throwable -> {
+                    try {
+                        CloseableIterator.fromList(dataFuture.get(), Buffer::recycleBuffer).close();
+                    } catch (ExecutionException ignored) {
+                    }
+                },
+                false);
+    }
+
     static ChannelStateWriteRequest buildWriteRequest(
             long checkpointId,
             String name,
@@ -83,17 +128,21 @@ interface ChannelStateWriteRequest {
                 writer -> {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
-                        try {
-                            checkArgument(buffer.isBuffer());
-                        } catch (Exception e) {
-                            buffer.recycleBuffer();
-                            throw e;
-                        }
+                        checkBufferIsBuffer(buffer);
                         bufferConsumer.accept(writer, buffer);
                     }
                 },
                 throwable -> iterator.close(),
                 false);
+    }
+
+    static void checkBufferIsBuffer(Buffer buffer) {
+        try {
+            checkArgument(buffer.isBuffer());
+        } catch (Exception e) {
+            buffer.recycleBuffer();
+            throw e;
+        }
     }
 
     static ChannelStateWriteRequest start(
