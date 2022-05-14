@@ -46,9 +46,9 @@ public class AWSOptionUtils implements TableOptionsUtils, ConfigurationValidator
     @Override
     public Map<String, String> getProcessedResolvedOptions() {
         Map<String, String> mappedResolvedOptions = new HashMap<>();
-        for (String key : resolvedOptions.keySet()) {
-            if (key.startsWith(AWS_PROPERTIES_PREFIX)) {
-                mappedResolvedOptions.put(translateAwsKey(key), resolvedOptions.get(key));
+        for (Map.Entry<String,String> optionEntry : resolvedOptions.entrySet()) {
+            if (optionEntry.getKey().startsWith(AWS_PROPERTIES_PREFIX)) {
+                mappedResolvedOptions.put(translateAwsKey(optionEntry.getKey()), optionEntry.getValue());
             }
         }
         return mappedResolvedOptions;
