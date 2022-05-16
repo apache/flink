@@ -39,6 +39,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.calcite.sql.SqlKind.CUME_DIST;
+import static org.apache.calcite.sql.SqlKind.NTILE;
+import static org.apache.calcite.sql.SqlKind.PERCENT_RANK;
+
 /** Batch {@link ExecNode} base class for sort-based over window aggregate. */
 public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
         implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
@@ -97,6 +101,15 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
 
     protected List<RexLiteral> getConstants() {
         return overSpec.getConstants();
+    }
+
+    protected boolean containSizeBasedWindowFunction(GroupSpec group) {
+        return group.getAggCalls().stream()
+                .anyMatch(
+                        agg ->
+                                (agg.getAggregation().getKind() == CUME_DIST)
+                                        || (agg.getAggregation().getKind() == PERCENT_RANK)
+                                        || (agg.getAggregation().getKind() == NTILE));
     }
 
     /** Infer the over window mode based on given group info. */

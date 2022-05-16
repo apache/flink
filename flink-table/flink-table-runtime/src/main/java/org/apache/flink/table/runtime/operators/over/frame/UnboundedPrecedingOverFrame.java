@@ -22,6 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
+import org.apache.flink.table.runtime.generated.AggsFunctionWithWindowSize;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
@@ -63,6 +64,10 @@ public abstract class UnboundedPrecedingOverFrame implements OverWindowFrame {
         inputIterator = rows.newIterator();
         if (inputIterator.advanceNext()) {
             nextRow = inputIterator.getRow().copy();
+        }
+        // set the window size if it's a function with window size
+        if (processor instanceof AggsFunctionWithWindowSize) {
+            ((AggsFunctionWithWindowSize) processor).setWindowSize(rows.size());
         }
         // reset the accumulators value
         processor.setAccumulators(processor.createAccumulators());

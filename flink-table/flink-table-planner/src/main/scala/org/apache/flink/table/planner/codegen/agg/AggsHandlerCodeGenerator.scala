@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.ImperativeAggregateFunction
@@ -86,6 +86,7 @@ class AggsHandlerCodeGenerator(
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
   private var isMergeNeeded = false
+  private var isWindowSizeNeeded = false
 
   var valueType: RowType = _
 
@@ -186,6 +187,11 @@ class AggsHandlerCodeGenerator(
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
     this.isMergeNeeded = true
+    this
+  }
+
+  def needWindowSize(): AggsHandlerCodeGenerator = {
+    this.isWindowSizeNeeded = true
     this
   }
 
@@ -320,6 +326,7 @@ class AggsHandlerCodeGenerator(
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
+    val setWindowSizeCode = if (isWindowSizeNeeded) genSetWindowSize() else ""
     val createAccumulatorsCode = genCreateAccumulators()
     val getAccumulatorsCode = genGetAccumulators()
     val setAccumulatorsCode = genSetAccumulators()
@@ -333,7 +340,8 @@ class AggsHandlerCodeGenerator(
 
     val functionCode =
       j"""
-        public final class $functionName implements $AGGS_HANDLER_FUNCTION {
+        public final class $functionName implements $AGGS_HANDLER_FUNCTION
+        ${if (isWindowSizeNeeded) s",$AGGS_WINDOWSIZE_FUNCTION" else ""}  {
 
           ${ctx.reuseMemberCode()}
 
@@ -352,6 +360,14 @@ class AggsHandlerCodeGenerator(
             this.store = store;
             ${ctx.reuseOpenCode()}
           }
+
+          ${if (isWindowSizeNeeded) {
+          s"""
+             |@Override
+             |public void setWindowSize(int $WINDOWS_SIZE) {
+             |   $setWindowSizeCode
+            }""".stripMargin
+        } else ""}
 
           @Override
           public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
@@ -847,6 +863,26 @@ class AggsHandlerCodeGenerator(
       ctx.tableConfig)
   }
 
+  private def genSetWindowSize(): String = {
+    val methodName = "setWindowSize"
+    ctx.startNewLocalVariableStatement(methodName)
+
+    val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+      .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
+    val body = aggBufferCodeGens
+      // ignore distinct agg codegen
+      .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
+      .map(_.setWindowSize(exprGenerator))
+      .mkString("\n")
+
+    s"""
+       |${ctx.reuseLocalVariableCode(methodName)}
+       |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
+       |${ctx.reusePerRecordCode()}
+       |$body
+       |""".stripMargin
+  }
+
   private def genCreateAccumulators(): String = {
     val methodName = "createAccumulators"
     ctx.startNewLocalVariableStatement(methodName)
@@ -1188,10 +1224,17 @@ class AggsHandlerCodeGenerator(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
-      needEmitValue: Boolean = false): Unit = {
+      needEmitValue: Boolean = false,
+      needWindowSize: Boolean = false): Unit = {
     // check and validate the needed methods
     aggBufferCodeGens.foreach(
-      _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
+      _.checkNeededMethods(
+        needAccumulate,
+        needRetract,
+        needMerge,
+        needReset,
+        needEmitValue,
+        needWindowSize))
   }
 
   private def genThrowException(msg: String): String = {
@@ -1208,6 +1251,7 @@ object AggsHandlerCodeGenerator {
   val MERGED_ACC_TERM = "otherAcc"
   val ACCUMULATE_INPUT_TERM = "accInput"
   val RETRACT_INPUT_TERM = "retractInput"
+  val WINDOWS_SIZE = "windowSize"
   val DISTINCT_KEY_TERM = "distinctKey"
 
   val NAMESPACE_TERM = "namespace"
