@@ -207,6 +207,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
+    private volatile boolean inShutdown;
+
     // ------------------------------------------------------------------------
 
     public JobMaster(
@@ -333,6 +335,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         this.establishedResourceManagerConnection = null;
 
         this.accumulators = new HashMap<>();
+        
+        this.inShutdown = false;
     }
 
     private SchedulerNG createScheduler(
@@ -401,7 +405,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 "Stopping the JobMaster for job '{}' ({}).",
                 jobGraph.getName(),
                 jobGraph.getJobID());
-
+        
+        inShutdown = true;
         // make sure there is a graceful exit
         return stopJobExecution(
                         new FlinkException(
@@ -781,7 +786,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public void disconnectResourceManager(
             final ResourceManagerId resourceManagerId, final Exception cause) {
 
-        if (isConnectingToResourceManager(resourceManagerId)) {
+        if (!inShutdown && isConnectingToResourceManager(resourceManagerId)) {
             reconnectToResourceManager(cause);
         }
     }
