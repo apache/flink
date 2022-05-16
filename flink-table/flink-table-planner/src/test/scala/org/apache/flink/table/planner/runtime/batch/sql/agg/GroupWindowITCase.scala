@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
@@ -26,8 +25,8 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
@@ -40,8 +39,12 @@ class GroupWindowITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     // common case
-    registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,
-      "a, b, c, ts", nullablesOfData3WithTimestamp)
+    registerCollection(
+      "Table3WithTimestamp",
+      data3WithTimestamp,
+      type3WithTimestamp,
+      "a, b, c, ts",
+      nullablesOfData3WithTimestamp)
     // for udagg
     registerFunction("countFun", new CountAggFunction())
     registerFunction("sumFun", new IntSumAggFunction())
@@ -55,8 +58,8 @@ class GroupWindowITCase extends BatchTestBase {
     // SORT; keyed; 2-phase; pre-accumulate without paned optimization; single row group
     checkResult(
       "SELECT a, countFun(a), TUMBLE_START(ts, INTERVAL '3' SECOND)" +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)",
       Seq(
         row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
         row(2, 1, localDateTime("1970-01-01 00:00:00.0")),
@@ -85,8 +88,8 @@ class GroupWindowITCase extends BatchTestBase {
     // SORT; keyed; 2-phase keyed; single row group
     checkResult(
       "SELECT a, countFun(a), TUMBLE_START(ts, INTERVAL '3' SECOND), b " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND), b",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND), b",
       Seq(
         row(1, 1, localDateTime("1970-01-01 00:00:00.0"), 1),
         row(2, 1, localDateTime("1970-01-01 00:00:00.0"), 2),
@@ -115,8 +118,8 @@ class GroupWindowITCase extends BatchTestBase {
     // HASH 2-phase; sparse inputs
     checkResult(
       "SELECT a, avg(b), min(b), TUMBLE_START(f, INTERVAL '10' SECOND) " +
-          "FROM Table6 " +
-          "GROUP BY a, TUMBLE(f, INTERVAL '10' SECOND)",
+        "FROM Table6 " +
+        "GROUP BY a, TUMBLE(f, INTERVAL '10' SECOND)",
       Seq(
         row(1, 1.1, 1.1, localDateTime("2015-05-20 10:00:00.0")),
         row(2, -2.4, -2.4, localDateTime("2016-09-01 23:07:00.0")),
@@ -163,8 +166,8 @@ class GroupWindowITCase extends BatchTestBase {
     // keyed; 2-phase; pre-accumulate with paned optimization;
     checkResult(
       "SELECT b, sumFun(a), HOP_START(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
       Seq(
         row(1, 1, localDateTime("1969-12-31 23:59:55.0")),
         row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
@@ -186,8 +189,8 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT b, sum(a), HOP_START(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
       Seq(
         row(1, 1, localDateTime("1969-12-31 23:59:55.0")),
         row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
@@ -210,7 +213,7 @@ class GroupWindowITCase extends BatchTestBase {
     // keyed; 2-phase; pre-accumulate with windowSize = slideSize
     checkResult(
       "SELECT b, sumFun(a) FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
+        "GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(1, 1),
         row(2, 2),
@@ -230,7 +233,7 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT b, sum(a) FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
+        "GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(1, 1),
         row(2, 2),
@@ -251,8 +254,8 @@ class GroupWindowITCase extends BatchTestBase {
     // keyed; 2-phase; pre-accumulate without pane optimization
     checkResult(
       "SELECT b, sumFun(a), HOP_START(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
       Seq(
         row(1, 1, localDateTime("1969-12-31 23:59:54.889")),
         row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
@@ -272,8 +275,8 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT b, sum(a), HOP_START(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
       Seq(
         row(1, 1, localDateTime("1969-12-31 23:59:54.889")),
         row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
@@ -294,10 +297,10 @@ class GroupWindowITCase extends BatchTestBase {
     // all group; 2-phase; pre-accumulate with windowSize = slideSize
     checkResult(
       "SELECT sumFun(a), " +
-          "HOP_START(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND), " +
-          "HOP_END(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)" +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
+        "HOP_START(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND), " +
+        "HOP_END(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)" +
+        "FROM Table3WithTimestamp " +
+        "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(12, localDateTime("1970-01-01 00:00:03.0"), localDateTime("1970-01-01 00:00:06.0")),
         row(21, localDateTime("1970-01-01 00:00:06.0"), localDateTime("1970-01-01 00:00:09.0")),
@@ -312,10 +315,10 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT SUM(a), " +
-          "HOP_START(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND), " +
-          "HOP_END(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)" +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
+        "HOP_START(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND), " +
+        "HOP_END(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)" +
+        "FROM Table3WithTimestamp " +
+        "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(12, localDateTime("1970-01-01 00:00:03.0"), localDateTime("1970-01-01 00:00:06.0")),
         row(21, localDateTime("1970-01-01 00:00:06.0"), localDateTime("1970-01-01 00:00:09.0")),
@@ -331,8 +334,8 @@ class GroupWindowITCase extends BatchTestBase {
     // all group; 2-phase; pre-accumulate with paned optimization
     checkResult(
       "SELECT avgFun(a), sumFun(a), HOP_START(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(1, 3, localDateTime("1970-01-01 00:00:00.0")),
         row(11, 33, localDateTime("1970-01-01 00:00:10.0")),
@@ -350,8 +353,8 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT AVG(a), SUM(a), HOP_START(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND) " +
-          "FROM Table3WithTimestamp " +
-          "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
+        "FROM Table3WithTimestamp " +
+        "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
         row(1, 3, localDateTime("1970-01-01 00:00:00.0")),
         row(11, 33, localDateTime("1970-01-01 00:00:10.0")),
@@ -373,9 +376,7 @@ class GroupWindowITCase extends BatchTestBase {
       row(localDateTime("2016-03-27 09:00:00.62"), 6),
       row(localDateTime("2016-03-27 09:00:00.715"), 8)
     )
-    registerCollection(
-      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
-      "ts, v")
+    registerCollection("T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO), "ts, v")
     checkResult(
       """
         |SELECT
@@ -385,7 +386,8 @@ class GroupWindowITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY HOP(ts, INTERVAL '0.04' SECOND(1,2), INTERVAL '0.2' SECOND(1,1))
       """.stripMargin,
-      Seq(row(localDateTime("2016-03-27 09:00:00.24"), localDateTime("2016-03-27 09:00:00.44"), 1),
+      Seq(
+        row(localDateTime("2016-03-27 09:00:00.24"), localDateTime("2016-03-27 09:00:00.44"), 1),
         row(localDateTime("2016-03-27 09:00:00.28"), localDateTime("2016-03-27 09:00:00.48"), 1),
         row(localDateTime("2016-03-27 09:00:00.32"), localDateTime("2016-03-27 09:00:00.52"), 1),
         row(localDateTime("2016-03-27 09:00:00.36"), localDateTime("2016-03-27 09:00:00.56"), 1),
@@ -396,7 +398,8 @@ class GroupWindowITCase extends BatchTestBase {
         row(localDateTime("2016-03-27 09:00:00.56"), localDateTime("2016-03-27 09:00:00.76"), 2),
         row(localDateTime("2016-03-27 09:00:00.6"), localDateTime("2016-03-27 09:00:00.8"), 2),
         row(localDateTime("2016-03-27 09:00:00.64"), localDateTime("2016-03-27 09:00:00.84"), 1),
-        row(localDateTime("2016-03-27 09:00:00.68"), localDateTime("2016-03-27 09:00:00.88"), 1))
+        row(localDateTime("2016-03-27 09:00:00.68"), localDateTime("2016-03-27 09:00:00.88"), 1)
+      )
     )
   }
 
@@ -409,9 +412,7 @@ class GroupWindowITCase extends BatchTestBase {
       row(null, 3),
       row(null, 4)
     )
-    registerCollection(
-      "T1", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
-      "ts, v")
+    registerCollection("T1", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO), "ts, v")
     checkResult(
       """
         |SELECT v
@@ -429,9 +430,7 @@ class GroupWindowITCase extends BatchTestBase {
       row(localDateTime("2016-03-27 09:00:32"), 3),
       row(null, 4)
     )
-    registerCollection(
-      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
-      "ts, v")
+    registerCollection("T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO), "ts, v")
     checkResult(
       """
         |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), TUMBLE_END(ts, INTERVAL '10' SECOND), v
@@ -441,7 +440,8 @@ class GroupWindowITCase extends BatchTestBase {
       // null columns are dropped
       Seq(
         row(localDateTime("2016-03-27 09:00:00.0"), localDateTime("2016-03-27 09:00:10.0"), 1),
-        row(localDateTime("2016-03-27 09:00:30.0"), localDateTime("2016-03-27 09:00:40.0"), 3))
+        row(localDateTime("2016-03-27 09:00:30.0"), localDateTime("2016-03-27 09:00:40.0"), 3)
+      )
     )
     data = Seq(
       row(null, 1),
@@ -449,9 +449,7 @@ class GroupWindowITCase extends BatchTestBase {
       row(null, 3),
       row(null, 4)
     )
-    registerCollection(
-      "T3", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
-      "ts, v")
+    registerCollection("T3", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO), "ts, v")
     checkResult(
       """
         |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), TUMBLE_END(ts, INTERVAL '10' SECOND), v
@@ -468,7 +466,9 @@ class GroupWindowITCase extends BatchTestBase {
     // simple tumbling window with record at window start
     var data = Seq(row(localDateTime("2016-03-27 19:39:30"), 1, "a"))
     registerCollection(
-      "T1", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
+      "T1",
+      data,
+      new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
       "ts, value, id")
     checkResult(
       """
@@ -483,7 +483,9 @@ class GroupWindowITCase extends BatchTestBase {
     // simple tumbling window with record at negative timestamp
     data = Seq(row(localDateTime("1916-03-27 19:39:31"), 1, "a"))
     registerCollection(
-      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
+      "T2",
+      data,
+      new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
       "ts, value, id")
     checkResult(
       """
@@ -519,7 +521,8 @@ class GroupWindowITCase extends BatchTestBase {
       """.stripMargin,
       Seq(
         row(localDateTime("1916-03-27 19:39:30.999"), localDateTime("1916-03-27 19:39:31.001"), 1),
-        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1))
+        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1)
+      )
     )
 
     checkResult(
@@ -533,7 +536,8 @@ class GroupWindowITCase extends BatchTestBase {
       """.stripMargin,
       Seq(
         row(localDateTime("1916-03-27 19:39:30.999"), localDateTime("1916-03-27 19:39:31.001"), 1),
-        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1))
+        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1)
+      )
     )
   }
 
@@ -553,27 +557,71 @@ class GroupWindowITCase extends BatchTestBase {
         "FROM T " +
         "GROUP BY b, TUMBLE(ts, INTERVAL '5' SECOND)"
 
-    checkResult(sqlQuery, Seq(
-      row(1, 1, localDateTime("1970-01-01 00:00:00.0"),
-        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
-      row(2, 2, localDateTime("1970-01-01 00:00:00.0"),
-        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
-      row(3, 1, localDateTime("1970-01-01 00:00:00.0"),
-        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
-      row(3, 2, localDateTime("1970-01-01 00:00:05.0"),
-        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999")),
-      row(4, 1, localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999")),
-      row(4, 3, localDateTime("1970-01-01 00:00:05.0"),
-        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999")),
-      row(5, 1, localDateTime("1970-01-01 00:00:15.0"),
-        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999")),
-      row(5, 4, localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999")),
-      row(6, 2, localDateTime("1970-01-01 00:00:20.0"),
-        localDateTime("1970-01-01 00:00:25.0"), localDateTime("1970-01-01 00:00:24.999")),
-      row(6, 4, localDateTime("1970-01-01 00:00:15.0"),
-        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999"))))
+    checkResult(
+      sqlQuery,
+      Seq(
+        row(
+          1,
+          1,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          2,
+          2,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          3,
+          1,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          3,
+          2,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          4,
+          1,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:14.999")),
+        row(
+          4,
+          3,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          5,
+          1,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:19.999")),
+        row(
+          5,
+          4,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:14.999")),
+        row(
+          6,
+          2,
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:25.0"),
+          localDateTime("1970-01-01 00:00:24.999")),
+        row(
+          6,
+          4,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:19.999"))
+      )
+    )
   }
 
   @Test
@@ -592,39 +640,107 @@ class GroupWindowITCase extends BatchTestBase {
         "FROM T " +
         "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND)"
 
-    checkResult(sqlQuery, Seq(
-      row(1, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
-        localDateTime("1970-01-01 00:00:04.999")),
-      row(1, 1, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:09.999")),
-      row(2, 2, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
-        localDateTime("1970-01-01 00:00:04.999")),
-      row(2, 2, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:09.999")),
-      row(3, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
-        localDateTime("1970-01-01 00:00:04.999")),
-      row(3, 2, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
-        localDateTime("1970-01-01 00:00:14.999")),
-      row(3, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:09.999")),
-      row(4, 1, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
-        localDateTime("1970-01-01 00:00:19.999")),
-      row(4, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
-        localDateTime("1970-01-01 00:00:09.999")),
-      row(4, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
-        localDateTime("1970-01-01 00:00:14.999")),
-      row(5, 1, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
-        localDateTime("1970-01-01 00:00:24.999")),
-      row(5, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
-        localDateTime("1970-01-01 00:00:14.999")),
-      row(5, 5, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
-        localDateTime("1970-01-01 00:00:19.999")),
-      row(6, 2, localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:30.0"),
-        localDateTime("1970-01-01 00:00:29.999")),
-      row(6, 4, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
-        localDateTime("1970-01-01 00:00:19.999")),
-      row(6, 6, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
-        localDateTime("1970-01-01 00:00:24.999"))))
+    checkResult(
+      sqlQuery,
+      Seq(
+        row(
+          1,
+          1,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          1,
+          1,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          2,
+          2,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          2,
+          2,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          3,
+          1,
+          localDateTime("1969-12-31 23:59:55.0"),
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:04.999")),
+        row(
+          3,
+          2,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:14.999")),
+        row(
+          3,
+          3,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          4,
+          1,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:19.999")),
+        row(
+          4,
+          3,
+          localDateTime("1970-01-01 00:00:00.0"),
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:09.999")),
+        row(
+          4,
+          4,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:14.999")),
+        row(
+          5,
+          1,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:25.0"),
+          localDateTime("1970-01-01 00:00:24.999")),
+        row(
+          5,
+          4,
+          localDateTime("1970-01-01 00:00:05.0"),
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:14.999")),
+        row(
+          5,
+          5,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:19.999")),
+        row(
+          6,
+          2,
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:30.0"),
+          localDateTime("1970-01-01 00:00:29.999")),
+        row(
+          6,
+          4,
+          localDateTime("1970-01-01 00:00:10.0"),
+          localDateTime("1970-01-01 00:00:20.0"),
+          localDateTime("1970-01-01 00:00:19.999")),
+        row(
+          6,
+          6,
+          localDateTime("1970-01-01 00:00:15.0"),
+          localDateTime("1970-01-01 00:00:25.0"),
+          localDateTime("1970-01-01 00:00:24.999"))
+      )
+    )
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -655,7 +771,8 @@ class GroupWindowITCase extends BatchTestBase {
       row(4, LocalDateTime.of(2021, 7, 26, 0, 0, 4)),
       row(5, LocalDateTime.of(2021, 7, 26, 0, 0, 5)),
       row(6, LocalDateTime.of(2021, 7, 26, 0, 0, 8)),
-      row(7, LocalDateTime.of(2021, 7, 26, 0, 0, 10)))
+      row(7, LocalDateTime.of(2021, 7, 26, 0, 0, 10))
+    )
     val dataId = TestValuesTableFactory.registerData(data)
     val ddl =
       s"""
@@ -676,6 +793,7 @@ class GroupWindowITCase extends BatchTestBase {
         |GROUP BY
         |TUMBLE(ts, interval '5' seconds)
         |""".stripMargin,
-      Seq(row(14), row(7), row(7)))
+      Seq(row(14), row(7), row(7))
+    )
   }
 }

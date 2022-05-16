@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
@@ -30,7 +29,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoin(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1Scala = ds1.join(ds2).where('b === 'e).select('c, 'g)
@@ -42,7 +41,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithFilter(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1Scala = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
@@ -54,7 +53,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithJoinFilter(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1Scala = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
@@ -66,7 +65,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithMultipleKeys(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1Scala = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
@@ -78,7 +77,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithAggregation(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1Scala = ds1.join(ds2).where('a === 'd).select('g.count)
@@ -90,14 +89,16 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithGroupedAggregation(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    val t1 = ds1.join(ds2)
+    val t1 = ds1
+      .join(ds2)
       .where('a === 'd)
       .groupBy('a, 'd)
       .select('b.sum, 'g.count)
-    val t2 = ds1.join(ds2)
+    val t2 = ds1
+      .join(ds2)
       .where("a = d")
       .groupBy("a, d")
       .select("b.sum, g.count")
@@ -108,16 +109,18 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinPushThroughJoin(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds3 = util.addTableSource[(Int, Long, String)]("Table4",'j, 'k, 'l)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    val ds3 = util.addTableSource[(Int, Long, String)]("Table4", 'j, 'k, 'l)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    val t1 = ds1.join(ds2)
+    val t1 = ds1
+      .join(ds2)
       .where(true)
       .join(ds3)
       .where('a === 'd && 'e === 'k)
       .select('a, 'f, 'l)
-    val t2 = ds1.join(ds2)
+    val t2 = ds1
+      .join(ds2)
       .where("true")
       .join(ds3)
       .where("a === d && e === k")
@@ -129,7 +132,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithDisjunctivePred(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1 = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
@@ -141,7 +144,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testJoinWithExpressionPreds(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1 = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
@@ -153,7 +156,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testLeftJoinWithMultipleKeys(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1 = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
@@ -165,7 +168,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testRightJoinWithMultipleKeys(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1 = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
@@ -177,7 +180,7 @@ class JoinStringExpressionTest extends TableTestBase {
   @Test
   def testFullOuterJoinWithMultipleKeys(): Unit = {
     val util = batchTestUtil()
-    val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds1 = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val t1 = ds1.fullOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)

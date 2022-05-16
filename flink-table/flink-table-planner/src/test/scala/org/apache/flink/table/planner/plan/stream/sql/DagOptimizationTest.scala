@@ -116,7 +116,8 @@ class DagOptimizationTest extends TableTestBase {
   @Test
   def testSingleSinkSplitOnUnion(): Unit = {
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
 
     val sqlQuery = "SELECT SUM(a) AS total_sum FROM " +
       "(SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
@@ -137,13 +138,15 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink1", retractSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table2)
 
     val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink2", retractSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -153,7 +156,8 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinks2(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(true))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(true))
     util.addTableSource[(Int, Long, String, Double, Boolean)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a as a1, b as b1 FROM MyTable WHERE a <= 10")
@@ -163,13 +167,15 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink1 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink1", appendSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table3)
 
     val appendSink2 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink2", appendSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -179,7 +185,8 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinks3(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(true))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(true))
     util.addTableSource[(Int, Long, String, Double, Boolean)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
 
     val table1 = util.tableEnv.sqlQuery("SELECT a AS a1, b AS b1 FROM MyTable WHERE a <= 10")
@@ -189,13 +196,15 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink1 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink1", appendSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table2)
 
     val appendSink2 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink2", appendSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -217,13 +226,15 @@ class DagOptimizationTest extends TableTestBase {
     val table6 = util.tableEnv.sqlQuery("SELECT a1, b, c1 FROM table4, table5 WHERE a1 = a3")
 
     val appendSink1 = util.createAppendTableSink(Array("a1", "b", "c2"), Array(INT, LONG, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink1", appendSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table5)
 
     val appendSink2 = util.createAppendTableSink(Array("a1", "b", "c1"), Array(INT, LONG, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink2", appendSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table6)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -243,13 +254,15 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM table1")
 
     val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink1", retractSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table2)
 
     val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink2", retractSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -259,7 +272,8 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksWithUDTF(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
     util.addFunction("split", new TableFunc1)
     val sqlQuery1 =
       """
@@ -285,15 +299,17 @@ class DagOptimizationTest extends TableTestBase {
     val sqlQuery5 = "SELECT * FROM table4 WHERE a > 50"
     val table5 = util.tableEnv.sqlQuery(sqlQuery5)
     val retractSink1 = util.createRetractTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink1", retractSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table5)
 
     val sqlQuery6 = "SELECT * FROM table4 WHERE a < 50"
     val table6 = util.tableEnv.sqlQuery(sqlQuery6)
     val retractSink2 = util.createRetractTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink2", retractSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table6)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -303,22 +319,25 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion1(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
 
-    val table = util.tableEnv.sqlQuery(
-      "SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1")
+    val table =
+      util.tableEnv.sqlQuery("SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1")
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
       .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table1)
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val retractSink = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -331,7 +350,8 @@ class DagOptimizationTest extends TableTestBase {
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery1 =
@@ -347,21 +367,24 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink1", retractSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink2", retractSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table2)
 
     val sqlQuery2 = "SELECT a FROM (SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table3 = util.tableEnv.sqlQuery(sqlQuery2)
     val appendSink3 = util.createAppendTableSink(Array("a"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink3", appendSink3)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink3", appendSink3)
     stmtSet.addInsert("appendSink3", table3)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -371,7 +394,8 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion3(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery1 = "SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1"
@@ -379,7 +403,8 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.registerTable("TempTable", table)
 
     val appendSink = util.createAppendTableSink(Array("a", "c"), Array(INT, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
       .registerTableSinkInternal("appendSink", appendSink)
     stmtSet.addInsert("appendSink", table)
 
@@ -389,13 +414,15 @@ class DagOptimizationTest extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table2)
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
       .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table3)
 
@@ -406,7 +433,8 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksSplitOnUnion4(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
 
     val sqlQuery =
@@ -422,14 +450,16 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "upsertSink", upsertSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val retractSink = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table2)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -445,8 +475,8 @@ class DagOptimizationTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
 
-    val upsertSink = util.createUpsertTableSink(Array(), Array("b", "c", "a_sum"),
-      Array(LONG, STRING, INT))
+    val upsertSink =
+      util.createUpsertTableSink(Array(), Array("b", "c", "a_sum"), Array(LONG, STRING, INT))
     util.verifyRelPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -465,16 +495,18 @@ class DagOptimizationTest extends TableTestBase {
          |WHERE rank_num <= 10
       """.stripMargin
     val table1 = util.tableEnv.sqlQuery(sqlQuery)
-    val retractSink = util.createRetractTableSink(
-      Array("a", "b", "c", "rank_num"), Array(INT, LONG, STRING, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    val retractSink =
+      util.createRetractTableSink(Array("a", "b", "c", "rank_num"), Array(INT, LONG, STRING, LONG))
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table1)
 
     val upsertSink = util.createUpsertTableSink(Array(), Array("a", "b"), Array(INT, LONG))
     val table2 = util.tableEnv.sqlQuery("SELECT a, b FROM TempTable WHERE a < 6")
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "upsertSink", upsertSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -496,14 +528,16 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT a FROM TempTable WHERE a > 6")
     val retractSink = util.createRetractTableSink(Array("a"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b FROM TempTable WHERE a < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "upsertSink", upsertSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -513,13 +547,15 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiLevelViews(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
 
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink", appendSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink", appendSink)
     stmtSet.addInsert("appendSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%world%'")
@@ -539,14 +575,16 @@ class DagOptimizationTest extends TableTestBase {
 
     val table4 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable3 WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink", retractSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink", retractSink)
     stmtSet.addInsert("retractSink", table4)
 
     val table5 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable3 WHERE b >=4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "upsertSink", upsertSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table5)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -556,13 +594,15 @@ class DagOptimizationTest extends TableTestBase {
   def testSharedUnionNode(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED, Boolean.box(false))
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
+      Boolean.box(false))
 
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink", appendSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink", appendSink)
     stmtSet.addInsert("appendSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%world%'")
@@ -579,8 +619,9 @@ class DagOptimizationTest extends TableTestBase {
 
     val table4 = util.tableEnv.sqlQuery("SELECT * FROM TempTable3 WHERE b >= 5")
     val retractSink1 = util.createRetractTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink1", retractSink1)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table4)
 
     val table5 = util.tableEnv.sqlQuery("SELECT b, count(a) as cnt FROM TempTable3 GROUP BY b")
@@ -588,14 +629,16 @@ class DagOptimizationTest extends TableTestBase {
 
     val table6 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable4 WHERE b < 4")
     val retractSink2 = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "retractSink2", retractSink2)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table6)
 
     util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable4 WHERE b >=4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "upsertSink", upsertSink)
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table6)
 
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)

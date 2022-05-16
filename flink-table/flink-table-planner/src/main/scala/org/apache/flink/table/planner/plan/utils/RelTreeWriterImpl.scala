@@ -29,9 +29,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/**
-  * Explain a relational expression as tree style.
-  */
+/** Explain a relational expression as tree style. */
 class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -57,9 +55,7 @@ class RelTreeWriterImpl(
     val s = new StringBuilder
     if (withTreeStyle) {
       if (depth > 0) {
-        lastChildren.init.foreach { isLast =>
-          s.append(if (isLast) "   " else ":  ")
-        }
+        lastChildren.init.foreach(isLast => s.append(if (isLast) "   " else ":  "))
         s.append(if (lastChildren.last) "+- " else ":- ")
       }
     }
@@ -113,18 +109,19 @@ class RelTreeWriterImpl(
     }
     pw.println(s)
 
-    if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
-      if (withTreeStyle) {
-        depth = depth + 1
-        lastChildren = lastChildren :+ false
-      }
+    if (inputs.length > 1) inputs.toSeq.init.foreach {
+      rel =>
+        if (withTreeStyle) {
+          depth = depth + 1
+          lastChildren = lastChildren :+ false
+        }
 
-      rel.explain(this)
+        rel.explain(this)
 
-      if (withTreeStyle) {
-        depth = depth - 1
-        lastChildren = lastChildren.init
-      }
+        if (withTreeStyle) {
+          depth = depth - 1
+          lastChildren = lastChildren.init
+        }
     }
     if (!inputs.isEmpty) {
       if (withTreeStyle) {

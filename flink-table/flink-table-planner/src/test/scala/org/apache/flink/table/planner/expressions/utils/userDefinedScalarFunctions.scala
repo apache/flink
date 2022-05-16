@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -201,10 +200,7 @@ object Func24 extends ScalarFunction {
   }
 }
 
-
-/**
-  * A scalar function that always returns TRUE if opened correctly.
-  */
+/** A scalar function that always returns TRUE if opened correctly. */
 @SerialVersionUID(1L)
 class FuncWithOpen extends ScalarFunction {
 

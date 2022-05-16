@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.async
 
 import java.util.concurrent.ThreadLocalRandom
+
 import scala.concurrent.{ExecutionContext, Future}
 
 /** A simple asynchronous client that simulates interacting with an unreliable external service. */
@@ -26,7 +26,8 @@ class AsyncClient {
 
   def query(key: Int)(implicit executor: ExecutionContext): Future[String] = Future {
     val sleep = (ThreadLocalRandom.current.nextFloat * 100).toLong
-    try Thread.sleep(sleep) catch {
+    try Thread.sleep(sleep)
+    catch {
       case e: InterruptedException =>
         throw new RuntimeException("AsyncClient was interrupted", e)
     }

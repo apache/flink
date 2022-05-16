@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
@@ -70,7 +69,7 @@ class CalcStringExpressionTest extends TableTestBase {
   def testSimpleSelectWithAlias(): Unit = {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string)
-    val resScala = t.select('int as 'myInt, 'string as 'myString)
+    val resScala = t.select('int.as('myInt), 'string.as('myString))
     val resJava = t.select("int as myInt, string as myString")
     verifyTableEquals(resJava, resScala)
   }
@@ -80,7 +79,7 @@ class CalcStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string)
 
-    val resScala = t.filter('int === 3).select('int as 'myInt, 'string)
+    val resScala = t.filter('int === 3).select('int.as('myInt), 'string)
     val resJava = t.filter("int === 3").select("int as myInt, string")
     verifyTableEquals(resJava, resScala)
   }
@@ -90,7 +89,7 @@ class CalcStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string)
 
-    val resScala = t.filter(false).select('int as 'myInt, 'string)
+    val resScala = t.filter(false).select('int.as('myInt), 'string)
     val resJava = t.filter("false").select("int as myInt, string")
     verifyTableEquals(resJava, resScala)
   }
@@ -100,7 +99,7 @@ class CalcStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string)
 
-    val resScala = t.filter(true).select('int as 'myInt, 'string)
+    val resScala = t.filter(true).select('int.as('myInt), 'string)
     val resJava = t.filter("true").select("int as myInt, string")
     verifyTableEquals(resJava, resScala)
   }
@@ -128,9 +127,9 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testAddColumns(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val t1 = t.addColumns(concat('c, "Sunny") as 'kid).addColumns('b + 1)
+    val t1 = t.addColumns(concat('c, "Sunny").as('kid)).addColumns('b + 1)
     val t2 = t.addColumns("concat(c, 'Sunny') as kid").addColumns("b + 1")
 
     verifyTableEquals(t1, t2)
@@ -139,9 +138,9 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def addOrReplaceColumns(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    var t1 = t.addOrReplaceColumns(concat('c, "Sunny") as 'kid).addColumns('b + 1)
+    var t1 = t.addOrReplaceColumns(concat('c, "Sunny").as('kid)).addColumns('b + 1)
     var t2 = t.addOrReplaceColumns("concat(c, 'Sunny') as kid").addColumns("b + 1")
 
     verifyTableEquals(t1, t2)
@@ -150,9 +149,9 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testRenameColumns(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val t1 = t.renameColumns('a as 'a2, 'c as 'c2)
+    val t1 = t.renameColumns('a.as('a2), 'c.as('c2))
     val t2 = t.renameColumns("a as a2, c as c2")
 
     verifyTableEquals(t1, t2)
@@ -161,7 +160,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testDropColumns(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.dropColumns('a, 'c)
     val t2 = t.dropColumns("a,c")
@@ -172,7 +171,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testMap(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.tableEnv.registerFunction("func", Func23)
 
     val t1 = t.map("func(a, b, c)")

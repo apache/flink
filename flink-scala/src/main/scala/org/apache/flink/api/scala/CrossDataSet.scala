@@ -41,8 +41,10 @@ import scala.reflect.ClassTag
  *   }
  * }}}
  *
- * @tparam L Type of the left input of the cross.
- * @tparam R Type of the right input of the cross.
+ * @tparam L
+ *   Type of the left input of the cross.
+ * @tparam R
+ *   Type of the right input of the cross.
  */
 @Public
 class CrossDataSet[L, R](
@@ -52,8 +54,8 @@ class CrossDataSet[L, R](
   extends DataSet(defaultCross) {
 
   /**
-   * Creates a new [[DataSet]] where the result for each pair of elements is the result
-   * of the given function.
+   * Creates a new [[DataSet]] where the result for each pair of elements is the result of the given
+   * function.
    */
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
     require(fun != null, "Cross function must not be null.")
@@ -74,12 +76,11 @@ class CrossDataSet[L, R](
   }
 
   /**
-   * Creates a new [[DataSet]] by passing each pair of values to the given function.
-   * The function can output zero or more elements using the [[Collector]] which will form the
-   * result.
+   * Creates a new [[DataSet]] by passing each pair of values to the given function. The function
+   * can output zero or more elements using the [[Collector]] which will form the result.
    *
-   * A [[RichCrossFunction]] can be used to access the
-   * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
+   * A [[RichCrossFunction]] can be used to access the broadcast variables and the
+   * [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
   def apply[O: TypeInformation: ClassTag](crosser: CrossFunction[L, R, O]): DataSet[O] = {
     require(crosser != null, "Cross function must not be null.")
@@ -97,14 +98,12 @@ class CrossDataSet[L, R](
 @Internal
 private[flink] object CrossDataSet {
 
-  /**
-   * Creates a default cross operation with Tuple2 as result.
-   */
+  /** Creates a default cross operation with Tuple2 as result. */
   def createCrossOperator[L, R](
       leftInput: DataSet[L],
       rightInput: DataSet[R],
       crossHint: CrossHint) = {
-    
+
     val crosser = new CrossFunction[L, R, (L, R)] {
       def cross(left: L, right: R) = {
         (left, right)

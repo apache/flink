@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -35,7 +34,8 @@ import org.apache.calcite.rel.convert.ConverterRule
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-class StreamPhysicalSinkRule extends ConverterRule(
+class StreamPhysicalSinkRule
+  extends ConverterRule(
     classOf[FlinkLogicalSink],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
@@ -59,12 +59,11 @@ class StreamPhysicalSinkRule extends ConverterRule(
           }
 
           val dynamicPartFields = resolvedCatalogTable.getPartitionKeys
-              .filter(!sink.staticPartitions.contains(_))
-          val fieldNames = resolvedCatalogTable
-            .getResolvedSchema
-            .toPhysicalRowDataType
-            .getLogicalType.asInstanceOf[RowType]
-            .getFieldNames
+            .filter(!sink.staticPartitions.contains(_))
+          val fieldNames =
+            resolvedCatalogTable.getResolvedSchema.toPhysicalRowDataType.getLogicalType
+              .asInstanceOf[RowType]
+              .getFieldNames
 
           if (dynamicPartFields.nonEmpty) {
             val dynamicPartIndices =
@@ -72,24 +71,26 @@ class StreamPhysicalSinkRule extends ConverterRule(
 
             // TODO This option is hardcoded to remove the dependency of planner from
             //  flink-connector-files. We should move this option out of FileSystemConnectorOptions
-            val shuffleEnable = resolvedCatalogTable
-                .getOptions
-                .getOrDefault("sink.shuffle-by-partition.enable", "false")
+            val shuffleEnable = resolvedCatalogTable.getOptions
+              .getOrDefault("sink.shuffle-by-partition.enable", "false")
 
             if (shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
-                FlinkRelDistribution.hash(dynamicPartIndices
-                    .map(Integer.valueOf), requireStrict = false))
+                FlinkRelDistribution.hash(
+                  dynamicPartIndices
+                    .map(Integer.valueOf),
+                  requireStrict = false))
             }
 
             if (partitionSink.requiresPartitionGrouping(false)) {
               throw new TableException("Partition grouping in stream mode is not supported yet!")
             }
           }
-        case _ => throw new TableException(
-          s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}' is a partitioned table, " +
-            s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
-            s"doesn't implement SupportsPartitioning interface.")
+        case _ =>
+          throw new TableException(
+            s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}' is a partitioned table, " +
+              s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
+              s"doesn't implement SupportsPartitioning interface.")
       }
     }
 
@@ -110,4 +111,3 @@ class StreamPhysicalSinkRule extends ConverterRule(
 object StreamPhysicalSinkRule {
   val INSTANCE = new StreamPhysicalSinkRule
 }
-

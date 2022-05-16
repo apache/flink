@@ -15,10 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.utils
-
-import java.util
 
 import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -26,8 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{TableDescriptor, TableEnvironment, TableSchema}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
@@ -37,11 +34,11 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 
+import java.util
+
 import scala.collection.mutable
 
-/**
-  * Utilities to ingest and retrieve results into and from a table program.
-  */
+/** Utilities to ingest and retrieve results into and from a table program. */
 object MemoryTableSourceSinkUtil {
 
   val tableData: mutable.ListBuffer[Row] = mutable.ListBuffer[Row]()
@@ -78,7 +75,8 @@ object MemoryTableSourceSinkUtil {
   }
 
   final class UnsafeMemoryAppendTableSink
-    extends TableSinkBase[Row] with AppendStreamTableSink[Row] {
+    extends TableSinkBase[Row]
+    with AppendStreamTableSink[Row] {
 
     override def getOutputType: TypeInformation[Row] = {
       new RowTypeInfo(getTableSchema.getFieldTypes, getTableSchema.getFieldNames)
@@ -89,7 +87,8 @@ object MemoryTableSourceSinkUtil {
     }
 
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[Row] = {
-      dataStream.addSink(new MemoryAppendSink)
+      dataStream
+        .addSink(new MemoryAppendSink)
         .setParallelism(dataStream.getParallelism)
         .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
     }
@@ -102,7 +101,8 @@ object MemoryTableSourceSinkUtil {
       dp.putProperties(properties)
       val tableSchema = dp.getTableSchema(SCHEMA)
       val sink = new UnsafeMemoryAppendTableSink
-      sink.configure(tableSchema.getFieldNames, tableSchema.getFieldTypes)
+      sink
+        .configure(tableSchema.getFieldNames, tableSchema.getFieldTypes)
         .asInstanceOf[StreamTableSink[Row]]
     }
 
@@ -143,8 +143,8 @@ object MemoryTableSourceSinkUtil {
     override def close(): Unit = {}
   }
 
-  final class DataTypeOutputFormatTableSink(
-      schema: TableSchema) extends OutputFormatTableSink[Row] {
+  final class DataTypeOutputFormatTableSink(schema: TableSchema)
+    extends OutputFormatTableSink[Row] {
 
     override def getConsumedDataType: DataType = schema.toRowDataType
 
@@ -153,7 +153,8 @@ object MemoryTableSourceSinkUtil {
     override def getTableSchema: TableSchema = schema
 
     override def configure(
-        fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
+        fieldNames: Array[String],
+        fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
   }
 
   final class DataTypeOutputFormatTableFactory extends StreamTableSinkFactory[Row] {
@@ -178,15 +179,16 @@ object MemoryTableSourceSinkUtil {
     }
   }
 
-  final class DataTypeAppendStreamTableSink(
-      schema: TableSchema) extends AppendStreamTableSink[Row] {
+  final class DataTypeAppendStreamTableSink(schema: TableSchema)
+    extends AppendStreamTableSink[Row] {
 
     override def getConsumedDataType: DataType = schema.toRowDataType
 
     override def getTableSchema: TableSchema = schema
 
     override def configure(
-        fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
+        fieldNames: Array[String],
+        fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
 
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
       dataStream.writeUsingOutputFormat(new MemoryCollectionOutputFormat)

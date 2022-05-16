@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.typeutils
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.planner.validate._
 import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo}
@@ -42,26 +42,24 @@ object TypeInfoCheckUtils {
     dataType.isInstanceOf[TimeIntervalTypeInfo[_]]
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
-    case _: ObjectArrayTypeInfo[_, _] |
-         _: BasicArrayTypeInfo[_, _] |
-         _: PrimitiveArrayTypeInfo[_]  => true
+    case _: ObjectArrayTypeInfo[_, _] | _: BasicArrayTypeInfo[_, _] |
+        _: PrimitiveArrayTypeInfo[_] =>
+      true
     case _ => false
   }
 
   def isMap(dataType: TypeInformation[_]): Boolean =
     dataType.isInstanceOf[MapTypeInfo[_, _]]
 
-  def assertNumericExpr(
-      dataType: TypeInformation[_],
-      caller: String)
-  : ValidationResult = dataType match {
-    case _: NumericTypeInfo[_] =>
-      ValidationSuccess
-    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo =>
-      ValidationSuccess
-    case _ =>
-      ValidationFailure(s"$caller requires numeric types, get $dataType here")
-  }
+  def assertNumericExpr(dataType: TypeInformation[_], caller: String): ValidationResult =
+    dataType match {
+      case _: NumericTypeInfo[_] =>
+        ValidationSuccess
+      case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo =>
+        ValidationSuccess
+      case _ =>
+        ValidationFailure(s"$caller requires numeric types, get $dataType here")
+    }
 
   def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {
     if (dataType.isSortKeyType) {
@@ -72,11 +70,11 @@ object TypeInfoCheckUtils {
   }
 
   /**
-    * Checks if one class can be assigned to a variable of another class.
-    *
-    * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class[], java.lang.Class[])
-    * but without null checks.
-    */
+   * Checks if one class can be assigned to a variable of another class.
+   *
+   * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class[], java.lang.Class[]) but
+   * without null checks.
+   */
   def isAssignable(classArray: Array[Class[_]], toClassArray: Array[Class[_]]): Boolean = {
     if (classArray.length != toClassArray.length) {
       return false
@@ -92,11 +90,11 @@ object TypeInfoCheckUtils {
   }
 
   /**
-    * Checks if one class can be assigned to a variable of another class.
-    *
-    * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class, java.lang.Class) but
-    * without null checks.
-    */
+   * Checks if one class can be assigned to a variable of another class.
+   *
+   * Adopted from o.a.commons.lang.ClassUtils#isAssignable(java.lang.Class, java.lang.Class) but
+   * without null checks.
+   */
   def isAssignable(cls: Class[_], toClass: Class[_]): Boolean = {
     if (cls.equals(toClass)) {
       return true
@@ -107,12 +105,12 @@ object TypeInfoCheckUtils {
       }
       if (java.lang.Integer.TYPE.equals(cls)) {
         return java.lang.Long.TYPE.equals(toClass) ||
-            java.lang.Float.TYPE.equals(toClass) ||
-            java.lang.Double.TYPE.equals(toClass)
+          java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
       }
       if (java.lang.Long.TYPE.equals(cls)) {
         return java.lang.Float.TYPE.equals(toClass) ||
-            java.lang.Double.TYPE.equals(toClass)
+          java.lang.Double.TYPE.equals(toClass)
       }
       if (java.lang.Boolean.TYPE.equals(cls)) {
         return false
@@ -125,22 +123,22 @@ object TypeInfoCheckUtils {
       }
       if (java.lang.Character.TYPE.equals(cls)) {
         return java.lang.Integer.TYPE.equals(toClass) ||
-            java.lang.Long.TYPE.equals(toClass) ||
-            java.lang.Float.TYPE.equals(toClass) ||
-            java.lang.Double.TYPE.equals(toClass)
+          java.lang.Long.TYPE.equals(toClass) ||
+          java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
       }
       if (java.lang.Short.TYPE.equals(cls)) {
         return java.lang.Integer.TYPE.equals(toClass) ||
-            java.lang.Long.TYPE.equals(toClass) ||
-            java.lang.Float.TYPE.equals(toClass) ||
-            java.lang.Double.TYPE.equals(toClass)
+          java.lang.Long.TYPE.equals(toClass) ||
+          java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
       }
       if (java.lang.Byte.TYPE.equals(cls)) {
         return java.lang.Short.TYPE.equals(toClass) ||
-            java.lang.Integer.TYPE.equals(toClass) ||
-            java.lang.Long.TYPE.equals(toClass) ||
-            java.lang.Float.TYPE.equals(toClass) ||
-            java.lang.Double.TYPE.equals(toClass)
+          java.lang.Integer.TYPE.equals(toClass) ||
+          java.lang.Long.TYPE.equals(toClass) ||
+          java.lang.Float.TYPE.equals(toClass) ||
+          java.lang.Double.TYPE.equals(toClass)
       }
       // should never get here
       return false

@@ -15,25 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
-/**
-  * Test for [[EitherTypeInfo]].
-  */
+/** Test for [[EitherTypeInfo]]. */
 class EitherTypeInfoTest extends TypeInformationTestBase[EitherTypeInfo[_, _, _]] {
 
   override protected def getTestData: Array[EitherTypeInfo[_, _, _]] = Array(
     new EitherTypeInfo[Integer, Integer, Either[Integer, Integer]](
-      classOf[Either[Integer,Integer]],
+      classOf[Either[Integer, Integer]],
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO
     ),
     new EitherTypeInfo[Integer, String, Either[Integer, String]](
-      classOf[Either[Integer,String]],
+      classOf[Either[Integer, String]],
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO
     )

@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.scala.examples.windowing.util
 
+import org.apache.flink.api.java.tuple.{Tuple4 => JTuple4}
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.examples.windowing.util.{CarSource => JCarSource}
 import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing.CarEvent
-import org.apache.flink.api.java.tuple.{Tuple4 => JTuple4}
 
-import java.lang.{Integer => JInt, Double => JDouble, Long => JLong}
+import java.lang.{Double => JDouble, Integer => JInt, Long => JLong}
 
 /** A simple in-memory source. */
 object CarSource {
@@ -48,8 +47,8 @@ private class WrappingCollector(ctx: SourceFunction.SourceContext[CarEvent])
     ctx.collect(CarEvent(element.f0, element.f1, element.f2, element.f3))
 
   override def collectWithTimestamp(
-                                     element: JTuple4[JInt, JInt, JDouble, JLong],
-                                     timestamp: Long): Unit =
+      element: JTuple4[JInt, JInt, JDouble, JLong],
+      timestamp: Long): Unit =
     ctx.collectWithTimestamp(CarEvent(element.f0, element.f1, element.f2, element.f3), timestamp)
 
   override def emitWatermark(mark: Watermark): Unit = ctx.emitWatermark(mark)

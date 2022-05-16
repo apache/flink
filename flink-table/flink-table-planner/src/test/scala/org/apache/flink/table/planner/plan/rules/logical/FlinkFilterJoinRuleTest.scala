@@ -27,9 +27,7 @@ import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Tests for [[org.apache.calcite.rel.rules.FilterJoinRule]].
-  */
+/** Tests for [[org.apache.calcite.rel.rules.FilterJoinRule]]. */
 class FlinkFilterJoinRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -42,10 +40,11 @@ class FlinkFilterJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(
-          CoreRules.FILTER_PROJECT_TRANSPOSE,
-          CoreRules.FILTER_INTO_JOIN,
-          CoreRules.JOIN_CONDITION_PUSH))
+        .add(
+          RuleSets.ofList(
+            CoreRules.FILTER_PROJECT_TRANSPOSE,
+            CoreRules.FILTER_INTO_JOIN,
+            CoreRules.JOIN_CONDITION_PUSH))
         .build()
     )
 

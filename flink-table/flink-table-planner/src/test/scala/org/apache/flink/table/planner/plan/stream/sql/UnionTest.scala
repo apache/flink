@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
@@ -35,50 +34,47 @@ class UnionTest extends TableTestBase {
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("MyTable3", 'a, 'b, 'c)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE t1 (
-         |  id int,
-         |  ts bigint,
-         |  name varchar(32),
-         |  timestamp_col timestamp(3),
-         |  val bigint,
-         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
-         |  watermark for timestamp_col as timestamp_col
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE t1 (
+                                |  id int,
+                                |  ts bigint,
+                                |  name varchar(32),
+                                |  timestamp_col timestamp(3),
+                                |  val bigint,
+                                |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+                                |  watermark for timestamp_col as timestamp_col
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'false'
+                                |)
        """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE t2 (
-         |  id int,
-         |  ts bigint,
-         |  name string,
-         |  timestamp_col timestamp(3),
-         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
-         |  watermark for timestamp_ltz_col as timestamp_ltz_col
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE t2 (
+                                |  id int,
+                                |  ts bigint,
+                                |  name string,
+                                |  timestamp_col timestamp(3),
+                                |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+                                |  watermark for timestamp_ltz_col as timestamp_ltz_col
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'false'
+                                |)
        """.stripMargin)
 
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE t3 (
-         |  id int,
-         |  ts bigint,
-         |  name string,
-         |  timestamp_col timestamp(3),
-         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
-         |  watermark for timestamp_ltz_col as timestamp_ltz_col
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE t3 (
+                                |  id int,
+                                |  ts bigint,
+                                |  name string,
+                                |  timestamp_col timestamp(3),
+                                |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+                                |  watermark for timestamp_ltz_col as timestamp_ltz_col
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'false'
+                                |)
        """.stripMargin)
   }
 

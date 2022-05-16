@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.cost.FlinkCost
@@ -27,19 +26,25 @@ class FlinkRelMdCumulativeCostTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetCumulativeCostOnTableScan(): Unit = {
-    assertTrue(FlinkCost.FACTORY.makeCost(50.0, 51.0, 0.0, 0.0, 0.0).equals(
-      mq.getCumulativeCost(studentLogicalScan)))
+    assertTrue(
+      FlinkCost.FACTORY
+        .makeCost(50.0, 51.0, 0.0, 0.0, 0.0)
+        .equals(mq.getCumulativeCost(studentLogicalScan)))
 
-    Array(studentBatchScan, studentStreamScan).foreach { scan =>
-      val expectedCost = FlinkCost.FACTORY.makeCost(50.0, 50.0, 50.0 * 40.2, 0.0, 0.0)
-      assertTrue(expectedCost.equals(mq.getCumulativeCost(scan)))
+    Array(studentBatchScan, studentStreamScan).foreach {
+      scan =>
+        val expectedCost = FlinkCost.FACTORY.makeCost(50.0, 50.0, 50.0 * 40.2, 0.0, 0.0)
+        assertTrue(expectedCost.equals(mq.getCumulativeCost(scan)))
     }
 
-    assertTrue(FlinkCost.FACTORY.makeCost(1.0E8, 1.00000001E8, 0.0, 0.0, 0.0).equals(
-      mq.getCumulativeCost(empLogicalScan)))
-    Array(empBatchScan, empStreamScan).foreach { scan =>
-      val expectedCost = FlinkCost.FACTORY.makeCost(1.0E8, 1.0E8, 1.0E8 * 64.0, 0.0, 0.0)
-      assertTrue(expectedCost.equals(mq.getCumulativeCost(scan)))
+    assertTrue(
+      FlinkCost.FACTORY
+        .makeCost(1.0e8, 1.00000001e8, 0.0, 0.0, 0.0)
+        .equals(mq.getCumulativeCost(empLogicalScan)))
+    Array(empBatchScan, empStreamScan).foreach {
+      scan =>
+        val expectedCost = FlinkCost.FACTORY.makeCost(1.0e8, 1.0e8, 1.0e8 * 64.0, 0.0, 0.0)
+        assertTrue(expectedCost.equals(mq.getCumulativeCost(scan)))
     }
   }
 

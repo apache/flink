@@ -39,12 +39,8 @@ abstract class Attribute extends LeafExpression with NamedExpression {
   private[flink] def withName(newName: String): Attribute
 }
 
-/**
-  * Dummy wrapper for expressions that were converted to RexNode in a different way.
-  */
-case class RexPlannerExpression(
-    private[flink] val rexNode: RexNode)
-  extends LeafExpression {
+/** Dummy wrapper for expressions that were converted to RexNode in a different way. */
+case class RexPlannerExpression(private[flink] val rexNode: RexNode) extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
     fromLogicalTypeToTypeInfo(FlinkTypeFactory.toLogicalType(rexNode.getType))
@@ -64,9 +60,8 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     ValidationFailure(s"Unresolved reference $name.")
 }
 
-case class PlannerResolvedFieldReference(
-    name: String,
-    resultType: TypeInformation[_]) extends Attribute {
+case class PlannerResolvedFieldReference(name: String, resultType: TypeInformation[_])
+  extends Attribute {
 
   override def toString = s"'$name"
 
@@ -180,13 +175,11 @@ case class StreamRecordTimestamp() extends LeafExpression {
 }
 
 /**
-  * Special reference which represent a local field, such as aggregate buffers or constants.
-  * We are stored as class members, so the field can be referenced directly.
-  * We should use an unique name to locate the field.
-  */
-case class PlannerLocalReference(
-    name: String,
-    resultType: TypeInformation[_]) extends Attribute {
+ * Special reference which represent a local field, such as aggregate buffers or constants. We are
+ * stored as class members, so the field can be referenced directly. We should use an unique name to
+ * locate the field.
+ */
+case class PlannerLocalReference(name: String, resultType: TypeInformation[_]) extends Attribute {
 
   override def toString = s"'$name"
 

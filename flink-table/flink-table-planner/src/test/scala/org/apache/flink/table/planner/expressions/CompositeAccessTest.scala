@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
@@ -29,11 +28,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
   def testGetField(): Unit = {
 
     // single field by string key
-    testAllApis(
-      'f0.get("intField"),
-      "f0.get('intField')",
-      "testTable.f0.intField",
-      "42")
+    testAllApis('f0.get("intField"), "f0.get('intField')", "testTable.f0.intField", "42")
     testSqlApi("f0.intField", "42")
 
     testSqlApi("testTable.f0.stringField", "Bob")
@@ -43,10 +38,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("f0.booleanField", "TRUE")
 
     // single field by int key
-    testTableApi(
-      'f0.get(0),
-      "f0.get(0)",
-      "42")
+    testTableApi('f0.get(0), "f0.get(0)", "42")
 
     // nested single field
     testAllApis(
@@ -62,11 +54,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f1.objectField.booleanField", "FALSE")
     testSqlApi("f1.objectField.booleanField", "FALSE")
 
-    testAllApis(
-      'f2.get(0),
-      "f2.get(0)",
-      "testTable.f2._1",
-      "a")
+    testAllApis('f2.get(0), "f2.get(0)", "testTable.f2._1", "a")
     testSqlApi("f2._1", "a")
 
     testSqlApi("testTable.f3.f1", "b")
@@ -78,11 +66,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
     testSqlApi("testTable.f5", "13")
     testSqlApi("f5", "13")
 
-    testAllApis(
-      'f7.get("_1"),
-      "get(f7, '_1')",
-      "testTable.f7._1",
-      "TRUE")
+    testAllApis('f7.get("_1"), "get(f7, '_1')", "testTable.f7._1", "TRUE")
 
     // composite field return type
     testSqlApi("testTable.f6", "MyCaseClass2(null)")
@@ -95,11 +79,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       "(25, Timo, FALSE)")
     testSqlApi("f1.objectField", "(25, Timo, FALSE)")
 
-    testAllApis(
-      'f0,
-      "f0",
-      "testTable.f0",
-      "(42, Bob, TRUE)")
+    testAllApis('f0, "f0", "testTable.f0", "(42, Bob, TRUE)")
     testSqlApi("f0", "(42, Bob, TRUE)")
 
     // flattening (test base only returns first column)
@@ -110,11 +90,7 @@ class CompositeAccessTest extends CompositeTypeTestBase {
       "25")
     testSqlApi("f1.objectField.*", "25")
 
-    testAllApis(
-      'f0.flatten(),
-      "flatten(f0)",
-      "testTable.f0.*",
-      "42")
+    testAllApis('f0.flatten(), "flatten(f0)", "testTable.f0.*", "42")
     testSqlApi("f0.*", "42")
 
     testTableApi(12.flatten(), "12.flatten()", "12")

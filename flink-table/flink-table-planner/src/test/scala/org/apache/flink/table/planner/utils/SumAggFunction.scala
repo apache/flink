@@ -29,17 +29,18 @@ import java.math.BigDecimal
 class SumAccumulator[T] extends JTuple2[T, Boolean]
 
 /**
-  * Base class for built-in Sum aggregate function
-  *
-  * @tparam T the type for the aggregation result
-  */
+ * Base class for built-in Sum aggregate function
+ *
+ * @tparam T
+ *   the type for the aggregation result
+ */
 abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumulator[T]] {
 
   private val numeric = implicitly[Numeric[T]]
 
   override def createAccumulator(): SumAccumulator[T] = {
     val acc = new SumAccumulator[T]()
-    acc.f0 = numeric.zero //sum
+    acc.f0 = numeric.zero // sum
     acc.f1 = false
     acc
   }
@@ -72,53 +73,38 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumu
   }
 
   override def getAccumulatorType: TypeInformation[SumAccumulator[T]] = {
-    new TupleTypeInfo(
-      classOf[SumAccumulator[T]],
-      getValueTypeInfo,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+    new TupleTypeInfo(classOf[SumAccumulator[T]], getValueTypeInfo, BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 
   def getValueTypeInfo: TypeInformation[_]
 }
 
-/**
-  * Built-in Byte Sum aggregate function
-  */
+/** Built-in Byte Sum aggregate function */
 class ByteSumAggFunction extends SumAggFunction[Byte] {
   override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
 }
 
-/**
-  * Built-in Short Sum aggregate function
-  */
+/** Built-in Short Sum aggregate function */
 class ShortSumAggFunction extends SumAggFunction[Short] {
   override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
 }
 
-/**
-  * Built-in Int Sum aggregate function
-  */
+/** Built-in Int Sum aggregate function */
 class IntSumAggFunction extends SumAggFunction[Int] {
   override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
 }
 
-/**
-  * Built-in Long Sum aggregate function
-  */
+/** Built-in Long Sum aggregate function */
 class LongSumAggFunction extends SumAggFunction[Long] {
   override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
 }
 
-/**
-  * Built-in Float Sum aggregate function
-  */
+/** Built-in Float Sum aggregate function */
 class FloatSumAggFunction extends SumAggFunction[Float] {
   override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
 }
 
-/**
-  * Built-in Double Sum aggregate function
-  */
+/** Built-in Double Sum aggregate function */
 class DoubleSumAggFunction extends SumAggFunction[Double] {
   override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
 }
@@ -129,9 +115,7 @@ class DecimalSumAccumulator extends JTuple2[BigDecimal, Boolean] {
   f1 = false
 }
 
-/**
-  * Built-in Big Decimal Sum aggregate function
-  */
+/** Built-in Big Decimal Sum aggregate function */
 class DecimalSumAggFunction extends AggregateFunction[BigDecimal, DecimalSumAccumulator] {
 
   override def createAccumulator(): DecimalSumAccumulator = {

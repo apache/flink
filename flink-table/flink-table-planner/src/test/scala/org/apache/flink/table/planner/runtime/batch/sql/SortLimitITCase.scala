@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -44,9 +43,12 @@ class SortLimitITCase extends BatchTestBase {
 
     val sqlOrder = if (order) "ASC" else "DESC"
 
-    val expected = data3.sortBy((x : Row) =>
-      if (order) x.getField(0).asInstanceOf[Int]
-      else -x.getField(0).asInstanceOf[Int]).slice(2, 7)
+    val expected = data3
+      .sortBy(
+        (x: Row) =>
+          if (order) x.getField(0).asInstanceOf[Int]
+          else -x.getField(0).asInstanceOf[Int])
+      .slice(2, 7)
 
     checkResult(
       s"SELECT * FROM Table3 ORDER BY a $sqlOrder OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY",
@@ -67,17 +69,21 @@ class SortLimitITCase extends BatchTestBase {
     val sqlOrder1 = if (order1) "ASC" else "DESC"
     val sqlOrder2 = if (order2) "ASC" else "DESC"
 
-    val expected = data3.sortBy((x : Row) => (
-        if (order2) {
-          x.getField(1).asInstanceOf[Long]
-        } else {
-          -x.getField(1).asInstanceOf[Long]
-        },
-        if (order1) {
-          x.getField(0).asInstanceOf[Int]
-        } else {
-          -x.getField(0).asInstanceOf[Int]
-        })).slice(0, 5)
+    val expected = data3
+      .sortBy(
+        (x: Row) =>
+          (
+            if (order2) {
+              x.getField(1).asInstanceOf[Long]
+            } else {
+              -x.getField(1).asInstanceOf[Long]
+            },
+            if (order1) {
+              x.getField(0).asInstanceOf[Int]
+            } else {
+              -x.getField(0).asInstanceOf[Int]
+            }))
+      .slice(0, 5)
 
     checkResult(
       s"SELECT * FROM Table3 ORDER BY b $sqlOrder2, a $sqlOrder1 LIMIT 5",
@@ -88,8 +94,7 @@ class SortLimitITCase extends BatchTestBase {
   @Test
   def testOrderByLessThanOffset(): Unit = {
 
-    val expected = data3.sortBy((x : Row) =>
-      x.getField(0).asInstanceOf[Int]).slice(2, data3.size)
+    val expected = data3.sortBy((x: Row) => x.getField(0).asInstanceOf[Int]).slice(2, data3.size)
 
     checkResult(
       s"SELECT * FROM Table3 ORDER BY a ASC OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",
@@ -99,31 +104,22 @@ class SortLimitITCase extends BatchTestBase {
 
   @Test
   def testOrderByLimitBehindField(): Unit = {
-    val expected = data3.sortBy((x : Row) => x.getField(2).asInstanceOf[String]).slice(0, 5)
+    val expected = data3.sortBy((x: Row) => x.getField(2).asInstanceOf[String]).slice(0, 5)
 
-    checkResult(
-      s"SELECT * FROM Table3 ORDER BY c LIMIT 5",
-      expected,
-      isSorted = true)
+    checkResult(s"SELECT * FROM Table3 ORDER BY c LIMIT 5", expected, isSorted = true)
   }
 
   @Test
   def testOrderBehindField(): Unit = {
     tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
-    val expected = data3.sortBy((x : Row) => x.getField(2).asInstanceOf[String])
+    val expected = data3.sortBy((x: Row) => x.getField(2).asInstanceOf[String])
 
-    checkResult(
-      s"SELECT * FROM Table3 ORDER BY c",
-      expected,
-      isSorted = true)
+    checkResult(s"SELECT * FROM Table3 ORDER BY c", expected, isSorted = true)
   }
 
   @Test
   def testOrderByRepeatedFields(): Unit = {
-    val expected = data3.sortBy((x : Row) => x.getField(0).asInstanceOf[Int]).slice(0, 5)
-    checkResult(
-      s"SELECT * FROM Table3 ORDER BY a, a, a LIMIT 5",
-      expected,
-      isSorted = true)
+    val expected = data3.sortBy((x: Row) => x.getField(0).asInstanceOf[Int]).slice(0, 5)
+    checkResult(s"SELECT * FROM Table3 ORDER BY a, a, a LIMIT 5", expected, isSorted = true)
   }
 }

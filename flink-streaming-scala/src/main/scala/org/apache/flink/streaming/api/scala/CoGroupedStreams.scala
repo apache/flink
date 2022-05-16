@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -34,14 +33,14 @@ import org.apache.flink.util.Collector
 import scala.collection.JavaConverters._
 
 /**
- * `CoGroupedStreams` represents two [[DataStream]]s that have been co-grouped.
- * A streaming co-group operation is evaluated over elements in a window.
+ * `CoGroupedStreams` represents two [[DataStream]]s that have been co-grouped. A streaming co-group
+ * operation is evaluated over elements in a window.
  *
- * To finalize the co-group operation you also need to specify a [[KeySelector]] for
- * both the first and second input and a [[WindowAssigner]]
+ * To finalize the co-group operation you also need to specify a [[KeySelector]] for both the first
+ * and second input and a [[WindowAssigner]]
  *
- * Note: Right now, the groups are being built in memory so you need to ensure that they don't
- * get too big. Otherwise the JVM might crash.
+ * Note: Right now, the groups are being built in memory so you need to ensure that they don't get
+ * too big. Otherwise the JVM might crash.
  *
  * Example:
  *
@@ -54,14 +53,13 @@ import scala.collection.JavaConverters._
  *     .equalTo(new MyFirstKeySelector())
  *     .window(TumblingEventTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyCoGroupFunction())
- * } }}}
+ * }
+ * }}}
  */
 @Public
 class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
 
-  /**
-   * Specifies a [[KeySelector]] for elements from the first input.
-   */
+  /** Specifies a [[KeySelector]] for elements from the first input. */
   def where[KEY: TypeInformation](keySelector: T1 => KEY): Where[KEY] = {
     val cleanFun = clean(keySelector)
     val keyType = implicitly[TypeInformation[KEY]]
@@ -75,16 +73,15 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
   /**
    * A co-group operation that has [[KeySelector]]s defined for the first input.
    *
-   * You need to specify a [[KeySelector]] for the second input using [[equalTo()]]
-   * before you can proceed with specifying a [[WindowAssigner]] using [[EqualTo.window()]].
+   * You need to specify a [[KeySelector]] for the second input using [[equalTo()]] before you can
+   * proceed with specifying a [[WindowAssigner]] using [[EqualTo.window()]].
    *
-   * @tparam KEY Type of the key. This must be the same for both inputs
+   * @tparam KEY
+   *   Type of the key. This must be the same for both inputs
    */
   class Where[KEY](keySelector1: KeySelector[T1, KEY], keyType: TypeInformation[KEY]) {
 
-    /**
-     * Specifies a [[KeySelector]] for elements from the second input.
-     */
+    /** Specifies a [[KeySelector]] for elements from the second input. */
     def equalTo(keySelector: T2 => KEY): EqualTo = {
       val cleanFun = clean(keySelector)
       val localKeyType = keyType
@@ -102,13 +99,11 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
      */
     class EqualTo(keySelector2: KeySelector[T2, KEY]) {
 
-      /**
-       * Specifies the window on which the co-group operation works.
-       */
+      /** Specifies the window on which the co-group operation works. */
       @PublicEvolving
       def window[W <: Window](
           assigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W])
-      : WithWindow[W] = {
+          : WithWindow[W] = {
         if (keySelector1 == null || keySelector2 == null) {
           throw new UnsupportedOperationException(
             "You first need to specify KeySelectors for both inputs using where() and equalTo().")
@@ -117,10 +112,11 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
       }
 
       /**
-       * A co-group operation that has [[KeySelector]]s defined for both inputs as
-       * well as a [[WindowAssigner]].
+       * A co-group operation that has [[KeySelector]]s defined for both inputs as well as a
+       * [[WindowAssigner]].
        *
-       * @tparam W Type of { @link Window} on which the co-group operation works.
+       * @tparam W
+       *   Type of { @link Window} on which the co-group operation works.
        */
       @PublicEvolving
       class WithWindow[W <: Window](
@@ -129,9 +125,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
           evictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W],
           val allowedLateness: Time) {
 
-        /**
-         * Sets the [[Trigger]] that should be used to trigger window emission.
-         */
+        /** Sets the [[Trigger]] that should be used to trigger window emission. */
         @PublicEvolving
         def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
             : WithWindow[W] = {
@@ -139,41 +133,39 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
         }
 
         /**
-         * Sets the [[Evictor]] that should be used to evict elements from a window before
-         * emission.
+         * Sets the [[Evictor]] that should be used to evict elements from a window before emission.
          *
          * Note: When using an evictor window performance will degrade significantly, since
          * pre-aggregation of window results cannot be used.
          */
         @PublicEvolving
-        def evictor(
-            newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
+        def evictor(newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
             : WithWindow[W] = {
           new WithWindow[W](windowAssigner, trigger, newEvictor, allowedLateness)
         }
 
         /**
-          * Sets the time by which elements are allowed to be late.
-          * Delegates to [[WindowedStream#allowedLateness(Time)]]
-          */
+         * Sets the time by which elements are allowed to be late. Delegates to
+         * [[WindowedStream#allowedLateness(Time)]]
+         */
         @PublicEvolving
         def allowedLateness(newLateness: Time): WithWindow[W] = {
           new WithWindow[W](windowAssigner, trigger, evictor, newLateness)
         }
 
         /**
-         * Completes the co-group operation with the user function that is executed
-         * for windowed groups.
+         * Completes the co-group operation with the user function that is executed for windowed
+         * groups.
          */
-        def apply[O: TypeInformation](
-            fun: (Iterator[T1], Iterator[T2]) => O): DataStream[O] = {
+        def apply[O: TypeInformation](fun: (Iterator[T1], Iterator[T2]) => O): DataStream[O] = {
           require(fun != null, "CoGroup function must not be null.")
 
           val coGrouper = new CoGroupFunction[T1, T2, O] {
             val cleanFun = clean(fun)
             def coGroup(
                 left: java.lang.Iterable[T1],
-                right: java.lang.Iterable[T2], out: Collector[O]) = {
+                right: java.lang.Iterable[T2],
+                out: Collector[O]) = {
               out.collect(cleanFun(left.iterator().asScala, right.iterator().asScala))
             }
           }
@@ -181,8 +173,8 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
         }
 
         /**
-         * Completes the co-group operation with the user function that is executed
-         * for windowed groups.
+         * Completes the co-group operation with the user function that is executed for windowed
+         * groups.
          */
         def apply[O: TypeInformation](
             fun: (Iterator[T1], Iterator[T2], Collector[O]) => Unit): DataStream[O] = {
@@ -192,7 +184,8 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
             val cleanFun = clean(fun)
             def coGroup(
                 left: java.lang.Iterable[T1],
-                right: java.lang.Iterable[T2], out: Collector[O]) = {
+                right: java.lang.Iterable[T2],
+                out: Collector[O]) = {
               cleanFun(left.iterator.asScala, right.iterator.asScala, out)
             }
           }
@@ -200,21 +193,22 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
         }
 
         /**
-         * Completes the co-group operation with the user function that is executed
-         * for windowed groups.
+         * Completes the co-group operation with the user function that is executed for windowed
+         * groups.
          */
         def apply[T: TypeInformation](function: CoGroupFunction[T1, T2, T]): DataStream[T] = {
 
           val coGroup = new JavaCoGroupedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
-          asScalaStream(coGroup
-            .where(keySelector1)
-            .equalTo(keySelector2)
-            .window(windowAssigner)
-            .trigger(trigger)
-            .evictor(evictor)
-            .allowedLateness(allowedLateness)
-            .apply(clean(function), implicitly[TypeInformation[T]]))
+          asScalaStream(
+            coGroup
+              .where(keySelector1)
+              .equalTo(keySelector2)
+              .window(windowAssigner)
+              .trigger(trigger)
+              .evictor(evictor)
+              .allowedLateness(allowedLateness)
+              .apply(clean(function), implicitly[TypeInformation[T]]))
         }
       }
 
@@ -222,8 +216,8 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
   }
 
   /**
-   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
-   * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
+   * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning is
+   * not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)

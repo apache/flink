@@ -21,9 +21,9 @@ import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 
 import com.google.common.collect.Sets
 import org.apache.calcite.plan.ViewExpanders
+import org.apache.calcite.rel.{RelHomogeneousShuttle, RelNode, RelShuttleImpl}
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.rel.{RelHomogeneousShuttle, RelNode, RelShuttleImpl}
 import org.apache.calcite.rex.{RexNode, RexShuttle, RexSubQuery}
 
 import scala.collection.JavaConversions._
@@ -47,16 +47,16 @@ class DefaultRelShuttle extends RelHomogeneousShuttle {
 }
 
 /**
-  * Convert all [[QueryOperationCatalogViewTable]]s (including tables in [[RexSubQuery]])
-  * to to a relational expression.
-  */
+ * Convert all [[QueryOperationCatalogViewTable]]s (including tables in [[RexSubQuery]]) to to a
+ * relational expression.
+ */
 class ExpandTableScanShuttle extends RelShuttleImpl {
 
   /**
-    * Override this method to use `replaceInput` method instead of `copy` method
-    * if any children change. This will not change any output of LogicalTableScan
-    * when LogicalTableScan is replaced with RelNode tree in its RelTable.
-    */
+   * Override this method to use `replaceInput` method instead of `copy` method if any children
+   * change. This will not change any output of LogicalTableScan when LogicalTableScan is replaced
+   * with RelNode tree in its RelTable.
+   */
   override def visitChild(parent: RelNode, i: Int, child: RelNode): RelNode = {
     stack.push(parent)
     try {
@@ -92,8 +92,8 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
         newProject
     }
     if (changed) {
-      val newProject = project.copy(
-        project.getTraitSet, project.getInput, newProjects, project.getRowType)
+      val newProject =
+        project.copy(project.getTraitSet, project.getInput, newProjects, project.getRowType)
       super.visit(newProject)
     } else {
       super.visit(project)
@@ -104,8 +104,12 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
     val newCondition = join.getCondition.accept(new ExpandTableScanInSubQueryShuttle)
     if (newCondition ne join.getCondition) {
       val newJoin = join.copy(
-        join.getTraitSet, newCondition, join.getLeft, join.getRight,
-        join.getJoinType, join.isSemiJoinDone)
+        join.getTraitSet,
+        newCondition,
+        join.getLeft,
+        join.getRight,
+        join.getJoinType,
+        join.isSemiJoinDone)
       super.visit(newJoin)
     } else {
       super.visit(join)
@@ -116,12 +120,13 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
     override def visitSubQuery(subQuery: RexSubQuery): RexNode = {
       val newRel = subQuery.rel.accept(ExpandTableScanShuttle.this)
       var changed = false
-      val newOperands = subQuery.getOperands.map { op =>
-        val newOp = op.accept(ExpandTableScanInSubQueryShuttle.this)
-        if (op ne newOp) {
-          changed = true
-        }
-        newOp
+      val newOperands = subQuery.getOperands.map {
+        op =>
+          val newOp = op.accept(ExpandTableScanInSubQueryShuttle.this)
+          if (op ne newOp) {
+            changed = true
+          }
+          newOp
       }
 
       var newSubQuery = subQuery
@@ -136,9 +141,9 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
   }
 
   /**
-    * Converts [[LogicalTableScan]] the result [[RelNode]] tree
-    * by calling [[QueryOperationCatalogViewTable]]#toRel
-    */
+   * Converts [[LogicalTableScan]] the result [[RelNode]] tree by calling
+   * [[QueryOperationCatalogViewTable]]#toRel
+   */
   override def visit(scan: TableScan): RelNode = {
     scan match {
       case tableScan: LogicalTableScan =>
@@ -155,18 +160,18 @@ class ExpandTableScanShuttle extends RelShuttleImpl {
 }
 
 /**
-  * Rewrite same rel object to different rel objects.
-  *
-  * <p>e.g.
-  * {{{
-  *      Join                       Join
-  *     /    \                     /    \
-  * Filter1 Filter2     =>     Filter1 Filter2
-  *     \   /                     |      |
-  *      Scan                  Scan1    Scan2
-  * }}}
-  * After rewrote, Scan1 and Scan2 are different object but have same digest.
-  */
+ * Rewrite same rel object to different rel objects.
+ *
+ * <p>e.g.
+ * {{{
+ *      Join                       Join
+ *     /    \                     /    \
+ * Filter1 Filter2     =>     Filter1 Filter2
+ *     \   /                     |      |
+ *      Scan                  Scan1    Scan2
+ * }}}
+ * After rewrote, Scan1 and Scan2 are different object but have same digest.
+ */
 class SameRelObjectShuttle extends DefaultRelShuttle {
   private val visitedNodes = Sets.newIdentityHashSet[RelNode]()
 

@@ -17,8 +17,6 @@
  */
 package org.apache.flink.streaming.api.scala.extensions.impl.acceptPartialFunctions
 
-import java.util.concurrent.TimeUnit
-
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
@@ -26,42 +24,43 @@ import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
+
 import org.junit.Test
+
+import java.util.concurrent.TimeUnit
 
 class OnJoinedStreamTest extends AcceptPFTestBase {
 
   @Test
   def testProjectingOnTuple(): Unit = {
     val test =
-      tuples.join(tuples).
-        where {
-          case (id, _) => id
-        }.equalTo {
-          case (id, _) => id
-        }.window {
+      tuples
+        .join(tuples)
+        .where { case (id, _) => id }
+        .equalTo { case (id, _) => id }
+        .window {
           TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS))
-        }.projecting {
-          case ((_, v1), (_, v2)) => s"$v1 $v2"
         }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+        .projecting { case ((_, v1), (_, v2)) => s"$v1 $v2" }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "projecting should produce a SingleOutputStreamOperator")
   }
 
   @Test
   def testProjectingOnCaseClass(): Unit = {
     val test =
-      caseObjects.join(caseObjects).
-      where {
-        case KeyValuePair(id, _) => id
-      }.equalTo {
-        case KeyValuePair(id, _) => id
-      }.window {
-        TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS))
-      }.projecting {
-        case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => s"$v1 $v2"
-      }
-   assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
-     "projecting should produce a SingleOutputStreamOperator")
+      caseObjects
+        .join(caseObjects)
+        .where { case KeyValuePair(id, _) => id }
+        .equalTo { case KeyValuePair(id, _) => id }
+        .window {
+          TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS))
+        }
+        .projecting { case (KeyValuePair(_, v1), KeyValuePair(_, v2)) => s"$v1 $v2" }
+    assert(
+      test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
+      "projecting should produce a SingleOutputStreamOperator")
   }
 
 }

@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
-import java.lang.reflect.Type
-import java.util
-
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{TypeInfo, TypeInfoFactory, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.api.java.typeutils.{EitherTypeInfo => JavaEitherTypeInfo}
+import org.apache.flink.api.java.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.util.TestLogger
+
 import org.junit.Assert._
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
+
+import java.lang.reflect.Type
+import java.util
 
 class TypeInfoFactoryTest extends TestLogger with JUnitSuiteLike {
 
@@ -123,15 +123,14 @@ object TypeInfoFactoryTest {
 
     override def createTypeInfo(
         t: Type,
-        genericParameters: util.Map[String, TypeInformation[_]])
-      : TypeInformation[MyOption[_]] = {
+        genericParameters: util.Map[String, TypeInformation[_]]): TypeInformation[MyOption[_]] = {
       new MyScalaOptionTypeInfo(genericParameters.get("Z"))
     }
   }
 
   class MyScalaOptionTypeInfo(val elementType: TypeInformation[_])
     extends TypeInformation[MyOption[_]] {
-    
+
     override def isBasicType: Boolean = ???
 
     override def isTupleType: Boolean = ???

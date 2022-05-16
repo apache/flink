@@ -19,7 +19,6 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.typeutils.{GenericPairComparator, TypeComparator, TypeSerializer}
 import org.apache.flink.api.common.typeutils.base.{DoubleComparator, DoubleSerializer, IntComparator, IntSerializer}
-
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator
 import org.apache.flink.api.scala.runtime.tuple.base.PairComparatorTestBase
 import org.apache.flink.api.scala.typeutils.CaseClassComparator
@@ -27,9 +26,9 @@ import org.apache.flink.api.scala.typeutils.CaseClassComparator
 class GenericPairComparatorTest
   extends PairComparatorTestBase[(Int, String, Double), (Int, Float, Long, Double)] {
 
-  override protected def createComparator(ascending: Boolean):
-  GenericPairComparator[(Int, String, Double), (Int, Float, Long, Double)] = {
-    val fields1  = Array[Int](0, 2)
+  override protected def createComparator(ascending: Boolean)
+      : GenericPairComparator[(Int, String, Double), (Int, Float, Long, Double)] = {
+    val fields1 = Array[Int](0, 2)
     val fields2 = Array[Int](0, 3)
 
     val comps1 =
@@ -48,8 +47,8 @@ class GenericPairComparatorTest
     new GenericPairComparator[(Int, String, Double), (Int, Float, Long, Double)](comp1, comp2)
   }
 
-  protected def getSortedTestData:
-  (Array[(Int, String, Double)], Array[(Int, Float, Long, Double)]) = {
+  protected def getSortedTestData
+      : (Array[(Int, String, Double)], Array[(Int, Float, Long, Double)]) = {
     (dataISD, dataIDL)
   }
 
@@ -61,7 +60,7 @@ class GenericPairComparatorTest
     (6, "hello", 16.0),
     (6, "world", 17.2),
     (7, "hello", 14.0),
-    (7,"world", 15.2))
+    (7, "world", 15.2))
 
   private val dataIDL = Array(
     (4, 0.11f, 14L, 20.0),
@@ -71,6 +70,6 @@ class GenericPairComparatorTest
     (6, 0.55f, 20L, 16.0),
     (6, 0.66f, 29L, 17.2),
     (7, 0.77f, 29L, 14.0),
-    (7, 0.88f, 34L, 15.2))
+    (7, 0.88f, 34L, 15.2)
+  )
 }
-

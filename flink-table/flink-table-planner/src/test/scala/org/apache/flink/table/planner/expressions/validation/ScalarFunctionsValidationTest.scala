@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api._
@@ -46,42 +45,29 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("BIN(f16)", "101010") // Date type
   }
 
-
   @Test(expected = classOf[ValidationException])
   def testInvalidTruncate1(): Unit = {
     // All arguments are string type
-    testSqlApi(
-      "TRUNCATE('abc', 'def')",
-      "FAIL")
+    testSqlApi("TRUNCATE('abc', 'def')", "FAIL")
 
     // The second argument is of type String
-    testSqlApi(
-      "TRUNCATE(f12, f0)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12, f0)", "FAIL")
 
     // The second argument is of type Float
-    testSqlApi(
-      "TRUNCATE(f12,f12)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12,f12)", "FAIL")
 
     // The second argument is of type Double
-    testSqlApi(
-      "TRUNCATE(f12, cast(f28 as DOUBLE))",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12, cast(f28 as DOUBLE))", "FAIL")
 
     // The second argument is of type BigDecimal
-    testSqlApi(
-      "TRUNCATE(f12,f15)",
-      "FAIL")
+    testSqlApi("TRUNCATE(f12,f15)", "FAIL")
   }
 
   @Test
   def testInvalidTruncate2(): Unit = {
     thrown.expect(classOf[ValidationException])
     // The one argument is of type String
-    testSqlApi(
-      "TRUNCATE('abc')",
-      "FAIL")
+    testSqlApi("TRUNCATE('abc')", "FAIL")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -105,17 +91,17 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampInterval(): Unit ={
+  def testTimestampAddWithWrongTimestampInterval(): Unit = {
     testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithWrongTimestampFormat(): Unit ={
+  def testTimestampAddWithWrongTimestampFormat(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithWrongQuantity(): Unit ={
+  def testTimestampAddWithWrongQuantity(): Unit = {
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
@@ -133,7 +119,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testTableApi(
       'f2.in('f3, 'f4, 4),
       "f2.in(f3, f4, 4)",
-      "FALSE"  // OK if all numeric
+      "FALSE" // OK if all numeric
     )
   }
 
@@ -157,14 +143,12 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTime(): Unit = {
-    testTableApi(
-      timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+    testTableApi(timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTimeAndUnit(): Unit = {
-    testTableApi(
-      timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+    testTableApi(timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
   }
 
   @Test
@@ -252,18 +236,14 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     // test IF(BOOL, STRING, BOOLEAN)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot apply 'IF' to arguments")
-    testSqlApi(
-      "IF(f7 > 5, f0, f1)",
-      "FAIL")
+    testSqlApi("IF(f7 > 5, f0, f1)", "FAIL")
   }
 
   @Test
   def testInvalidToBase64(): Unit = {
-    //test TO_BASE64(INTEGER)
+    // test TO_BASE64(INTEGER)
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot apply 'TO_BASE64' to arguments of type 'TO_BASE64(<INTEGER>)'")
-    testSqlApi(
-      "TO_BASE64(11)",
-      "FAIL")
+    testSqlApi("TO_BASE64(11)", "FAIL")
   }
 }

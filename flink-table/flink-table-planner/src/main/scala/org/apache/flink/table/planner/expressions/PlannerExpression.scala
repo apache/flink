@@ -21,30 +21,28 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor}
 import org.apache.flink.table.planner.validate.{ValidationResult, ValidationSuccess}
 
-import java.util
-
 import _root_.scala.collection.JavaConversions._
 
+import java.util
+
 abstract class PlannerExpression extends TreeNode[PlannerExpression] with Expression {
-  /**
-    * Returns the [[TypeInformation]] for evaluating this expression.
-    * It is sometimes not available until the expression is valid.
-    */
-  private[flink] def resultType: TypeInformation[_]
 
   /**
-    * One pass validation of the expression tree in post order.
-    */
+   * Returns the [[TypeInformation]] for evaluating this expression. It is sometimes not available
+   * until the expression is valid.
+   */
+  private[flink] def resultType: TypeInformation[_]
+
+  /** One pass validation of the expression tree in post order. */
   private[flink] lazy val valid: Boolean = childrenValid && validateInput().isSuccess
 
   private[flink] def childrenValid: Boolean = children.forall(_.valid)
 
   /**
-    * Check input data types, inputs number or other properties specified by this expression.
-    * Return `ValidationSuccess` if it pass the check,
-    * or `ValidationFailure` with supplement message explaining the error.
-    * Note: we should only call this method until `childrenValid == true`
-    */
+   * Check input data types, inputs number or other properties specified by this expression. Return
+   * `ValidationSuccess` if it pass the check, or `ValidationFailure` with supplement message
+   * explaining the error. Note: we should only call this method until `childrenValid == true`
+   */
   private[flink] def validateInput(): ValidationResult = ValidationSuccess
 
   private[flink] def checkEquals(other: PlannerExpression): Boolean = {

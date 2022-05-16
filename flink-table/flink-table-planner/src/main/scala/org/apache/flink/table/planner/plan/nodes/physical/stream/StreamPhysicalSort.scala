@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.annotation.Experimental
@@ -33,18 +32,18 @@ import org.apache.calcite.rex.RexNode
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for [[Sort]].
-  *
-  * <b>NOTES:</b> This class is used for testing with bounded source now.
-  * If a query is converted to this node in product environment, an exception will be thrown.
-  *
-  * @see [[StreamPhysicalTemporalSort]] which must be time-ascending-order sort without `limit`.
-  *
-  * e.g.
-  *      ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to
-  *         [[StreamPhysicalTemporalSort]]
-  *      ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to [[StreamPhysicalSort]]
-  */
+ * Stream physical RelNode for [[Sort]].
+ *
+ * <b>NOTES:</b> This class is used for testing with bounded source now. If a query is converted to
+ * this node in product environment, an exception will be thrown.
+ *
+ * @see
+ *   [[StreamPhysicalTemporalSort]] which must be time-ascending-order sort without `limit`.
+ *
+ * e.g. ''SELECT * FROM TABLE ORDER BY ROWTIME, a'' will be converted to
+ * [[StreamPhysicalTemporalSort]] ''SELECT * FROM TABLE ORDER BY a, ROWTIME'' will be converted to
+ * [[StreamPhysicalSort]]
+ */
 @Experimental
 class StreamPhysicalSort(
     cluster: RelOptCluster,

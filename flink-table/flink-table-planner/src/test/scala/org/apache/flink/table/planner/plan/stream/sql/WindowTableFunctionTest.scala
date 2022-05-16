@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.core.testutils.FlinkMatchers.containsCause
@@ -24,26 +23,23 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
- * Tests for window table-valued function.
- */
+/** Tests for window table-valued function. */
 class WindowTableFunctionTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.tableEnv.executeSql(
-    s"""
-       |CREATE TABLE MyTable (
-       |  a INT,
-       |  b BIGINT,
-       |  c STRING,
-       |  d DECIMAL(10, 3),
-       |  rowtime TIMESTAMP(3),
-       |  proctime as PROCTIME(),
-       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
-       |) with (
-       |  'connector' = 'values'
-       |)
-       |""".stripMargin)
+  util.tableEnv.executeSql(s"""
+                              |CREATE TABLE MyTable (
+                              |  a INT,
+                              |  b BIGINT,
+                              |  c STRING,
+                              |  d DECIMAL(10, 3),
+                              |  rowtime TIMESTAMP(3),
+                              |  proctime as PROCTIME(),
+                              |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+                              |) with (
+                              |  'connector' = 'values'
+                              |)
+                              |""".stripMargin)
 
   @Test
   def testTumbleTVF(): Unit = {
@@ -111,33 +107,32 @@ class WindowTableFunctionTest extends TableTestBase {
 
   @Test
   def testWindowOnNonTimeAttribute(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE VIEW v1 AS
-        |SELECT *, LOCALTIMESTAMP AS cur_time
-        |FROM MyTable
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE VIEW v1 AS
+                               |SELECT *, LOCALTIMESTAMP AS cur_time
+                               |FROM MyTable
+                               |""".stripMargin)
     val sql =
       """
         |SELECT *
         |FROM TABLE(
         | TUMBLE(TABLE v1, DESCRIPTOR(cur_time), INTERVAL '15' MINUTE))
         |""".stripMargin
-    thrown.expectCause(containsCause(
-      new ValidationException(
-        "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3).")
-    ))
+    thrown.expectCause(
+      containsCause(
+        new ValidationException(
+          "The window function requires the timecol is a time attribute type, but is TIMESTAMP(3).")
+      ))
     util.verifyRelPlan(sql)
   }
 
   @Test
   def testConflictingFieldNames(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE VIEW v1 AS
-        |SELECT *, rowtime AS window_start
-        |FROM MyTable
-        |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE VIEW v1 AS
+                               |SELECT *, rowtime AS window_start
+                               |FROM MyTable
+                               |""".stripMargin)
     val sql =
       """
         |SELECT *

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
@@ -42,19 +41,22 @@ object ExpandCodeGenerator {
       .bindInput(inputType, inputTerm = inputTerm)
 
     val processCodes = mutable.ListBuffer[String]()
-    projects.foreach { project =>
-      val projectionExprs = project.map(exprGenerator.generateExpression)
-      val projectionResultExpr = exprGenerator.generateResultExpression(
-        projectionExprs, outputType, classOf[BoxedWrapperRowData])
-      val header = if (retainHeader) {
-        s"${projectionResultExpr.resultTerm}.setRowKind($inputTerm.getRowKind());"
-      } else {
-        ""
-      }
+    projects.foreach {
+      project =>
+        val projectionExprs = project.map(exprGenerator.generateExpression)
+        val projectionResultExpr = exprGenerator.generateResultExpression(
+          projectionExprs,
+          outputType,
+          classOf[BoxedWrapperRowData])
+        val header = if (retainHeader) {
+          s"${projectionResultExpr.resultTerm}.setRowKind($inputTerm.getRowKind());"
+        } else {
+          ""
+        }
 
-      processCodes += header
-      processCodes += projectionResultExpr.code
-      processCodes += OperatorCodeGenerator.generateCollect(projectionResultExpr.resultTerm)
+        processCodes += header
+        processCodes += projectionResultExpr.code
+        processCodes += OperatorCodeGenerator.generateCollect(projectionResultExpr.resultTerm)
     }
 
     val processCode = processCodes.mkString("\n")

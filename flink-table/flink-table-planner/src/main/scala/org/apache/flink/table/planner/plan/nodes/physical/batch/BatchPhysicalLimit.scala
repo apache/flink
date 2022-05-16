@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.fetchToString
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
@@ -34,10 +33,10 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
 /**
-  * Batch physical RelNode for [[Sort]].
-  *
-  * This node will output `limit` records beginning with the first `offset` records without sort.
-  */
+ * Batch physical RelNode for [[Sort]].
+ *
+ * This node will output `limit` records beginning with the first `offset` records without sort.
+ */
 class BatchPhysicalLimit(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

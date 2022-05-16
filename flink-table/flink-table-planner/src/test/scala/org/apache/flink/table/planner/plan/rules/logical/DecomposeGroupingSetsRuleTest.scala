@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -26,9 +25,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 
-/**
-  * Test for [[DecomposeGroupingSetsRule]].
-  */
+/** Test for [[DecomposeGroupingSetsRule]]. */
 class DecomposeGroupingSetsRuleTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)

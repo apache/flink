@@ -17,17 +17,17 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -78,13 +78,13 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
 
     val distinctDs = ds.union(ds).distinct(0).map(_._1)
 
-    distinctDs.writeAsText(resultPath, writeMode =  WriteMode.OVERWRITE)
+    distinctDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1\n" + "2\n"
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuplesWithKeyExtractor(): Unit ={
+  def testCorrectnessOfDistinctOnTuplesWithKeyExtractor(): Unit = {
     /*
      * check correctness of distinct on tuples with key extractor
      */
@@ -106,7 +106,7 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
 
-    val reduceDs = ds.distinct(_.myInt).map( t => new Tuple1(t.myInt))
+    val reduceDs = ds.distinct(_.myInt).map(t => new Tuple1(t.myInt))
 
     reduceDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -136,7 +136,7 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
 
-    val reduceDs = ds.distinct( t => (t._1, t._5)).map( t => (t._1, t._5) )
+    val reduceDs = ds.distinct(t => (t._1, t._5)).map(t => (t._1, t._5))
 
     reduceDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -214,5 +214,3 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
   }
 
 }
-
-
