@@ -316,7 +316,7 @@ object CodeGenUtils {
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
       case ARRAY =>
-        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
         val genHash =
           HashCodeGenerator.generateArrayHash(
             subCtx,
@@ -324,16 +324,11 @@ object CodeGenUtils {
             "SubHashArray")
         genHashFunction(ctx, subCtx, genHash, term)
       case MULTISET | MAP =>
-        val subCtx = CodeGeneratorContext(ctx.tableConfig)
-        val keyType = if (t.isInstanceOf[MultisetType]) {
-          t.asInstanceOf[MultisetType].getElementType
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
+        val (keyType, valueType) = if (t.isInstanceOf[MultisetType]) {
+          (t.asInstanceOf[MultisetType].getElementType, new IntType())
         } else {
-          t.asInstanceOf[MapType].getKeyType
-        }
-        val valueType = if (t.isInstanceOf[MultisetType]) {
-          new IntType()
-        } else {
-          t.asInstanceOf[MapType].getValueType
+          (t.asInstanceOf[MapType].getKeyType, t.asInstanceOf[MapType].getValueType)
         }
         val genHash =
           HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")

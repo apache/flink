@@ -103,7 +103,7 @@ object HashCodeGenerator {
     val typeTerm = primitiveTypeTermForType(elementType)
     val isNull = newName("isNull")
     val fieldTerm = newName("fieldTerm")
-    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val hashIntTerm = newName("hashCode")
     val i = newName("i")
 
     // Generate element hash code firstly
@@ -121,11 +121,12 @@ object HashCodeGenerator {
         @Override
         public int hashCode($ARRAY_DATA $inputTerm) {
           int $hashIntTerm = 0;
+          // This is inspired by hive & presto
           for (int $i = 0; $i < $inputTerm.size(); $i++) {
             boolean $isNull = $inputTerm.isNullAt($i);
             if (!$isNull) {
               $typeTerm $fieldTerm = ${rowFieldReadAccess(i, inputTerm, elementType)};
-              $hashIntTerm += $elementHashBody;
+              $hashIntTerm = 31 * $hashIntTerm + $elementHashBody;
             }
           }
 
@@ -166,7 +167,9 @@ object HashCodeGenerator {
     val keyFieldTerm = newName("keyFieldTerm")
     val valueIsNull = newName("valueIsNull")
     val valueFieldTerm = newName("valueFieldTerm")
-    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val keyHashTerm = newName("keyHashCode")
+    val valueHashTerm = newName("valueHashCode")
+    val hashIntTerm = newName("hashCode")
     val i = newName("i")
 
     // Generate key and value hash code body firstly
@@ -187,19 +190,27 @@ object HashCodeGenerator {
           $ARRAY_DATA $keys = $inputTerm.keyArray();
           $ARRAY_DATA $values = $inputTerm.valueArray();
 
+          int $keyHashTerm = 0;
+          int $valueHashTerm = 0;
           int $hashIntTerm = 0;
+          
+          // This is inspired by hive & presto
           for (int $i = 0; $i < $inputTerm.size(); $i++) {
             boolean $keyIsNull = $keys.isNullAt($i);
             if (!$keyIsNull) {
+              $keyHashTerm = 0;
               $keyTypeTerm $keyFieldTerm = ${rowFieldReadAccess(i, keys, keyType)};
-              $hashIntTerm += $keyElementHashBody;
+              $keyHashTerm = $keyElementHashBody;
             }
 
             boolean $valueIsNull = $values.isNullAt($i);
             if(!$valueIsNull) {
+              $valueHashTerm = 0;
               $valueTypeTerm $valueFieldTerm = ${rowFieldReadAccess(i, values, valueType)};
-              $hashIntTerm += $valueElementHashBody;
+              $valueHashTerm = $valueElementHashBody;
             }
+            
+            $hashIntTerm += $keyHashTerm ^ $valueHashTerm;
           }
 
           return $hashIntTerm;
@@ -212,7 +223,7 @@ object HashCodeGenerator {
 
         @Override
         public int hashCode($ARRAY_DATA $inputTerm) {
-          ${genThrowException("ArrayData hash function doesn't support to generate hash code for ArrayData.")}
+          ${genThrowException("MapData hash function doesn't support to generate hash code for ArrayData.")}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -225,7 +236,7 @@ object HashCodeGenerator {
   private def generateCodeBody(
       ctx: CodeGeneratorContext,
       accessExprs: Seq[GeneratedExpression]): (String, String) = {
-    val hashIntTerm = CodeGenUtils.newName("hashCode")
+    val hashIntTerm = newName("hashCode")
     var i = -1
     val hashBodyCode = accessExprs
       .map(

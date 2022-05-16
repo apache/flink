@@ -633,7 +633,7 @@ object GenerateUtils {
     case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP =>
       throw new UnsupportedOperationException(
         s"Type($t) is not an orderable data type, " +
-          s"it is not supported as a field in ORDER_BY and sort-based GROUP_BY/JOIN_EQUAL clause.")
+          s"it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
     // TODO support MULTISET and MAP?
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]
