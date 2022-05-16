@@ -39,7 +39,9 @@ import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
 class AsyncLookupJoinITCase(
-  legacyTableSource: Boolean, backend: StateBackendMode, objectReuse: Boolean)
+    legacyTableSource: Boolean,
+    backend: StateBackendMode,
+    objectReuse: Boolean)
   extends StreamingWithStateTestBase(backend) {
 
   val data = List(
