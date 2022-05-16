@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -26,7 +27,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}
-import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
+import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, newLocalReference}
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
@@ -367,6 +368,11 @@ object HashAggCodeGenHelper {
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
       val (aggBuffAttrIndex, aggBuffAttrType) = aggBuffMapping(aggIndex)(localIndex)
       toRexInputRef(relBuilder, offset + aggBuffAttrIndex, aggBuffAttrType)
+    }
+
+    override def toWindowSizeExpr(name: String): ResolvedExpression = {
+      val variableName = s"agg${aggIndex}_$name"
+      newLocalReference(variableName, DataTypes.INT().getLogicalType)
     }
   }
 

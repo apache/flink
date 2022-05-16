@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.codegen.over.MultiFieldRangeBoundComparato
 import org.apache.flink.table.planner.codegen.over.RangeBoundComparatorCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.functions.aggfunctions.SizeBasedWindowFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -70,6 +71,7 @@ import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlKind;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -290,6 +292,10 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
+                if (Arrays.stream(aggInfoList.aggInfos())
+                        .anyMatch(f -> f.function() instanceof SizeBasedWindowFunction)) {
+                    generator.needWindowSize();
+                }
                 // over agg code gen must pass the constants
                 GeneratedAggsHandleFunction genAggsHandler =
                         generator
@@ -436,17 +442,21 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         return overSpec.getGroups().stream()
                 .anyMatch(
                         group -> {
-                            OverWindowMode mode = inferGroupMode(group);
-                            switch (mode) {
-                                case INSENSITIVE:
-                                    return false;
-                                case ROW:
-                                    return (!group.getLowerBound().isCurrentRow()
-                                                    || !group.getUpperBound().isCurrentRow())
-                                            && (!group.getLowerBound().isUnbounded()
-                                                    || !group.getUpperBound().isCurrentRow());
-                                default:
-                                    return true;
+                            if (containSizeBasedWindowFunction(group)) {
+                                return true;
+                            } else {
+                                OverWindowMode mode = inferGroupMode(group);
+                                switch (mode) {
+                                    case INSENSITIVE:
+                                        return false;
+                                    case ROW:
+                                        return (!group.getLowerBound().isCurrentRow()
+                                                        || !group.getUpperBound().isCurrentRow())
+                                                && (!group.getLowerBound().isUnbounded()
+                                                        || !group.getUpperBound().isCurrentRow());
+                                    default:
+                                        return true;
+                                }
                             }
                         });
     }

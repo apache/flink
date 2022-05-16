@@ -266,7 +266,6 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationRank2(): Unit = {
-
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
       Seq(
@@ -2758,6 +2757,53 @@ class OverAggregateITCase extends BatchTestBase {
     checkResult(
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+  }
+
+  @Test
+  def testCumeDist(): Unit = {
+    checkResult(
+      "SELECT d, CUME_DIST() over (order by e desc) " +
+        " FROM Table5",
+      Seq(
+        row(5, 0.06666666666666667),
+        row(5, 0.13333333333333333),
+        row(5, 0.2),
+        row(5, 0.26666666666666666),
+        row(5, 0.3333333333333333),
+        row(4, 0.4),
+        row(4, 0.4666666666666667),
+        row(4, 0.5333333333333333),
+        row(4, 0.6),
+        row(3, 0.6666666666666666),
+        row(3, 0.7333333333333333),
+        row(3, 0.8),
+        row(2, 0.8666666666666667),
+        row(2, 0.9333333333333333),
+        row(1, 1.0)
+      )
+    )
+
+    checkResult(
+      "SELECT d, CUME_DIST() over (partition by d order by e) " +
+        " FROM Table5",
+      Seq(
+        row(1, 1.0),
+        row(2, 0.5),
+        row(2, 1.0),
+        row(3, 0.3333333333333333),
+        row(3, 0.6666666666666666),
+        row(3, 1.0),
+        row(4, 0.25),
+        row(4, 0.5),
+        row(4, 0.75),
+        row(4, 1.0),
+        row(5, 0.2),
+        row(5, 0.4),
+        row(5, 0.6),
+        row(5, 0.8),
+        row(5, 1.0)
+      )
+    )
   }
 }
 
