@@ -1685,4 +1685,22 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     )
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testGroupByArrayType(): Unit = {
+    val sql =
+      s"""
+         |SELECT b, sum(a) FROM (VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b)
+         |GROUP BY b
+         |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "[1, 2],3",
+      "[3, 4],5"
+    )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }

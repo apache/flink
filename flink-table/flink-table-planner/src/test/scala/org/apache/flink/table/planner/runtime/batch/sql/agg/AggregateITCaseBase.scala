@@ -1108,6 +1108,17 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
+  @Test
+  def testGroupByArrayType(): Unit = {
+    checkResult(
+      "SELECT sum(a) FROM (VALUES (1, array[1, 2]), (2, array[1, 2]), (5, array[3, 4])) T(a, b) GROUP BY b",
+      Seq(
+        row(3),
+        row(5)
+      )
+    )
+  }
+
   // TODO support csv
 //  @Test
 //  def testMultiGroupBys(): Unit = {

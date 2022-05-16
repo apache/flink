@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedHashFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.util.{MurmurHashUtil, TimeWindowUtil}
@@ -315,27 +315,36 @@ object CodeGenUtils {
         throw new UnsupportedOperationException(
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
-      case ARRAY => genHashForArray(ctx, t.asInstanceOf[ArrayType].getElementType, term)
-      case MULTISET =>
-        genHashForMap(ctx, t.asInstanceOf[MultisetType].getElementType, new IntType(), term)
-      case MAP =>
-        genHashForMap(
-          ctx,
-          t.asInstanceOf[MapType].getKeyType,
-          t.asInstanceOf[MapType].getValueType,
-          term)
+      case ARRAY =>
+        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val genHash =
+          HashCodeGenerator.generateArrayHash(
+            subCtx,
+            t.asInstanceOf[ArrayType].getElementType,
+            "SubHashArray")
+        genHashFunction(ctx, subCtx, genHash, term)
+      case MULTISET | MAP =>
+        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val keyType = if (t.isInstanceOf[MultisetType]) {
+          t.asInstanceOf[MultisetType].getElementType
+        } else {
+          t.asInstanceOf[MapType].getKeyType
+        }
+        val valueType = if (t.isInstanceOf[MultisetType]) {
+          new IntType()
+        } else {
+          t.asInstanceOf[MapType].getValueType
+        }
+        val genHash =
+          HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
+        genHashFunction(ctx, subCtx, genHash, term)
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
         val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
-        ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
-        val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
-        val hashFunc = newName("hashFunc")
-        ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
-        ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
-        s"$hashFunc.hashCode($term)"
+        genHashFunction(ctx, subCtx, genHash, term)
       case DISTINCT_TYPE =>
         hashCodeForType(ctx, t.asInstanceOf[DistinctType].getSourceType, term)
       case RAW =>
@@ -353,26 +362,11 @@ object CodeGenUtils {
 
   // -------------------------- Method & Enum ---------------------------------------
 
-  def genHashForArray(ctx: CodeGeneratorContext, elementType: LogicalType, term: String): String = {
-    val subCtx = CodeGeneratorContext(ctx.tableConfig)
-    val genHash =
-      HashCodeGenerator.generateArrayHash(subCtx, elementType, "SubHashArray")
-    ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
-    val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
-    val hashFunc = newName("hashFunc")
-    ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
-    ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
-    s"$hashFunc.hashCode($term)"
-  }
-
-  def genHashForMap(
+  def genHashFunction(
       ctx: CodeGeneratorContext,
-      keyType: LogicalType,
-      valueType: LogicalType,
+      subCtx: CodeGeneratorContext,
+      genHash: GeneratedHashFunction,
       term: String): String = {
-    val subCtx = CodeGeneratorContext(ctx.tableConfig)
-    val genHash =
-      HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
     ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
     val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
     val hashFunc = newName("hashFunc")

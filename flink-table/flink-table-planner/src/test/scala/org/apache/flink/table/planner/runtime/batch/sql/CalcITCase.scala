@@ -1034,7 +1034,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMapTypeGroupBy(): Unit = {
-    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
+    _expectedEx.expectMessage(
+      "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a field in ORDER_BY and sort-based GROUP_BY/JOIN_EQUAL clause.")
     checkResult(
       "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
       Seq()
