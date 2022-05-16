@@ -175,7 +175,7 @@ abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
     }
 
     @Test
-    public void testWrongCopyReuse() {
+    void testWrongCopyReuse() {
         for (RowData row : testData) {
             assertThatThrownBy(
                             () ->

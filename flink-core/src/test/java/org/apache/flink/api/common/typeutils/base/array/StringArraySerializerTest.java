@@ -89,7 +89,7 @@ class StringArraySerializerTest extends SerializerTestBase<String[]> {
     }
 
     @Test
-    public void arrayTypeIsMutable() {
+    void arrayTypeIsMutable() {
         StringArraySerializer serializer = (StringArraySerializer) createSerializer();
         assertThat(serializer.isImmutableType()).isFalse();
     }

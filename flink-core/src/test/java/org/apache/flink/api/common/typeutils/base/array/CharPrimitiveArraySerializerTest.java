@@ -21,7 +21,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/** A test for the {@link LongPrimitiveArraySerializer}. */
+/** A test for the {@link CharPrimitiveArraySerializer}. */
 class CharPrimitiveArraySerializerTest extends SerializerTestBase<char[]> {
 
     @Override

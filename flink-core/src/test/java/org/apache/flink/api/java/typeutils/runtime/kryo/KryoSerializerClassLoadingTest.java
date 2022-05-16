@@ -60,7 +60,7 @@ class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
     // ------------------------------------------------------------------------
 
     @Test
-    public void guardTestAssumptions() {
+    void guardTestAssumptions() {
         assertThatThrownBy(
                         () -> Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName()))
                 .isInstanceOf(ClassNotFoundException.class)

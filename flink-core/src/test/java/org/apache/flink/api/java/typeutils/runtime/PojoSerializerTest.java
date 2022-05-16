@@ -50,7 +50,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** A test for the {@link PojoSerializer}. */
-public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
+class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
     private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
 
     @Override
@@ -327,7 +327,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
      * different POJO type will result in INCOMPATIBLE.
      */
     @Test
-    public void testReconfigureWithDifferentPojoType() throws Exception {
+    void testReconfigureWithDifferentPojoType() throws Exception {
         PojoSerializer<SubTestUserClassB> pojoSerializer1 =
                 (PojoSerializer<SubTestUserClassB>)
                         TypeExtractor.getForClass(SubTestUserClassB.class)
@@ -369,7 +369,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
      * Tests that reconfiguration correctly reorders subclass registrations to their previous order.
      */
     @Test
-    public void testReconfigureDifferentSubclassRegistrationOrder() throws Exception {
+    void testReconfigureDifferentSubclassRegistrationOrder() throws Exception {
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.registerPojoType(SubTestUserClassA.class);
         executionConfig.registerPojoType(SubTestUserClassB.class);
@@ -437,7 +437,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
     /** Tests that reconfiguration repopulates previously cached subclass serializers. */
     @Test
-    public void testReconfigureRepopulateNonregisteredSubclassSerializerCache() throws Exception {
+    void testReconfigureRepopulateNonregisteredSubclassSerializerCache() throws Exception {
         // don't register any subclasses
         PojoSerializer<TestUserClass> pojoSerializer =
                 (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
@@ -504,7 +504,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
      * since they will only be used to write new data.
      */
     @Test
-    public void testReconfigureWithPreviouslyNonregisteredSubclasses() throws Exception {
+    void testReconfigureWithPreviouslyNonregisteredSubclasses() throws Exception {
         // don't register any subclasses at first
         PojoSerializer<TestUserClass> pojoSerializer =
                 (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());

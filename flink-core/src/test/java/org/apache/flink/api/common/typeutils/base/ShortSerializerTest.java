@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Random;
 
-/** A test for the {@link org.apache.flink.api.common.typeutils.base.StringSerializer}. */
+/** A test for the {@link ShortSerializer}. */
 class ShortSerializerTest extends SerializerTestBase<Short> {
 
     @Override
