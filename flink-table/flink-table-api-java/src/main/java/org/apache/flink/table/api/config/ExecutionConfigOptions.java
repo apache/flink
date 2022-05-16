@@ -323,6 +323,14 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The async timeout for the asynchronous operation to complete.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE =
+            key("table.exec.async-lookup.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}, ordered by default.");
+
     // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
@@ -379,7 +387,9 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
-    /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
+    /**
+     * @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead.
+     */
     @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
@@ -571,6 +581,17 @@ public class ExecutionConfigOptions {
 
         /** Add keyed shuffle in any case except single parallelism. */
         FORCE
+    }
+
+    /** Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}. */
+    @PublicEvolving
+    public enum AsyncOutputMode {
+
+        /** Ordered output mode, equivalent to {@see AsyncDataStream.OutputMode.ORDERED}. */
+        ORDERED,
+
+        /** Unordered output mode, {@see AsyncDataStream.OutputMode.UNORDERED}. */
+        UNORDERED
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

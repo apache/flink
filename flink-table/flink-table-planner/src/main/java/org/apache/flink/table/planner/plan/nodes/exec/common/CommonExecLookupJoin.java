@@ -316,6 +316,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY);
         long asyncTimeout =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT).toMillis();
+        ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE);
 
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
@@ -388,10 +390,14 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             asyncBufferCapacity);
         }
 
-        // force ORDERED output mode currently, optimize it to UNORDERED
-        // when the downstream do not need orderness
+        // TODO plan validation when set to UNORDERED (remove this after FLINK-27624 done)
         return new AsyncWaitOperatorFactory<>(
-                asyncFunc, asyncTimeout, asyncBufferCapacity, AsyncDataStream.OutputMode.ORDERED);
+                asyncFunc, asyncTimeout, asyncBufferCapacity, convert(asyncOutputMode));
+    }
+
+    private AsyncDataStream.OutputMode convert(
+            ExecutionConfigOptions.AsyncOutputMode asyncOutputMode) {
+        return AsyncDataStream.OutputMode.valueOf(asyncOutputMode.name());
     }
 
     private StreamOperatorFactory<RowData> createSyncLookupJoin(
