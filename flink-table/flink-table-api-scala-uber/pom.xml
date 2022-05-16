@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-table</artifactId>
+		<version>1.16-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>flink-table-api-scala-uber_${scala.binary.version}</artifactId>
+	<name>Flink : Table : API Scala Uber</name>
+	<description>
+		This module contains all the Scala APIs of the Table/SQL ecosystem for writing table programs
+		within the table ecosystem or between other Flink APIs.
+	</description>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-bridge-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<!-- Exclude all flink-dist files and only include flink-table-* -->
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<filters combine.children="append">
+								<filter>
+									<artifact>com.ibm.icu:icu4j</artifact>
+									<excludes>
+										<!-- com.ibm.icu:icu4j includes a LICENSE file in its root folder -->
+										<exclude>LICENSE</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<artifactSet>
+								<includes combine.children="append">
+									<!-- Table API modules -->
+									<include>org.apache.flink:flink-table-common</include>
+									<include>org.apache.flink:flink-table-api-java</include>
+									<include>org.apache.flink:flink-table-api-scala_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-table-api-bridge-base</include>
+									<include>org.apache.flink:flink-table-api-scala-bridge_${scala.binary.version}</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<!-- icu4j's dependencies -->
+									<pattern>com.ibm.icu</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

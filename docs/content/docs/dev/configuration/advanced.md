@@ -89,10 +89,13 @@ now been split into three JARs in order to allow users to swap the `flink-table-
 with `flink-table-planner{{< scala_version >}}-{{< version >}}.jar`.
 {{< /hint >}}
 
-While Table Java API artifacts are built into the distribution, Table Scala API artifacts are not 
-included by default. When using formats and connectors with the Flink Scala API, you need to either 
-download and include these JARs in the distribution `/lib` folder manually (recommended), or package 
-them as dependencies in the uber/fat JAR of your Flink SQL Jobs.
+While Table Java API artifacts are located in the `/lib` folder, Table Scala API artifacts are not included
+by default and are located in the `/opt` folder:
+
+- `flink-table-api-scala-uber{{< scala_version >}}-{{< version >}}.jar` &#8594; contains all the Scala APIs
+
+When using formats and connectors with the Flink Scala API, you need to move the JAR into the `/lib`
+folder manually (recommended), or package them as dependencies in the uber/fat JAR of your Flink SQL Jobs.
 
 For more details, check out how to [connect to external systems]({{< ref "docs/connectors/table/overview" >}}).
 
@@ -102,7 +105,7 @@ Starting from Flink 1.15, the distribution contains two planners:
 
 - `flink-table-planner{{< scala_version >}}-{{< version >}}.jar`, in `/opt`, contains the query planner
 - `flink-table-planner-loader-{{< version >}}.jar`, loaded by default in `/lib`, contains the query planner 
-  hidden behind an isolated classpath (you won't be able to address any `io.apache.flink.table.planner` directly)
+  hidden behind an isolated classpath (you won't be able to address any `org.apache.flink.table.planner` directly)
 
 The two planner JARs contain the same code, but they are packaged differently. In the first case, you must use the 
 same Scala version of the JAR. In second case, you do not need to make considerations about Scala, since

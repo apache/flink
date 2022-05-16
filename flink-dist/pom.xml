@@ -204,11 +204,18 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- SQL Client and planner with scala version goes in the /opt folder -->
+		<!-- SQL Client and artifacts with Scala version go in the /opt folder -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-scala-uber_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
