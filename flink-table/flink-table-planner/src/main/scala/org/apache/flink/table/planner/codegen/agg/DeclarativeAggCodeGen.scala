@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
+import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -25,12 +26,12 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTI
 import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeExpression}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.{toRexDistinctKey, toRexInputRef}
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{DeclarativeAggregateFunction, SizeBasedWindowFunction}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.{RexInputRef, RexLiteral}
 import org.apache.calcite.tools.RelBuilder
 
 /**
@@ -76,6 +77,15 @@ class DeclarativeAggCodeGen(
     .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")
 
   private val rexNodeGen = new ExpressionConverter(relBuilder)
+
+  private val windowSizeTerm = function match {
+    case f: SizeBasedWindowFunction =>
+      val name = s"agg${aggInfo.aggIndex}_${f.windowSize().getName}"
+      val exprCodegen = new ExprCodeGenerator(ctx, false)
+      exprCodegen.generateExpression(localRef(name, DataTypes.INT()).accept(rexNodeGen))
+      name
+    case _ => null
+  }
 
   private val bufferNullTerms = {
     val exprCodegen = new ExprCodeGenerator(ctx, false)
@@ -274,6 +284,10 @@ class DeclarativeAggCodeGen(
       // name => agg${aggInfo.aggIndex}_$name"
       localRef(bufferTerms(localIndex), fromLogicalTypeToDataType(bufferTypes(localIndex)))
     }
+
+    override def toWindowSizeExpr(name: String): ResolvedExpression = {
+      localRef(windowSizeTerm, DataTypes.INT())
+    }
   }
 
   override def checkNeededMethods(
@@ -281,7 +295,18 @@ class DeclarativeAggCodeGen(
       needRetract: Boolean = false,
       needMerge: Boolean = false,
       needReset: Boolean = false,
-      needEmitValue: Boolean = false): Unit = {
+      needEmitValue: Boolean = false,
+      needWindowSize: Boolean = false): Unit = {
     // skip the check for DeclarativeAggregateFunction for now
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    if (function.isInstanceOf[SizeBasedWindowFunction]) {
+      val expr = generator.generateExpression(
+        toRexInputRef(relBuilder, 0, DataTypes.INT().getLogicalType).accept(rexNodeGen))
+      expr.copyResultTermToTargetIfChanged(ctx, windowSizeTerm)
+    } else {
+      ""
+    }
   }
 }

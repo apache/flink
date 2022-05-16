@@ -95,6 +95,13 @@ class AggFunctionFactory(
       case a: SqlRankFunction if a.getKind == SqlKind.DENSE_RANK =>
         createDenseRankAggFunction(argTypes)
 
+      case a: SqlRankFunction if a.getKind == SqlKind.CUME_DIST =>
+        if (isBounded) {
+          createCumeDistAggFunction(argTypes)
+        } else {
+          throw new TableException("CUME_DIST Function is not supported in stream mode.")
+        }
+
       case func: SqlLeadLagAggFunction =>
         if (isBounded) {
           createBatchLeadLagAggFunction(argTypes, index)
@@ -454,6 +461,10 @@ class AggFunctionFactory(
 
   private def createRowNumberAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     new RowNumberAggFunction
+  }
+
+  private def createCumeDistAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    new CumeDistAggFunction
   }
 
   private def createRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {

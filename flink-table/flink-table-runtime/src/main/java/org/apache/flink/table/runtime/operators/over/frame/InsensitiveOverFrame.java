@@ -21,13 +21,14 @@ package org.apache.flink.table.runtime.operators.over.frame;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
+import org.apache.flink.table.runtime.generated.AggsFunctionWithWindowSize;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
 /**
  * The insensitive window frame calculates the statements which shouldn't care the window frame, for
- * example RANK/DENSE_RANK/PERCENT_RANK/CUME_DIST/ROW_NUMBER.
+ * example RANK/DENSE_RANK/PERCENT_RANK/CUME_DIST/NTILE/ROW_NUMBER.
  */
 public class InsensitiveOverFrame implements OverWindowFrame {
 
@@ -49,6 +50,13 @@ public class InsensitiveOverFrame implements OverWindowFrame {
 
     @Override
     public void prepare(ResettableExternalBuffer rows) throws Exception {
+        // set the window size.
+        // as the window size required function PERCENT_RANK/CUME_DIST/NTILE
+        // all fall to the insensitive window frame, only set window size in this insensitive window
+        // frame
+        if (processor instanceof AggsFunctionWithWindowSize) {
+            ((AggsFunctionWithWindowSize) processor).setWindowSize(rows.size());
+        }
         // reset the accumulator value
         processor.setAccumulators(processor.createAccumulators());
     }

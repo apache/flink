@@ -366,7 +366,8 @@ class DistinctAggCodeGen(
       needRetract: Boolean,
       needMerge: Boolean,
       needReset: Boolean,
-      needEmitValue: Boolean): Unit = {
+      needEmitValue: Boolean,
+      needWindowSize: Boolean = false): Unit = {
     if (needMerge) {
       // see merge method for more information
       innerAggCodeGens
@@ -954,5 +955,10 @@ class DistinctAggCodeGen(
          |$isEmptyCode
        """.stripMargin
     }
+  }
+
+  override def setWindowSize(generator: ExprCodeGenerator): String = {
+    throw new TableException(
+      "Distinct shouldn't set window size, this is a bug, please file a issue.")
   }
 }
