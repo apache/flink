@@ -24,12 +24,13 @@ import org.apache.flink.connector.firehose.sink.testutils.KinesisFirehoseTestUti
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.DockerImageVersions;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
@@ -52,7 +53,8 @@ import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehose
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration test suite for the {@code KinesisFirehoseSink} using a localstack container. */
-public class KinesisFirehoseSinkITCase {
+@Testcontainers
+class KinesisFirehoseSinkITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisFirehoseSinkITCase.class);
     private static final String ROLE_NAME = "super-role";
@@ -67,12 +69,12 @@ public class KinesisFirehoseSinkITCase {
     private FirehoseAsyncClient firehoseAsyncClient;
     private IamAsyncClient iamAsyncClient;
 
-    @ClassRule
-    public static LocalstackContainer mockFirehoseContainer =
+    @Container
+    private static LocalstackContainer mockFirehoseContainer =
             new LocalstackContainer(DockerImageName.parse(DockerImageVersions.LOCALSTACK));
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
         httpClient = AWSServicesTestUtils.createHttpClient(mockFirehoseContainer.getEndpoint());
         s3AsyncClient = createS3Client(mockFirehoseContainer.getEndpoint(), httpClient);
@@ -81,13 +83,13 @@ public class KinesisFirehoseSinkITCase {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test
-    public void firehoseSinkWritesCorrectDataToMockAWSServices() throws Exception {
+    void firehoseSinkWritesCorrectDataToMockAWSServices() throws Exception {
         LOG.info("1 - Creating the bucket for Firehose to deliver into...");
         createBucket(s3AsyncClient, BUCKET_NAME);
         LOG.info("2 - Creating the IAM Role for Firehose to write into the s3 bucket...");

@@ -23,8 +23,8 @@ import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.firehose.model.Record;
@@ -47,8 +47,8 @@ public class KinesisFirehoseSinkWriterTest {
                     .setSerializationSchema(new SimpleStringSchema())
                     .build();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         TestSinkInitContext sinkInitContext = new TestSinkInitContext();
         Properties sinkProperties = AWSServicesTestUtils.createConfig("https://fake_aws_endpoint");
         sinkWriter =
@@ -67,7 +67,7 @@ public class KinesisFirehoseSinkWriterTest {
     }
 
     @Test
-    public void getSizeInBytesReturnsSizeOfBlobBeforeBase64Encoding() {
+    void getSizeInBytesReturnsSizeOfBlobBeforeBase64Encoding() {
         String testString = "{many hands make light work;";
         Record record = Record.builder().data(SdkBytes.fromUtf8String(testString)).build();
         assertThat(sinkWriter.getSizeInBytes(record))
@@ -75,7 +75,7 @@ public class KinesisFirehoseSinkWriterTest {
     }
 
     @Test
-    public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
+    void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
         TestSinkInitContext ctx = new TestSinkInitContext();
         KinesisFirehoseSink<String> kinesisFirehoseSink =
