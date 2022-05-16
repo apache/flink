@@ -1753,6 +1753,9 @@ public class HiveCatalog extends AbstractCatalog {
                     }
                 }
                 break;
+            case ALTER_BUCKET:
+                HiveTableUtil.extractBucketSpec(sd, newProps);
+                break;
             default:
                 throw new CatalogException("Unsupported alter table operation " + alterOp);
         }

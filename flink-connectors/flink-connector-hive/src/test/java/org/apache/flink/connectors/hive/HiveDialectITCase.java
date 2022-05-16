@@ -255,6 +255,13 @@ public class HiveDialectITCase {
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
         assertThat(hiveTable.getCreateTime()).isEqualTo(createdTimeForTableExists);
 
+        // test create bucket table
+        tableEnv.executeSql(
+                "create table bucket_t (id int, name string, age int) clustered by (id) sorted by (name desc, age asc) into 20 buckets");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "bucket_t"));
+        verifyBucketTable(
+                hiveTable, "[id]", "[Order(col:name, order:0), Order(col:age, order:1)]", 20);
+
         // test describe table
         Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
         DescribeTableOperation operation =
@@ -481,6 +488,25 @@ public class HiveDialectITCase {
         assertThat(hivePartition.getSd().getCols().get(0).getName()).isEqualTo("str");
         hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
         assertThat(hivePartition.getSd().getCols().get(0).getName()).isEqualTo("str");
+
+        // alter table bucket spec
+        tableEnv.executeSql(
+                "create table bucket_t (id int, name string, age int) clustered by (id) sorted by (name desc, age asc) into 20 buckets");
+        // alter table ... not sorted
+        tableEnv.executeSql("alter table bucket_t not sorted");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "bucket_t"));
+        verifyBucketTable(hiveTable, "[id]", "[]", 20);
+
+        // alter table ... not clustered
+        tableEnv.executeSql("alter table bucket_t not clustered");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "bucket_t"));
+        verifyBucketTable(hiveTable, "[]", "[]", -1);
+
+        // alter table ... clustered by ... sorted by .. [into .. buckets]
+        tableEnv.executeSql(
+                "alter table bucket_t clustered by (id, name) sorted by (age asc) into 10 buckets");
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "bucket_t"));
+        verifyBucketTable(hiveTable, "[id, name]", "[Order(col:age, order:1)]", 10);
     }
 
     @Test
@@ -802,7 +828,6 @@ public class HiveDialectITCase {
                         "create materialized view v as select x from foo",
                         "create temporary table foo (x int)",
                         "create table foo (x int) stored by 'handler.class'",
-                        "create table foo (x int) clustered by (x) into 3 buckets",
                         "create table foo (x int) skewed by (x) on (1,2,3)",
                         "describe foo partition (p=1)",
                         "describe db.tbl col",
@@ -829,5 +854,12 @@ public class HiveDialectITCase {
 
     private static List<Row> queryResult(org.apache.flink.table.api.Table table) {
         return CollectionUtil.iteratorToList(table.execute().collect());
+    }
+
+    private void verifyBucketTable(
+            Table hiveTable, String expectedClusterBy, String expectSortBy, int expectBucketNum) {
+        assertThat(hiveTable.getSd().getBucketCols().toString()).isEqualTo(expectedClusterBy);
+        assertThat(hiveTable.getSd().getSortCols().toString()).isEqualTo(expectSortBy);
+        assertThat(hiveTable.getSd().getNumBuckets()).isEqualTo(expectBucketNum);
     }
 }

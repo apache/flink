@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
@@ -85,6 +86,7 @@ import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.planner.delegation.hive.HiveBucketSpec;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.table.planner.delegation.hive.HiveParserCalcitePlanner;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
@@ -108,6 +110,7 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.SkewedInfo;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.FunctionUtils;
+import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
@@ -121,6 +124,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -137,6 +141,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DAT
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.ALTER_BUCKET;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_FILE_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_LOCATION;
@@ -159,8 +164,10 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_C
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.planner.delegation.hive.HiveBucketSpec.dumpBucketNumToProp;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getBucketSpec;
 
 /**
  * Ported hive's org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer, and also incorporated
@@ -438,6 +445,12 @@ public class HiveParserDDLSemanticAnalyzer {
             case HiveASTParser.TOK_ALTERTABLE_SERDEPROPERTIES:
                 operation = convertAlterTableSerdeProps(alteredTable, ast, tableName, partSpec);
                 break;
+            case HiveASTParser.TOK_ALTERTABLE_BUCKETS:
+                operation = convertAlterTableBucketNum(alteredTable, ast, tableName, partSpec);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_CLUSTER_SORT:
+                operation = convertAlterTableClusterSort(alteredTable, ast, tableName, partSpec);
+                break;
             case HiveASTParser.TOK_ALTERTABLE_TOUCH:
             case HiveASTParser.TOK_ALTERTABLE_ARCHIVE:
             case HiveASTParser.TOK_ALTERTABLE_UNARCHIVE:
@@ -447,8 +460,6 @@ public class HiveParserDDLSemanticAnalyzer {
             case HiveASTParser.TOK_ALTERTABLE_MERGEFILES:
             case HiveASTParser.TOK_ALTERTABLE_RENAMEPART:
             case HiveASTParser.TOK_ALTERTABLE_SKEWED_LOCATION:
-            case HiveASTParser.TOK_ALTERTABLE_BUCKETS:
-            case HiveASTParser.TOK_ALTERTABLE_CLUSTER_SORT:
             case HiveASTParser.TOK_ALTERTABLE_COMPACT:
             case HiveASTParser.TOK_ALTERTABLE_UPDATECOLSTATS:
             case HiveASTParser.TOK_ALTERTABLE_DROPCONSTRAINT:
@@ -672,6 +683,7 @@ public class HiveParserDDLSemanticAnalyzer {
         final int ctlt = 1; // CREATE TABLE LIKE ... (CTLT)
         final int ctas = 2; // CREATE TABLE AS SELECT ... (CTAS)
         int commandType = createTable;
+        HiveBucketSpec hiveBucketSpec = null;
 
         HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams rowFormatParams =
                 new HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams();
@@ -773,7 +785,7 @@ public class HiveParserDDLSemanticAnalyzer {
                     }
                     break;
                 case HiveASTParser.TOK_ALTERTABLE_BUCKETS:
-                    handleUnsupportedOperation("Bucketed table is not supported");
+                    hiveBucketSpec = getBucketSpec(child);
                     break;
                 case HiveASTParser.TOK_TABLESKEWED:
                     handleUnsupportedOperation("Skewed table is not supported");
@@ -820,7 +832,8 @@ public class HiveParserDDLSemanticAnalyzer {
                         rowFormatParams,
                         storageFormat,
                         primaryKeys,
-                        notNulls);
+                        notNulls,
+                        hiveBucketSpec);
 
             case ctlt: // create table like <tbl_name>
                 tblProps = addDefaultProperties(tblProps);
@@ -862,7 +875,8 @@ public class HiveParserDDLSemanticAnalyzer {
                                 rowFormatParams,
                                 storageFormat,
                                 primaryKeys,
-                                notNulls);
+                                notNulls,
+                                hiveBucketSpec);
 
                 return new CreateTableASOperation(
                         createTableOperation,
@@ -887,7 +901,8 @@ public class HiveParserDDLSemanticAnalyzer {
             HiveParserRowFormatParams rowFormatParams,
             HiveParserStorageFormat storageFormat,
             List<PrimaryKey> primaryKeys,
-            List<NotNullConstraint> notNullConstraints) {
+            List<NotNullConstraint> notNullConstraints,
+            HiveBucketSpec hiveBucketSpec) {
         Map<String, String> props = new HashMap<>();
         if (tblProps != null) {
             props.putAll(tblProps);
@@ -953,6 +968,12 @@ public class HiveParserDDLSemanticAnalyzer {
         if (location != null) {
             props.put(TABLE_LOCATION_URI, location);
         }
+
+        // bucket spec
+        if (hiveBucketSpec != null) {
+            hiveBucketSpec.dumpToProps(props);
+        }
+
         ObjectIdentifier identifier = parseObjectIdentifier(compoundName);
         Set<String> notNullColSet = new HashSet<>(notNullCols);
         if (uniqueConstraint != null) {
@@ -1330,6 +1351,59 @@ public class HiveParserDDLSemanticAnalyzer {
         newProps.put(TABLE_LOCATION_URI, newLocation);
 
         return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
+    }
+
+    private Operation convertAlterTableBucketNum(
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec) {
+        int numberOfBuckets = Integer.parseInt(ast.getChild(0).getText());
+        Map<String, String> newProps = new HashMap<>();
+        newProps.put(ALTER_TABLE_OP, ALTER_BUCKET.name());
+        dumpBucketNumToProp(numberOfBuckets, newProps);
+        return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
+    }
+
+    private Operation convertAlterTableClusterSort(
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec)
+            throws SemanticException {
+        Map<String, String> newProps = new HashMap<>();
+        newProps.put(ALTER_TABLE_OP, ALTER_BUCKET.name());
+        switch (ast.getChild(0).getType()) {
+            case HiveASTParser.TOK_NOT_CLUSTERED:
+                // set the bucket columns to empty list
+                HiveBucketSpec.dumpBucketColumnsToProp(Collections.emptyList(), newProps);
+                // -1 buckets means to turn off bucketing
+                HiveBucketSpec.dumpBucketNumToProp(-1, newProps);
+                // set the sort columns to empty list
+                HiveBucketSpec.dumpSortColumnsToProp(
+                        Tuple2.of(Collections.emptyList(), Collections.emptyList()), newProps);
+                return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
+            case HiveASTParser.TOK_NOT_SORTED:
+                // set the sort columns to empty list
+                HiveBucketSpec.dumpSortColumnsToProp(
+                        Tuple2.of(Collections.emptyList(), Collections.emptyList()), newProps);
+                return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
+            case HiveASTParser.TOK_ALTERTABLE_BUCKETS:
+                HiveBucketSpec hiveBucketSpec = getBucketSpec((HiveParserASTNode) ast.getChild(0));
+                // validate sort columns and bucket columns
+                List<String> columns = Arrays.asList(alteredTable.getSchema().getFieldNames());
+                Utilities.validateColumnNames(
+                        columns, hiveBucketSpec.getBucketColumns().orElse(Collections.emptyList()));
+                if (hiveBucketSpec.getColumnNamesOrder().isPresent()) {
+                    Utilities.validateColumnNames(
+                            columns, hiveBucketSpec.getColumnNamesOrder().get().f0);
+                }
+
+                hiveBucketSpec.dumpToProps(newProps);
+                return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
+            default:
+                throw new SemanticException("Invalid operation " + ast.getChild(0).getType());
+        }
     }
 
     public static HashMap<String, String> getProps(HiveParserASTNode prop) {

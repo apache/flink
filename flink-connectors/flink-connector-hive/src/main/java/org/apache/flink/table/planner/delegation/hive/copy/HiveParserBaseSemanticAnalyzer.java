@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.planner.delegation.hive.HiveBucketSpec;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
@@ -124,6 +125,67 @@ public class HiveParserBaseSemanticAnalyzer {
     private static final Logger LOG = LoggerFactory.getLogger(HiveParserBaseSemanticAnalyzer.class);
 
     private HiveParserBaseSemanticAnalyzer() {}
+
+    public static HiveBucketSpec getBucketSpec(HiveParserASTNode ast) throws SemanticException {
+        List<String> bucketCols = getColumnNames((HiveParserASTNode) ast.getChild(0));
+        int numBuckets = -1;
+        Tuple2<List<String>, List<Integer>> columnNamesOrder = null;
+        if (ast.getChildCount() == 2) {
+            numBuckets = Integer.parseInt(ast.getChild(1).getText());
+        } else {
+            columnNamesOrder = getColumnNamesOrder((HiveParserASTNode) ast.getChild(1));
+            numBuckets = Integer.parseInt(ast.getChild(2).getText());
+        }
+        if (numBuckets <= 0) {
+            throw new SemanticException(ErrorMsg.INVALID_BUCKET_NUMBER.getMsg());
+        }
+        return new HiveBucketSpec(numBuckets, bucketCols, columnNamesOrder);
+    }
+
+    private static List<String> getColumnNames(HiveParserASTNode ast) {
+        List<String> colList = new ArrayList<>();
+        int numCh = ast.getChildCount();
+        for (int i = 0; i < numCh; i++) {
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
+            colList.add(unescapeIdentifier(child.getText().toLowerCase()));
+        }
+        return colList;
+    }
+
+    private static Tuple2<List<String>, List<Integer>> getColumnNamesOrder(HiveParserASTNode ast)
+            throws SemanticException {
+        int numCh = ast.getChildCount();
+        List<String> columns = new ArrayList<>();
+        List<Integer> orderDirections = new ArrayList<>();
+        for (int i = 0; i < numCh; i++) {
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
+            int directionCode;
+            if (child.getToken().getType() == HiveASTParser.TOK_TABSORTCOLNAMEASC) {
+                // asc code
+                directionCode = 1;
+            } else if (child.getToken().getType() == HiveASTParser.TOK_TABSORTCOLNAMEDESC) {
+                // desc code
+                directionCode = 0;
+            } else {
+                throw new SemanticException(
+                        String.format(
+                                "The value %s isn't a valid value for column sort order.",
+                                child.getToken().getType()));
+            }
+            child = (HiveParserASTNode) child.getChild(0);
+            if (child.getToken().getType() != HiveASTParser.TOK_NULLS_FIRST && directionCode == 1) {
+                throw new SemanticException(
+                        "create/alter bucketed table: not supported NULLS LAST for SORTED BY in ASC order");
+            }
+            if (child.getToken().getType() != HiveASTParser.TOK_NULLS_LAST && directionCode == 0) {
+                throw new SemanticException(
+                        "create/alter bucketed table: not supported NULLS FIRST for SORTED BY in DESC order");
+            }
+            columns.add(unescapeIdentifier(child.getChild(0).getText()).toLowerCase());
+            orderDirections.add(directionCode);
+        }
+        return Tuple2.of(columns, orderDirections);
+    }
 
     public static List<FieldSchema> getColumns(HiveParserASTNode ast) throws SemanticException {
         return getColumns(ast, true);

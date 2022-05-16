@@ -62,6 +62,7 @@ public abstract class SqlAlterHiveTable extends SqlAlterTableOptions {
         CHANGE_SERDE_PROPS,
         CHANGE_FILE_FORMAT,
         CHANGE_LOCATION,
-        ALTER_COLUMNS
+        ALTER_COLUMNS,
+        ALTER_BUCKET
     }
 }

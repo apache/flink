@@ -44,6 +44,7 @@ import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
+import org.apache.flink.table.planner.delegation.hive.HiveBucketSpec;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -53,6 +54,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -255,6 +257,7 @@ public class HiveTableUtil {
         extractRowFormat(hiveTable.getSd(), properties);
         extractStoredAs(hiveTable.getSd(), properties, hiveConf);
         extractLocation(hiveTable.getSd(), properties);
+        extractBucketSpec(hiveTable.getSd(), properties);
     }
 
     private static void extractExternal(Table hiveTable, Map<String, String> properties) {
@@ -312,6 +315,24 @@ public class HiveTableUtil {
             sd.setInputFormat(inputFormat);
             sd.setOutputFormat(outputFormat);
         }
+    }
+
+    public static void extractBucketSpec(StorageDescriptor sd, Map<String, String> properties) {
+        HiveBucketSpec hiveBucketSpec = HiveBucketSpec.extractBucketSpec(properties);
+        hiveBucketSpec.getBucketNum().ifPresent(sd::setNumBuckets);
+        hiveBucketSpec.getBucketColumns().ifPresent(sd::setBucketCols);
+        List<Order> orders = new ArrayList<>();
+        hiveBucketSpec
+                .getColumnNamesOrder()
+                .ifPresent(
+                        columnNamesOrder -> {
+                            List<String> columnNames = columnNamesOrder.f0;
+                            List<Integer> sortOrders = columnNamesOrder.f1;
+                            for (int i = 0; i < columnNames.size(); i++) {
+                                orders.add(new Order(columnNames.get(i), sortOrders.get(i)));
+                            }
+                            sd.setSortCols(orders);
+                        });
     }
 
     public static void setStorageFormat(StorageDescriptor sd, String format, HiveConf hiveConf) {
