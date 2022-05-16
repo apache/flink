@@ -36,9 +36,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.FunctionLookupMock;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -46,9 +45,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -60,12 +59,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link OperationTreeBuilder#values}. */
-@RunWith(Parameterized.class)
 public class ValuesOperationTreeBuilderTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> parameters() {
-        return asList(
+    static Stream<TestSpec> parameters() {
+        return Stream.of(
                 TestSpec.test("Flattening row constructor")
                         .values(row(1, "ABC"), row(2, "EFG"))
                         .equalTo(
@@ -404,10 +401,9 @@ public class ValuesOperationTreeBuilderTest {
         }
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testValues() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("parameters")
+    public void testValues(TestSpec testSpec) {
         if (testSpec.exceptionMessage != null) {
             if (testSpec.expectedRowType != null) {
                 assertThatThrownBy(

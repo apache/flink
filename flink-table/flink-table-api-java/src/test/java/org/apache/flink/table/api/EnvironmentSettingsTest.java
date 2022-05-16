@@ -21,16 +21,16 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link EnvironmentSettings}. */
-public class EnvironmentSettingsTest {
+class EnvironmentSettingsTest {
 
     @Test
-    public void testFromConfiguration() {
+    void testFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString("execution.runtime-mode", "batch");
         EnvironmentSettings settings =
@@ -40,7 +40,7 @@ public class EnvironmentSettingsTest {
     }
 
     @Test
-    public void testGetConfiguration() {
+    void testGetConfiguration() {
         EnvironmentSettings settings = new EnvironmentSettings.Builder().inBatchMode().build();
         Configuration configuration = settings.getConfiguration();
 

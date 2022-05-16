@@ -34,10 +34,12 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,6 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Class for unit tests to run on catalogs. */
+@ExtendWith(TestLoggerExtension.class)
 public abstract class CatalogTest {
     protected static final String IS_STREAMING = "is_streaming";
 
@@ -73,8 +76,8 @@ public abstract class CatalogTest {
 
     protected static Catalog catalog;
 
-    @After
-    public void cleanup() throws Exception {
+    @AfterEach
+    void cleanup() throws Exception {
         if (catalog.tableExists(path1)) {
             catalog.dropTable(path1, true);
         }
@@ -98,8 +101,8 @@ public abstract class CatalogTest {
         }
     }
 
-    @AfterClass
-    public static void closeup() {
+    @AfterAll
+    static void closeup() {
         if (catalog != null) {
             catalog.close();
         }
@@ -1197,8 +1200,7 @@ public abstract class CatalogTest {
     public void testGetTableStats_TableNotExistException() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         assertThatThrownBy(() -> catalog.getTableStatistics(path1))
-                .isInstanceOf(
-                        org.apache.flink.table.catalog.exceptions.TableNotExistException.class)
+                .isInstanceOf(TableNotExistException.class)
                 .hasMessage(
                         "Table (or view) db1.t1 does not exist in Catalog "
                                 + TEST_CATALOG_NAME
