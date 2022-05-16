@@ -205,30 +205,34 @@ class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest {
 
     @Test
     void testExternalResourceFailExceedMax() {
-
         assumeThat(isExternalResourceSupported()).isTrue();
 
-        getAdapterWithExternalResources(
-                        SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
-                .getPriorityAndResource(
-                        TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE_EXCEED_MAX);
+        assertThatThrownBy(
+                        () ->
+                                getAdapterWithExternalResources(
+                                                SUPPORTED_EXTERNAL_RESOURCE_NAME,
+                                                SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
+                                        .getPriorityAndResource(
+                                                TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE_EXCEED_MAX))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void testExternalResourceFailResourceTypeNotSupported() {
-
         assumeThat(isExternalResourceSupported()).isTrue();
 
-        getAdapterWithExternalResources(
-                        UNSUPPORTED_EXTERNAL_RESOURCE_NAME,
-                        UNSUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
-                .getPriorityAndResource(
-                        TASK_EXECUTOR_PROCESS_SPEC_WITH_UNSUPPORTED_EXTERNAL_RESOURCE);
+        assertThatThrownBy(
+                        () ->
+                                getAdapterWithExternalResources(
+                                                UNSUPPORTED_EXTERNAL_RESOURCE_NAME,
+                                                UNSUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
+                                        .getPriorityAndResource(
+                                                TASK_EXECUTOR_PROCESS_SPEC_WITH_UNSUPPORTED_EXTERNAL_RESOURCE))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void testExternalResourceFailHadoopVersionNotSupported() {
-
         assumeThat(isExternalResourceSupported()).isFalse();
         assertThatThrownBy(
                         () ->

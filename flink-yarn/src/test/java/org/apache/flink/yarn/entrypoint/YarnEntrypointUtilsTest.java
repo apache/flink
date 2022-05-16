@@ -135,19 +135,20 @@ class YarnEntrypointUtilsTest {
     }
 
     @Nonnull
-    private Configuration loadConfiguration(Configuration initialConfiguration) throws IOException {
+    private static Configuration loadConfiguration(Configuration initialConfiguration)
+            throws IOException {
         return loadConfiguration(initialConfiguration, new HashMap<>());
     }
 
     @Nonnull
-    private Configuration loadConfiguration(
+    private static Configuration loadConfiguration(
             Configuration initialConfiguration, Configuration dynamicParameters)
             throws IOException {
         return loadConfiguration(initialConfiguration, dynamicParameters, new HashMap<>());
     }
 
     @Nonnull
-    private Configuration loadConfiguration(
+    private static Configuration loadConfiguration(
             Configuration initialConfiguration, Map<String, String> env) throws IOException {
         return loadConfiguration(initialConfiguration, new Configuration(), env);
     }

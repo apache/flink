@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assumptions.assumeThatThrownBy;
  * <tt>org.apache.flink.fs.s3hadoop.HadoopS3FileSystemITCase</tt>.
  */
 @ExtendWith(RetryExtension.class)
-public class YarnFileStageTestS3ITCase {
+class YarnFileStageTestS3ITCase {
 
     private static final Logger log = LoggerFactory.getLogger(YarnFileStageTestS3ITCase.class);
 
@@ -80,12 +80,12 @@ public class YarnFileStageTestS3ITCase {
     }
 
     @AfterAll
-    public static void resetFileSystemConfiguration() {
+    static void resetFileSystemConfiguration() {
         FileSystem.initialize(new Configuration());
     }
 
     @AfterAll
-    public static void checkAtLeastOneTestRun() {
+    static void checkAtLeastOneTestRun() {
         if (!skipTest) {
             assertThat(numRecursiveUploadTests)
                     .as(
@@ -174,7 +174,7 @@ public class YarnFileStageTestS3ITCase {
 
     @TestTemplate
     @RetryOnException(times = 3, exception = Exception.class)
-    public void testRecursiveUploadForYarnS3n(@TempDir File tempFolder) throws Exception {
+    void testRecursiveUploadForYarnS3n(@TempDir File tempFolder) throws Exception {
         // skip test on Hadoop 3: https://issues.apache.org/jira/browse/HADOOP-14738
         assumeThat(VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0)
                 .as("This test is skipped for Hadoop versions above 3")
@@ -189,7 +189,6 @@ public class YarnFileStageTestS3ITCase {
     @TestTemplate
     @RetryOnException(times = 3, exception = Exception.class)
     public void testRecursiveUploadForYarnS3a(@TempDir File tempFolder) throws Exception {
-
         assumeThatThrownBy(() -> Class.forName("org.apache.hadoop.fs.s3a.S3AFileSystem"))
                 .as("Skipping test because S3AFileSystem is not in the class path")
                 .isNull();
