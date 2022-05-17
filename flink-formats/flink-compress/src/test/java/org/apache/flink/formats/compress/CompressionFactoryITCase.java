@@ -26,14 +26,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,7 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} and
  * Hadoop Compression Codecs.
  */
-public class CompressionFactoryITCase extends AbstractTestBase {
+@ExtendWith(MiniClusterExtension.class)
+class CompressionFactoryITCase {
 
     private final Configuration configuration = new Configuration();
 
@@ -57,11 +59,10 @@ public class CompressionFactoryITCase extends AbstractTestBase {
 
     private final List<String> testData = Arrays.asList("line1", "line2", "line3");
 
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
-
     @Test
-    public void testWriteCompressedFile() throws Exception {
-        final File folder = TEMPORARY_FOLDER.newFolder();
+    @Timeout(20)
+    void testWriteCompressedFile(@TempDir java.nio.file.Path tmpDir) throws Exception {
+        final File folder = tmpDir.toFile();
         final Path testPath = Path.fromLocalFile(folder);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
