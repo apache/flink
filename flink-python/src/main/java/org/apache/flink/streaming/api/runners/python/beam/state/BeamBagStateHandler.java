@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 /** BeamBagStateHandler handles operations on {@link ListState}, which backs Beam bag states. */
-public class BeamBagStateHandler implements BeamStateHandler<ListState<byte[]>> {
+public class BeamBagStateHandler extends AbstractBeamStateHandler<ListState<byte[]>> {
 
     private static final String MERGE_NAMESPACES_MARK = "merge_namespaces";
 
@@ -54,24 +54,7 @@ public class BeamBagStateHandler implements BeamStateHandler<ListState<byte[]>> 
         this.baisWrapper = new DataInputViewStreamWrapper(bais);
     }
 
-    public BeamFnApi.StateResponse.Builder handle(
-            BeamFnApi.StateRequest request, ListState<byte[]> listState) throws Exception {
-        switch (request.getRequestCase()) {
-            case GET:
-                return handleBagGetRequest(request, listState);
-            case APPEND:
-                return handleBagAppendRequest(request, listState);
-            case CLEAR:
-                return handleBagClearRequest(request, listState);
-            default:
-                throw new RuntimeException(
-                        String.format(
-                                "Unsupported request type %s for user state.",
-                                request.getRequestCase()));
-        }
-    }
-
-    private BeamFnApi.StateResponse.Builder handleBagGetRequest(
+    public BeamFnApi.StateResponse.Builder handleGet(
             BeamFnApi.StateRequest request, ListState<byte[]> listState) throws Exception {
         List<ByteString> byteStrings = convertToByteString(listState);
 
@@ -82,7 +65,7 @@ public class BeamBagStateHandler implements BeamStateHandler<ListState<byte[]>> 
                                 .setData(ByteString.copyFrom(byteStrings)));
     }
 
-    private BeamFnApi.StateResponse.Builder handleBagAppendRequest(
+    public BeamFnApi.StateResponse.Builder handleAppend(
             BeamFnApi.StateRequest request, ListState<byte[]> listState) throws Exception {
         if (request.getStateKey()
                 .getBagUserState()
@@ -113,7 +96,7 @@ public class BeamBagStateHandler implements BeamStateHandler<ListState<byte[]>> 
                 .setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance());
     }
 
-    private BeamFnApi.StateResponse.Builder handleBagClearRequest(
+    public BeamFnApi.StateResponse.Builder handleClear(
             BeamFnApi.StateRequest request, ListState<byte[]> listState) throws Exception {
         listState.clear();
 

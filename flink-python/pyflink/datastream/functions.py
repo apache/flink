@@ -17,9 +17,8 @@
 ################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Union, Any, Generic, TypeVar, Iterable
-
 from py4j.java_gateway import JavaObject
+from typing import Union, Any, Generic, TypeVar, Iterable
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \

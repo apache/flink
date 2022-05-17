@@ -36,7 +36,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /** BeamMapStateHandler handles operations on a {@link MapState}. */
-public class BeamMapStateHandler implements BeamStateHandler<MapState<ByteArrayWrapper, byte[]>> {
+public class BeamMapStateHandler
+        extends AbstractBeamStateHandler<MapState<ByteArrayWrapper, byte[]>> {
 
     private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
 
@@ -110,25 +111,7 @@ public class BeamMapStateHandler implements BeamStateHandler<MapState<ByteArrayW
         }
     }
 
-    public BeamFnApi.StateResponse.Builder handle(
-            BeamFnApi.StateRequest request, MapState<ByteArrayWrapper, byte[]> mapState)
-            throws Exception {
-        switch (request.getRequestCase()) {
-            case GET:
-                return handleGet(request, mapState);
-            case APPEND:
-                return handleAppend(request, mapState);
-            case CLEAR:
-                return handleClear(request, mapState);
-            default:
-                throw new RuntimeException(
-                        String.format(
-                                "Unsupported request type %s for user state.",
-                                request.getRequestCase()));
-        }
-    }
-
-    private BeamFnApi.StateResponse.Builder handleGet(
+    public BeamFnApi.StateResponse.Builder handleGet(
             BeamFnApi.StateRequest request, MapState<ByteArrayWrapper, byte[]> mapState)
             throws Exception {
         // The continuation token structure of GET request is:
@@ -174,7 +157,7 @@ public class BeamMapStateHandler implements BeamStateHandler<MapState<ByteArrayW
         return BeamFnApi.StateResponse.newBuilder().setId(request.getId()).setGet(response);
     }
 
-    private BeamFnApi.StateResponse.Builder handleAppend(
+    public BeamFnApi.StateResponse.Builder handleAppend(
             BeamFnApi.StateRequest request, MapState<ByteArrayWrapper, byte[]> mapState)
             throws Exception {
         // The structure of append request bytes is:
@@ -219,7 +202,7 @@ public class BeamMapStateHandler implements BeamStateHandler<MapState<ByteArrayW
                 .setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance());
     }
 
-    private BeamFnApi.StateResponse.Builder handleClear(
+    public BeamFnApi.StateResponse.Builder handleClear(
             BeamFnApi.StateRequest request, MapState<ByteArrayWrapper, byte[]> mapState)
             throws Exception {
         if (request.getStateKey()
