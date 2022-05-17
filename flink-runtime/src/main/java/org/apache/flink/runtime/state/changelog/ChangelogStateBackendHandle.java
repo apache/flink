@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -28,6 +30,7 @@ import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +40,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -121,6 +126,52 @@ public interface ChangelogStateBackendHandle
                     materializationID,
                     persistedSizeOfThisCheckpoint,
                     stateHandleId);
+        }
+
+        public static ChangelogStateBackendHandle getChangelogStateBackendHandle(
+                KeyedStateHandle originKeyedStateHandle) {
+            if (originKeyedStateHandle instanceof ChangelogStateBackendHandle) {
+                return (ChangelogStateBackendHandle) originKeyedStateHandle;
+            } else {
+                return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
+                        singletonList(castToAbsolutePath(originKeyedStateHandle)),
+                        emptyList(),
+                        originKeyedStateHandle.getKeyGroupRange(),
+                        originKeyedStateHandle instanceof CheckpointBoundKeyedStateHandle
+                                ? ((CheckpointBoundKeyedStateHandle) originKeyedStateHandle)
+                                        .getCheckpointId()
+                                : 0L,
+                        0L,
+                        0L);
+            }
+        }
+
+        private static KeyedStateHandle castToAbsolutePath(
+                KeyedStateHandle originKeyedStateHandle) {
+            // For KeyedStateHandle, only KeyGroupsStateHandle and IncrementalKeyedStateHandle
+            // contain streamStateHandle, and the checkpointedStateScope of
+            // IncrementalKeyedStateHandle
+            // is shared, no need to
+            // cast. So, only KeyGroupsStateHandle need to cast.
+            if (!(originKeyedStateHandle instanceof KeyGroupsStateHandle)
+                    || originKeyedStateHandle instanceof KeyGroupsSavepointStateHandle) {
+                return originKeyedStateHandle;
+            } else {
+                StreamStateHandle streamStateHandle =
+                        ((KeyGroupsStateHandle) originKeyedStateHandle).getDelegateStateHandle();
+
+                if (streamStateHandle instanceof FileStateHandle) {
+                    FileStateHandle fileStateHandle =
+                            new FileStateHandle(
+                                    ((FileStateHandle) streamStateHandle).getFilePath(),
+                                    streamStateHandle.getStateSize());
+                    return KeyGroupsStateHandle.restore(
+                            ((KeyGroupsStateHandle) originKeyedStateHandle).getGroupRangeOffsets(),
+                            fileStateHandle,
+                            originKeyedStateHandle.getStateHandleId());
+                }
+                return originKeyedStateHandle;
+            }
         }
 
         @Override

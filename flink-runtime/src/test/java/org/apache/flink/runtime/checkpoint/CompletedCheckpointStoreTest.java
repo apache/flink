@@ -100,7 +100,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     public void testAddCheckpointMoreThanMaxRetained() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
-
+        CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
         TestCompletedCheckpoint[] expected =
                 new TestCompletedCheckpoint[] {
                     createCheckpoint(0, sharedStateRegistry),
@@ -110,13 +110,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
                 };
 
         // Add checkpoints
-        checkpoints.addCheckpointAndSubsumeOldestOne(
-                expected[0], new CheckpointsCleaner(), () -> {});
+        checkpoints.addCheckpointAndSubsumeOldestOne(expected[0], checkpointsCleaner, () -> {});
         assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
         for (int i = 1; i < expected.length; i++) {
-            checkpoints.addCheckpointAndSubsumeOldestOne(
-                    expected[i], new CheckpointsCleaner(), () -> {});
+            checkpoints.addCheckpointAndSubsumeOldestOne(expected[i], checkpointsCleaner, () -> {});
 
             // The ZooKeeper implementation discards asynchronously
             expected[i - 1].awaitDiscard();
