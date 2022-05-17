@@ -1338,7 +1338,7 @@ class RemoteOperatorStateBackend(OperatorStateStore):
 
     def commit(self):
         for state in self._state_cache:
-            cast(InternalSynchronousMapRuntimeState, state).commit()
+            cast(SynchronousBroadcastRuntimeState, state).commit()
 
     def _validate_broadcast_state(self, name, key_coder, value_coder):
         if name in self._state_cache:
