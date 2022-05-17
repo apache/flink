@@ -71,9 +71,7 @@ class StreamingFileWriterTest {
 
     @BeforeEach
     void before() throws IOException {
-        File file = tmpDir.toFile();
-        file.delete();
-        path = new Path(file.toURI());
+        path = new Path(tmpDir.resolve("tmp").toUri());
     }
 
     @Test
