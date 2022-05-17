@@ -19,39 +19,35 @@ package org.apache.flink.table.types.extraction
 
 import org.apache.flink.table.annotation.{DataTypeHint, HintFlag}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.types.extraction.DataTypeExtractorTest.{TestSpec, _}
+import org.apache.flink.table.types.extraction.DataTypeExtractorTest._
 
-import org.junit.{Rule, Test}
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.HamcrestCondition
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
 import java.util
-
-import scala.annotation.meta.getter
+import java.util.stream
 
 /** Scala tests for [[DataTypeExtractor]]. */
-@RunWith(classOf[Parameterized])
-class DataTypeExtractorScalaTest(testSpec: DataTypeExtractorTest.TestSpec) {
+class DataTypeExtractorScalaTest {
 
-  @(Rule @getter)
-  var thrown: ExpectedException = ExpectedException.none
-
-  @Test
-  def testScalaExtraction(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testScalaExtraction(testSpec: DataTypeExtractorTest.TestSpec): Unit = {
     if (testSpec.hasErrorMessage) {
-      thrown.expect(classOf[ValidationException])
-      thrown.expectCause(errorMatcher(testSpec))
+      assertThatThrownBy(() => runExtraction(testSpec))
+        .isInstanceOf(classOf[ValidationException])
+        .is(HamcrestCondition.matching(errorMatcher(testSpec)))
+    } else {
+      runExtraction(testSpec)
     }
-    runExtraction(testSpec)
   }
 }
 
 object DataTypeExtractorScalaTest {
 
-  @Parameters
-  def testData: Array[TestSpec] = Array(
+  def testData: stream.Stream[TestSpec] = java.util.stream.Stream.of(
     // simple structured type without RAW type
     TestSpec
       .forType(classOf[ScalaSimplePojo])
