@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.constraints;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -26,10 +26,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link UniqueConstraint}. */
-public class UniqueConstraintTest {
+class UniqueConstraintTest {
 
     @Test
-    public void testCreatingPrimaryKey() {
+    void testCreatingPrimaryKey() {
         String keyName = "pk";
         List<String> columns = Collections.singletonList("f0");
         UniqueConstraint primaryKey = UniqueConstraint.primaryKey(keyName, columns);

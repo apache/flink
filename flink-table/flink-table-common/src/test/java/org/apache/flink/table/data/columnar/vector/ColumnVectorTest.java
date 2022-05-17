@@ -30,7 +30,7 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
@@ -45,12 +45,12 @@ import static org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVecto
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link ColumnVector}. */
-public class ColumnVectorTest {
+class ColumnVectorTest {
 
     private static final int SIZE = 10;
 
     @Test
-    public void testNulls() {
+    void testNulls() {
         HeapBooleanVector vector = new HeapBooleanVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -83,7 +83,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testBoolean() {
+    void testBoolean() {
         HeapBooleanVector vector = new HeapBooleanVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -100,7 +100,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testByte() {
+    void testByte() {
         HeapByteVector vector = new HeapByteVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -123,7 +123,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testShort() {
+    void testShort() {
         HeapShortVector vector = new HeapShortVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -146,7 +146,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testInt() {
+    void testInt() {
         HeapIntVector vector = new HeapIntVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -184,7 +184,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testLong() {
+    void testLong() {
         HeapLongVector vector = new HeapLongVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -216,7 +216,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testFloat() {
+    void testFloat() {
         HeapFloatVector vector = new HeapFloatVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -253,7 +253,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testDouble() {
+    void testDouble() {
         HeapDoubleVector vector = new HeapDoubleVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -292,7 +292,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testBytes() {
+    void testBytes() {
         HeapBytesVector vector = new HeapBytesVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -326,7 +326,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testTimestamp() {
+    void testTimestamp() {
         HeapTimestampVector vector = new HeapTimestampVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -353,7 +353,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testReserveDictIds() {
+    void testReserveDictIds() {
         HeapIntVector vector = new HeapIntVector(SIZE);
         assertThat(vector.reserveDictionaryIds(2).vector.length).isGreaterThanOrEqualTo(2);
         assertThat(vector.reserveDictionaryIds(5).vector.length).isGreaterThanOrEqualTo(5);

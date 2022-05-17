@@ -20,11 +20,8 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 
-import org.junit.runners.Parameterized;
+import java.util.stream.Stream;
 
-import java.util.List;
-
-import static java.util.Arrays.asList;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
@@ -33,9 +30,8 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.repeati
 /** Tests for {@link RepeatingSequenceInputTypeStrategy}. */
 public class RepeatingSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return asList(
+    public static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forStrategy(
                                 "Single occurrence",
                                 repeatingSequence(explicit(INT()), explicit(STRING())))

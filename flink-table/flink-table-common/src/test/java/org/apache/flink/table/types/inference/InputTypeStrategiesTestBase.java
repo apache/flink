@@ -27,9 +27,8 @@ import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -45,24 +44,33 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for testing {@link InputTypeStrategy}. */
-@RunWith(Parameterized.class)
 public abstract class InputTypeStrategiesTestBase {
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testStrategy() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource(
+            value = {
+                "org.apache.flink.table.types.inference.ComparableInputTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.CurrentWatermarkInputTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.InputTypeStrategiesTest#testData",
+                "org.apache.flink.table.types.inference.strategies.RepeatingSequenceInputTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.SubsequenceInputTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.TypeLiteralArgumentTypeStrategyTest#testData"
+            })
+    public void testStrategy(TestSpec testSpec) {
         if (testSpec.expectedSignature != null) {
-            assertThat(generateSignature()).isEqualTo(testSpec.expectedSignature);
+            assertThat(generateSignature(testSpec)).isEqualTo(testSpec.expectedSignature);
         }
         for (List<DataType> actualArgumentTypes : testSpec.actualArgumentTypes) {
             if (testSpec.expectedErrorMessage != null) {
-                assertThatThrownBy(() -> runTypeInference(actualArgumentTypes))
+                assertThatThrownBy(() -> runTypeInference(actualArgumentTypes, testSpec))
                         .satisfies(
                                 anyCauseMatches(
                                         ValidationException.class, testSpec.expectedErrorMessage));
             } else if (testSpec.expectedArgumentTypes != null) {
-                assertThat(runTypeInference(actualArgumentTypes).getExpectedArgumentTypes())
+                assertThat(
+                                runTypeInference(actualArgumentTypes, testSpec)
+                                        .getExpectedArgumentTypes())
                         .isEqualTo(testSpec.expectedArgumentTypes);
             }
         }
@@ -70,14 +78,15 @@ public abstract class InputTypeStrategiesTestBase {
 
     // --------------------------------------------------------------------------------------------
 
-    private String generateSignature() {
+    private String generateSignature(TestSpec testSpec) {
         final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
         functionDefinitionMock.functionKind = FunctionKind.SCALAR;
         return TypeInferenceUtil.generateSignature(
-                createTypeInference(), "f", functionDefinitionMock);
+                createTypeInference(testSpec), "f", functionDefinitionMock);
     }
 
-    private TypeInferenceUtil.Result runTypeInference(List<DataType> actualArgumentTypes) {
+    private TypeInferenceUtil.Result runTypeInference(
+            List<DataType> actualArgumentTypes, TestSpec testSpec) {
         final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
         functionDefinitionMock.functionKind = FunctionKind.SCALAR;
 
@@ -123,10 +132,10 @@ public abstract class InputTypeStrategiesTestBase {
             surroundingInfo = null;
         }
         return TypeInferenceUtil.runTypeInference(
-                createTypeInference(), callContextMock, surroundingInfo);
+                createTypeInference(testSpec), callContextMock, surroundingInfo);
     }
 
-    private TypeInference createTypeInference() {
+    private TypeInference createTypeInference(TestSpec testSpec) {
         final TypeInference.Builder builder =
                 TypeInference.newBuilder()
                         .inputTypeStrategy(testSpec.strategy)

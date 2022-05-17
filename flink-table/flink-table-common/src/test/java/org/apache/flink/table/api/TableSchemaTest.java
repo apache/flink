@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableSchema}. */
-public class TableSchemaTest {
+class TableSchemaTest {
 
     private static final String WATERMARK_EXPRESSION = "localtimestamp";
     private static final String WATERMARK_EXPRESSION_TS_LTZ = "now()";
@@ -42,7 +42,7 @@ public class TableSchemaTest {
     private static final DataType WATERMARK_TS_LTZ_DATATYPE = DataTypes.TIMESTAMP_LTZ(3);
 
     @Test
-    public void testTableSchema() {
+    void testTableSchema() {
         TableSchema schema =
                 TableSchema.builder()
                         .add(TableColumn.physical("f0", DataTypes.BIGINT()))
@@ -89,7 +89,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testWatermarkOnTimestampLtz() {
+    void testWatermarkOnTimestampLtz() {
         TableSchema tableSchema =
                 TableSchema.builder()
                         .field("f0", DataTypes.TIMESTAMP())
@@ -111,7 +111,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPersistedRowDataType() {
+    void testPersistedRowDataType() {
         final TableSchema schema =
                 TableSchema.builder()
                         .add(TableColumn.physical("f0", DataTypes.BIGINT()))
@@ -134,7 +134,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPhysicalRowDataType() {
+    void testPhysicalRowDataType() {
         final TableSchema schema =
                 TableSchema.builder()
                         .add(TableColumn.physical("f0", DataTypes.BIGINT()))
@@ -155,7 +155,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testRowDataType() {
+    void testRowDataType() {
         final TableSchema schema =
                 TableSchema.builder()
                         .add(TableColumn.physical("f0", DataTypes.BIGINT()))
@@ -180,7 +180,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testWatermarkOnDifferentFields() {
+    void testWatermarkOnDifferentFields() {
         // column_name, column_type, exception_msg
         List<Tuple3<String, DataType, String>> testData = new ArrayList<>();
         testData.add(Tuple3.of("a", DataTypes.BIGINT(), "but is of type 'BIGINT'"));
@@ -215,7 +215,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testWatermarkOnNestedField() {
+    void testWatermarkOnNestedField() {
         TableSchema schema =
                 TableSchema.builder()
                         .field("f0", DataTypes.BIGINT())
@@ -239,7 +239,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testWatermarkOnNonExistedField() {
+    void testWatermarkOnNonExistedField() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -258,7 +258,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testMultipleWatermarks() {
+    void testMultipleWatermarks() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -278,7 +278,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testDifferentWatermarkStrategyOutputTypes() {
+    void testDifferentWatermarkStrategyOutputTypes() {
         List<Tuple2<DataType, String>> testData = new ArrayList<>();
         testData.add(Tuple2.of(DataTypes.BIGINT(), "but is of type 'BIGINT'"));
         testData.add(Tuple2.of(DataTypes.STRING(), "but is of type 'STRING'"));
@@ -313,7 +313,7 @@ public class TableSchemaTest {
     CONSTRAINTS TESTS
     */
     @Test
-    public void testPrimaryKeyPrinting() {
+    void testPrimaryKeyPrinting() {
         TableSchema schema =
                 TableSchema.builder()
                         .field("f0", DataTypes.BIGINT().notNull())
@@ -332,7 +332,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyColumnsIndices() {
+    void testPrimaryKeyColumnsIndices() {
         TableSchema schema =
                 TableSchema.builder()
                         .field("f0", DataTypes.BIGINT().notNull())
@@ -347,7 +347,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyLazilyDefinedColumns() {
+    void testPrimaryKeyLazilyDefinedColumns() {
         TableSchema schema =
                 TableSchema.builder()
                         .field("f0", DataTypes.BIGINT().notNull())
@@ -362,7 +362,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyNoColumn() {
+    void testPrimaryKeyNoColumn() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -374,7 +374,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyNullableColumn() {
+    void testPrimaryKeyNullableColumn() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -386,7 +386,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyGeneratedColumn() {
+    void testPrimaryKeyGeneratedColumn() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -399,7 +399,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyNameMustNotBeNull() {
+    void testPrimaryKeyNameMustNotBeNull() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -411,7 +411,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyNameMustNotBeEmpty() {
+    void testPrimaryKeyNameMustNotBeEmpty() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()
@@ -423,7 +423,7 @@ public class TableSchemaTest {
     }
 
     @Test
-    public void testPrimaryKeyNoColumns() {
+    void testPrimaryKeyNoColumns() {
         assertThatThrownBy(
                         () ->
                                 TableSchema.builder()

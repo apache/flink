@@ -22,16 +22,16 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for TableSchemaUtils. */
-public class TableSchemaUtilsTest {
+class TableSchemaUtilsTest {
 
     @Test
-    public void testBuilderWithGivenSchema() {
+    void testBuilderWithGivenSchema() {
         TableSchema oriSchema =
                 TableSchema.builder()
                         .field("a", DataTypes.INT().notNull())
@@ -46,7 +46,7 @@ public class TableSchemaUtilsTest {
     }
 
     @Test
-    public void testDropConstraint() {
+    void testDropConstraint() {
         TableSchema originalSchema =
                 TableSchema.builder()
                         .field("a", DataTypes.INT().notNull())

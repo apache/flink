@@ -24,10 +24,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -42,26 +40,36 @@ import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for tests of {@link TypeStrategies}. */
-@RunWith(Parameterized.class)
 public abstract class TypeStrategiesTestBase {
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testTypeStrategy() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource(
+            value = {
+                "org.apache.flink.table.types.inference.strategies.ArrayTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.CurrentWatermarkTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.DecimalTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.GetTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.MapTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.MappingTypeStrategiesTest#testData",
+                "org.apache.flink.table.types.inference.strategies.RowTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.strategies.StringConcatTypeStrategyTest#testData",
+                "org.apache.flink.table.types.inference.TypeStrategiesTest#testData"
+            })
+    public void testTypeStrategy(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
-            assertThatThrownBy(this::runTypeInference)
+            assertThatThrownBy(() -> runTypeInference(testSpec))
                     .satisfies(
                             anyCauseMatches(
                                     ValidationException.class, testSpec.expectedErrorMessage));
         } else if (testSpec.expectedDataType != null) {
-            assertThat(runTypeInference().getOutputDataType()).isEqualTo(testSpec.expectedDataType);
+            assertThat(runTypeInference(testSpec).getOutputDataType())
+                    .isEqualTo(testSpec.expectedDataType);
         }
     }
 
     // --------------------------------------------------------------------------------------------
 
-    private TypeInferenceUtil.Result runTypeInference() {
+    private TypeInferenceUtil.Result runTypeInference(TestSpec testSpec) {
         final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
         functionDefinitionMock.functionKind = FunctionKind.SCALAR;
         final CallContextMock callContextMock = new CallContextMock();

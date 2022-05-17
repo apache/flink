@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.factories;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,17 +37,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests for testing table sink discovery using {@link TableFactoryService}. The tests assume the
  * table sink factory {@link TestTableSinkFactory} is registered.
  */
-public class TableSinkFactoryServiceTest {
+class TableSinkFactoryServiceTest {
 
     @Test
-    public void testValidProperties() {
+    void testValidProperties() {
         Map<String, String> props = properties();
         assertThat(TableFactoryService.find(TableSinkFactory.class, props))
                 .isInstanceOf(TestTableSinkFactory.class);
     }
 
     @Test
-    public void testInvalidContext() {
+    void testInvalidContext() {
         Map<String, String> props = properties();
         props.put(CONNECTOR_TYPE, "unknown-connector-type");
         assertThatThrownBy(() -> TableFactoryService.find(TableSinkFactory.class, props))
@@ -56,7 +56,7 @@ public class TableSinkFactoryServiceTest {
     }
 
     @Test
-    public void testDifferentContextVersion() {
+    void testDifferentContextVersion() {
         Map<String, String> props = properties();
         props.put(CONNECTOR_PROPERTY_VERSION, "2");
         // the table source should still be found
@@ -65,7 +65,7 @@ public class TableSinkFactoryServiceTest {
     }
 
     @Test
-    public void testUnsupportedProperty() {
+    void testUnsupportedProperty() {
         Map<String, String> props = properties();
         props.put("format.path_new", "/new/path");
         assertThatThrownBy(() -> TableFactoryService.find(TableSinkFactory.class, props))
@@ -78,7 +78,7 @@ public class TableSinkFactoryServiceTest {
     }
 
     @Test
-    public void testMissingProperty() {
+    void testMissingProperty() {
         Map<String, String> props = properties();
         props.remove(TableFactoryService.FORMAT_TYPE);
         assertThatThrownBy(() -> TableFactoryService.find(TableSinkFactory.class, props))
@@ -91,7 +91,7 @@ public class TableSinkFactoryServiceTest {
     }
 
     @Test
-    public void testMismatchedProperty() {
+    void testMismatchedProperty() {
         Map<String, String> props = properties();
         props.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
         assertThatThrownBy(() -> TableFactoryService.find(TableSinkFactory.class, props))
@@ -104,7 +104,7 @@ public class TableSinkFactoryServiceTest {
     }
 
     @Test
-    public void testMissingAndMismatchedProperty() {
+    void testMissingAndMismatchedProperty() {
         Map<String, String> props = properties();
         props.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
         props.remove(REQUIRED_TEST);
