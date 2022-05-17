@@ -96,9 +96,7 @@ class FileSystemOutputFormatTest {
 
         ref.get().finalizeGlobal(1);
         Map<File, String> content = getFileContentByPath(outputPath);
-        assertThat(content).hasSize(1);
-        assertThat(content.values().iterator().next())
-                .isEqualTo("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
+        assertThat(content.values()).containsExactly("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
     }
 
     private void writeUnorderedRecords(OneInputStreamOperatorTestHarness<Row, Object> testHarness)
