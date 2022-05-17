@@ -28,7 +28,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -54,6 +53,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.HashMap;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 
 /** Tests of {@link SubtaskExecutionAttemptDetailsHandler}. */
@@ -90,13 +90,12 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                                     new ArchivedExecution(
                                             emptyAccumulators,
                                             ioMetrics,
-                                            new ExecutionAttemptID(),
-                                            attempt,
+                                            createExecutionAttemptId(
+                                                    jobVertexId, subtaskIndex, attempt),
                                             expectedState,
                                             null,
                                             null,
                                             null,
-                                            subtaskIndex,
                                             new long[ExecutionState.values().length]),
                                     new EvictingBoundedList<>(0))
                         },
