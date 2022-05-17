@@ -423,6 +423,9 @@ If you still want to use the legacy `SinkFunction` or on Flink 1.14 or previous 
 The Pulsar Sink uses a builder class to construct the `PulsarSink` instance.
 This example writes a String record to a Pulsar topic with at-least-once delivery guarantee.
 
+{{< tabs "46e225b1-1e34-4ff3-890c-aa06a2b99c0a" >}}
+{{< tab "Java" >}}
+
 ```java
 DataStream<String> stream = ...
 
@@ -433,9 +436,29 @@ PulsarSink<String> sink = PulsarSink.builder()
     .setSerializationSchema(PulsarSerializationSchema.flinkSchema(new SimpleStringSchema()))
     .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
     .build();
-        
+
 stream.sinkTo(sink);
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+stream = env.from_source( ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_topics("topic1") \
+    .set_serialization_schema(PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .build()
+
+stream.sink_to(pulsar_sink)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 The following properties are **required** for building PulsarSink:
 
@@ -454,6 +477,9 @@ Defining the topics for producing is similar to the [topic-partition subscriptio
 in the Pulsar source. We support a mix-in style of topic setting. You can provide a list of topics,
 partitions, or both of them.
 
+{{< tabs "3d452e6b-bffd-42f7-bb91-974b306262ca" >}}
+{{< tab "Java" >}}
+
 ```java
 // Topic "some-topic1" and "some-topic2"
 PulsarSink.builder().setTopics("some-topic1", "some-topic2")
@@ -464,6 +490,23 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 // Partition 0 and 2 of topic "topic-a" and topic "some-topic2"
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+// Topic "some-topic1" and "some-topic2"
+PulsarSink.builder().set_topics(["some-topic1", "some-topic2"])
+
+// Partition 0 and 2 of topic "topic-a"
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2"])
+
+// Partition 0 and 2 of topic "topic-a" and topic "some-topic2"
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2", "some-topic2"])
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 The topics you provide support auto partition discovery. We query the topic metadata from the Pulsar in a fixed interval.
 You can use the `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` option to change the discovery interval option.
@@ -500,9 +543,23 @@ you can use the predefined `PulsarSerializationSchema`. The Pulsar sink provides
   PulsarSerializationSchema.pulsarSchema(Schema, Class, Class)
   ```
 - Encode the message by using Flink's `SerializationSchema`
+
+  {{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d8" >}}
+  {{< tab "Java" >}}
+
   ```java
   PulsarSerializationSchema.flinkSchema(SerializationSchema)
   ```
+
+  {{< /tab >}}
+  {{< tab "Python" >}}
+
+  ```python
+  PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+  ```
+
+  {{< /tab >}}
+  {{< /tabs >}}
 
 [Schema evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-evolution)
 can be enabled by users using `PulsarSerializationSchema.pulsarSchema()` and
@@ -767,51 +824,6 @@ The Pulsar team is working to optimize the needed resources by unfinished pendin
 you to reuse the same Flink job after certain "allowed" data model changes, like adding or deleting
 a field in a AVRO-based Pojo class. Please note that you can specify Pulsar schema validation rules
 and define an auto schema update. For details, refer to [Pulsar Schema Evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/).
-
-### Python API Usage
-
-Python API supports part of the functionality of Java API.
-
-```python
-data_stream = env.from_source( ...
-
-pulsar_sink = PulsarSink.builder() \
-    .set_service_url('pulsar://localhost:6650') \
-    .set_admin_url('http://localhost:8080') \
-    .set_producer_name('fo') \
-    .set_topics(['ada', 'beta']) \
-    .set_serialization_schema(
-        PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
-    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
-    .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
-    .enable_schema_evolution() \
-    .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
-    .set_config('pulsar.producer.chunkingEnabled', True) \
-    .set_properties({'pulsar.producer.batchingMaxMessages': '100'}) \
-    .build()
-
-data_stream.sink_to(pulsar_sink).name('pulsar sink')
-```
-
-#### Producing to topics
-
-You can provide a list of topics or one topic.
-
-```python
-PulsarSink.builder().set_topics('ada')
-
-PulsarSink.builder().set_topics(['ada', 'beta'])
-```
-
-#### Serializer
-
-Only support Flink’s DeserializationSchema, don't support Pulsar’s Schema.
-
-```python
-PulsarSerializationSchema.flink_schema(SimpleStringSchema())
-
-PulsarSerializationSchema.flink_schema(JsonRowSerializationSchema())
-```
 
 ## Upgrading to the Latest Connector Version
 

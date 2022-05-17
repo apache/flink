@@ -344,6 +344,9 @@ Pulsar Sink 使用 builder 类来创建 `PulsarSink` 实例。
 
 下面示例展示了如何通过 Pulsar Sink 以“至少一次”的语义将字符串类型的数据发送给 topic1。
 
+{{< tabs "46e225b1-1e34-4ff3-890c-aa06a2b99c0a" >}}
+{{< tab "Java" >}}
+
 ```java
 DataStream<String> stream = ...
 
@@ -358,6 +361,26 @@ PulsarSink<String> sink = PulsarSink.builder()
 stream.sinkTo(sink);
 ```
 
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+stream = env.from_source( ...
+
+pulsar_sink = PulsarSink.builder() \
+    .set_service_url('pulsar://localhost:6650') \
+    .set_admin_url('http://localhost:8080') \
+    .set_topics("topic1") \
+    .set_serialization_schema(PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
+    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
+    .build()
+
+stream.sink_to(pulsar_sink)
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 下列为创建一个 `PulsarSink` 实例必需的属性：
 
 - Pulsar 数据消费的地址，使用 `setServiceUrl(String)` 方法提供。
@@ -371,16 +394,36 @@ stream.sinkTo(sink);
 
 `PulsarSink` 指定写入 Topic 的方式和 Pulsar Source [指定消费的 Topic 或者 Topic 分区](#指定消费的-topic-或者-topic-分区)的方式类似。`PulsarSink` 支持以 mixin 风格指定写入的 Topic 或分区。因此，可以指定一组 Topic 或者分区或者是两者都有。
 
+{{< tabs "3d452e6b-bffd-42f7-bb91-974b306262ca" >}}
+{{< tab "Java" >}}
+
 ```java
 // Topic "some-topic1" 和 "some-topic2"
 PulsarSink.builder().setTopics("some-topic1", "some-topic2")
 
-// Topic "topic-a" 的分区 0 和 2 
+// Topic "topic-a" 的分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 
-// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2 
+// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+// Topic "some-topic1" 和 "some-topic2"
+PulsarSink.builder().set_topics(["some-topic1", "some-topic2"])
+
+// Topic "topic-a" 的分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2"])
+
+// Topic "topic-a" 以及 Topic "some-topic2" 分区 0 和 2
+PulsarSink.builder().set_topics(["topic-a-partition-0", "topic-a-partition-2", "some-topic2"])
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 动态分区发现默认处于开启状态，这意味着 `PulsarSink` 将会周期性地从 Pulsar 集群中查询 Topic 的元数据来获取可能有的分区数量变更信息。使用 `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` 配置项来指定查询的间隔时间。
 
@@ -410,9 +453,23 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "so
   PulsarSerializationSchema.pulsarSchema(Schema, Class, Class)
   ```
 - 使用 Flink 的 `SerializationSchema` 来序列化数据。
+
+  {{< tabs "b65b9978-b1d6-4b0d-ade8-78098e0f23d8" >}}
+  {{< tab "Java" >}}
+
   ```java
   PulsarSerializationSchema.flinkSchema(SerializationSchema)
   ```
+
+  {{< /tab >}}
+  {{< tab "Python" >}}
+
+  ```python
+  PulsarSerializationSchema.flink_schema(SimpleStringSchema())
+  ```
+
+  {{< /tab >}}
+  {{< /tabs >}}
 
 同时使用 `PulsarSerializationSchema.pulsarSchema()` 以及在 builder 中指定 `PulsarSinkBuilder.enableSchemaEvolution()` 可以启用 [Schema evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/#schema-evolution) 特性。该特性会使用 Pulsar Broker 端提供的 Schema 版本兼容性检测以及 Schema 版本演进。下列示例展示了如何启用 Schema Evolution。
 
@@ -636,51 +693,6 @@ Pulsar Sink 遵循 [FLIP-191](https://cwiki.apache.org/confluence/display/FLINK/
 [Pulsar Schema Evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/) 允许用户在一个 Flink 应用程序中使用的数据模型发生特定改变后（比如向基于 ARVO 的 POJO 类中增加或删除一个字段），仍能使用同一个 Flink 应用程序的代码。
 
 可以在 Pulsar 集群内指定哪些类型的数据模型的改变是被允许的，详情请参阅 [Pulsar Schema Evolution](https://pulsar.apache.org/docs/zh-CN/schema-evolution-compatibility/)。
-
-### Python API 用例
-
-Python API 支持部分 Java API 功能。
-
-```python
-data_stream = env.from_source( ...
-
-pulsar_sink = PulsarSink.builder() \
-    .set_service_url('pulsar://localhost:6650') \
-    .set_admin_url('http://localhost:8080') \
-    .set_producer_name('fo') \
-    .set_topics(['ada', 'beta']) \
-    .set_serialization_schema(
-        PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
-    .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
-    .set_topic_routing_mode(TopicRoutingMode.ROUND_ROBIN) \
-    .enable_schema_evolution() \
-    .delay_sending_message(MessageDelayer.fixed(Duration.of_seconds(12))) \
-    .set_config('pulsar.producer.chunkingEnabled', True) \
-    .set_properties({'pulsar.producer.batchingMaxMessages': '100'}) \
-    .build()
-
-data_stream.sink_to(pulsar_sink).name('pulsar sink')
-```
-
-#### Producing to topics
-
-可以设置 topic 列表或者单个 topic 。
-
-```python
-PulsarSink.builder().set_topics('ada')
-
-PulsarSink.builder().set_topics(['ada', 'beta'])
-```
-
-#### Serializer
-
-仅支持 Flink 的 SerializationSchema，不支持 Pulsar 的 Schema。
-
-```python
-PulsarSerializationSchema.flink_schema(SimpleStringSchema())
-
-PulsarSerializationSchema.flink_schema(JsonRowSerializationSchema())
-```
 
 ## 升级至最新的连接器
 

@@ -58,15 +58,18 @@ class DeliveryGuarantee(Enum):
     delivery guarantee which is supported by your sources and sinks.
 
     :data: `EXACTLY_ONCE`:
+
     Records are only delivered exactly-once also under failover scenarios. To build a complete
     exactly-once pipeline is required that the source and sink support exactly-once and are
     properly configured.
 
     :data: `AT_LEAST_ONCE`:
+
     Records are ensured to be delivered but it may happen that the same record is delivered
     multiple times. Usually, this guarantee is faster than the exactly-once delivery.
 
     :data: `NONE`:
+
     Records are delivered on a best effort basis. It is often the fastest way to process records
     but it may happen that records are lost or duplicated.
     """

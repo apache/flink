@@ -15,17 +15,18 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import warnings
 from enum import Enum
 from typing import Dict, Union, List
 
 from pyflink.common import DeserializationSchema, TypeInformation, ExecutionConfig, \
-    ConfigOptions, Configuration, Duration, SerializationSchema
+    ConfigOptions, Duration, SerializationSchema, ConfigOption
 from pyflink.datastream.connectors import Source, Sink, DeliveryGuarantee
 from pyflink.java_gateway import get_gateway
+from pyflink.util.java_utils import load_java_class
 
 
 # ---- PulsarSource ----
-from pyflink.util.java_utils import load_java_class
 
 
 class PulsarDeserializationSchema(object):
@@ -366,15 +367,32 @@ class PulsarSourceBuilder(object):
             pulsar_deserialization_schema._j_pulsar_deserialization_schema)
         return self
 
-    def set_config(self, key: str, value) -> 'PulsarSourceBuilder':
+    def set_config(self, key: Union[str, ConfigOption], value) -> 'PulsarSourceBuilder':
         """
         Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be
         found in PulsarSourceOptions and PulsarOptions.
 
         Make sure the option could be set only once or with same value.
         """
-        j_config_option = ConfigOptions.key(key).string_type().no_default_value()._j_config_option
+        if isinstance(key, ConfigOption):
+            warnings.warn("set_config(key: ConfigOption, value) is deprecated. "
+                          "Use set_config(key: str, value) instead.",
+                          DeprecationWarning, stacklevel=2)
+            j_config_option = key._j_config_option
+        else:
+            j_config_option = \
+                ConfigOptions.key(key).string_type().no_default_value()._j_config_option
         self._j_pulsar_source_builder.setConfig(j_config_option, value)
+        return self
+
+    def set_config_with_dict(self, config: Dict) -> 'PulsarSourceBuilder':
+        """
+        Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be
+        found in PulsarSourceOptions and PulsarOptions.
+        """
+        warnings.warn("set_config_with_dict is deprecated. Use set_properties instead.",
+                      DeprecationWarning, stacklevel=2)
+        self.set_properties(config)
         return self
 
     def set_properties(self, config: Dict) -> 'PulsarSourceBuilder':
@@ -391,6 +409,7 @@ class PulsarSourceBuilder(object):
         Build the PulsarSource.
         """
         return PulsarSource(self._j_pulsar_source_builder.build())
+
 
 # ---- PulsarSink ----
 
@@ -422,16 +441,19 @@ class TopicRoutingMode(Enum):
     The routing policy for choosing the desired topic by the given message.
 
     :data: `ROUND_ROBIN`:
+
     The producer will publish messages across all partitions in a round-robin fashion to achieve
     maximum throughput. Please note that round-robin is not done per individual message but
     rather it's set to the same boundary of batching delay, to ensure batching is effective.
 
     :data: `MESSAGE_KEY_HASH`:
+
     If no key is provided, The partitioned producer will randomly pick one single topic partition
     and publish all the messages into that partition. If a key is provided on the message, the
     partitioned producer will hash the key and assign the message to a particular partition.
 
     :data: `CUSTOM`:
+
     Use custom topic router implementation that will be called to determine the partition for a
     particular message.
     """
@@ -449,7 +471,7 @@ class TopicRoutingMode(Enum):
 class MessageDelayer(object):
     """
     A delayer for Pulsar broker passing the sent message to the downstream consumer. This is only
-    works in {@link SubscriptionType#Shared} subscription.
+    works in :data:`SubscriptionType.Shared` subscription.
 
     Read delayed message delivery
     https://pulsar.apache.org/docs/en/next/concepts-messaging/#delayed-message-delivery for better
@@ -509,7 +531,7 @@ class PulsarSink(Sink):
     DeliveryGuarantee#EXACTLY_ONCE: In this mode the PulsarSink will write all messages
     in a Pulsar transaction that will be committed to Pulsar on a checkpoint. Thus, no
     duplicates will be seen in case of a Flink restart. However, this delays record writing
-     effectively until a checkpoint is written, so adjust the checkpoint duration accordingly.
+    effectively until a checkpoint is written, so adjust the checkpoint duration accordingly.
     Additionally, it is highly recommended to tweak Pulsar transaction timeout (link) >>
     maximum checkpoint duration + maximum restart duration or data loss may happen when Pulsar
     expires an uncommitted transaction.
@@ -526,17 +548,6 @@ class PulsarSink(Sink):
         Get a PulsarSinkBuilder to builder a PulsarSink.
         """
         return PulsarSinkBuilder()
-
-
-class SinkConfiguration(object):
-    """
-    The configured class for pulsar sink.
-    """
-
-    def __init__(self, configuration: Configuration):
-        JSinkConfiguration = get_gateway().jvm \
-            .org.apache.flink.connector.pulsar.sink.config.SinkConfiguration
-        self._j_sink_configuration = JSinkConfiguration(configuration._j_configuration)
 
 
 class PulsarSinkBuilder(object):
@@ -634,20 +645,11 @@ class PulsarSinkBuilder(object):
             topic_routing_mode._to_j_topic_routing_mode())
         return self
 
-    def set_topic_router(self, class_name: str, sink_configuration: SinkConfiguration) \
-            -> 'PulsarSinkBuilder':
+    def set_topic_router(self, class_name: str) -> 'PulsarSinkBuilder':
         """
         Use a custom topic router instead predefine topic routing.
         """
-        get_constructor_args = get_gateway().new_array(get_gateway().jvm.java.lang.Class, 1)
-        get_constructor_args[0] = \
-            load_java_class('org.apache.flink.connector.pulsar.sink.config.SinkConfiguration')
-
-        new_instance_args = get_gateway().new_array(get_gateway().jvm.java.lang.Object, 1)
-        new_instance_args[0] = sink_configuration._j_sink_configuration
-
-        j_topic_router = load_java_class(class_name).getConstructor(
-            get_constructor_args).newInstance(new_instance_args)
+        j_topic_router = load_java_class(class_name).newInstance()
         self._j_pulsar_sink_builder.setTopicRouter(j_topic_router)
         return self
 
@@ -669,7 +671,7 @@ class PulsarSinkBuilder(object):
         self._j_pulsar_sink_builder.enableSchemaEvolution()
         return self
 
-    def delay_sending_message(self, message_delayer: MessageDelayer):
+    def delay_sending_message(self, message_delayer: MessageDelayer) -> 'PulsarSinkBuilder':
         """
         Set a message delayer for enable Pulsar message delay delivery.
         """

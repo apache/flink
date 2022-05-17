@@ -26,7 +26,7 @@ from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaPr
 from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, PulsarSource, \
     PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
-    PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode, SinkConfiguration
+    PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode
 from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
 
 
@@ -57,7 +57,6 @@ __all__ = [
     'PulsarSinkBuilder',
     'MessageDelayer',
     'TopicRoutingMode',
-    'SinkConfiguration',
     'RMQConnectionConfig',
     'RMQSource',
     'RMQSink',

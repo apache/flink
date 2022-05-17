@@ -17,7 +17,7 @@
 ################################################################################
 from abc import ABC, abstractmethod
 
-from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions, Configuration
+from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, Encoder, SimpleStringSchema
 from pyflink.common.typeinfo import Types
@@ -28,7 +28,7 @@ from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
     NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
     RMQConnectionConfig, PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, \
     SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
-    MessageDelayer, SinkConfiguration
+    MessageDelayer
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
@@ -248,6 +248,29 @@ class FlinkPulsarTest(ConnectorTestBase):
                 PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
             .build()
 
+    def test_source_deprecated_method(self):
+        test_option = ConfigOptions.key('pulsar.source.enableAutoAcknowledgeMessage') \
+            .boolean_type().no_default_value()
+        pulsar_source = PulsarSource.builder() \
+            .set_service_url('pulsar://localhost:6650') \
+            .set_admin_url('http://localhost:8080') \
+            .set_topics('ada') \
+            .set_deserialization_schema(
+                PulsarDeserializationSchema.flink_type_info(Types.STRING(), None)) \
+            .set_subscription_name('ff') \
+            .set_config(test_option, True) \
+            .set_config_with_dict({'pulsar.source.autoCommitCursorInterval': '1000'}) \
+            .build()
+        configuration = get_field_value(pulsar_source.get_java_function(), "sourceConfiguration")
+        self.assertEqual(
+            configuration.getBoolean(
+                test_option._j_config_option), True)
+        self.assertEqual(
+            configuration.getLong(
+                ConfigOptions.key('pulsar.source.autoCommitCursorInterval')
+                .long_type()
+                .no_default_value()._j_config_option), 1000)
+
     def test_pulsar_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -338,24 +361,6 @@ class FlinkPulsarTest(ConnectorTestBase):
             .set_serialization_schema(
                 PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
             .build()
-
-    def test_sink_set_topic_router(self):
-        sink_configuration = SinkConfiguration(Configuration())
-        pulsar_sink = PulsarSink.builder() \
-            .set_service_url('pulsar://localhost:6650') \
-            .set_admin_url('http://localhost:8080') \
-            .set_topics(['ada', 'beta']) \
-            .set_serialization_schema(
-                PulsarSerializationSchema.flink_schema(SimpleStringSchema())) \
-            .set_topic_router(
-            'org.apache.flink.connector.pulsar.sink.writer.router.KeyHashTopicRouter',
-            sink_configuration) \
-            .build()
-        j_topic_router = get_field_value(pulsar_sink.get_java_function(), "topicRouter")
-        self.assertTrue(
-            is_instance_of(
-                j_topic_router,
-                'org.apache.flink.connector.pulsar.sink.writer.router.KeyHashTopicRouter'))
 
 
 class RMQTest(ConnectorTestBase):
