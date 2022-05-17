@@ -23,7 +23,7 @@ from py4j.java_gateway import JavaObject
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState
+    AggregatingStateDescriptor, AggregatingState, BroadcastState, ReadOnlyBroadcastState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
@@ -115,6 +115,40 @@ class KeyedStateStore(ABC):
         aggregates values with different types.
 
         This state is only accessible if the function is executed on a KeyedStream.
+        """
+        pass
+
+
+class OperatorStateStore(ABC):
+    """
+    Interface for getting operator states. Currently, only :class:`~state.BroadcastState` is
+    supported.
+    .. versionadded:: 1.16.0
+    """
+
+    @abstractmethod
+    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
+        """
+        Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
+        which has read/write access to the broadcast operator state.
+        """
+        pass
+
+    @abstractmethod
+    def get_read_only_broadcast_state(
+        self, state_descriptor: MapStateDescriptor
+    ) -> ReadOnlyBroadcastState:
+        """
+        Fetches the :class:`~state.ReadOnlyBroadcastState` described by
+        :class:`~state.MapStateDescriptor`, which only has read access to the broadcast operator
+        state.
+        """
+        pass
+
+    @abstractmethod
+    def commit(self):
+        """
+        Commits all cached broadcast states at Python side to Java side.
         """
         pass
 

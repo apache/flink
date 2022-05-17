@@ -141,6 +141,11 @@ Classes for state operations:
     - :class:`state.AggregatingState`:
       Interface for aggregating state, based on an :class:`AggregateFunction`. Elements that are
       added to this type of state will be eagerly pre-aggregated using a given AggregateFunction.
+    - :class:`state.BroadcastState`:
+      A type of state that can be created to store the state of a :class:`BroadcastStream`. This
+      state assumes that the same elements are sent to all instances of an operator.
+    - :class:`state.ReadOnlyBroadcastState`:
+      A read-only view of the :class:`BroadcastState`.
     - :class:`state.StateTtlConfig`:
       Configuration of state TTL logic.
 
