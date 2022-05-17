@@ -35,7 +35,7 @@ function download() {
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then
-        echo "Dowload failed.You can try again"
+        echo "Download failed.You can try again"
         exit $DOWNLOAD_STATUS
     fi
 }
