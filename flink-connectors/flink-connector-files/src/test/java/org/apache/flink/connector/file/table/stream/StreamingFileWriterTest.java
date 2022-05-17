@@ -160,7 +160,7 @@ class StreamingFileWriterTest {
 
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            assertThat(partitions).isEqualTo(Arrays.asList("1", "2"));
+            assertThat(partitions).containsExactly("1", "2");
         }
     }
 
