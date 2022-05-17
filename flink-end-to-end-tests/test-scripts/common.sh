@@ -299,12 +299,20 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
+function relocate_rocksdb_logs {
+  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
+  # this would make e2e tests' artifacts containing too many log files.
+  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
+  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+}
+
 function wait_dispatcher_running {
   local query_url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
   wait_rest_endpoint_up "${query_url}" "Dispatcher" "\{\"taskmanagers\":\[.+\]\}"
 }
 
 function start_cluster {
+  relocate_rocksdb_logs
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
