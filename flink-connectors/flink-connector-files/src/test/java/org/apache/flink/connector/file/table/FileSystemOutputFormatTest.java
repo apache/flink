@@ -44,6 +44,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Test for {@link FileSystemOutputFormat}. */
 class FileSystemOutputFormatTest {
@@ -96,7 +97,8 @@ class FileSystemOutputFormatTest {
 
         ref.get().finalizeGlobal(1);
         Map<File, String> content = getFileContentByPath(outputPath);
-        assertThat(content.values()).containsExactly("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
+        assertThat(content.values())
+                .containsExactly("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
     }
 
     private void writeUnorderedRecords(OneInputStreamOperatorTestHarness<Row, Object> testHarness)
@@ -124,8 +126,8 @@ class FileSystemOutputFormatTest {
         ref.get().finalizeGlobal(1);
         Map<File, String> content = getFileContentByPath(outputPath);
         assertThat(content).hasSize(1);
-        assertThat(content.values().iterator().next())
-                .isEqualTo("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
+        assertThat(content.values())
+                .containsExactly("a1,1,p1\n" + "a2,2,p1\n" + "a2,2,p2\n" + "a3,3,p1\n");
         assertThat(new File(tmpPath.toUri())).doesNotExist();
     }
 
@@ -150,8 +152,7 @@ class FileSystemOutputFormatTest {
         Map<File, String> content = getFileContentByPath(outputPath);
         assertThat(content).hasSize(1);
         assertThat(content.keySet().iterator().next().getParentFile().getName()).isEqualTo("c=p1");
-        assertThat(content.values().iterator().next())
-                .isEqualTo("a1,1\n" + "a2,2\n" + "a2,2\n" + "a3,3\n");
+        assertThat(content.values()).containsExactly("a1,1\n" + "a2,2\n" + "a2,2\n" + "a3,3\n");
         assertThat(new File(tmpPath.toUri())).doesNotExist();
     }
 
@@ -170,8 +171,8 @@ class FileSystemOutputFormatTest {
         content.forEach((file, s) -> sortedContent.put(file.getParentFile().getName(), s));
 
         assertThat(sortedContent).hasSize(2);
-        assertThat(sortedContent.get("c=p1")).isEqualTo("a1,1\n" + "a2,2\n" + "a3,3\n");
-        assertThat(sortedContent.get("c=p2")).isEqualTo("a2,2\n");
+        assertThat(sortedContent)
+                .contains(entry("c=p1", "a1,1\n" + "a2,2\n" + "a3,3\n"), entry("c=p2", "a2,2\n"));
         assertThat(new File(tmpPath.toUri())).doesNotExist();
     }
 

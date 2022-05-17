@@ -44,7 +44,7 @@ abstract class FileSinkITBase {
 
     protected static final double FAILOVER_RATIO = 0.4;
 
-    public static Stream<Boolean> params() {
+    private static Stream<Boolean> params() {
         return Stream.of(false, true);
     }
 

@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.PartitionWriter.Context;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowUtils;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +42,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link PartitionWriter}s. */
 class PartitionWriterTest {
 
+    private final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
+
     @TempDir private java.nio.file.Path tmpDir;
 
     private PartitionTempFileManager manager;
@@ -49,12 +51,12 @@ class PartitionWriterTest {
     @BeforeEach
     void before() throws IOException {
         manager = new PartitionTempFileManager(fsFactory, new Path(tmpDir.toUri()), 0);
-        RowUtils.USE_LEGACY_TO_STRING = true;
+        usesLegacyRows.before();
     }
 
     @AfterEach
     void after() {
-        RowUtils.USE_LEGACY_TO_STRING = false;
+        usesLegacyRows.after();
     }
 
     private final Map<String, List<Row>> records = new LinkedHashMap<>();

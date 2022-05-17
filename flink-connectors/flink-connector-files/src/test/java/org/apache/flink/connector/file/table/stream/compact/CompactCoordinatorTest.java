@@ -37,7 +37,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -141,6 +140,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
 
         assertThat(unit.getUnitId()).isEqualTo(unitId);
         assertThat(unit.getPartition()).isEqualTo(partition);
-        assertThat(unit.getPaths().stream().map(Path::getName)).containsExactlyElementsOf(fileNames);
+        assertThat(unit.getPaths().stream().map(Path::getName))
+                .containsExactlyElementsOf(fileNames);
     }
 }

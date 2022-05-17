@@ -40,7 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -48,7 +47,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -89,7 +87,7 @@ class StreamingFileWriterTest {
             harness.processElement(row("4"), 0);
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            assertThat(partitions).isEqualTo(Arrays.asList("1", "2"));
+            assertThat(partitions).containsExactly("1", "2");
         }
 
         // first retry, no partition {1, 2} records
@@ -102,7 +100,7 @@ class StreamingFileWriterTest {
             state = harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
             List<String> partitions = collect(harness);
-            assertThat(partitions).isEqualTo(Arrays.asList("1", "2", "3", "4"));
+            assertThat(partitions).containsExactly("1", "2", "3", "4");
         }
 
         // second retry, partition {4} repeat
@@ -115,7 +113,7 @@ class StreamingFileWriterTest {
             state = harness.snapshot(3, 3);
             harness.notifyOfCompletedCheckpoint(3);
             List<String> partitions = collect(harness);
-            assertThat(partitions).isEqualTo(Arrays.asList("3", "4", "5"));
+            assertThat(partitions).containsExactly("3", "4", "5");
         }
 
         // third retry, multiple snapshots
@@ -133,7 +131,7 @@ class StreamingFileWriterTest {
             harness.notifyOfCompletedCheckpoint(5);
             List<String> partitions = collect(harness);
             // should not contains partition {9}
-            assertThat(partitions).isEqualTo(Arrays.asList("4", "5", "6", "7", "8"));
+            assertThat(partitions).containsExactly("4", "5", "6", "7", "8");
         }
     }
 

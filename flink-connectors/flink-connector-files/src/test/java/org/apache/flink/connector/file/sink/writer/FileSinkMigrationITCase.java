@@ -64,7 +64,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class FileSinkMigrationITCase {
 
-    @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private static final String SOURCE_UID = "source";
 
