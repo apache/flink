@@ -270,6 +270,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     String functionLanguage = null;
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
+    SqlNodeList jarPaths = SqlNodeList.EMPTY;
 }
 {
     (
@@ -305,9 +306,36 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
             <PYTHON>   { functionLanguage = "PYTHON"; }
         )
     ]
+    [ <USING>  {
+        if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
+            throw new ParseException(
+                String.format("USING JAR syntax is not applicable to %s language.", functionLanguage));
+        }
+        List<SqlNode> list = new ArrayList<SqlNode>();
+        String path = null;
+    }
+        <JAR> <QUOTED_STRING> {
+            path = SqlParserUtil.parseString(token.image);
+            list.add(SqlLiteral.createCharString(path, getPos()));
+        }
+        (
+            <COMMA> <JAR> <QUOTED_STRING> {
+                path = SqlParserUtil.parseString(token.image);
+                list.add(SqlLiteral.createCharString(path, getPos()));
+            }
+        )*
+        {  jarPaths = new SqlNodeList(list, s.pos()); }
+    ]
     {
-        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionLanguage,
-                ifNotExists, isTemporary, isSystemFunction);
+        return new SqlCreateFunction(
+                        s.pos(),
+                        functionIdentifier,
+                        functionClassName,
+                        functionLanguage,
+                        ifNotExists,
+                        isTemporary,
+                        isSystemFunction,
+                        jarPaths);
     }
 }
 

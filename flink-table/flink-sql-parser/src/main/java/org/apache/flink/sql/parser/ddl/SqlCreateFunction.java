@@ -23,6 +23,7 @@ import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -51,6 +52,8 @@ public class SqlCreateFunction extends SqlCreate {
 
     private final boolean isSystemFunction;
 
+    private final SqlNodeList jarPaths;
+
     public SqlCreateFunction(
             SqlParserPos pos,
             SqlIdentifier functionIdentifier,
@@ -58,13 +61,15 @@ public class SqlCreateFunction extends SqlCreate {
             String functionLanguage,
             boolean ifNotExists,
             boolean isTemporary,
-            boolean isSystemFunction) {
+            boolean isSystemFunction,
+            SqlNodeList jarPaths) {
         super(OPERATOR, pos, false, ifNotExists);
         this.functionIdentifier = requireNonNull(functionIdentifier);
         this.functionClassName = requireNonNull(functionClassName);
         this.isSystemFunction = isSystemFunction;
         this.isTemporary = isTemporary;
         this.functionLanguage = functionLanguage;
+        this.jarPaths = jarPaths;
     }
 
     @Override
@@ -75,7 +80,7 @@ public class SqlCreateFunction extends SqlCreate {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(functionIdentifier, functionClassName);
+        return ImmutableNullableList.of(functionIdentifier, functionClassName, jarPaths);
     }
 
     @Override
@@ -97,6 +102,16 @@ public class SqlCreateFunction extends SqlCreate {
         if (functionLanguage != null) {
             writer.keyword("LANGUAGE");
             writer.keyword(functionLanguage);
+        }
+        if (jarPaths.size() > 0) {
+            writer.keyword("USING");
+            SqlWriter.Frame withFrame = writer.startList("", "");
+            for (SqlNode jarPath : jarPaths) {
+                writer.sep(",");
+                writer.keyword("JAR");
+                jarPath.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.endList(withFrame);
         }
     }
 

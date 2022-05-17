@@ -1314,6 +1314,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "CREATE SYSTEM FUNCTION is not supported, "
                                 + "system functions can only be registered as temporary "
                                 + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
+
+        // test create function using jar
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'");
+
+        sql("create function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language sql using jar 'file:///path/to/test.jar'")
+                .fails("USING JAR syntax is not applicable to SQL language.");
     }
 
     @Test
