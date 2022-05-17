@@ -65,6 +65,9 @@ public abstract class ElasticsearchSinkE2ECaseBase<T extends Comparable<T>>
                     .fromContainer(
                             new ElasticsearchContainer(
                                             DockerImageName.parse(getElasticsearchContainerName()))
+                                    .withEnv(
+                                            "cluster.routing.allocation.disk.threshold_enabled",
+                                            "false")
                                     .withNetworkAliases(ELASTICSEARCH_HOSTNAME))
                     .bindWithFlinkContainer(flink.getFlinkContainers().getJobManager())
                     .build();
