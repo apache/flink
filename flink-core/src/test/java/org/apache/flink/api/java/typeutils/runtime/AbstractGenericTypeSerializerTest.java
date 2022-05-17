@@ -189,7 +189,7 @@ public abstract class AbstractGenericTypeSerializerTest {
 
         TypeSerializer<T> serializer = createSerializer(clazz);
         SerializerTestInstance<T> test =
-                new SerializerTestInstance<T>(serializer, clazz, -1, instances);
+                new SerializerTestInstance<T>(serializer, clazz, -1, instances) {};
         test.testAll();
     }
 

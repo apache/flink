@@ -25,7 +25,7 @@ import java.time.Instant;
 import java.util.Random;
 
 /** A test for the {@link InstantSerializer}. */
-public class InstantSerializerTest extends SerializerTestBase<Instant> {
+class InstantSerializerTest extends SerializerTestBase<Instant> {
     @Override
     protected TypeSerializer<Instant> createSerializer() {
         return new InstantSerializer();
