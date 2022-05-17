@@ -133,8 +133,6 @@ public class Execution
      */
     private final long[] stateTimestamps;
 
-    private final int attemptNumber;
-
     private final Time rpcTimeout;
 
     private final Collection<PartitionInfo> partitionInfos;
@@ -212,8 +210,6 @@ public class Execution
                         attemptNumber);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
-        this.attemptNumber = attemptNumber;
-
         this.stateTimestamps = new long[ExecutionState.values().length];
         markTimestamp(CREATED, startTimestamp);
 
@@ -242,7 +238,7 @@ public class Execution
 
     @Override
     public int getAttemptNumber() {
-        return attemptNumber;
+        return attemptId.getAttemptNumber();
     }
 
     @Override
@@ -550,7 +546,7 @@ public class Execution
             LOG.info(
                     "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
                     vertex.getTaskNameWithSubtaskIndex(),
-                    attemptNumber,
+                    getAttemptNumber(),
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
                     vertex.getID(),
                     getAssignedResourceLocation(),
@@ -1467,7 +1463,7 @@ public class Execution
     }
 
     public String getVertexWithAttempt() {
-        return vertex.getTaskNameWithSubtaskIndex() + " - execution #" + attemptNumber;
+        return vertex.getTaskNameWithSubtaskIndex() + " - execution #" + getAttemptNumber();
     }
 
     // ------------------------------------------------------------------------
@@ -1536,7 +1532,7 @@ public class Execution
 
         return String.format(
                 "Attempt #%d (%s) @ %s - [%s]",
-                attemptNumber,
+                getAttemptNumber(),
                 vertex.getTaskNameWithSubtaskIndex(),
                 (slot == null ? "(unassigned)" : slot),
                 state);

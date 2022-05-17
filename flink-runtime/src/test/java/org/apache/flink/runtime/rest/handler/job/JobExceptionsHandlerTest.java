@@ -27,7 +27,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -70,6 +69,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -345,15 +345,13 @@ public class JobExceptionsHandlerTest extends TestLogger {
                             new ArchivedExecution(
                                     new StringifiedAccumulatorResult[0],
                                     null,
-                                    new ExecutionAttemptID(),
-                                    attempt,
+                                    createExecutionAttemptId(jobVertexID, subtaskIndex, attempt),
                                     expectedState,
                                     new ErrorInfo(
                                             new RuntimeException("error"),
                                             System.currentTimeMillis()),
                                     assignedResourceLocation,
                                     allocationID,
-                                    subtaskIndex,
                                     timestamps),
                             new EvictingBoundedList<>(0))
                 },
