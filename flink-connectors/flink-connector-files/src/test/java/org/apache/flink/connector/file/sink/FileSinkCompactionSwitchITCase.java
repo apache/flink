@@ -106,7 +106,7 @@ public class FileSinkCompactionSwitchITCase {
 
     @TempDir private static java.nio.file.Path tmpDir;
 
-    @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+    @RegisterExtension private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private static final Map<String, CountDownLatch> LATCH_MAP = new ConcurrentHashMap<>();
 
