@@ -20,7 +20,6 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -28,13 +27,12 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,20 +40,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link YarnApplicationFileUploader}. */
-public class YarnApplicationFileUploaderTest extends TestLogger {
-
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+class YarnApplicationFileUploaderTest {
 
     @Test
-    public void testRegisterProvidedLocalResources() throws IOException {
-        final File flinkLibDir = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResources(@TempDir File flinkLibDir) throws IOException {
         final Map<String, String> libJars = getLibJars();
 
         generateFilesInDirectory(flinkLibDir, libJars);
@@ -63,7 +59,7 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         try (final YarnApplicationFileUploader yarnApplicationFileUploader =
                 YarnApplicationFileUploader.from(
                         FileSystem.get(new YarnConfiguration()),
-                        new Path(temporaryFolder.getRoot().toURI()),
+                        new Path(flinkLibDir.toURI()),
                         Collections.singletonList(new Path(flinkLibDir.toURI())),
                         ApplicationId.newInstance(0, 0),
                         DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
@@ -73,15 +69,17 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
             final Set<String> registeredResources =
                     yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
 
-            assertThat(
-                    registeredResources, Matchers.containsInAnyOrder(libJars.keySet().toArray()));
+            assertThat(registeredResources).containsExactlyInAnyOrderElementsOf(libJars.keySet());
         }
     }
 
     @Test
-    public void testRegisterProvidedLocalResourcesWithDuplication() throws IOException {
-        final File flinkLibDir1 = temporaryFolder.newFolder();
-        final File flinkLibDir2 = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResourcesWithDuplication(@TempDir java.nio.file.Path tempDir)
+            throws IOException {
+        final File flinkLibDir1 =
+                Files.createTempDirectory(tempDir, UUID.randomUUID().toString()).toFile();
+        final File flinkLibDir2 =
+                Files.createTempDirectory(tempDir, UUID.randomUUID().toString()).toFile();
 
         generateFilesInDirectory(flinkLibDir1, getLibJars());
         generateFilesInDirectory(flinkLibDir2, getLibJars());
@@ -94,7 +92,7 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
                     () ->
                             YarnApplicationFileUploader.from(
                                     fileSystem,
-                                    new Path(temporaryFolder.getRoot().toURI()),
+                                    new Path(tempDir.toFile().toURI()),
                                     Arrays.asList(
                                             new Path(flinkLibDir1.toURI()),
                                             new Path(flinkLibDir2.toURI())),
@@ -106,8 +104,8 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
     }
 
     @Test
-    public void testRegisterProvidedLocalResourcesWithNotAllowedUsrLib() throws IOException {
-        final File flinkHomeDir = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResourcesWithNotAllowedUsrLib(@TempDir File flinkHomeDir)
+            throws IOException {
         final File flinkLibDir = new File(flinkHomeDir, "lib");
         final File flinkUsrLibDir = new File(flinkHomeDir, "usrlib");
         final Map<String, String> libJars = getLibJars();
