@@ -21,7 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link SqlTimeTypeInfo}. */
-public class LocalTimeTypeInfoTest extends TypeInformationTestBase<LocalTimeTypeInfo<?>> {
+class LocalTimeTypeInfoTest extends TypeInformationTestBase<LocalTimeTypeInfo<?>> {
 
     @Override
     protected LocalTimeTypeInfo<?>[] getTestData() {

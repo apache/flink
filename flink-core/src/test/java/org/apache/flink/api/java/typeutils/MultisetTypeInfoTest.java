@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link MultisetTypeInfo}. */
-public class MultisetTypeInfoTest extends TypeInformationTestBase<MultisetTypeInfo<?>> {
+class MultisetTypeInfoTest extends TypeInformationTestBase<MultisetTypeInfo<?>> {
 
     @Override
     protected MultisetTypeInfo<?>[] getTestData() {

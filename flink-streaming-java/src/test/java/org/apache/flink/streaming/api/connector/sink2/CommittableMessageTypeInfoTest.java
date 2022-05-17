@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link CommittableMessageTypeInfo}. */
-public class CommittableMessageTypeInfoTest
+class CommittableMessageTypeInfoTest
         extends TypeInformationTestBase<CommittableMessageTypeInfo<?>> {
 
     @SuppressWarnings("rawtypes")

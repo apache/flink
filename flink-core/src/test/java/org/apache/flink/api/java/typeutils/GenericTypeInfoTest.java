@@ -21,7 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link GenericTypeInfo}. */
-public class GenericTypeInfoTest extends TypeInformationTestBase<GenericTypeInfo<?>> {
+class GenericTypeInfoTest extends TypeInformationTestBase<GenericTypeInfo<?>> {
 
     @Override
     protected GenericTypeInfo<?>[] getTestData() {
