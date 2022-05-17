@@ -141,7 +141,6 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
 
         assertThat(unit.getUnitId()).isEqualTo(unitId);
         assertThat(unit.getPartition()).isEqualTo(partition);
-        assertThat(unit.getPaths().stream().map(Path::getName).collect(Collectors.toList()))
-                .isEqualTo(fileNames);
+        assertThat(unit.getPaths().stream().map(Path::getName)).containsExactlyElementsOf(fileNames);
     }
 }
