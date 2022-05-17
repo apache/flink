@@ -88,7 +88,6 @@ public class PythonProcessOperator<IN, OUT>
                 null,
                 null,
                 null,
-                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(

@@ -17,10 +17,8 @@
 ################################################################################
 import os
 import tempfile
-
-from typing import List, Any, Optional
-
 from py4j.java_gateway import JavaObject
+from typing import List, Any, Optional
 
 from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
@@ -971,6 +969,7 @@ class StreamExecutionEnvironment(object):
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
 
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
+        JPythonConfigUtil.registerPythonBroadcastTransformationTranslator()
 
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
             self._j_stream_execution_environment)

@@ -18,15 +18,15 @@
 import base64
 import collections
 from abc import ABC, abstractmethod
+from apache_beam.coders import coder_impl
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
+from apache_beam.transforms import userstate
 from enum import Enum
 from functools import partial
 from io import BytesIO
 from typing import Any, Collection, Dict, List, Tuple, cast
 
-from apache_beam.coders import coder_impl
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
-from apache_beam.transforms import userstate
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction, OperatorStateStore
 from pyflink.datastream.state import (
@@ -36,7 +36,7 @@ from pyflink.datastream.state import (
     StateTtlConfig,
 )
 from pyflink.fn_execution.beam.beam_coders import FlinkCoder
-from pyflink.fn_execution.coders import FieldCoder, from_type_info
+from pyflink.fn_execution.coders import FieldCoder, MapCoder, from_type_info
 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor as proto_StateDescriptor
 from pyflink.fn_execution.internal_state import (
     InternalAggregatingState,
@@ -1296,7 +1296,7 @@ class RemoteOperatorStateBackend(OperatorStateStore):
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
         state_name = state_descriptor.name
-        map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+        map_coder = cast(MapCoder, from_type_info(state_descriptor.type_info))  # type: MapCoder
         key_coder = map_coder._key_coder
         value_coder = map_coder._value_coder
 

@@ -23,6 +23,29 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 /** Interface for doing actual operations on Flink state based on {@link BeamFnApi.StateRequest}. */
 public interface BeamStateHandler<S> {
 
-    BeamFnApi.StateResponse.Builder handle(BeamFnApi.StateRequest request, S state)
+    default BeamFnApi.StateResponse.Builder handle(BeamFnApi.StateRequest request, S state)
+            throws Exception {
+        switch (request.getRequestCase()) {
+            case GET:
+                return handleGet(request, state);
+            case APPEND:
+                return handleAppend(request, state);
+            case CLEAR:
+                return handleClear(request, state);
+            default:
+                throw new RuntimeException(
+                        String.format(
+                                "Unsupported request type %s for user state.",
+                                request.getRequestCase()));
+        }
+    }
+
+    BeamFnApi.StateResponse.Builder handleGet(BeamFnApi.StateRequest request, S state)
+            throws Exception;
+
+    BeamFnApi.StateResponse.Builder handleAppend(BeamFnApi.StateRequest request, S state)
+            throws Exception;
+
+    BeamFnApi.StateResponse.Builder handleClear(BeamFnApi.StateRequest request, S state)
             throws Exception;
 }

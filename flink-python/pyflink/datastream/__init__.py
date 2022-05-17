@@ -35,6 +35,11 @@ Entry point classes of Flink DataStream API:
       Represent two connected streams of (possibly) different data types. Connected
       streams are useful for cases where operations on one stream directly affect the operations on
       the other stream, usually via shared state between the streams.
+    - :class:`BroadcastStream`:
+      Represent a stream with :class:`state.BroadcastState` (s).
+    - :class:`BroadcastConnectedStream`:
+      Represents the result of connecting a keyed or non-keyed stream, with a
+      :class:`BroadcastStream` with :class:`~state.BroadcastState` (s)
 
 Functions used to transform a :class:`DataStream` into another :class:`DataStream`:
 
@@ -70,6 +75,11 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
       information such as the current timestamp, the watermark, etc.
     - :class:`AggregateFunction`:
       Base class for a user-defined aggregate function.
+    - :class:`BroadcastProcessFunction`:
+      A function to be applied to a :class:`BroadcastConnectedStream` that connects
+      :class:`BroadcastStream`, i.e. a stream with broadcast state, with a non-keyed
+      :class:`DataStream`.
+    - :class:`KeyedBroadcastProcessFunction`:
     - :class:`RuntimeContext`:
       Contains information about the context in which functions are executed. Each
       parallel instance of the function will have a context through which it can access static
@@ -141,6 +151,11 @@ Classes for state operations:
     - :class:`state.AggregatingState`:
       Interface for aggregating state, based on an :class:`AggregateFunction`. Elements that are
       added to this type of state will be eagerly pre-aggregated using a given AggregateFunction.
+    - :class:`state.BroadcastState`:
+      A type of state that can be created to store the state of a :class:`BroadcastStream`. This
+      state assumes that the same elements are sent to all instances of an operator.
+    - :class:`state.ReadOnlyBroadcastState`:
+      A read-only view of the :class:`BroadcastState`.
     - :class:`state.StateTtlConfig`:
       Configuration of state TTL logic.
 
@@ -189,86 +204,129 @@ Other important classes:
       Tag with a name and type for identifying side output of an operator
 """
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.datastream.checkpoint_storage import (
+    CheckpointStorage,
+    CustomCheckpointStorage,
+    FileSystemCheckpointStorage,
+    JobManagerCheckpointStorage,
+)
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
-from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
-    ConnectedStreams, DataStreamSink
+from pyflink.datastream.data_stream import (
+    BroadcastConnectedStream,
+    BroadcastStream,
+    ConnectedStreams,
+    DataStream,
+    DataStreamSink,
+    KeyedStream,
+    WindowedStream,
+)
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
-from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
-                                          CoFlatMapFunction, ReduceFunction, RuntimeContext,
-                                          KeySelector, FilterFunction, Partitioner, SourceFunction,
-                                          SinkFunction, CoProcessFunction, KeyedProcessFunction,
-                                          KeyedCoProcessFunction, AggregateFunction, WindowFunction,
-                                          ProcessWindowFunction)
-from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
-from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
-                                              RocksDBStateBackend, CustomStateBackend,
-                                              PredefinedOptions, HashMapStateBackend,
-                                              EmbeddedRocksDBStateBackend)
-from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
-                                                   FileSystemCheckpointStorage,
-                                                   CustomCheckpointStorage)
+from pyflink.datastream.functions import (
+    AggregateFunction,
+    BroadcastProcessFunction,
+    CoFlatMapFunction,
+    CoMapFunction,
+    CoProcessFunction,
+    FilterFunction,
+    FlatMapFunction,
+    KeyedBroadcastProcessFunction,
+    KeyedCoProcessFunction,
+    KeyedProcessFunction,
+    KeySelector,
+    MapFunction,
+    Partitioner,
+    ProcessFunction,
+    ProcessWindowFunction,
+    ReduceFunction,
+    RuntimeContext,
+    SinkFunction,
+    SourceFunction,
+    WindowFunction,
+)
+from pyflink.datastream.output_tag import OutputTag
+from pyflink.datastream.slot_sharing_group import MemorySize, SlotSharingGroup
+from pyflink.datastream.state_backend import (
+    CustomStateBackend,
+    EmbeddedRocksDBStateBackend,
+    FsStateBackend,
+    HashMapStateBackend,
+    MemoryStateBackend,
+    PredefinedOptions,
+    RocksDBStateBackend,
+    StateBackend,
+)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
-from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
-from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
-    MergingWindowAssigner, TriggerResult, Trigger, GlobalWindow
-from pyflink.datastream.output_tag import OutputTag
+from pyflink.datastream.window import (
+    CountWindow,
+    GlobalWindow,
+    MergingWindowAssigner,
+    TimeWindow,
+    Trigger,
+    TriggerResult,
+    Window,
+    WindowAssigner,
+)
 
 __all__ = [
-    'StreamExecutionEnvironment',
-    'DataStream',
-    'KeyedStream',
-    'WindowedStream',
-    'ConnectedStreams',
-    'DataStreamSink',
-    'MapFunction',
-    'CoMapFunction',
-    'FlatMapFunction',
-    'CoFlatMapFunction',
-    'ReduceFunction',
-    'FilterFunction',
-    'ProcessFunction',
-    'KeyedProcessFunction',
-    'CoProcessFunction',
-    'KeyedCoProcessFunction',
-    'WindowFunction',
-    'ProcessWindowFunction',
-    'AggregateFunction',
-    'RuntimeContext',
-    'TimerService',
-    'CheckpointingMode',
-    'CheckpointConfig',
-    'ExternalizedCheckpointCleanup',
-    'StateBackend',
-    'HashMapStateBackend',
-    'EmbeddedRocksDBStateBackend',
-    'CustomStateBackend',
-    'MemoryStateBackend',
-    'RocksDBStateBackend',
-    'FsStateBackend',
-    'PredefinedOptions',
-    'CheckpointStorage',
-    'JobManagerCheckpointStorage',
-    'FileSystemCheckpointStorage',
-    'CustomCheckpointStorage',
-    'RuntimeExecutionMode',
-    'Window',
-    'TimeWindow',
-    'CountWindow',
-    'GlobalWindow',
-    'WindowAssigner',
-    'MergingWindowAssigner',
-    'TriggerResult',
-    'Trigger',
-    'TimeCharacteristic',
-    'TimeDomain',
-    'KeySelector',
-    'Partitioner',
-    'SourceFunction',
-    'SinkFunction',
-    'SlotSharingGroup',
-    'MemorySize',
-    'OutputTag'
+    "StreamExecutionEnvironment",
+    "DataStream",
+    "KeyedStream",
+    "WindowedStream",
+    "ConnectedStreams",
+    "BroadcastStream",
+    "BroadcastConnectedStream",
+    "DataStreamSink",
+    "MapFunction",
+    "CoMapFunction",
+    "FlatMapFunction",
+    "CoFlatMapFunction",
+    "ReduceFunction",
+    "FilterFunction",
+    "ProcessFunction",
+    "KeyedProcessFunction",
+    "CoProcessFunction",
+    "KeyedCoProcessFunction",
+    "WindowFunction",
+    "ProcessWindowFunction",
+    "AggregateFunction",
+    "BroadcastProcessFunction",
+    "KeyedBroadcastProcessFunction",
+    "RuntimeContext",
+    "TimerService",
+    "CheckpointingMode",
+    "CheckpointConfig",
+    "ExternalizedCheckpointCleanup",
+    "StateBackend",
+    "HashMapStateBackend",
+    "EmbeddedRocksDBStateBackend",
+    "CustomStateBackend",
+    "MemoryStateBackend",
+    "RocksDBStateBackend",
+    "FsStateBackend",
+    "PredefinedOptions",
+    "CheckpointStorage",
+    "JobManagerCheckpointStorage",
+    "FileSystemCheckpointStorage",
+    "CustomCheckpointStorage",
+    "RuntimeExecutionMode",
+    "Window",
+    "TimeWindow",
+    "CountWindow",
+    "GlobalWindow",
+    "WindowAssigner",
+    "MergingWindowAssigner",
+    "TriggerResult",
+    "Trigger",
+    "TimeCharacteristic",
+    "TimeDomain",
+    "KeySelector",
+    "Partitioner",
+    "SourceFunction",
+    "SinkFunction",
+    "SlotSharingGroup",
+    "MemorySize",
+    "OutputTag",
 ]

@@ -17,6 +17,7 @@
 ################################################################################
 import uuid
 from enum import Enum
+from py4j.java_collections import ListConverter
 from typing import Callable, Collection, List, Optional, Union, cast
 
 from pyflink.common import ExecutionConfig, Row, typeinfo
@@ -77,8 +78,17 @@ from pyflink.datastream.window import (
 )
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
-           'DataStreamSink', 'CloseableIterator']
+__all__ = [
+    "CloseableIterator",
+    "DataStream",
+    "KeyedStream",
+    "ConnectedStreams",
+    "WindowedStream",
+    "BroadcastStream",
+    "BroadcastConnectedStream",
+    "DataStreamSink",
+    "CloseableIterator",
+]
 
 WINDOW_STATE_NAME = 'window-contents'
 
@@ -498,12 +508,20 @@ class DataStream(object):
         self, ds: Union["DataStream", "BroadcastStream"]
     ) -> Union["ConnectedStreams", "BroadcastConnectedStream"]:
         """
-        Creates a new 'ConnectedStreams' by connecting 'DataStream' outputs of (possible)
-        different types with each other. The DataStreams connected using this operator can
-        be used with CoFunctions to apply joint transformations.
+        If ds is a :class:`DataStream`, creates a new :class:`ConnectedStreams` by connecting
+        DataStream outputs of (possible) different types with each other. The DataStreams connected
+        using this operator can be used with CoFunctions to apply joint transformations.
 
-        :param ds: The DataStream with which this stream will be connected.
-        :return: The `ConnectedStreams`.
+        If ds is a :class:`BroadcastStream`, creates a new :class:`BroadcastConnectedStream` by
+        connecting the current :class:`DataStream` or :class:`KeyedStream` with a
+        :class:`BroadcastStream`. The latter can be created using the :meth:`broadcast` method. The
+        resulting stream can be further processed using the :meth:`BroadcastConnectedStream.process`
+        method, where the argument can be either a :class:`KeyedBroadcastProcessFunction` or a
+        :class:`BroadcastProcessFunction` depending on the current stream being a
+        :class:`KeyedStream` or not.
+
+        :param ds: The DataStream or BroadcastStream with which this stream will be connected.
+        :return: The ConnectedStreams or BroadcastConnectedStream.
         """
         if isinstance(ds, BroadcastStream):
             return BroadcastConnectedStream(
@@ -582,14 +600,29 @@ class DataStream(object):
         Sets the partitioning of the DataStream so that the output elements are broadcasted to every
         parallel instance of the next operation.
 
-        :return: The DataStream with broadcast partitioning set.
+        If :class:`~state.MapStateDescriptor` (s) are passed in, it returns a
+        :class:`BroadcastStream` with :class:`~state.BroadcastState` (s) implicitly created as the
+        descriptors specified.
+
+        Example:
+        ::
+
+            >>> map_state_desc1 = MapStateDescriptor("state1", Types.INT(), Types.INT())
+            >>> map_state_desc2 = MapStateDescriptor("state2", Types.INT(), Types.STRING())
+            >>> broadcast_stream = ds1.broadcast(map_state_desc1, map_state_desc2)
+            >>> broadcast_connected_stream = ds2.connect(broadcast_stream)
+
+        :param args: optionally to be a list of MapStateDescriptors describing BroadcastStates.
+        :return: The DataStream with broadcast partitioning set or a BroadcastStream which can be
+            used in :meth:`connect` to create a BroadcastConnectedStream for further processing of
+            the elements.
         """
         if args:
             for arg in args:
                 if not isinstance(arg, MapStateDescriptor):
                     raise TypeError("broadcast_state_descriptor must be MapStateDescriptor")
             broadcast_state_descriptors = [arg for arg in args]  # type: List[MapStateDescriptor]
-            return BroadcastStream(self.broadcast(), broadcast_state_descriptors)
+            return BroadcastStream(cast(DataStream, self.broadcast()), broadcast_state_descriptors)
         return DataStream(self._j_data_stream.broadcast())
 
     def process(self, func: ProcessFunction, output_type: TypeInformation = None) -> 'DataStream':
@@ -803,6 +836,8 @@ class DataStream(object):
         """
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
         JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
+        JPythonConfigUtil.registerPythonBroadcastTransformationTranslator()
+
         self._apply_chaining_optimization()
         if job_execution_name is None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
@@ -1608,7 +1643,7 @@ class KeyedStream(DataStream):
     def forward(self) -> 'DataStream':
         raise Exception('Cannot override partitioning for KeyedStream.')
 
-    def broadcast(self) -> 'DataStream':
+    def broadcast(self, *args):
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def partition_custom(self, partitioner: Union[Callable, Partitioner],
@@ -2132,6 +2167,18 @@ class ConnectedStreams(object):
 
 
 class BroadcastStream(object):
+    """
+    A BroadcastStream is a stream with :class:`state.BroadcastState` (s). This can be created by any
+    stream using the :meth:`DataStream.broadcast` method and implicitly creates states where the
+    user can store elements of the created :class:`BroadcastStream`. (see
+    :class:`BroadcastConnectedStream`).
+
+    Note that no further operation can be applied to these streams. The only available option is
+    to connect them with a keyed or non-keyed stream, using the :meth:`KeyedStream.connect` and the
+    :meth:`DataStream.connect` respectively. Applying these methods will result it a
+    :class:`BroadcastConnectedStream` for further processing.
+    """
+
     def __init__(
         self,
         input_stream: "DataStream",
@@ -2142,6 +2189,20 @@ class BroadcastStream(object):
 
 
 class BroadcastConnectedStream(object):
+    """
+    A BroadcastConnectedStream represents the result of connecting a keyed or non-keyed stream, with
+    a :class:`BroadcastStream` with :class:`~state.BroadcastState` (s). As in the case of
+    :class:`ConnectedStreams` these streams are useful for cases where operations on one stream
+    directly affect the operations on the other stream, usually via shared state between the
+    streams.
+
+    An example for the use of such connected streams would be to apply rules that change over time
+    onto another, possibly keyed stream. The stream with the broadcast state has the rules, and will
+    store them in the broadcast state, while the other stream will contain the elements to apply the
+    rules to. By broadcasting the rules, these will be available in all parallel instances, and can
+    be applied to all partitions of the other stream.
+    """
+
     def __init__(
         self,
         non_broadcast_stream: "DataStream",
@@ -2156,11 +2217,40 @@ class BroadcastConnectedStream(object):
         self,
         func: Union[BroadcastProcessFunction, KeyedBroadcastProcessFunction],
         output_type: TypeInformation = None,
-    ):
+    ) -> "DataStream":
+        """
+        Assumes as inputs a :class:`BroadcastStream` and a :class:`DataStream` or
+        :class:`KeyedStream` and applies the given :class:`BroadcastProcessFunction` or
+        :class:`KeyedBroadcastProcessFunction` on them, thereby creating a transformed output
+        stream.
+
+        :param func: The :class:`BroadcastProcessFunction` or :class:`KeyedBroadcastProcessFunction`
+            that is called for each element in the stream. Note that the kind(keyed or non-keyed) of
+            the function should be the same as the input non-broadcast stream.
+        :param output_type: The type of the output elements, should be
+            :class:`common.TypeInformation` or list (implicit :class:`RowTypeInfo`) or None (
+            implicit :meth:`Types.PICKLED_BYTE_ARRAY`).
+        :return: The transformed :class:`DataStream`.
+        """
         if isinstance(func, BroadcastProcessFunction) and self._is_keyed_stream():
             raise TypeError("BroadcastProcessFunction should be applied to non-keyed DataStream")
         if isinstance(func, KeyedBroadcastProcessFunction) and not self._is_keyed_stream():
             raise TypeError("KeyedBroadcastProcessFunction should be applied to KeyedStream")
+
+        j_input_transformation1 = self.non_broadcast_stream._j_data_stream.getTransformation()
+        j_input_transformation2 = (
+            self.broadcast_stream.input_stream._j_data_stream.getTransformation()
+        )
+
+        if output_type is None:
+            output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+        elif isinstance(output_type, list):
+            output_type_info = RowTypeInfo(output_type)
+        elif isinstance(output_type, TypeInformation):
+            output_type_info = output_type
+        else:
+            raise TypeError("output_type must be None, list or TypeInformation")
+        j_output_type = output_type_info.get_java_type_info()
 
         from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 
@@ -2171,26 +2261,51 @@ class BroadcastConnectedStream(object):
             func_type = UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS  # type: ignore
             func_name = "Co-Process-Broadcast"
 
-        # TODO: temporarily use ConnectedStream
-        j_connected_stream = self.non_broadcast_stream._j_data_stream.connect(
-            self.broadcast_stream.input_stream._j_data_stream
+        gateway = get_gateway()
+        JPythonBroadcastStateTransformation = (
+            gateway.jvm.org.apache.flink.streaming.api.transformations.python
+        ).PythonBroadcastStateTransformation
+        j_state_names = ListConverter().convert(
+            [i.get_name() for i in self.broadcast_state_descriptors], gateway._gateway_client
         )
-        j_operator, j_output_type = _get_two_input_stream_operator(
-            self, func, func_type, output_type
+        j_state_descriptors = (
+            JPythonBroadcastStateTransformation.convertStateNamesToStateDescriptors(j_state_names)
         )
 
-        return DataStream(j_connected_stream.transform(func_name, j_output_type, j_operator))
+        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+        j_data_stream_python_function_info = _create_j_data_stream_python_function_info(
+            func, func_type
+        )
+        j_env = (
+            self.non_broadcast_stream.get_execution_environment()._j_stream_execution_environment
+        )
+
+        j_transformation = JPythonBroadcastStateTransformation(
+            func_name,
+            j_conf,
+            j_data_stream_python_function_info,
+            j_input_transformation1,
+            j_input_transformation2,
+            j_state_descriptors,
+            j_output_type,
+            j_env.getParallelism(),
+        )
+        j_env.addOperator(j_transformation)
+        JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        j_data_stream = JPythonConfigUtil.createSingleOutputStreamOperator(j_env, j_transformation)
+
+        return DataStream(j_data_stream)
 
     def _is_keyed_stream(self):
         return isinstance(self.non_broadcast_stream, KeyedStream)
 
 
-def _get_one_input_stream_operator(data_stream: DataStream,
-                                   func: Union[Function,
-                                               FunctionWrapper,
-                                               WindowOperationDescriptor],
-                                   func_type: int,
-                                   output_type: Union[TypeInformation, List] = None):
+def _get_one_input_stream_operator(
+    data_stream: DataStream,
+    func: Union[Function, FunctionWrapper, WindowOperationDescriptor],
+    func_type: int,
+    output_type: Union[TypeInformation, list] = None,
+):
     """
     Create a Java one input stream operator.
 
@@ -2201,24 +2316,20 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     """
 
     gateway = get_gateway()
-    import cloudpickle
-    serialized_func = cloudpickle.dumps(func)
+
     j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
+
     if output_type is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
     elif isinstance(output_type, list):
         output_type_info = RowTypeInfo(output_type)
-    else:
+    elif isinstance(output_type, TypeInformation):
         output_type_info = output_type
+    else:
+        raise TypeError("output_type must be None, list or TypeInformation")
 
     j_output_type_info = output_type_info.get_java_type_info()
-
-    j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
-        bytearray(serialized_func),
-        _get_python_env())
-    j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
-        j_data_stream_python_function,
-        func_type)
+    j_data_stream_python_function_info = _create_j_data_stream_python_function_info(func, func_type)
 
     j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
 
@@ -2262,65 +2373,40 @@ def _get_one_input_stream_operator(data_stream: DataStream,
 
 
 def _get_two_input_stream_operator(
-    connected_streams: Union[ConnectedStreams, BroadcastConnectedStream],
+    connected_streams: ConnectedStreams,
     func: Union[Function, FunctionWrapper],
     func_type: int,
-    type_info: TypeInformation,
+    output_type: Union[TypeInformation, list] = None,
 ):
     """
     Create a Java two input stream operator.
 
     :param func: a function object that implements the Function interface.
     :param func_type: function type, supports MAP, FLAT_MAP, etc.
-    :param type_info: the data type of the function output data.
+    :param output_type: the data type of the function output data.
     :return: A Java operator which is responsible for execution user defined python function.
     """
 
     gateway = get_gateway()
-    import cloudpickle
-    serialized_func = cloudpickle.dumps(func)
 
-    if isinstance(connected_streams, ConnectedStreams):
-        j_input_types1 = (
-            connected_streams.stream1._j_data_stream.getTransformation().getOutputType()
-        )
-        j_input_types2 = (
-            connected_streams.stream2._j_data_stream.getTransformation().getOutputType()
-        )
-    elif isinstance(connected_streams, BroadcastConnectedStream):
-        j_input_types1 = (
-            connected_streams.non_broadcast_stream._j_data_stream.
-                getTransformation().getOutputType()
-        )
-        j_input_types2 = (
-            connected_streams.broadcast_stream.input_stream._j_data_stream.
-                getTransformation().getOutputType()
-        )
-    else:
-        raise TypeError("connected_streams must be ConnectedStreams or BroadcastConnectedStream")
+    j_input_types1 = connected_streams.stream1._j_data_stream.getTransformation().getOutputType()
+    j_input_types2 = connected_streams.stream2._j_data_stream.getTransformation().getOutputType()
 
-    if type_info is None:
+    if output_type is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
-    elif isinstance(type_info, list):
-        output_type_info = RowTypeInfo(type_info)
+    elif isinstance(output_type, list):
+        output_type_info = RowTypeInfo(output_type)
+    elif isinstance(output_type, TypeInformation):
+        output_type_info = output_type
     else:
-        output_type_info = type_info
+        raise TypeError("output_type must be None, list or TypeInformation")
 
     j_output_type_info = output_type_info.get_java_type_info()
-
-    j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
-        bytearray(serialized_func),
-        _get_python_env())
-    j_data_stream_python_function_info = gateway.jvm.DataStreamPythonFunctionInfo(
-        j_data_stream_python_function,
-        func_type)
+    j_data_stream_python_function_info = _create_j_data_stream_python_function_info(func, func_type)
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 
-    if (
-        func_type == UserDefinedDataStreamFunction.CO_PROCESS
-        or func_type == UserDefinedDataStreamFunction.CO_BROADCAST_PROCESS
-    ):  # type: ignore
+    if func_type == UserDefinedDataStreamFunction.CO_PROCESS:  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonKeyedCoProcessOperator
@@ -2337,6 +2423,21 @@ def _get_two_input_stream_operator(
         j_output_type_info)
 
     return j_python_data_stream_function_operator, j_output_type_info
+
+
+def _create_j_data_stream_python_function_info(
+    func: Union[Function, FunctionWrapper, WindowOperationDescriptor], func_type: int
+) -> bytes:
+    gateway = get_gateway()
+
+    import cloudpickle
+
+    serialized_func = cloudpickle.dumps(func)
+
+    j_data_stream_python_function = gateway.jvm.DataStreamPythonFunction(
+        bytearray(serialized_func), _get_python_env()
+    )
+    return gateway.jvm.DataStreamPythonFunctionInfo(j_data_stream_python_function, func_type)
 
 
 class CloseableIterator(object):

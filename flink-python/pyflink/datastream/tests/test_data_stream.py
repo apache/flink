@@ -19,21 +19,41 @@ import datetime
 import decimal
 import os
 import uuid
+from collections import defaultdict
+from typing import Tuple
 
-from pyflink.common import Row, Configuration
+from pyflink.common import Configuration, Row
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
-from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import (TimeCharacteristic, RuntimeContext, SlotSharingGroup)
+from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
+from pyflink.datastream import RuntimeContext, SlotSharingGroup, TimeCharacteristic
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
-                                          MapFunction, FilterFunction, FlatMapFunction,
-                                          KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
-                                          ProcessFunction, ReduceFunction, CoProcessFunction)
+from pyflink.datastream.functions import (
+    AggregateFunction,
+    BroadcastProcessFunction,
+    CoFlatMapFunction,
+    CoMapFunction,
+    CoProcessFunction,
+    FilterFunction,
+    FlatMapFunction,
+    KeyedCoProcessFunction,
+    KeyedProcessFunction,
+    KeySelector,
+    MapFunction,
+    ProcessFunction,
+    ReduceFunction,
+)
 from pyflink.datastream.output_tag import OutputTag
-from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
-                                      ReducingStateDescriptor, ReducingState, AggregatingState,
-                                      AggregatingStateDescriptor, StateTtlConfig)
+from pyflink.datastream.state import (
+    AggregatingState,
+    AggregatingStateDescriptor,
+    ListStateDescriptor,
+    MapStateDescriptor,
+    ReducingState,
+    ReducingStateDescriptor,
+    StateTtlConfig,
+    ValueStateDescriptor,
+)
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
@@ -313,8 +333,8 @@ class DataStreamTests(object):
             self.assert_equals_sorted(expected, actual)
 
     def test_keyed_map(self):
-        from pyflink.util.java_utils import get_j_env_configuration
         from pyflink.common import Configuration
+        from pyflink.util.java_utils import get_j_env_configuration
         config = Configuration(
             j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
         config.set_integer("python.fn-execution.bundle.size", 1)
@@ -939,6 +959,47 @@ class DataStreamTests(object):
         side_expected = ['1', '1', '2', '2', '3', '3', '4', '4']
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
+    def test_co_broadcast_process(self):
+        self.env.set_parallelism(2)
+        ds = self.env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())  # type: DataStream
+        ds_broadcast = self.env.from_collection(
+            [(0, "a"), (1, "b")], type_info=Types.TUPLE([Types.INT(), Types.STRING()])
+        )  # type: DataStream
+
+        class MyBroadcastProcessFunction(BroadcastProcessFunction):
+            def __init__(self, map_state_desc):
+                self._map_state_desc = map_state_desc
+                self._cache = defaultdict(list)
+
+            def process_element(self, value: int, ctx: BroadcastProcessFunction.ReadOnlyContext):
+                ro_broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                key = value % 2
+                if ro_broadcast_state.contains(key):
+                    if self._cache.get(key) is not None:
+                        for v in self._cache[key]:
+                            yield ro_broadcast_state.get(key) + str(v)
+                        self._cache[key].clear()
+                    yield ro_broadcast_state.get(key) + str(value)
+                else:
+                    self._cache[key].append(value)
+
+            def process_broadcast_element(
+                self, value: Tuple[int, str], ctx: BroadcastProcessFunction.Context
+            ):
+                broadcast_state = ctx.get_broadcast_state(self._map_state_desc)
+                broadcast_state.put(value[0], value[1])
+
+        map_state_desc = MapStateDescriptor(
+            "mapping", key_type_info=Types.INT(), value_type_info=Types.STRING()
+        )
+        ds.connect(ds_broadcast.broadcast(map_state_desc)).process(
+            MyBroadcastProcessFunction(map_state_desc), output_type=Types.STRING()
+        ).add_sink(self.test_sink)
+
+        self.env.execute("test_co_broadcast_process")
+        expected = ["a2", "a4", "b1", "b3", "b5"]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
@@ -1345,8 +1406,8 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             raise ValueError('flat_map_func error')
             yield x
 
-        from py4j.protocol import Py4JJavaError
         import pytest
+        from py4j.protocol import Py4JJavaError
         with pytest.raises(Py4JJavaError, match="flat_map_func error"):
             keyed_stream.flat_map(flat_map_func).print()
             self.env.execute("test_process_function_with_error")
