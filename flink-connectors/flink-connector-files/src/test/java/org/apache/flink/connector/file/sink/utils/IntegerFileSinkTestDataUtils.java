@@ -124,9 +124,9 @@ public class IntegerFileSinkTestDataUtils {
 
             // now check its content
             File bucketDir = new File(path, subDirNames[i]);
-            assertThat(bucketDir.isDirectory())
+            assertThat(bucketDir)
                     .as(bucketDir.getAbsolutePath() + " Should be a existing directory")
-                    .isTrue();
+                    .isDirectory();
 
             Map<Integer, Integer> counts = new HashMap<>();
             File[] files = bucketDir.listFiles(f -> !f.getName().startsWith("."));
