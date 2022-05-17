@@ -53,7 +53,7 @@ class FileSystemCommitterTest {
             throws IOException {
         java.nio.file.Path dir = Files.createDirectories(Paths.get(parent.toString(), path));
         for (String file : files) {
-            Files.createFile(Paths.get(dir.toString(), file));
+            Files.createFile(dir.resolve(file));
         }
     }
 
