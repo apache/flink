@@ -121,6 +121,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * The unique id of an execution graph. It is different from JobID, because there can be
+     * multiple execution graphs created from one job graph, in cases like job re-submission, job
+     * master failover and job rescaling.
+     */
+    private final ExecutionGraphID executionGraphId;
+
     /** Job specific information like the job id, job name, job configuration, etc. */
     private final JobInformation jobInformation;
 
@@ -302,6 +309,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             boolean isDynamic)
             throws IOException {
 
+        this.executionGraphId = new ExecutionGraphID();
+
         this.jobInformation = checkNotNull(jobInformation);
 
         this.blobWriter = checkNotNull(blobWriter);
@@ -364,6 +373,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.resultPartitionsById = new HashMap<>();
 
         this.isDynamic = isDynamic;
+
+        LOG.info(
+                "Created execution graph {} for job {}.",
+                executionGraphId,
+                jobInformation.getJobId());
     }
 
     @Override
@@ -1582,5 +1596,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
         return Optional.ofNullable(currentExecutions.get(attemptId));
+    }
+
+    @Override
+    public ExecutionGraphID getExecutionGraphID() {
+        return executionGraphId;
     }
 }
