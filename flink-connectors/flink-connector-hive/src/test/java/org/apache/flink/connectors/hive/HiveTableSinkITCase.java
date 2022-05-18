@@ -431,19 +431,9 @@ public class HiveTableSinkITCase {
                         () ->
                                 testStreamingWriteWithCustomPartitionCommitPolicy(
                                         customCommitPolicyClassName))
-                .satisfies(
-                        (Consumer<Throwable>)
-                                throwable -> {
-                                    List<String> messages = new ArrayList<>();
-                                    while (throwable != null) {
-                                        messages.add(throwable.getMessage());
-                                        throwable = throwable.getCause();
-                                    }
-                                    assertThat(messages)
-                                            .contains(
-                                                    "Can not create new instance for custom class from "
-                                                            + customCommitPolicyClassName);
-                                });
+                .hasStackTraceContaining(
+                        "Can not create new instance for custom class from "
+                                + customCommitPolicyClassName);
     }
 
     @Test
