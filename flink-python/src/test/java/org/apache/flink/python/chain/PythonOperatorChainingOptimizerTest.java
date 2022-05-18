@@ -125,9 +125,8 @@ class PythonOperatorChainingOptimizerTest {
                 .isTrue();
         assertThat(
                         chainedTransformation
-                                .getManagedMemorySlotScopeUseCases()
-                                .contains(ManagedMemoryUseCase.STATE_BACKEND))
-                .isTrue();
+                                .getManagedMemorySlotScopeUseCases())
+                .contains(ManagedMemoryUseCase.STATE_BACKEND);
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
         assertThat(chainedOperator).isInstanceOf(PythonKeyedProcessOperator.class);
