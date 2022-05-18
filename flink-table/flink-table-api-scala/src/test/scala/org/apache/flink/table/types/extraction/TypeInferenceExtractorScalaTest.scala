@@ -24,38 +24,37 @@ import org.apache.flink.table.types.extraction.TypeInferenceExtractorTest.TestSp
 import org.apache.flink.table.types.inference.{ArgumentTypeStrategy, InputTypeStrategies, TypeStrategies}
 
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
-import org.junit.{Rule, Test}
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 
-import java.util.Optional
+import java.util.{stream, Optional}
 
 import scala.annotation.varargs
 
 /** Scala tests for [[TypeInferenceExtractor]]. */
-@RunWith(classOf[Parameterized])
-class TypeInferenceExtractorScalaTest(testSpec: TestSpec) {
+class TypeInferenceExtractorScalaTest {
 
-  @Test
-  def testArgumentNames(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testArgumentNames(testSpec: TestSpec): Unit = {
     if (testSpec.expectedArgumentNames != null) {
       assertThat(testSpec.typeInferenceExtraction.get.getNamedArguments)
         .isEqualTo(Optional.of(testSpec.expectedArgumentNames))
     }
   }
 
-  @Test
-  def testArgumentTypes(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testArgumentTypes(testSpec: TestSpec): Unit = {
     if (testSpec.expectedArgumentTypes != null) {
       assertThat(testSpec.typeInferenceExtraction.get.getTypedArguments)
         .isEqualTo(Optional.of(testSpec.expectedArgumentTypes))
     }
   }
 
-  @Test
-  def testOutputTypeStrategy(): Unit = {
+  @ParameterizedTest
+  @MethodSource(Array("testData"))
+  def testOutputTypeStrategy(testSpec: TestSpec): Unit = {
     if (!testSpec.expectedOutputStrategies.isEmpty) {
       assertThat(testSpec.typeInferenceExtraction.get.getOutputTypeStrategy)
         .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies))
@@ -65,8 +64,7 @@ class TypeInferenceExtractorScalaTest(testSpec: TestSpec) {
 
 object TypeInferenceExtractorScalaTest {
 
-  @Parameters
-  def testData: Array[TestSpec] = Array(
+  def testData: stream.Stream[TestSpec] = java.util.stream.Stream.of(
     // Scala function with data type hint
     TestSpec
       .forScalarFunction(classOf[ScalaScalarFunction])
