@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.slf4j.Logger;
@@ -126,6 +127,12 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     public void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) {
         throw new UnsupportedOperationException(
                 "The BatchExecutionInternalTimeService should not be used in State Processor API.");
+    }
+
+    @Override
+    public int getEventTimeTimerCountBeforeTimestamp(long timestamp) {
+        Preconditions.checkArgument(timestamp == Long.MAX_VALUE);
+        return eventTimeTimersQueue.size();
     }
 
     @Override

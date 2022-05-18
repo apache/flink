@@ -253,6 +253,22 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     }
 
     @Override
+    public int getEventTimeTimerCountBeforeTimestamp(long timestamp) throws Exception {
+        int count = 0;
+        try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator =
+                eventTimeTimersQueue.iterator()) {
+            while (iterator.hasNext()) {
+                TimerHeapInternalTimer<K, N> timer = iterator.next();
+                if (timer.getTimestamp() > timestamp) {
+                    break;
+                }
+                count++;
+            }
+        }
+        return count;
+    }
+
+    @Override
     public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
             throws Exception {
         foreachTimer(consumer, processingTimeTimersQueue);
