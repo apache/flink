@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.math.BigDecimal;
 
-public class BigDecComparatorTest extends ComparatorTestBase<BigDecimal> {
+class BigDecComparatorTest extends ComparatorTestBase<BigDecimal> {
 
     @Override
     protected TypeComparator<BigDecimal> createComparator(boolean ascending) {

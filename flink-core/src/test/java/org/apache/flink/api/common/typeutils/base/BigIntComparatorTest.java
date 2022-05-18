@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.math.BigInteger;
 
-public class BigIntComparatorTest extends ComparatorTestBase<BigInteger> {
+class BigIntComparatorTest extends ComparatorTestBase<BigInteger> {
 
     @Override
     protected TypeComparator<BigInteger> createComparator(boolean ascending) {

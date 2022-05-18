@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Date;
 import java.util.Random;
 
-public class DateComparatorTest extends ComparatorTestBase<Date> {
+class DateComparatorTest extends ComparatorTestBase<Date> {
 
     @Override
     protected TypeComparator<Date> createComparator(boolean ascending) {

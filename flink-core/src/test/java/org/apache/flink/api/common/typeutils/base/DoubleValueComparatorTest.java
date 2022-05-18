@@ -25,7 +25,7 @@ import org.apache.flink.types.DoubleValue;
 
 import java.util.Random;
 
-public class DoubleValueComparatorTest extends ComparatorTestBase<DoubleValue> {
+class DoubleValueComparatorTest extends ComparatorTestBase<DoubleValue> {
 
     @Override
     protected TypeComparator<DoubleValue> createComparator(boolean ascending) {

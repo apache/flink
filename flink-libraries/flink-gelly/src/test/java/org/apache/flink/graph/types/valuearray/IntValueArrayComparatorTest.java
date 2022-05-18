@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.IntValue;
 
 /** Tests for {@link IntValueArrayComparator}. */
-public class IntValueArrayComparatorTest extends ComparatorTestBase<IntValueArray> {
+class IntValueArrayComparatorTest extends ComparatorTestBase<IntValueArray> {
 
     @Override
     protected TypeComparator<IntValueArray> createComparator(boolean ascending) {
