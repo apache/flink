@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public abstract class InputTypeStrategiesTestBase {
 
     @ParameterizedTest
-    public void testStrategy(TestSpec testSpec) {
+    protected void testStrategy(TestSpec testSpec) {
         if (testSpec.expectedSignature != null) {
             assertThat(generateSignature(testSpec)).isEqualTo(testSpec.expectedSignature);
         }

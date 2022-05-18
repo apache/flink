@@ -446,7 +446,7 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testArgumentTypes(TestSpec testSpec) {
+    void testArgumentTypes(TestSpec testSpec) {
         if (testSpec.expectedArgumentTypes != null) {
             assertThat(testSpec.typeInferenceExtraction.get().getTypedArguments())
                     .isEqualTo(Optional.of(testSpec.expectedArgumentTypes));
@@ -458,7 +458,7 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testInputTypeStrategy(TestSpec testSpec) {
+    void testInputTypeStrategy(TestSpec testSpec) {
         if (!testSpec.expectedOutputStrategies.isEmpty()) {
             assertThat(testSpec.typeInferenceExtraction.get().getInputTypeStrategy())
                     .isEqualTo(
@@ -470,7 +470,7 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testAccumulatorTypeStrategy(TestSpec testSpec) {
+    void testAccumulatorTypeStrategy(TestSpec testSpec) {
         if (!testSpec.expectedAccumulatorStrategies.isEmpty()) {
             assertThat(
                             testSpec.typeInferenceExtraction
@@ -485,7 +485,7 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testOutputTypeStrategy(TestSpec testSpec) {
+    void testOutputTypeStrategy(TestSpec testSpec) {
         if (!testSpec.expectedOutputStrategies.isEmpty()) {
             assertThat(testSpec.typeInferenceExtraction.get().getOutputTypeStrategy())
                     .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies));
@@ -494,7 +494,7 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testErrorMessage(TestSpec testSpec) {
+    void testErrorMessage(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
             assertThatThrownBy(testSpec.typeInferenceExtraction::get)
                     .isInstanceOf(ValidationException.class)

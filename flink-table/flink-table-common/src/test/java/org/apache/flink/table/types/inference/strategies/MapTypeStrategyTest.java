@@ -31,7 +31,7 @@ class MapTypeStrategyTest extends TypeStrategiesTestBase {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testTypeStrategy(TestSpec testSpec) {
+    protected void testTypeStrategy(TestSpec testSpec) {
         super.testTypeStrategy(testSpec);
     }
 

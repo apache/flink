@@ -58,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for {@link LogicalTypeMerging#findCommonType(List)}. */
-public class LogicalCommonTypeTest {
+class LogicalCommonTypeTest {
 
     private static Stream<Arguments> testData() {
         return Stream.of(

@@ -36,7 +36,7 @@ class CurrentWatermarkInputTypeStrategyTest extends InputTypeStrategiesTestBase 
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    public void testStrategy(TestSpec testSpec) {
+    protected void testStrategy(TestSpec testSpec) {
         super.testStrategy(testSpec);
     }
 

@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public abstract class TypeStrategiesTestBase {
 
     @ParameterizedTest
-    public void testTypeStrategy(TestSpec testSpec) {
+    protected void testTypeStrategy(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
             assertThatThrownBy(() -> runTypeInference(testSpec))
                     .satisfies(
