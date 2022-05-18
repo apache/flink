@@ -28,7 +28,6 @@ import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -46,17 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Base class for testing {@link InputTypeStrategy}. */
 public abstract class InputTypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource(
-            value = {
-                "org.apache.flink.table.types.inference.ComparableInputTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.CurrentWatermarkInputTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.InputTypeStrategiesTest#testData",
-                "org.apache.flink.table.types.inference.strategies.RepeatingSequenceInputTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.SubsequenceInputTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.TypeLiteralArgumentTypeStrategyTest#testData"
-            })
+    @ParameterizedTest
     public void testStrategy(TestSpec testSpec) {
         if (testSpec.expectedSignature != null) {
             assertThat(generateSignature(testSpec)).isEqualTo(testSpec.expectedSignature);

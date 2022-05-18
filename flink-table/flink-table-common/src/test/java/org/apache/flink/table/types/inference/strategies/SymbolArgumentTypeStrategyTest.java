@@ -26,19 +26,28 @@ import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.logical.SymbolType;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
 
 /** Tests for {@link SymbolArgumentTypeStrategy}. */
-public class SymbolArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
+class SymbolArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static final DataType SYMBOL_TYPE = new AtomicDataType(new SymbolType<>());
 
     private static final InputTypeStrategy STRATEGY = sequence(symbol(TestEnum.class));
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testStrategy(TestSpec testSpec) {
+        super.testStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Valid argument", STRATEGY)
                         .calledWithArgumentTypes(SYMBOL_TYPE)

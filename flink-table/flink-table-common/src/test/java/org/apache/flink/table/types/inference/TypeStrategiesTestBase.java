@@ -25,7 +25,6 @@ import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -42,19 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Base class for tests of {@link TypeStrategies}. */
 public abstract class TypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource(
-            value = {
-                "org.apache.flink.table.types.inference.strategies.ArrayTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.CurrentWatermarkTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.DecimalTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.GetTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.MapTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.MappingTypeStrategiesTest#testData",
-                "org.apache.flink.table.types.inference.strategies.RowTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.strategies.StringConcatTypeStrategyTest#testData",
-                "org.apache.flink.table.types.inference.TypeStrategiesTest#testData"
-            })
+    @ParameterizedTest
     public void testTypeStrategy(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
             assertThatThrownBy(() -> runTypeInference(testSpec))

@@ -24,6 +24,9 @@ import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrate
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
@@ -41,9 +44,15 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
-public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
+class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testStrategy(TestSpec testSpec) {
+        super.testStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 // wildcard with 2 arguments
                 TestSpec.forStrategy(WILDCARD)

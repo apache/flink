@@ -21,12 +21,21 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.TypeStrategiesTestBase;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 /** Tests for {@link RowTypeStrategy}. */
-public class RowTypeStrategyTest extends TypeStrategiesTestBase {
+class RowTypeStrategyTest extends TypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testTypeStrategy(TestSpec testSpec) {
+        super.testTypeStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Infer a row type", SpecificTypeStrategies.ROW)
                         .inputTypes(DataTypes.BIGINT(), DataTypes.STRING())

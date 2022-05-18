@@ -21,15 +21,24 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 
 /** Tests for {@link TypeLiteralArgumentTypeStrategy}. */
-public class TypeLiteralArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
+class TypeLiteralArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testStrategy(TestSpec testSpec) {
+        super.testStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Type literal", sequence(TYPE_LITERAL))
                         .calledWithArgumentTypes(DataTypes.STRING())

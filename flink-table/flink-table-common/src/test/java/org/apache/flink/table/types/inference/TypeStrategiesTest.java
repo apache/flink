@@ -22,6 +22,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -33,9 +36,15 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAr
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 
 /** Tests for built-in {@link TypeStrategies}. */
-public class TypeStrategiesTest extends TypeStrategiesTestBase {
+class TypeStrategiesTest extends TypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testTypeStrategy(TestSpec testSpec) {
+        super.testTypeStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 // missing strategy with arbitrary argument
                 TypeStrategiesTestBase.TestSpec.forStrategy(MISSING)

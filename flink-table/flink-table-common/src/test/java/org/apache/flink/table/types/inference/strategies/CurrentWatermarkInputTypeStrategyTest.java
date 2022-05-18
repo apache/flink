@@ -26,12 +26,21 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 /** Tests for {@link CurrentWatermarkInputTypeStrategy}. */
-public class CurrentWatermarkInputTypeStrategyTest extends InputTypeStrategiesTestBase {
+class CurrentWatermarkInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testStrategy(TestSpec testSpec) {
+        super.testStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(
                                 "TIMESTAMP(3) *ROWTIME* works",

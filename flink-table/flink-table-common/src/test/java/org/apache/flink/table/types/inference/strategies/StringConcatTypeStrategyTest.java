@@ -21,12 +21,21 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.TypeStrategiesTestBase;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 /** Tests for {@link StringConcatTypeStrategy}. */
-public class StringConcatTypeStrategyTest extends TypeStrategiesTestBase {
+class StringConcatTypeStrategyTest extends TypeStrategiesTestBase {
 
-    public static Stream<TestSpec> testData() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    public void testTypeStrategy(TestSpec testSpec) {
+        super.testTypeStrategy(testSpec);
+    }
+
+    static Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Concat two strings", SpecificTypeStrategies.STRING_CONCAT)
                         .inputTypes(DataTypes.CHAR(12).notNull(), DataTypes.VARCHAR(12))
