@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
@@ -67,6 +69,9 @@ public class PythonKeyedProcessOperator<OUT>
 
     /** TimerService for current operator to register or fire timer. */
     private transient InternalTimerService internalTimerService;
+
+    /** TimerRegistration for handling timer registering. */
+    private transient TimerRegistration timerRegistration;
 
     /** The TypeInformation of the key. */
     private transient TypeInformation<Row> keyTypeInfo;
@@ -122,6 +127,13 @@ public class PythonKeyedProcessOperator<OUT>
                         timerDataTypeInfo);
 
         timerHandler = new TimerHandler();
+        timerRegistration =
+                new TimerRegistration(
+                        getKeyedStateBackend(),
+                        internalTimerService,
+                        this,
+                        namespaceSerializer,
+                        timerDataSerializer);
 
         super.open();
     }
@@ -159,12 +171,7 @@ public class PythonKeyedProcessOperator<OUT>
                 getOperatorStateBackend(),
                 keyTypeSerializer,
                 namespaceSerializer,
-                new TimerRegistration(
-                        getKeyedStateBackend(),
-                        internalTimerService,
-                        this,
-                        namespaceSerializer,
-                        timerDataSerializer),
+                timerRegistration,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -224,6 +231,20 @@ public class PythonKeyedProcessOperator<OUT>
         elementCount++;
         checkInvokeFinishBundleByCount();
         emitResults();
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    protected void preEmitWatermark(Watermark mark) throws Exception {
+        if (!getTimeServiceManager().isPresent()) {
+            return;
+        }
+        InternalTimeServiceManager timeServiceManager = getTimeServiceManager().get();
+        long timestamp = mark.getTimestamp();
+        do {
+            timeServiceManager.advanceWatermark(mark);
+            invokeFinishBundle();
+        } while (!timerRegistration.hasEventTimeTimerBeforeTimestamp(timestamp));
     }
 
     /**
