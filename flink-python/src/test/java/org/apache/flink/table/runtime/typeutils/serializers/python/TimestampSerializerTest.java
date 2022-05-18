@@ -23,9 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Timestamp;
 
-/**
- * Test for {@link org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer}.
- */
+/** Test for {@link TimestampSerializer}. */
 abstract class TimestampSerializerTest extends SerializerTestBase<Timestamp> {
 
     @Override
