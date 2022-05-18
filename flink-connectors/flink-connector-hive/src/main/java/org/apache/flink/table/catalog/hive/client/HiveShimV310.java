@@ -319,6 +319,11 @@ public class HiveShimV310 extends HiveShimV239 {
         }
     }
 
+    @Override
+    public String getHashFuncName() {
+        return "murmur_hash";
+    }
+
     List<Object> createHiveNNs(
             Table table, Configuration conf, List<String> nnCols, List<Byte> traits)
             throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,

@@ -27,6 +27,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -50,7 +52,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     private final String[] partitionColumns;
     private final boolean dynamicGrouped;
     private final LinkedHashMap<String, String> staticPartitions;
-    private final PartitionComputer<T> computer;
+    private final PartitionComputer<T> partitionComputer;
+    private final BucketIdComputer<T> bucketIdComputer;
     private final OutputFormatFactory<T> formatFactory;
     private final OutputFileConfig outputFileConfig;
 
@@ -66,7 +69,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             boolean dynamicGrouped,
             LinkedHashMap<String, String> staticPartitions,
             OutputFormatFactory<T> formatFactory,
-            PartitionComputer<T> computer,
+            PartitionComputer<T> partitionComputer,
+            @Nullable BucketIdComputer<T> bucketIdComputer,
             OutputFileConfig outputFileConfig) {
         this.fsFactory = fsFactory;
         this.msFactory = msFactory;
@@ -76,7 +80,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         this.dynamicGrouped = dynamicGrouped;
         this.staticPartitions = staticPartitions;
         this.formatFactory = formatFactory;
-        this.computer = computer;
+        this.partitionComputer = partitionComputer;
+        this.bucketIdComputer = bucketIdComputer;
         this.outputFileConfig = outputFileConfig;
     }
 
@@ -114,7 +119,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                                     partitionColumns.length - staticPartitions.size() > 0,
                                     dynamicGrouped,
                                     staticPartitions)
-                            .create(context, fileManager, computer);
+                            .create(context, fileManager, partitionComputer, bucketIdComputer);
         } catch (Exception e) {
             throw new TableException("Exception in open", e);
         }
@@ -151,7 +156,9 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         private boolean overwrite = false;
         private FileSystemFactory fileSystemFactory = FileSystem::get;
 
-        private PartitionComputer<T> computer;
+        private PartitionComputer<T> partitionComputer;
+        private BucketIdComputer<T> bucketIdComputer =
+                new BucketIdComputer.DefaultBucketIdComputer<T>();
 
         private OutputFileConfig outputFileConfig = new OutputFileConfig("", "");
 
@@ -195,8 +202,13 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             return this;
         }
 
-        public Builder<T> setPartitionComputer(PartitionComputer<T> computer) {
-            this.computer = computer;
+        public Builder<T> setPartitionComputer(PartitionComputer<T> partitionComputer) {
+            this.partitionComputer = partitionComputer;
+            return this;
+        }
+
+        public Builder<T> setBucketIdComputer(BucketIdComputer<T> bucketIdComputer) {
+            this.bucketIdComputer = bucketIdComputer;
             return this;
         }
 
@@ -210,7 +222,7 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             checkNotNull(formatFactory, "formatFactory should not be null");
             checkNotNull(metaStoreFactory, "metaStoreFactory should not be null");
             checkNotNull(tmpPath, "tmpPath should not be null");
-            checkNotNull(computer, "partitionComputer should not be null");
+            checkNotNull(partitionComputer, "partitionComputer should not be null");
 
             return new FileSystemOutputFormat<>(
                     fileSystemFactory,
@@ -221,7 +233,8 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                     dynamicGrouped,
                     staticPartitions,
                     formatFactory,
-                    computer,
+                    partitionComputer,
+                    bucketIdComputer,
                     outputFileConfig);
         }
     }

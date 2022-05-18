@@ -29,7 +29,10 @@ import java.util.LinkedHashMap;
 public interface PartitionWriterFactory<T> extends Serializable {
 
     PartitionWriter<T> create(
-            Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer)
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> partitionComputer,
+            BucketIdComputer<T> bucketIdComputer)
             throws Exception;
 
     /** Util for get a {@link PartitionWriterFactory}. */
@@ -41,9 +44,13 @@ public interface PartitionWriterFactory<T> extends Serializable {
             return grouped ? GroupedPartitionWriter::new : DynamicPartitionWriter::new;
         } else {
             return (PartitionWriterFactory<T>)
-                    (context, manager, computer) ->
+                    (context, manager, partitionComputer, bucketIdComputer) ->
                             new SingleDirectoryWriter<>(
-                                    context, manager, computer, staticPartitions);
+                                    context,
+                                    manager,
+                                    partitionComputer,
+                                    bucketIdComputer,
+                                    staticPartitions);
         }
     }
 }

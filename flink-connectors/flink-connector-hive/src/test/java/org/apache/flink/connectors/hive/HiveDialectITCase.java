@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
@@ -357,6 +359,33 @@ public class HiveDialectITCase {
         assertThat(results.toString())
                 .isEqualTo(
                         "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
+    }
+
+    @Test
+    public void t1() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql(
+                "create table dest2 (x int) partitioned by (p1 int,p2 string) clustered by (x) sorted by (p2 desc) into 20 buckets");
+        tableEnv.executeSql("insert into dest2 partition (p1=1,p2) select x,y from src").await();
+    }
+
+    @Test
+    public void testInsert1() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        // src table
+        tableEnv.executeSql(
+                "create table dest (x int,y string) clustered by (x) sorted by (x,y) into 20 buckets");
+        tableEnv.executeSql("create table src (x int, y string)");
+        tableEnv.executeSql("insert into src values (1,'a'),(2,'b'),(3,'c')").await();
+        tableEnv.executeSql("insert into dest select * from src distribute by y").await();
     }
 
     @Test

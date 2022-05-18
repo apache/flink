@@ -241,4 +241,9 @@ public interface HiveShim extends Serializable {
     }
 
     void registerTemporaryFunction(String funcName, Class funcClass);
+
+    /** Get Hive's hash function to do bucketing. */
+    default String getHashFuncName() {
+        return "hash";
+    }
 }

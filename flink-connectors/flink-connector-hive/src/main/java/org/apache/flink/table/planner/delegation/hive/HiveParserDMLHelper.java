@@ -49,7 +49,10 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -69,6 +72,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.getProjsFromBelowAsInputRef;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.getSessionHiveShim;
 
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
@@ -190,6 +196,25 @@ public class HiveParserDMLHelper {
             }
         }
 
+        // add distribute by + sort for bucket table
+        if (destTable.getNumBuckets() > 0) {
+            // the targetCols is with the order of columns to be inserted
+            List<String> targetCols = new ArrayList<>();
+            for (FieldSchema fieldSchema : destTable.getAllCols()) {
+                targetCols.add(fieldSchema.getName());
+            }
+            List<String> dynamicPartitionCols = new ArrayList<>();
+            Set<String> staticPartitionCols = staticPartSpec.keySet();
+            for (FieldSchema fieldSchema : destTable.getPartCols()) {
+                if (!staticPartitionCols.contains(fieldSchema.getName())) {
+                    dynamicPartitionCols.add(fieldSchema.getName());
+                }
+            }
+            queryRelNode =
+                    handleInsertIntoBucketedTable(
+                            destTable, queryRelNode, dynamicPartitionCols, targetCols);
+        }
+
         // add type conversions
         queryRelNode =
                 addTypeConversions(
@@ -207,6 +232,199 @@ public class HiveParserDMLHelper {
 
         return Tuple4.of(
                 identifier, new PlannerQueryOperation(queryRelNode), staticPartSpec, overwrite);
+    }
+
+    /**
+     * Handle the case that inserts data into a bucketed table. For bucketed table, the data will be
+     * clustered by the bucketed columns and sorted by the sorted columns of the bucketed table.
+     * Clustered by bucketed columns means the data with same bucket id which is calculated
+     * according to bucketed columns will be written to same bucket file.
+     *
+     * <p>So, This method is used to add LogicalDistribution node to make data is clustered by and
+     * sorted by.
+     *
+     * <p>Note: to make sure the bucket id is compatible to Hive, we delegate Hive's logical to
+     * calculate the bucket id.
+     */
+    private RelNode handleInsertIntoBucketedTable(
+            Table table,
+            RelNode queryRelNode,
+            List<String> dynamicPartitionCols,
+            List<String> targetCols)
+            throws SemanticException {
+        // for dist/sort RelNode, we add a project node firstly
+        if (queryRelNode instanceof LogicalDistribution || queryRelNode instanceof LogicalSort) {
+            // first we find the first Project in the input of dist/sort RelNode
+            RelNode firstProjectRelNode = queryRelNode.getInput(0);
+            while (!(firstProjectRelNode instanceof Project)) {
+                // search for Project in the inputs
+                firstProjectRelNode = firstProjectRelNode.getInput(0);
+            }
+            // add a project with RexNodes of the first project found
+            queryRelNode =
+                    LogicalProject.create(
+                            queryRelNode,
+                            Collections.emptyList(),
+                            ((Project) firstProjectRelNode).getProjects(),
+                            (List<String>) null);
+        }
+
+        // add a project with an extra RexNode  that calculate hash code of bucket columns
+        Project project = ((Project) queryRelNode);
+        // get origin rexNodes
+        List<RexNode> exprs = project.getProjects();
+        // create an extra RexNode that call Hive's hash function
+        List<RexNode> bucketColExprs = new ArrayList<>();
+        List<RelDataType> bucketColRelTypes = new ArrayList<>();
+        List<String> bucketCols = table.getBucketCols();
+        // find the RexNodes that represent for the bucket columns
+        for (String bucketCol : bucketCols) {
+            int bucketColIndex = targetCols.indexOf(bucketCol);
+            if (bucketColIndex < 0) {
+                throw new SemanticException(
+                        String.format(
+                                "Can't find bucket column '%s' in the '%s' to be inserted into bucketed table %s.",
+                                bucketCol, targetCols, table.getCompleteName()));
+            }
+            bucketColExprs.add(exprs.get(bucketColIndex));
+            bucketColRelTypes.add(exprs.get(bucketColIndex).getType());
+        }
+
+        // add a RexNode to calculate bucket id
+        RexNode bucketId =
+                rexNodeForBucketId(table.getNumBuckets(), bucketColExprs, bucketColRelTypes);
+        List<RexNode> extendedExprs = new ArrayList<>(exprs);
+        extendedExprs.add(bucketId);
+        // create a new Project with origin RexNodes and a RexNode for calculating bucket id
+        RelNode extendProject =
+                LogicalProject.create(
+                        project.getInput(),
+                        Collections.emptyList(),
+                        extendedExprs,
+                        (List<String>) null);
+
+        // sorted by dynamic partition columns + bucket id + ordered columns
+        List<RelFieldCollation> fieldCollations = new ArrayList<>();
+        // first sort by dynamic partition columns
+        for (String col : dynamicPartitionCols) {
+            int fieldIndex = targetCols.indexOf(col);
+            if (fieldIndex < 0) {
+                throw new SemanticException(
+                        String.format(
+                                "Can't find dynamic partition column '%s' in the '%s' to be inserted into bucketed table %s.",
+                                col, targetCols, table.getCompleteName()));
+            }
+            fieldCollations.add(
+                    new RelFieldCollation(
+                            fieldIndex,
+                            RelFieldCollation.Direction.ASCENDING,
+                            RelFieldCollation.NullDirection.FIRST));
+        }
+
+        // then sort by bucket id, which is the last expression
+        fieldCollations.add(
+                new RelFieldCollation(
+                        extendedExprs.size() - 1,
+                        RelFieldCollation.Direction.ASCENDING,
+                        RelFieldCollation.NullDirection.FIRST));
+
+        // finally, sort by ordered columns
+        for (Order order : table.getSortCols()) {
+            int fieldIndex = targetCols.indexOf(order.getCol());
+            if (fieldIndex < 0) {
+                throw new SemanticException(
+                        String.format(
+                                "Can't find sort column '%s' in the dest bucketed table %s column list '%s'.",
+                                order.getCol(), table.getCompleteName(), targetCols));
+            }
+            RelFieldCollation.Direction direction;
+            RelFieldCollation.NullDirection nullDirection;
+            if (order.getOrder() == 1) {
+                // asc
+                direction = RelFieldCollation.Direction.ASCENDING;
+                // only null as first is supported when sort direction is asc
+                nullDirection = RelFieldCollation.NullDirection.FIRST;
+            } else if (order.getOrder() == 0) {
+                // desc
+                direction = RelFieldCollation.Direction.DESCENDING;
+                // only null as last is supported when sort direction is desc
+                nullDirection = RelFieldCollation.NullDirection.LAST;
+            } else {
+                throw new SemanticException(
+                        String.format(
+                                "Unknown order %d for column %s.",
+                                order.getOrder(), order.getCol()));
+            }
+            fieldCollations.add(new RelFieldCollation(fieldIndex, direction, nullDirection));
+        }
+
+        RelCollation canonizedCollation =
+                plannerContext
+                        .getCluster()
+                        .traitSet()
+                        .canonize(RelCollationImpl.of(fieldCollations));
+
+        // distribute by bucket id, which is the last expression
+        queryRelNode =
+                LogicalDistribution.create(
+                        extendProject,
+                        canonizedCollation,
+                        Collections.singletonList(extendedExprs.size() - 1));
+
+        // after distributed by and sort, we should remove the last bucket_id RexNode
+        List<RexNode> newRexNodes = getProjsFromBelowAsInputRef(queryRelNode);
+        newRexNodes.remove(newRexNodes.size() - 1);
+        return LogicalProject.create(
+                queryRelNode, Collections.emptyList(), newRexNodes, (List<String>) null);
+    }
+
+    /** bucket id = bit_and(hash(bucket_columns), Int.Max) % number_of_buckets. */
+    private RexNode rexNodeForBucketId(
+            int numberOfBuckets, List<RexNode> bucketColExprs, List<RelDataType> bucketColRelTypes)
+            throws SemanticException {
+        String hashFuncName = getSessionHiveShim().getHashFuncName();
+        FunctionInfo functionInfo = FunctionRegistry.getFunctionInfo(hashFuncName);
+        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RelDataType intRelDataType =
+                plannerContext.getTypeFactory().createSqlType(SqlTypeName.INTEGER);
+        // hash(bucket_columns)
+        RexNode hashCodeRexNode =
+                rexBuilder.makeCall(
+                        HiveParserSqlFunctionConverter.getCalciteOperator(
+                                hashFuncName,
+                                functionInfo.getGenericUDF(),
+                                bucketColRelTypes,
+                                intRelDataType),
+                        bucketColExprs);
+        if (!funcConverter.hasOverloadedOp(
+                ((RexCall) hashCodeRexNode).getOperator(),
+                SqlFunctionCategory.USER_DEFINED_FUNCTION)) {
+            // hive module is not loaded, thus we can't find the Hive's hash function,
+            // so, throw exception directly
+            throw new SemanticException(
+                    "Please load Hive module firstly when insert data into a bucketed table.");
+        }
+
+        hashCodeRexNode = hashCodeRexNode.accept(funcConverter);
+
+        // bit_and(hash(bucket_columns), Int.Max)
+        functionInfo = FunctionRegistry.getFunctionInfo("&");
+        RexNode normalizedHashCodeRexNode =
+                rexBuilder.makeCall(
+                        HiveParserSqlFunctionConverter.getCalciteOperator(
+                                "&",
+                                functionInfo.getGenericUDF(),
+                                Arrays.asList(intRelDataType, intRelDataType),
+                                intRelDataType),
+                        hashCodeRexNode,
+                        rexBuilder.makeLiteral(Integer.MAX_VALUE, intRelDataType, true));
+        normalizedHashCodeRexNode = normalizedHashCodeRexNode.accept(funcConverter);
+
+        // bit_and(hash(bucket_columns), Int.Max) % number_of_buckets
+        return rexBuilder.makeCall(
+                SqlStdOperatorTable.MOD,
+                normalizedHashCodeRexNode,
+                rexBuilder.makeLiteral(numberOfBuckets, intRelDataType, true));
     }
 
     public Operation createInsertOperation(HiveParserCalcitePlanner analyzer, RelNode queryRelNode)

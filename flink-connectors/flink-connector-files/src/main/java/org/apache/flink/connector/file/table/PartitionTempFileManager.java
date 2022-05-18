@@ -71,18 +71,18 @@ public class PartitionTempFileManager {
         factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
     }
 
-    /** Generate a new partition directory with partitions. */
-    public Path createPartitionDir(String... partitions) {
-        Path parentPath = taskTmpDir;
-        for (String dir : partitions) {
-            parentPath = new Path(parentPath, dir);
-        }
-        return new Path(parentPath, newFileName());
+    public Path createPartitionFile(String partition, String filePrefix) {
+        return new Path(new Path(taskTmpDir, partition), newFileName(filePrefix));
     }
 
-    private String newFileName() {
+    public Path createPartitionFile(String filePrefix) {
+        return new Path(taskTmpDir, newFileName(filePrefix));
+    }
+
+    private String newFileName(String filePrefix) {
         return String.format(
-                "%s-%s-file-%d%s",
+                "%s%s-%s-file-%d%s",
+                filePrefix,
                 outputFileConfig.getPartPrefix(),
                 taskName(taskNumber),
                 nameCounter++,

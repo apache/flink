@@ -902,7 +902,8 @@ public class HiveParserDDLSemanticAnalyzer {
             HiveParserStorageFormat storageFormat,
             List<PrimaryKey> primaryKeys,
             List<NotNullConstraint> notNullConstraints,
-            HiveBucketSpec hiveBucketSpec) {
+            HiveBucketSpec hiveBucketSpec)
+            throws SemanticException {
         Map<String, String> props = new HashMap<>();
         if (tblProps != null) {
             props.putAll(tblProps);
@@ -971,6 +972,31 @@ public class HiveParserDDLSemanticAnalyzer {
 
         // bucket spec
         if (hiveBucketSpec != null) {
+            Set<String> allCols = new HashSet<>();
+            for (FieldSchema fieldSchema : cols) {
+                allCols.add(fieldSchema.getName());
+            }
+            for (FieldSchema fieldSchema : partCols) {
+                allCols.add(fieldSchema.getName());
+            }
+            for (String bucketCol :
+                    hiveBucketSpec.getBucketColumns().orElse(Collections.emptyList())) {
+                if (!allCols.contains(bucketCol)) {
+                    throw new SemanticException(
+                            String.format("Invalid col reference %s for clustered by.", bucketCol));
+                }
+            }
+
+            for (String sortedCol :
+                    hiveBucketSpec
+                            .getColumnNamesOrder()
+                            .orElse(Tuple2.of(Collections.emptyList(), Collections.emptyList()))
+                            .f0) {
+                if (!allCols.contains(sortedCol)) {
+                    throw new SemanticException(
+                            String.format("Invalid col reference %s for sorted by.", sortedCol));
+                }
+            }
             hiveBucketSpec.dumpToProps(props);
         }
 
@@ -981,6 +1007,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
         TableSchema tableSchema =
                 HiveTableUtil.createTableSchema(cols, partCols, notNullColSet, uniqueConstraint);
+
         return new CreateTableOperation(
                 identifier,
                 new CatalogTableImpl(

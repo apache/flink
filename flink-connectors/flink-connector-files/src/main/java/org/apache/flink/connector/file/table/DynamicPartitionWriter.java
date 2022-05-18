@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,40 +28,44 @@ import java.util.Map;
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
- * Dynamic partition writer to writing multiple partitions at the same time, it maybe consumes more
- * memory.
+ * Dynamic partition writer to writing multiple partitions/buckets at the same time, it maybe
+ * consumes more memory.
  */
 @Internal
-public class DynamicPartitionWriter<T> implements PartitionWriter<T> {
+public class DynamicPartitionWriter<T> extends BaseBucketFileWriter<T>
+        implements PartitionWriter<T> {
 
-    private final Context<T> context;
-    private final PartitionTempFileManager manager;
-    private final PartitionComputer<T> computer;
-    private final Map<String, OutputFormat<T>> formats;
+    private final PartitionComputer<T> partitionComputer;
+    // <partition, bucketId> -> OutputFormat
+    private final Map<Tuple2<String, Integer>, OutputFormat<T>> formats;
 
     public DynamicPartitionWriter(
-            Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer) {
-        this.context = context;
-        this.manager = manager;
-        this.computer = computer;
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> partitionComputer,
+            BucketIdComputer<T> bucketIdComputer) {
+        super(context, manager, bucketIdComputer);
+        this.partitionComputer = partitionComputer;
         this.formats = new HashMap<>();
     }
 
     @Override
     public void write(T in) throws Exception {
-        String partition = generatePartitionPath(computer.generatePartValues(in));
-        OutputFormat<T> format = formats.get(partition);
+        String partition = generatePartitionPath(partitionComputer.generatePartValues(in));
+        int bucketId = bucketIdComputer.getBucketId(in);
+        OutputFormat<T> format = formats.get(Tuple2.of(partition, bucketId));
 
         if (format == null) {
             // create a new format to write new partition.
-            format = context.createNewOutputFormat(manager.createPartitionDir(partition));
-            formats.put(partition, format);
+            format = createNewOutputFormat(bucketId, partition);
+            formats.put(Tuple2.of(partition, bucketId), format);
         }
-        format.writeRecord(computer.projectColumnsToWrite(in));
+        format.writeRecord(partitionComputer.projectColumnsToWrite(in));
     }
 
     @Override
     public void close() throws Exception {
+        super.close();
         for (OutputFormat<?> format : formats.values()) {
             format.close();
         }

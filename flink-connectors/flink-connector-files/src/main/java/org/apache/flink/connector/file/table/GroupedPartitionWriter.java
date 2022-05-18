@@ -19,52 +19,45 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.io.OutputFormat;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * {@link PartitionWriter} for grouped dynamic partition inserting. It will create a new format when
- * partition changed.
+ * partition or record's bucket id changed.
  *
  * @param <T> The type of the consumed records.
  */
 @Internal
-public class GroupedPartitionWriter<T> implements PartitionWriter<T> {
+public class GroupedPartitionWriter<T> extends BaseBucketFileWriter<T> implements PartitionWriter<T> {
 
-    private final Context<T> context;
-    private final PartitionTempFileManager manager;
-    private final PartitionComputer<T> computer;
-
-    private OutputFormat<T> currentFormat;
+    private final PartitionComputer<T> partitionComputer;
     private String currentPartition;
 
     public GroupedPartitionWriter(
-            Context<T> context, PartitionTempFileManager manager, PartitionComputer<T> computer) {
-        this.context = context;
-        this.manager = manager;
-        this.computer = computer;
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> partitionComputer,
+            BucketIdComputer<T> bucketIdComputer) {
+        super(context, manager, bucketIdComputer);
+        this.partitionComputer = partitionComputer;
     }
 
     @Override
     public void write(T in) throws Exception {
-        String partition = generatePartitionPath(computer.generatePartValues(in));
+        String partition = generatePartitionPath(partitionComputer.generatePartValues(in));
         if (!partition.equals(currentPartition)) {
-            if (currentFormat != null) {
-                currentFormat.close();
-            }
-
-            currentFormat = context.createNewOutputFormat(manager.createPartitionDir(partition));
+            // new partition, we force update output format
+            forceRenewCurrentOutputFormat(in, partition);
             currentPartition = partition;
+        } else {
+            mayRenewCurrentOutputFormat(in, partition);
         }
-        currentFormat.writeRecord(computer.projectColumnsToWrite(in));
+        currentOutputFormat.writeRecord(partitionComputer.projectColumnsToWrite(in));
     }
 
     @Override
     public void close() throws Exception {
-        if (currentFormat != null) {
-            currentFormat.close();
-            currentFormat = null;
-        }
+        super.close();
     }
 }

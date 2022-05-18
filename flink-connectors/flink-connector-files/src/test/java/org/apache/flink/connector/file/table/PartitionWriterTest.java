@@ -60,6 +60,8 @@ class PartitionWriterTest {
     }
 
     private final Map<String, List<Row>> records = new LinkedHashMap<>();
+    private final BucketIdComputer<Row> bucketIdComputer =
+            new BucketIdComputer.DefaultBucketIdComputer<>();
 
     private final OutputFormatFactory<Row> factory =
             path ->
@@ -118,7 +120,7 @@ class PartitionWriterTest {
     @Test
     void testEmptySingleDirectoryWriter() throws Exception {
         SingleDirectoryWriter<Row> writer =
-                new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
+                new SingleDirectoryWriter<>(context, manager, computer, bucketIdComputer, new LinkedHashMap<>());
         writer.close();
         assertThat(records).isEmpty();
     }
@@ -126,7 +128,7 @@ class PartitionWriterTest {
     @Test
     void testSingleDirectoryWriter() throws Exception {
         SingleDirectoryWriter<Row> writer =
-                new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
+                new SingleDirectoryWriter<>(context, manager, computer, bucketIdComputer, new LinkedHashMap<>());
 
         writer.write(Row.of("p1", 1));
         writer.write(Row.of("p1", 2));
@@ -135,7 +137,7 @@ class PartitionWriterTest {
         assertThat(records.toString()).isEqualTo("{task-0=[p1,1, p1,2, p2,2]}");
 
         manager = new PartitionTempFileManager(fsFactory, new Path(tmpDir.toUri()), 1);
-        writer = new SingleDirectoryWriter<>(context, manager, computer, new LinkedHashMap<>());
+        writer = new SingleDirectoryWriter<>(context, manager, computer, bucketIdComputer, new LinkedHashMap<>());
         writer.write(Row.of("p3", 3));
         writer.write(Row.of("p5", 5));
         writer.write(Row.of("p2", 2));
@@ -147,7 +149,7 @@ class PartitionWriterTest {
     @Test
     void testGroupedPartitionWriter() throws Exception {
         GroupedPartitionWriter<Row> writer =
-                new GroupedPartitionWriter<>(context, manager, computer);
+                new GroupedPartitionWriter<>(context, manager, computer, bucketIdComputer);
 
         writer.write(Row.of("p1", 1));
         writer.write(Row.of("p1", 2));
@@ -156,7 +158,7 @@ class PartitionWriterTest {
         assertThat(records.toString()).isEqualTo("{task-0/p=p1=[p1,1, p1,2], task-0/p=p2=[p2,2]}");
 
         manager = new PartitionTempFileManager(fsFactory, new Path(tmpDir.toUri()), 1);
-        writer = new GroupedPartitionWriter<>(context, manager, computer);
+        writer = new GroupedPartitionWriter<>(context, manager, computer, bucketIdComputer);
         writer.write(Row.of("p3", 3));
         writer.write(Row.of("p4", 5));
         writer.write(Row.of("p5", 2));
@@ -169,7 +171,7 @@ class PartitionWriterTest {
     @Test
     void testDynamicPartitionWriter() throws Exception {
         DynamicPartitionWriter<Row> writer =
-                new DynamicPartitionWriter<>(context, manager, computer);
+                new DynamicPartitionWriter<>(context, manager, computer, bucketIdComputer);
 
         writer.write(Row.of("p1", 1));
         writer.write(Row.of("p2", 2));
@@ -178,7 +180,7 @@ class PartitionWriterTest {
         assertThat(records.toString()).isEqualTo("{task-0/p=p1=[p1,1, p1,2], task-0/p=p2=[p2,2]}");
 
         manager = new PartitionTempFileManager(fsFactory, new Path(tmpDir.toUri()), 1);
-        writer = new DynamicPartitionWriter<>(context, manager, computer);
+        writer = new DynamicPartitionWriter<>(context, manager, computer, bucketIdComputer);
         writer.write(Row.of("p4", 5));
         writer.write(Row.of("p3", 3));
         writer.write(Row.of("p5", 2));

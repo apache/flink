@@ -243,7 +243,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             StorageDescriptor sd,
             HiveWriterFactory recordWriterFactory,
             OutputFileConfig fileNaming,
-            final int parallelism)
+            int parallelism)
             throws IOException {
         FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
         builder.setPartitionComputer(
@@ -253,6 +253,22 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray()));
+        if (sd.getNumBuckets() > 0) {
+            builder.setBucketIdComputer(
+                    new HiveRowDataBucketIdComputer(
+                            sd.getNumBuckets(),
+                            hiveShim,
+                            tableSchema.getFieldNames(),
+                            tableSchema.getFieldDataTypes(),
+                            sd.getBucketCols().toArray(new String[0])));
+            // currently, constrain the parallelism of sink to be same to
+            // source parallelism. Otherwise, it will do shuffle and thus break the assumption that
+            // the data is sorted by sort columns for each task when write bucket file for
+            // bucketed table.
+            // Should remove this constraint after make sink chain from sort operator
+            // https://issues.apache.org/jira/browse/FLINK-22897
+            parallelism = dataStream.getParallelism();
+        }
         builder.setDynamicGrouped(dynamicGrouping);
         builder.setPartitionColumns(getPartitionKeyArray());
         builder.setFileSystemFactory(fsFactory());
