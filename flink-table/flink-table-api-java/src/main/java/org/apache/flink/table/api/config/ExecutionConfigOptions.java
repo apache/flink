@@ -329,7 +329,7 @@ public class ExecutionConfigOptions {
                     .enumType(AsyncOutputMode.class)
                     .defaultValue(AsyncOutputMode.ORDERED)
                     .withDescription(
-                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default."
+                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
