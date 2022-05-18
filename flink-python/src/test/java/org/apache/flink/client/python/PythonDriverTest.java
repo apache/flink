@@ -64,10 +64,6 @@ class PythonDriverTest {
 
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
-        assertThat(commands).hasSize(4);
-        assertThat(commands.get(0)).isEqualTo("-m");
-        assertThat(commands.get(1)).isEqualTo("xxx");
-        assertThat(commands.get(2)).isEqualTo("--input");
-        assertThat(commands.get(3)).isEqualTo("in.txt");
+        assertThat(commands).containsExactly("-m", "xxx", "--input", "in.txt");
     }
 }
