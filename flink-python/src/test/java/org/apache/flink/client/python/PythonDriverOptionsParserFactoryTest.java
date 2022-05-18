@@ -77,8 +77,6 @@ class PythonDriverOptionsParserFactoryTest {
 
         // verify the python program arguments
         final List<String> programArgs = pythonCommandOptions.getProgramArgs();
-        assertThat(programArgs).hasSize(2);
-        assertThat(programArgs.get(0)).isEqualTo("--input");
-        assertThat(programArgs.get(1)).isEqualTo("in.txt");
+        assertThat(programArgs).containsExactly("--input", "in.txt");
     }
 }
