@@ -19,7 +19,6 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import org.junit.Test;
@@ -31,8 +30,9 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for all DataTypes and Dialects of JDBC connector. */
 @RunWith(Parameterized.class)
@@ -190,16 +190,8 @@ public class JdbcDataTypeTest {
         tEnv.executeSql(sqlDDL);
 
         if (testItem.expectError != null) {
-            try {
-                tEnv.sqlQuery("SELECT * FROM T");
-                fail("unknown failure");
-            } catch (ValidationException ex) {
-                assertThat(ex.getCause()).hasMessage(testItem.expectError);
-            } catch (UnsupportedOperationException ex) {
-                assertThat(ex).hasMessage(testItem.expectError);
-            } catch (Exception e) {
-                fail("unknown failure", e);
-            }
+            assertThatThrownBy(() -> tEnv.sqlQuery("SELECT * FROM T"))
+                    .satisfies(anyCauseMatches(testItem.expectError));
         } else {
             tEnv.sqlQuery("SELECT * FROM T");
         }

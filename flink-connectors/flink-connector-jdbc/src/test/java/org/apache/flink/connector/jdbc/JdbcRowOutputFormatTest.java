@@ -44,10 +44,11 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOK
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_3;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link JdbcRowOutputFormat}. */
 public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
@@ -82,19 +83,15 @@ public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testInvalidURL() {
         String expectedMsg = "No suitable driver found for jdbc:der:iamanerror:mory:ebookshop";
-        try {
-            jdbcOutputFormat =
-                    JdbcRowOutputFormat.buildJdbcOutputFormat()
-                            .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
-                            .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
-                            .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
-                            .finish();
-            jdbcOutputFormat.open(0, 1);
-            fail("expect exception");
-        } catch (Exception e) {
-            assertThat(findThrowable(e, IOException.class)).isPresent();
-            assertThat(findThrowableWithMessage(e, expectedMsg)).isPresent();
-        }
+
+        jdbcOutputFormat =
+                JdbcRowOutputFormat.buildJdbcOutputFormat()
+                        .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
+                        .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
+                        .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
+                        .finish();
+        assertThatThrownBy(() -> jdbcOutputFormat.open(0, 1))
+                .satisfies(anyCauseMatches(IOException.class, expectedMsg));
     }
 
     @Test

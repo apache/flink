@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@link JdbcXaSinkFunction} tests using Derby DB. Derby supports XA but doesn't use MVCC, so we
@@ -159,13 +159,7 @@ public class JdbcXaSinkDerbyTest extends JdbcXaSinkTestBase {
                         new TestXaSinkStateHandler());
         sinkHelper.emit(TEST_DATA[0]);
         sinkHelper.emit(TEST_DATA[0]); // duplicate
-        try {
-            sinkHelper.snapshotState(0);
-        } catch (Exception e) {
-            // expected: flush or commit duplicated records
-            return;
-        }
-        fail("should propagate error from snapshotState");
+        assertThatThrownBy(() -> sinkHelper.snapshotState(0)).isInstanceOf(Exception.class);
     }
 
     static EmbeddedXADataSource derbyXaDs() {
