@@ -149,6 +149,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
             "projectionOnTemporalTable";
     public static final String FIELD_NAME_FILTER_ON_TEMPORAL_TABLE = "filterOnTemporalTable";
 
+    public static final String FIELD_NAME_INPUT_INSERT_ONLY = "inputInsertOnly";
+
     @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
 
@@ -172,6 +174,9 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_JOIN_CONDITION)
     private final @Nullable RexNode joinCondition;
 
+    @JsonProperty(FIELD_NAME_INPUT_INSERT_ONLY)
+    private final boolean inputInsertOnly;
+
     protected CommonExecLookupJoin(
             int id,
             ExecNodeContext context,
@@ -183,6 +188,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
+            boolean inputInsertOnly,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
@@ -194,6 +200,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         this.temporalTableSourceSpec = checkNotNull(temporalTableSourceSpec);
         this.projectionOnTemporalTable = projectionOnTemporalTable;
         this.filterOnTemporalTable = filterOnTemporalTable;
+        this.inputInsertOnly = inputInsertOnly;
     }
 
     public TemporalTableSourceSpec getTemporalTableSourceSpec() {
@@ -390,14 +397,17 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                             asyncBufferCapacity);
         }
 
-        // TODO plan validation when set to UNORDERED (remove this after FLINK-27624 done)
         return new AsyncWaitOperatorFactory<>(
                 asyncFunc, asyncTimeout, asyncBufferCapacity, convert(asyncOutputMode));
     }
 
     private AsyncDataStream.OutputMode convert(
             ExecutionConfigOptions.AsyncOutputMode asyncOutputMode) {
-        return AsyncDataStream.OutputMode.valueOf(asyncOutputMode.name());
+        if (inputInsertOnly
+                && asyncOutputMode == ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED) {
+            return AsyncDataStream.OutputMode.UNORDERED;
+        }
+        return AsyncDataStream.OutputMode.ORDERED;
     }
 
     private StreamOperatorFactory<RowData> createSyncLookupJoin(

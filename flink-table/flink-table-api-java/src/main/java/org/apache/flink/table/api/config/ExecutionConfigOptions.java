@@ -329,7 +329,9 @@ public class ExecutionConfigOptions {
                     .enumType(AsyncOutputMode.class)
                     .defaultValue(AsyncOutputMode.ORDERED)
                     .withDescription(
-                            "Output mode for asynchronous operations, equivalent to {@see AsyncDataStream.OutputMode}, ordered by default.");
+                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default."
+                                    + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
+                                    + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
     // ------------------------------------------------------------------------
     //  MiniBatch Options
@@ -387,9 +389,7 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
-    /**
-     * @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead.
-     */
+    /** @deprecated Use {@link ExecutionOptions#BATCH_SHUFFLE_MODE} instead. */
     @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
@@ -590,8 +590,12 @@ public class ExecutionConfigOptions {
         /** Ordered output mode, equivalent to {@see AsyncDataStream.OutputMode.ORDERED}. */
         ORDERED,
 
-        /** Unordered output mode, {@see AsyncDataStream.OutputMode.UNORDERED}. */
-        UNORDERED
+        /**
+         * Allow unordered output mode, will attempt to use {@see
+         * AsyncDataStream.OutputMode.UNORDERED} when it does not affect the correctness of the
+         * result, otherwise ORDERED will be still used.
+         */
+        ALLOW_UNORDERED
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

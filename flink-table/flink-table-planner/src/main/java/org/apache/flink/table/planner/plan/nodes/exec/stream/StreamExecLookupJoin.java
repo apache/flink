@@ -57,6 +57,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
+            boolean inputInsertOnly,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -70,6 +71,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
+                inputInsertOnly,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -89,6 +91,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
                     RexNode filterOnTemporalTable,
+            @JsonProperty(FIELD_NAME_INPUT_INSERT_ONLY) @Nullable Boolean inputInsertOnly,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -102,6 +105,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
+                inputInsertOnly,
                 inputProperties,
                 outputType,
                 description);
