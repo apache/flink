@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockSerializationSchema;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -52,7 +51,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -132,18 +131,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
                 .get(0)
                 .setException(new Exception("artificial async exception"));
 
-        try {
-            testHarness.processElement(new StreamRecord<>("msg-2"));
-        } catch (Exception e) {
-            // the next invoke should rethrow the async exception
-            assertThat(ExceptionUtils.findThrowableWithMessage(e, "artificial async exception"))
-                    .isPresent();
-
-            // test succeeded
-            return;
-        }
-
-        fail("unknown failure");
+        assertThatThrownBy(() -> testHarness.processElement(new StreamRecord<>("msg-2")))
+                .hasStackTraceContaining("artificial async exception");
     }
 
     /**
@@ -167,18 +156,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
                 .get(0)
                 .setException(new Exception("artificial async exception"));
 
-        try {
-            testHarness.snapshot(123L, 123L);
-        } catch (Exception e) {
-            // the next checkpoint should rethrow the async exception
-            assertThat(ExceptionUtils.findThrowableWithMessage(e, "artificial async exception"))
-                    .isPresent();
-
-            // test succeeded
-            return;
-        }
-
-        fail("unknown failure");
+        assertThatThrownBy(() -> testHarness.snapshot(123L, 123L))
+                .hasStackTraceContaining("artificial async exception");
     }
 
     /**
@@ -226,20 +205,8 @@ public class FlinkKinesisProducerTest extends TestLogger {
                 .setException(new Exception("artificial async failure for 2nd message"));
         producer.getPendingRecordFutures().get(2).set(mock(UserRecordResult.class));
 
-        try {
-            snapshotThread.sync();
-        } catch (Exception e) {
-            // after the flush, the async exception should have been rethrown
-            assertThat(
-                            ExceptionUtils.findThrowableWithMessage(
-                                    e, "artificial async failure for 2nd message"))
-                    .isPresent();
-
-            // test succeeded
-            return;
-        }
-
-        fail("unknown failure");
+        assertThatThrownBy(snapshotThread::sync)
+                .hasStackTraceContaining("artificial async failure for 2nd message");
     }
 
     /**

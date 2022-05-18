@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -392,12 +392,10 @@ public class KinesisProxyTest {
                 ConsumerConfigConstants.LIST_SHARDS_RETRIES, String.valueOf(maxRetries));
         kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
         Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
-        try {
-            kinesisProxy.getShardList(streamNames);
-            fail("exception expected");
-        } catch (SdkClientException ex) {
-            assertThat(ex).isEqualTo(retriableExceptions[maxRetries]);
-        }
+        KinesisProxy finalKinesisProxy = kinesisProxy;
+        assertThatThrownBy(() -> finalKinesisProxy.getShardList(streamNames))
+                .isInstanceOf(SdkClientException.class)
+                .isEqualTo(retriableExceptions[maxRetries]);
         assertThat(exceptionCount.intValue()).isEqualTo(maxRetries + 1);
     }
 

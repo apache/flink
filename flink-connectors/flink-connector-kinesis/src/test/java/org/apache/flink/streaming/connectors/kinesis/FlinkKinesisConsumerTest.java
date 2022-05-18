@@ -91,7 +91,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.mock;
@@ -1206,9 +1205,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         }
 
         int received = queue.size();
-        if (received < count) {
-            fail(String.format("Timeout waiting for records, received %d/%d", received, count));
-        }
+        assertThat(received).isEqualTo(count);
     }
 
     private static class OpenCheckingStringSchema extends SimpleStringSchema {

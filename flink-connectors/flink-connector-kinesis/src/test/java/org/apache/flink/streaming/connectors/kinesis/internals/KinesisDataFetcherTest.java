@@ -73,7 +73,7 @@ import java.util.stream.Collectors;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -1004,20 +1004,9 @@ public class KinesisDataFetcherTest extends TestLogger {
         // InterruptedException.
         consumerThread.interrupt();
 
-        try {
-            consumerThread.sync();
-        } catch (InterruptedException e) {
-            fail(
-                    "Expected exception from deserializer, but got InterruptedException, probably from "
-                            + "KinesisDataFetcher, which obscures the cause of the failure. "
-                            + e);
-        } catch (RuntimeException e) {
-            if (!e.getMessage().equals(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE)) {
-                fail("Expected exception from deserializer, but got: " + e);
-            }
-        } catch (Exception e) {
-            fail("Expected exception from deserializer, but got: " + e);
-        }
+        assertThatThrownBy(consumerThread::sync)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage(AlwaysThrowsDeserializationSchema.EXCEPTION_MESSAGE);
 
         assertThat(fetcher.wasInterrupted)
                 .as(

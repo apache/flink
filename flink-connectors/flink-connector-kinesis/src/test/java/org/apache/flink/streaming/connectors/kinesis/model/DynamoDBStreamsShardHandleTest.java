@@ -21,7 +21,7 @@ import org.junit.Test;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle.SHARDID_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Shard handle unit tests. */
 public class DynamoDBStreamsShardHandleTest {
@@ -64,18 +64,19 @@ public class DynamoDBStreamsShardHandleTest {
                 .isEqualTo(0);
 
         // comparison of invalid shardIds should yield exception
-        try {
-            DynamoDBStreamsShardHandle.compareShardIds(shardIdValid, shardIdInvalid);
-            fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
-        try {
-            DynamoDBStreamsShardHandle.compareShardIds(shardIdInvalid, shardIdValid);
-            fail("invalid shard Id" + shardIdInvalid + " should trigger exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                DynamoDBStreamsShardHandle.compareShardIds(
+                                        shardIdValid, shardIdInvalid))
+                .as("invalid shard Id" + shardIdInvalid + " should trigger exception")
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                DynamoDBStreamsShardHandle.compareShardIds(
+                                        shardIdInvalid, shardIdValid))
+                .as("invalid shard Id" + shardIdInvalid + " should trigger exception")
+                .isInstanceOf(IllegalArgumentException.class);
 
         // compare randomly generated shardIds based on timestamp
         String[] shardIds = new String[numShardIds];

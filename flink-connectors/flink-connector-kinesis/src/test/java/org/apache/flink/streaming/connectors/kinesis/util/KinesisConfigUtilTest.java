@@ -42,7 +42,7 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Tests for KinesisConfigUtil. */
 @RunWith(PowerMockRunner.class)
@@ -485,12 +485,8 @@ public class KinesisConfigUtilTest {
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, timestamp);
 
-        try {
-            KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("unknown failure");
-        }
+        assertThatNoException()
+                .isThrownBy(() -> KinesisConfigUtil.validateConsumerConfiguration(testConfig));
     }
 
     @Test
@@ -502,12 +498,8 @@ public class KinesisConfigUtilTest {
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
         testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 
-        try {
-            KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("unknown failure");
-        }
+        assertThatNoException()
+                .isThrownBy(() -> KinesisConfigUtil.validateConsumerConfiguration(testConfig));
     }
 
     @Test
