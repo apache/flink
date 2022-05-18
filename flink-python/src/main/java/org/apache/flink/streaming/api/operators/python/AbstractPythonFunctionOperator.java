@@ -221,10 +221,12 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
-            super.processWatermark(mark);
+            preEmitWatermark(mark);
+            output.emitWatermark(mark);
         } else if (isBundleFinished()) {
             // forward the watermark immediately if the bundle is already finished.
-            super.processWatermark(mark);
+            preEmitWatermark(mark);
+            output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
             // output watermark.
@@ -232,7 +234,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                     () -> {
                         try {
                             // at this point the bundle is finished, allow the watermark to pass
-                            super.processWatermark(mark);
+                            preEmitWatermark(mark);
+                            output.emitWatermark(mark);
                         } catch (Exception e) {
                             throw new RuntimeException(
                                     "Failed to process watermark after finished bundle.", e);
@@ -312,6 +315,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         Tuple2<byte[], Integer> resultTuple;
         while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f1 != 0) {
             emitResult(resultTuple);
+        }
+    }
+
+    /** Called before emitting watermark to downstream. */
+    protected void preEmitWatermark(Watermark mark) throws Exception {
+        if (getTimeServiceManager().isPresent()) {
+            getTimeServiceManager().get().advanceWatermark(mark);
         }
     }
 

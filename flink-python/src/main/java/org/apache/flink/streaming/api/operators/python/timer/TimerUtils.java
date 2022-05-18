@@ -22,8 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import java.lang.reflect.Field;
 
 /** Utilities for timer. */
 @Internal
@@ -41,5 +47,29 @@ public final class TimerUtils {
             TypeInformation<Row> timerDataType) {
         return ProtoUtils.createRawTypeCoderInfoDescriptorProto(
                 timerDataType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static InternalPriorityQueue<TimerHeapInternalTimer<?, ?>>
+            getInternalEventTimeTimersQueue(InternalTimerService<?> internalTimerService)
+                    throws Exception {
+        Field queueField = internalTimerService.getClass().getDeclaredField("eventTimeTimersQueue");
+        queueField.setAccessible(true);
+        return (InternalPriorityQueue<TimerHeapInternalTimer<?, ?>>)
+                queueField.get(internalTimerService);
+    }
+
+    public static boolean hasEventTimeTimerBeforeTimestamp(
+            InternalPriorityQueue<TimerHeapInternalTimer<?, ?>> timerQueue,
+            long timestamp,
+            boolean isBatchMode)
+            throws Exception {
+        if (isBatchMode) {
+            Preconditions.checkArgument(timestamp == Long.MAX_VALUE);
+            return timerQueue.size() == 0;
+        }
+
+        TimerHeapInternalTimer<?, ?> minTimer = timerQueue.peek();
+        return minTimer == null || minTimer.getTimestamp() > timestamp;
     }
 }
