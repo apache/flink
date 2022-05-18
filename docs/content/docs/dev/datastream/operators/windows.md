@@ -1659,6 +1659,20 @@ val globalResults = resultsPerKey
     .process(new TopKWindowFunction())
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+results_per_key = input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .reduce(Summer())
+
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .process(TopKWindowFunction())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 In this example, the results for time window `[0, 5)` from the first operation will also end up in

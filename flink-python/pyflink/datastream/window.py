@@ -626,6 +626,13 @@ class WindowOperationDescriptor(object):
         self.internal_window_function = internal_window_function
         self.window_serializer = window_serializer
 
+    def generate_op_name(self):
+        return type(self.assigner).__name__
+
+    def generate_op_desc(self, windowed_stream_type, func_desc):
+        return "%s(%s, %s, %s)" % (
+            windowed_stream_type, self.assigner, type(self.trigger).__name__, func_desc)
+
 
 class SessionWindowTimeGapExtractor(ABC):
     """
@@ -1494,7 +1501,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return False
 
     def __repr__(self):
-        return "ProcessingTimeSessionWindows(%s, %s)" % self._session_gap
+        return "ProcessingTimeSessionWindows(%s)" % self._session_gap
 
 
 class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
@@ -1560,7 +1567,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return True
 
     def __repr__(self):
-        return "EventTimeSessionWindows(%s, %s)" % self._session_gap
+        return "EventTimeSessionWindows(%s)" % self._session_gap
 
 
 class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):

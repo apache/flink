@@ -46,9 +46,6 @@ class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, TimeWi
                 elements: Iterable[tuple]) -> Iterable[tuple]:
         return [(key, context.window().start, context.window().end, len([e for e in elements]))]
 
-    def clear(self, context: ProcessWindowFunction.Context) -> None:
-        pass
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
