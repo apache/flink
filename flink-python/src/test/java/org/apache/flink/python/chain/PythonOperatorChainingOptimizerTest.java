@@ -118,14 +118,9 @@ class PythonOperatorChainingOptimizerTest {
                 .isEqualTo(15);
         assertThat(chainedTransformation.getOperatorFactory().getChainingStrategy())
                 .isEqualTo(ChainingStrategy.HEAD);
-        assertThat(
-                        chainedTransformation
-                                .getManagedMemorySlotScopeUseCases()
-                                .contains(ManagedMemoryUseCase.PYTHON))
-                .isTrue();
-        assertThat(
-                        chainedTransformation
-                                .getManagedMemorySlotScopeUseCases())
+        assertThat(chainedTransformation.getManagedMemorySlotScopeUseCases())
+                .contains(ManagedMemoryUseCase.PYTHON);
+        assertThat(chainedTransformation.getManagedMemorySlotScopeUseCases())
                 .contains(ManagedMemoryUseCase.STATE_BACKEND);
 
         OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
