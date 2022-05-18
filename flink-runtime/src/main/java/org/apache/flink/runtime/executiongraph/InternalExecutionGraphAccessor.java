@@ -112,4 +112,6 @@ public interface InternalExecutionGraphAccessor {
     ExecutionJobVertex getJobVertex(JobVertexID id);
 
     boolean isDynamic();
+
+    ExecutionGraphID getExecutionGraphID();
 }
