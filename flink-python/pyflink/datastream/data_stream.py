@@ -35,7 +35,11 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           InternalIterableProcessWindowFunction, CoProcessFunction,
                                           InternalSingleValueWindowFunction,
                                           InternalSingleValueProcessWindowFunction,
-                                          PassThroughWindowFunction, AggregateFunction)
+                                          PassThroughWindowFunction, AggregateFunction,
+                                          NullByteKeySelector, AllWindowFunction,
+                                          InternalIterableAllWindowFunction,
+                                          ProcessAllWindowFunction,
+                                          InternalIterableProcessAllWindowFunction)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
@@ -44,7 +48,7 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
                                        WindowAssigner, WindowOperationDescriptor,
-                                       GlobalWindowSerializer)
+                                       GlobalWindowSerializer, MergingWindowAssigner)
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
@@ -1548,6 +1552,20 @@ class KeyedStream(DataStream):
         else:
             return WindowedStream(self, CountSlidingWindowAssigner(size, slide))
 
+    def window_all(self, window_assigner: WindowAssigner) -> 'AllWindowedStream':
+        """
+        Windows this data stream to a AllWindowedStream, which evaluates windows over a non key
+        grouped stream. Elements are put into windows by a WindowAssigner. The grouping of
+        elements is done by window.
+
+        A Trigger can be defined to specify when windows are evaluated. However, WindowAssigners
+        have a default Trigger that is used if a Trigger is not specified.
+
+        :param window_assigner: The WindowAssigner that assigns elements to windows.
+        :return: The trigger windows data stream.
+        """
+        return AllWindowedStream(self, window_assigner)
+
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
 
@@ -1876,6 +1894,129 @@ class WindowedStream(object):
                 output_type)
 
         return DataStream(self._keyed_stream._j_data_stream.transform(
+            "WINDOW",
+            j_output_type_info,
+            j_python_data_stream_function_operator))
+
+
+class AllWindowedStream(object):
+    """
+    A AllWindowedStream represents a data stream where the stream of elements is split into windows
+    based on a WindowAssigner. Window emission is triggered based on a Trigger.
+
+    If an Evictor is specified it will be used to evict elements from the window after evaluation
+    was triggered by the Trigger but before the actual evaluation of the window.
+    When using an evictor, window performance will degrade significantly, since pre-aggregation of
+    window results cannot be used.
+
+    Note that the AllWindowedStream is purely an API construct, during runtime the AllWindowedStream
+    will be collapsed together with the operation over the window into one single operation.
+    """
+
+    def __init__(self, data_stream: DataStream, window_assigner: WindowAssigner):
+        self._input_stream = data_stream.key_by(NullByteKeySelector())
+        self._window_assigner = window_assigner
+        self._allowed_lateness = 0
+        self._late_data_output_tag = None  # type: Optional[OutputTag]
+        self._window_trigger = window_assigner.get_default_trigger(
+            self._input_stream.get_execution_environment())  # type: Trigger
+
+    def get_input_type(self):
+        return _from_java_type(self._input_stream._original_data_type_info.get_java_type_info())
+
+    def trigger(self, trigger: Trigger):
+        """
+        Sets the Trigger that should be used to trigger window emission.
+        """
+        if isinstance(self._window_assigner, MergingWindowAssigner) \
+                and (trigger.can_merge() is not True):
+            raise TypeError("A merging window assigner cannot be used with a trigger that does "
+                            "not support merging.")
+
+        self._window_trigger = trigger
+        return self
+
+    def allowed_lateness(self, time_ms: int):
+        """
+        Sets the time by which elements are allowed to be late. Elements that arrive behind the
+        watermark by more than the specified time will be dropped. By default, the allowed lateness
+        is 0.
+
+        Setting an allowed lateness is only valid for event-time windows.
+        """
+        self._allowed_lateness = time_ms
+        return self
+
+    def apply(self,
+              window_function: AllWindowFunction,
+              output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window. The output of the window function is interpreted as a regular
+        non-windowed stream.
+
+        Note that this function requires that all data in the windows is buffered until the window
+        is evaluated, as the function provides no means of incremental aggregation.
+
+        :param window_function: The window function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+        """
+        internal_window_function = InternalIterableAllWindowFunction(
+            window_function)  # type: InternalWindowFunction
+        list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        return self._get_result_data_stream(internal_window_function,
+                                            list_state_descriptor,
+                                            output_type)
+
+    def process(self,
+                process_window_function: ProcessAllWindowFunction,
+                output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Note that this function requires that all data in the windows is buffered until the window
+        is evaluated, as the function provides no means of incremental aggregation.
+
+        :param process_window_function: The window function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+        """
+        internal_window_function = InternalIterableProcessAllWindowFunction(
+            process_window_function)  # type: InternalWindowFunction
+        list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        return self._get_result_data_stream(internal_window_function,
+                                            list_state_descriptor,
+                                            output_type)
+
+    def _get_result_data_stream(self,
+                                internal_window_function: InternalWindowFunction,
+                                window_state_descriptor: StateDescriptor,
+                                output_type: TypeInformation):
+        if self._window_trigger is None:
+            self._window_trigger = self._window_assigner.get_default_trigger(
+                self._input_stream.get_execution_environment())
+        window_serializer = self._window_assigner.get_window_serializer()
+        window_operation_descriptor = WindowOperationDescriptor(
+            self._window_assigner,
+            self._window_trigger,
+            self._allowed_lateness,
+            self._late_data_output_tag,
+            window_state_descriptor,
+            window_serializer,
+            internal_window_function)
+
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_function_operator, j_output_type_info = \
+            _get_one_input_stream_operator(
+                self._input_stream,
+                window_operation_descriptor,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
+                output_type)
+
+        return DataStream(self._input_stream._j_data_stream.transform(
             "WINDOW",
             j_output_type_info,
             j_python_data_stream_function_operator))

@@ -22,7 +22,8 @@ from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction, AggregateFunction)
+from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction, AggregateFunction,
+                                          ProcessAllWindowFunction)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
@@ -439,6 +440,35 @@ class WindowTests(PyFlinkStreamingTestCase):
         self.env.execute('test_global_window_with_purging_trigger')
         results = self.test_sink.get_results()
         expected = ['(hi,2)', '(hi,2)', '(hi,2)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_event_time_tumbling_window_all(self):
+        data_stream = self.env.from_collection([
+            ('hi', 1), ('hello', 2), ('hi', 3), ('hello', 4), ('hello', 5), ('hi', 8), ('hi', 9),
+            ('hi', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class CountAllWindowProcessFunction(ProcessAllWindowFunction[tuple, tuple, TimeWindow]):
+            def process(self, context: 'ProcessAllWindowFunction.Context',
+                        elements: Iterable[tuple]) -> Iterable[tuple]:
+                return [
+                    (context.window().start, context.window().end, len([e for e in elements]))]
+
+            def clear(self, context: 'ProcessAllWindowFunction.Context') -> None:
+                pass
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window_all(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
+            .process(CountAllWindowProcessFunction(),
+                     Types.TUPLE([Types.LONG(), Types.LONG(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_event_time_tumbling_window')
+        results = self.test_sink.get_results()
+        expected = ['(0,5,4)', '(15,20,1)', '(5,10,3)']
         self.assert_equals_sorted(expected, results)
 
 

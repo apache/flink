@@ -1604,6 +1604,21 @@ val globalResults = resultsPerKey
     .process(new TopKWindowFunction())
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .reduce(Summer())
+
+input \
+    .key_by(<key selector>) \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .process(TopKWindowFunction())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 这个例子中，第一个操作中时间窗口`[0, 5)` 的结果会出现在下一个窗口操作的 `[0, 5)` 窗口中。
