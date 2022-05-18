@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.UUID;
 
 /** Tests for the {@link WritableComparator} with {@link WritableID}. */
-public class WritableComparatorUUIDTest extends ComparatorTestBase<WritableID> {
+class WritableComparatorUUIDTest extends ComparatorTestBase<WritableID> {
     @Override
     protected TypeComparator<WritableID> createComparator(boolean ascending) {
         return new WritableComparator<>(ascending, WritableID.class);
