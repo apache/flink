@@ -22,11 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.types.Row;
 
@@ -39,6 +41,7 @@ public final class TimerRegistration {
 
     private final KeyedStateBackend<Row> keyedStateBackend;
     private final InternalTimerService internalTimerService;
+    private final InternalPriorityQueue<TimerHeapInternalTimer<?, ?>> internalEventTimeTimersQueue;
     private final KeyContext keyContext;
     private final TypeSerializer namespaceSerializer;
     private final TypeSerializer<Row> timerDataSerializer;
@@ -50,9 +53,12 @@ public final class TimerRegistration {
             InternalTimerService internalTimerService,
             KeyContext keyContext,
             TypeSerializer namespaceSerializer,
-            TypeSerializer<Row> timerDataSerializer) {
+            TypeSerializer<Row> timerDataSerializer)
+            throws Exception {
         this.keyedStateBackend = keyedStateBackend;
         this.internalTimerService = internalTimerService;
+        this.internalEventTimeTimersQueue =
+                TimerUtils.getInternalEventTimeTimersQueue(internalTimerService);
         this.keyContext = keyContext;
         this.namespaceSerializer = namespaceSerializer;
         this.timerDataSerializer = timerDataSerializer;
@@ -103,6 +109,17 @@ public final class TimerRegistration {
                     internalTimerService.deleteProcessingTimeTimer(namespace, timestamp);
             }
         }
+    }
+
+    /**
+     * Returns if there's any event-time timer in the queue, that should be triggered because
+     * watermark advance.
+     */
+    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception {
+        return TimerUtils.hasEventTimeTimerBeforeTimestamp(
+                internalEventTimeTimersQueue,
+                timestamp,
+                PythonOperatorUtils.inBatchExecutionMode(keyedStateBackend));
     }
 
     /** The flag for indicating the timer operation type. */
