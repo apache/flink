@@ -130,9 +130,9 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     }
 
     @Override
-    public int getEventTimeTimerCountBeforeTimestamp(long timestamp) {
+    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) {
         Preconditions.checkArgument(timestamp == Long.MAX_VALUE);
-        return eventTimeTimersQueue.size();
+        return eventTimeTimersQueue.size() > 0;
     }
 
     @Override

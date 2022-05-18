@@ -239,7 +239,7 @@ public class PythonKeyedProcessOperator<OUT>
         do {
             timeServiceManager.advanceWatermark(mark);
             invokeFinishBundle();
-        } while (internalTimerService.getEventTimeTimerCountBeforeTimestamp(timestamp) > 0);
+        } while (internalTimerService.hasEventTimeTimerBeforeTimestamp(timestamp));
     }
 
     /**

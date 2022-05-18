@@ -63,8 +63,8 @@ public interface InternalTimerService<N> {
     void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
             throws Exception;
 
-    /** Returns the count of event-time timers before given timestamp. */
-    int getEventTimeTimerCountBeforeTimestamp(long timestamp) throws Exception;
+    /** Checks if there's any event-time timer before given timestamp. */
+    boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception;
 
     /**
      * Performs an action for each registered timer. The timer service will set the key context for

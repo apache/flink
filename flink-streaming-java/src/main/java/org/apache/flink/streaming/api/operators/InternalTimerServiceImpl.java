@@ -253,19 +253,17 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     }
 
     @Override
-    public int getEventTimeTimerCountBeforeTimestamp(long timestamp) throws Exception {
-        int count = 0;
+    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception {
         try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator =
                 eventTimeTimersQueue.iterator()) {
             while (iterator.hasNext()) {
                 TimerHeapInternalTimer<K, N> timer = iterator.next();
-                if (timer.getTimestamp() > timestamp) {
-                    break;
+                if (timer.getTimestamp() <= timestamp) {
+                    return true;
                 }
-                count++;
             }
         }
-        return count;
+        return false;
     }
 
     @Override
