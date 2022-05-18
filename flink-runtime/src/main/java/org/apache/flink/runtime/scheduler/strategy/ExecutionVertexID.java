@@ -29,6 +29,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Id identifying {@link ExecutionVertex}. */
 public class ExecutionVertexID implements VertexID {
+
+    private static final long serialVersionUID = 1L;
+
     private final JobVertexID jobVertexId;
 
     private final int subtaskIndex;
