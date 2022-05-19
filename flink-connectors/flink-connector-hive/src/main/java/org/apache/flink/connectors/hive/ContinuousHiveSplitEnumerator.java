@@ -169,7 +169,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
             final Map.Entry<Integer, String> nextAwaiting = awaitingReader.next();
             final String hostname = nextAwaiting.getValue();
             final int awaitingSubtask = nextAwaiting.getKey();
-            final Optional<FileSourceSplit> nextSplit = splitAssigner.getNext(hostname);
+            final Optional<FileSourceSplit> nextSplit =
+                    splitAssigner.getNext(awaitingSubtask, hostname);
             if (nextSplit.isPresent()) {
                 enumeratorContext.assignSplit((HiveSourceSplit) nextSplit.get(), awaitingSubtask);
                 awaitingReader.remove();

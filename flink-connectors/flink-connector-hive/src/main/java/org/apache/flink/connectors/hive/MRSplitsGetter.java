@@ -18,8 +18,11 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.ql.exec.Utilities;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -46,8 +49,13 @@ public class MRSplitsGetter implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(MRSplitsGetter.class);
 
     private final ExecutorService executorService;
+    private final boolean isBucketedRead;
 
     public MRSplitsGetter(int threadNum) {
+        this(threadNum, false);
+    }
+
+    public MRSplitsGetter(int threadNum, boolean isBucketedRead) {
         if (threadNum > 1) {
             executorService = Executors.newFixedThreadPool(threadNum);
         } else if (threadNum == 1) {
@@ -57,6 +65,7 @@ public class MRSplitsGetter implements Closeable {
                     "The thread number to create hive partition splits cannot be less than 1");
         }
         LOG.info("Open {} threads to create hive partition splits.", threadNum);
+        this.isBucketedRead = isBucketedRead;
     }
 
     public List<HiveTablePartitionSplits> getHiveTablePartitionMRSplits(
@@ -67,9 +76,12 @@ public class MRSplitsGetter implements Closeable {
 
         final List<Future<HiveTablePartitionSplits>> futures = new ArrayList<>();
         for (HiveTablePartition partition : partitions) {
-            futures.add(
-                    executorService.submit(
-                            new MRSplitter(minNumSplits, partition, new JobConf(jobConf))));
+            Callable<HiveTablePartitionSplits> splitter =
+                    isBucketedRead
+                            ? new MRBucketSplitter(partition, jobConf)
+                            : new MRSplitter(minNumSplits, partition, new JobConf(jobConf));
+
+            futures.add(executorService.submit(splitter));
         }
 
         int splitNum = 0;
@@ -132,6 +144,51 @@ public class MRSplitsGetter implements Closeable {
             // future.
             return new HiveTablePartitionSplits(
                     partition, jobConf, format.getSplits(jobConf, minNumSplits));
+        }
+    }
+
+    /**
+     * A splitter for bucketed table, the every single file of one bucket will be considered as a
+     * split without any splitting.
+     */
+    private static class MRBucketSplitter implements Callable<HiveTablePartitionSplits> {
+
+        private final HiveTablePartition partition;
+        private final JobConf jobConf;
+
+        public MRBucketSplitter(HiveTablePartition partition, JobConf jobConf) {
+            this.partition = partition;
+            this.jobConf = jobConf;
+        }
+
+        @Override
+        public HiveTablePartitionSplits call() throws Exception {
+            org.apache.hadoop.fs.Path inputPath =
+                    new org.apache.hadoop.fs.Path(partition.getStorageDescriptor().getLocation());
+            FileSystem fs = inputPath.getFileSystem(jobConf);
+            // it's possible a partition exists in metastore but the data has been removed
+            if (!fs.exists(inputPath)) {
+                return new HiveTablePartitionSplits(partition, jobConf, new InputSplit[0]);
+            }
+            FileStatus[] fileStatuses = fs.listStatus(inputPath);
+
+            List<InputSplit> splits = new ArrayList<>();
+            for (FileStatus fileStatus : fileStatuses) {
+                if (fileStatus.isFile()) {
+                    // follow Hive's behavior to get a valid bucket file
+                    int bucketId = Utilities.getBucketIdFromFile(fileStatus.getPath().getName());
+                    if (bucketId != -1) {
+                        splits.add(
+                                new FileSplit(
+                                        fileStatus.getPath(),
+                                        0,
+                                        fileStatus.getLen(),
+                                        new String[0]));
+                    }
+                }
+            }
+            return new HiveTablePartitionSplits(
+                    partition, jobConf, splits.toArray(new InputSplit[0]));
         }
     }
 

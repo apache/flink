@@ -68,6 +68,14 @@ public class HiveOptions {
                     .withDescription(
                             "The thread number to split hive's partitions to splits. It should be bigger than 0.");
 
+    public static final ConfigOption<Boolean> TABLE_EXEC_HIVE_BUCKETING_ENABLE =
+            key("table.exec.hive.bucketing.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "If it's true, for Hive bucketed table, all data files belonged to same bucket will be read by same reader."
+                                    + " Otherwise, these files can be read by different reader");
+
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")
                     .booleanType()

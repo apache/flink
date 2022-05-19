@@ -29,7 +29,8 @@ import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionP
  * @param <T> The type of the consumed records.
  */
 @Internal
-public class GroupedPartitionWriter<T> extends BaseBucketFileWriter<T> implements PartitionWriter<T> {
+public class GroupedPartitionWriter<T> extends BaseBucketFileWriter<T>
+        implements PartitionWriter<T> {
 
     private final PartitionComputer<T> partitionComputer;
     private String currentPartition;

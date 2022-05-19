@@ -41,6 +41,7 @@ import java.util.List;
  */
 public class HiveSourceFileEnumerator implements FileEnumerator {
 
+    private final boolean isBucketedRead;
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
     private final List<HiveTablePartition> partitions;
@@ -48,7 +49,11 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     private final JobConf jobConf;
 
     public HiveSourceFileEnumerator(
-            List<HiveTablePartition> partitions, int threadNum, JobConf jobConf) {
+            boolean isBucketedRead,
+            List<HiveTablePartition> partitions,
+            int threadNum,
+            JobConf jobConf) {
+        this.isBucketedRead = isBucketedRead;
         this.partitions = partitions;
         this.threadNum = threadNum;
         this.jobConf = jobConf;
@@ -57,14 +62,26 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException {
-        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, threadNum, jobConf));
+        return new ArrayList<>(
+                createInputSplits(
+                        minDesiredSplits, partitions, threadNum, jobConf, isBucketedRead));
     }
 
     public static List<HiveSourceSplit> createInputSplits(
             int minNumSplits, List<HiveTablePartition> partitions, int threadNum, JobConf jobConf)
             throws IOException {
+        return createInputSplits(minNumSplits, partitions, threadNum, jobConf, false);
+    }
+
+    private static List<HiveSourceSplit> createInputSplits(
+            int minNumSplits,
+            List<HiveTablePartition> partitions,
+            int threadNum,
+            JobConf jobConf,
+            boolean isBucketedRead)
+            throws IOException {
         List<HiveSourceSplit> hiveSplits = new ArrayList<>();
-        try (MRSplitsGetter splitsGetter = new MRSplitsGetter(threadNum)) {
+        try (MRSplitsGetter splitsGetter = new MRSplitsGetter(threadNum, isBucketedRead)) {
             for (HiveTablePartitionSplits partitionSplits :
                     splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
                 HiveTablePartition partition = partitionSplits.getHiveTablePartition();
@@ -76,7 +93,6 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
                 }
             }
         }
-
         return hiveSplits;
     }
 
@@ -101,12 +117,17 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 
         private static final long serialVersionUID = 1L;
 
+        private final boolean isBucketedRead;
         private final List<HiveTablePartition> partitions;
         private final int threadNum;
         private final JobConfWrapper jobConfWrapper;
 
         public Provider(
-                List<HiveTablePartition> partitions, int threadNum, JobConfWrapper jobConfWrapper) {
+                boolean isBucketedRead,
+                List<HiveTablePartition> partitions,
+                int threadNum,
+                JobConfWrapper jobConfWrapper) {
+            this.isBucketedRead = isBucketedRead;
             this.partitions = partitions;
             this.threadNum = threadNum;
             this.jobConfWrapper = jobConfWrapper;
@@ -114,7 +135,8 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
 
         @Override
         public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, threadNum, jobConfWrapper.conf());
+            return new HiveSourceFileEnumerator(
+                    isBucketedRead, partitions, threadNum, jobConfWrapper.conf());
         }
     }
 }

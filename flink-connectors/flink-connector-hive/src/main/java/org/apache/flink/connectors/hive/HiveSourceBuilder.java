@@ -27,6 +27,7 @@ import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 import org.apache.flink.connector.file.table.LimitableBulkFormat;
+import org.apache.flink.connectors.hive.read.HiveBucketFileSplitAssigner;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveInputFormat;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
@@ -91,6 +92,7 @@ public class HiveSourceBuilder {
     private int[] projectedFields;
     private Long limit;
     private List<HiveTablePartition> partitions;
+    private boolean isBucketedRead;
 
     /**
      * Creates a builder to read a hive table.
@@ -229,13 +231,23 @@ public class HiveSourceBuilder {
                             jobConf, hiveVersion, tablePath, partitionKeys, null);
         }
 
-        FileSplitAssigner.Provider splitAssigner =
-                continuousSourceSettings == null || partitionKeys.isEmpty()
-                        ? DEFAULT_SPLIT_ASSIGNER
-                        : SimpleSplitAssigner::new;
+        // default use SimpleSplitAssigner
+        FileSplitAssigner.Provider splitAssigner = SimpleSplitAssigner::new;
+
+        if (isBucketedRead) {
+            // when it's bucketed read, use HiveBucketFileSplitAssigner.
+            // see more in HiveBucketFileSplitAssigner
+            splitAssigner = HiveBucketFileSplitAssigner::new;
+        } else if (continuousSourceSettings == null || partitionKeys.isEmpty()) {
+            // else, when it's in batch mode or no partition key, we can use
+            // LocalityAwareSplitAssigner
+            splitAssigner = DEFAULT_SPLIT_ASSIGNER;
+        }
+
         return new HiveSource<>(
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
+                        isBucketedRead,
                         partitions != null ? partitions : Collections.emptyList(),
                         threadNum,
                         new JobConfWrapper(jobConf)),
@@ -272,6 +284,12 @@ public class HiveSourceBuilder {
      */
     public HiveSourceBuilder setProjectedFields(int[] projectedFields) {
         this.projectedFields = projectedFields;
+        return this;
+    }
+
+    /** Set should bucket read . */
+    public HiveSourceBuilder setIsBucketedRead(boolean isBucketedRead) {
+        this.isBucketedRead = isBucketedRead;
         return this;
     }
 

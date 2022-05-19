@@ -556,6 +556,11 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     }
 
     @Test
+    public void testParallelismOnBucketedTable() {
+        // todo add test
+    }
+
+    @Test
     public void testSourceConfig() throws Exception {
         // vector reader not available for 1.x and we're not testing orc for 2.0.x
         Assume.assumeTrue(HiveVersionTestUtil.HIVE_230_OR_LATER);

@@ -37,6 +37,7 @@ class LocalityAwareSplitAssignerTest {
 
     private static final Path TEST_PATH =
             Path.fromLocalFile(new File(System.getProperty("java.io.tmpdir")));
+    private static final int TASK_Id = 0;
 
     // ------------------------------------------------------------------------
 
@@ -54,13 +55,13 @@ class LocalityAwareSplitAssignerTest {
         // get all available splits
         final LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
-        while ((is = ia.getNext(null)).isPresent()) {
+        while ((is = ia.getNext(TASK_Id, null)).isPresent()) {
             assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "")).isNotPresent();
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numSplits);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
     }
@@ -78,13 +79,13 @@ class LocalityAwareSplitAssignerTest {
         // get all available splits
         LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
-        while ((is = ia.getNext("testhost")).isPresent()) {
+        while ((is = ia.getNext(TASK_Id, "testhost")).isPresent()) {
             assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "")).isNotPresent();
 
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numSplits);
@@ -104,13 +105,13 @@ class LocalityAwareSplitAssignerTest {
         // get all available splits
         final LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
-        while ((is = ia.getNext("testhost")).isPresent()) {
+        while ((is = ia.getNext(TASK_Id, "testhost")).isPresent()) {
             assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("anotherHost")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "anotherHost")).isNotPresent();
 
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numSplits);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
@@ -147,13 +148,13 @@ class LocalityAwareSplitAssignerTest {
         final LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
         int i = 0;
-        while ((is = ia.getNext(hosts[i++ % hosts.length])).isPresent()) {
+        while ((is = ia.getNext(TASK_Id, hosts[i++ % hosts.length])).isPresent()) {
             assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("anotherHost")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "anotherHost")).isNotPresent();
 
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numRemoteSplits);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numLocalSplits);
@@ -202,7 +203,7 @@ class LocalityAwareSplitAssignerTest {
         for (int i = 0; i < numSplits; i++) {
             final String host = requestingHosts[i % requestingHosts.length];
 
-            final Optional<FileSourceSplit> ois = ia.getNext(host);
+            final Optional<FileSourceSplit> ois = ia.getNext(TASK_Id, host);
             assertThat(ois).isPresent();
 
             final FileSourceSplit is = ois.get();
@@ -220,7 +221,7 @@ class LocalityAwareSplitAssignerTest {
         }
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("anotherHost")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "anotherHost")).isNotPresent();
 
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(numRemoteSplits);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numLocalSplits);
@@ -241,13 +242,13 @@ class LocalityAwareSplitAssignerTest {
         LocalityAwareSplitAssigner ia = new LocalityAwareSplitAssigner(splits);
         Optional<FileSourceSplit> is;
         int i = 0;
-        while ((is = ia.getNext(hosts[i++ % hosts.length])).isPresent()) {
+        while ((is = ia.getNext(TASK_Id, hosts[i++ % hosts.length])).isPresent()) {
             assertThat(splits.remove(is.get())).isTrue();
         }
 
         // check we had all
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("anotherHost")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "anotherHost")).isNotPresent();
 
         assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
         assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(numSplits);
@@ -288,13 +289,13 @@ class LocalityAwareSplitAssignerTest {
 
         for (int i = 0; i < numSplits; i++) {
             final Optional<FileSourceSplit> split =
-                    ia.getNext(requestingHosts[rand.nextInt(requestingHosts.length)]);
+                    ia.getNext(TASK_Id, requestingHosts[rand.nextInt(requestingHosts.length)]);
             assertThat(split).isPresent();
             assertThat(splits.remove(split.get())).isTrue();
         }
 
         assertThat(splits).isEmpty();
-        assertThat(ia.getNext("testHost")).isNotPresent();
+        assertThat(ia.getNext(TASK_Id, "testHost")).isNotPresent();
     }
 
     // ------------------------------------------------------------------------

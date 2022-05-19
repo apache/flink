@@ -146,10 +146,20 @@ public class HiveTableSource
                             catalogTable.getPartitionKeys(),
                             remainingPartitions);
 
+            int bucketNum = -1;
+            // bucket reading is enabled
+            if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_BUCKETING_ENABLE)) {
+                HiveTablePartition tablePartition =
+                        hivePartitionsToRead.stream().findAny().orElse(null);
+                if (tablePartition != null) {
+                    bucketNum = tablePartition.getStorageDescriptor().getNumBuckets();
+                }
+            }
+
             int threadNum =
                     flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM);
             int parallelism =
-                    new HiveParallelismInference(tablePath, flinkConf)
+                    new HiveParallelismInference(tablePath, flinkConf, bucketNum)
                             .infer(
                                     () ->
                                             HiveSourceFileEnumerator.getNumFiles(
@@ -166,6 +176,7 @@ public class HiveTableSource
                             execEnv,
                             sourceBuilder
                                     .setPartitions(hivePartitionsToRead)
+                                    .setIsBucketedRead(bucketNum > 0)
                                     .buildWithDefaultBulkFormat())
                     .setParallelism(parallelism);
         }

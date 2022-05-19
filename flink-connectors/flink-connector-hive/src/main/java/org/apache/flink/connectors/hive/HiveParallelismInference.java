@@ -36,13 +36,15 @@ class HiveParallelismInference {
 
     private final ObjectPath tablePath;
     private final boolean infer;
+    private final int bucketNum;
     private final int inferMaxParallelism;
 
     private int parallelism;
 
-    HiveParallelismInference(ObjectPath tablePath, ReadableConfig flinkConf) {
+    HiveParallelismInference(ObjectPath tablePath, ReadableConfig flinkConf, int bucketNum) {
         this.tablePath = tablePath;
         this.infer = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM);
+        this.bucketNum = bucketNum;
         this.inferMaxParallelism =
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
         Preconditions.checkArgument(
@@ -79,6 +81,12 @@ class HiveParallelismInference {
             SupplierWithException<Integer, IOException> numFiles,
             SupplierWithException<Integer, IOException> numSplits) {
         if (!infer) {
+            return this;
+        }
+
+        // bucket number as the inferred parallelism
+        if (bucketNum > 0) {
+            parallelism = Math.min(bucketNum, inferMaxParallelism);
             return this;
         }
 

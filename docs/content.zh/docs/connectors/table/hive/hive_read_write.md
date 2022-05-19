@@ -170,6 +170,11 @@ following parameters in `TableConfig` (note that these parameters affect all sou
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
 
+### Read bucketed table
+
+By default, for Hive bucketed table, all the data files belonged to same bucket will be read by same reader. The default behavior will limit source parallelism when reading Hive bucketed table for the maximum parallelism is up to the number of buckets .
+You can use to disable the default behavior by setting `table.exec.hive.bucketing.enabled` to `false`, which means the data files can be read by any reader.
+
 ## Temporal Table Join
 
 You can use a Hive table as a temporal table, and then a stream can correlate the Hive table by temporal join. 
