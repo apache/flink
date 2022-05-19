@@ -22,21 +22,12 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.TypeStrategiesTestBase;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.stream.Stream;
 
 /** Tests for decimal {@link TypeStrategy TypeStrategies}. */
 class DecimalTypeStrategyTest extends TypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    protected void testTypeStrategy(TestSpec testSpec) {
-        super.testTypeStrategy(testSpec);
-    }
-
-    static Stream<TestSpec> testData() {
+    protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Find a decimal sum", SpecificTypeStrategies.DECIMAL_PLUS)
                         .inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))

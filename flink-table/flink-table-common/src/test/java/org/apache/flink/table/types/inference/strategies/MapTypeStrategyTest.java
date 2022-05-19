@@ -21,21 +21,12 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.inference.TypeStrategiesTestBase;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.stream.Stream;
 
 /** Tests for {@link MapTypeStrategy}. */
 class MapTypeStrategyTest extends TypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    protected void testTypeStrategy(TestSpec testSpec) {
-        super.testTypeStrategy(testSpec);
-    }
-
-    static Stream<TestSpec> testData() {
+    protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Infer a map type", SpecificTypeStrategies.MAP)
                         .inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())

@@ -51,7 +51,7 @@ class LogicalTypeDuplicatorTest {
 
     private static final LogicalTypeDuplicator INT_REPLACER = new IntReplacer();
 
-    static Stream<Arguments> testData() {
+    private static Stream<Arguments> testData() {
         return Stream.of(
                 Arguments.of(new CharType(2), new CharType(2)),
                 Arguments.of(

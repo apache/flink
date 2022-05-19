@@ -33,9 +33,6 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import javax.annotation.Nonnull;
 
 import java.lang.reflect.Field;
@@ -49,13 +46,7 @@ import static java.util.Collections.singletonList;
 /** Tests for {@link ComparableTypeStrategy}. */
 class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    protected void testStrategy(TestSpec testSpec) {
-        super.testStrategy(testSpec);
-    }
-
-    static Stream<TestSpec> testData() {
+    protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(
                                 "Numeric types are comparable",

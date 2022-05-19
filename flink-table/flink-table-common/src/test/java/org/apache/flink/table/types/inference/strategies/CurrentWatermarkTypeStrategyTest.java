@@ -26,21 +26,12 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.stream.Stream;
 
 /** Tests for {@link CurrentWatermarkTypeStrategy}. */
 class CurrentWatermarkTypeStrategyTest extends TypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    protected void testTypeStrategy(TestSpec testSpec) {
-        super.testTypeStrategy(testSpec);
-    }
-
-    static Stream<TestSpec> testData() {
+    protected Stream<TestSpec> testData() {
         return Stream.of(
                 // CURRENT_WATERMARK
                 TestSpec.forStrategy(

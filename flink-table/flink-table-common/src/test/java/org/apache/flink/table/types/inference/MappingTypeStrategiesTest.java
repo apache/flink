@@ -20,9 +20,6 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -32,13 +29,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 /** Tests for {@link TypeStrategies#mapping(Map)}. */
 class MappingTypeStrategiesTest extends TypeStrategiesTestBase {
 
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    protected void testTypeStrategy(TestSpec testSpec) {
-        super.testTypeStrategy(testSpec);
-    }
-
-    static Stream<TestSpec> testData() {
+    protected Stream<TestSpec> testData() {
         return Stream.of(
                 // (INT, BOOLEAN) -> STRING
                 TestSpec.forStrategy(createMappingTypeStrategy())
