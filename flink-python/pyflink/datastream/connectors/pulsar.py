@@ -389,7 +389,7 @@ class PulsarSourceBuilder(object):
             pulsar_deserialization_schema._j_pulsar_deserialization_schema)
         return self
 
-    def set_config(self, key: Union[str, ConfigOption], value) -> 'PulsarSourceBuilder':
+    def  set_config(self, key: Union[str, ConfigOption], value) -> 'PulsarSourceBuilder':
         """
         Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be
         found in PulsarSourceOptions and PulsarOptions.
