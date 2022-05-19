@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,10 +48,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the output elements.
  */
-public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
+abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
 
     @Test
-    public void testRetractionFieldKept() throws Exception {
+    void testRetractionFieldKept() throws Exception {
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(new Configuration(), JoinRelType.INNER);
         long initialTime = 0L;
@@ -75,7 +75,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     }
 
     @Test
-    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+    void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
@@ -100,7 +100,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     }
 
     @Test
-    public void testFinishBundleTriggeredByCount() throws Exception {
+    void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
@@ -127,7 +127,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     }
 
     @Test
-    public void testFinishBundleTriggeredByTime() throws Exception {
+    void testFinishBundleTriggeredByTime() throws Exception {
         Configuration conf = new Configuration();
         conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
@@ -152,7 +152,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     }
 
     @Test
-    public void testLeftJoin() throws Exception {
+    void testLeftJoin() throws Exception {
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(new Configuration(), JoinRelType.LEFT);
         long initialTime = 0L;

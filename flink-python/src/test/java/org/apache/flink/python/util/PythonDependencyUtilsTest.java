@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,20 +42,20 @@ import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
 import static org.apache.flink.python.util.PythonDependencyUtils.merge;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for PythonDependencyUtils. */
-public class PythonDependencyUtilsTest {
+class PythonDependencyUtilsTest {
 
     private List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         cachedFiles = new ArrayList<>();
     }
 
     @Test
-    public void testPythonFiles() {
+    void testPythonFiles() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_FILES,
@@ -95,7 +95,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonRequirements() {
+    void testPythonRequirements() {
         Configuration config = new Configuration();
         config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements.txt");
         Configuration actual = configurePythonDependencies(cachedFiles, config);
@@ -143,7 +143,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonArchives() {
+    void testPythonArchives() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -195,7 +195,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonExecutables() {
+    void testPythonExecutables() {
         Configuration config = new Configuration();
         config.set(PYTHON_EXECUTABLE, "venv/bin/python3");
         config.set(PYTHON_CLIENT_EXECUTABLE, "python37");
@@ -208,7 +208,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonDependencyConfigMerge() {
+    void testPythonDependencyConfigMerge() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -238,7 +238,7 @@ public class PythonDependencyUtilsTest {
         Map<String, String> actual =
                 cachedFiles.stream().collect(Collectors.toMap(t -> t.f0, t -> t.f1.filePath));
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     private void verifyConfiguration(Configuration expected, Configuration actual) {
@@ -246,6 +246,6 @@ public class PythonDependencyUtilsTest {
         actual.addAllToProperties(actualProperties);
         Properties expectedProperties = new Properties();
         expected.addAllToProperties(expectedProperties);
-        assertEquals(expectedProperties, actualProperties);
+        assertThat(actualProperties).isEqualTo(expectedProperties);
     }
 }
