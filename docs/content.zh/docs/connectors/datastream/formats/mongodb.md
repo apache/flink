@@ -1,5 +1,5 @@
 ---
-title:  "MongoDb"
+title:  "MongoDB"
 weight: 4
 type: docs
 aliases:
