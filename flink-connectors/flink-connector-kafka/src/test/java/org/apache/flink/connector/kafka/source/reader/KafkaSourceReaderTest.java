@@ -50,7 +50,6 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -80,7 +79,6 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Unit tests for {@link KafkaSourceReader}. */
 public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
@@ -394,13 +392,9 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     () -> reader.getNumAliveFetchers() == 0,
                     "The split fetcher did not exit before timeout.");
             assertThat(finishedSplits)
-                    .satisfies(
-                            matching(
-                                    Matchers.containsInAnyOrder(
-                                            KafkaPartitionSplit.toSplitId(
-                                                    normalSplit.getTopicPartition()),
-                                            KafkaPartitionSplit.toSplitId(
-                                                    emptySplit.getTopicPartition()))));
+                    .containsExactlyInAnyOrder(
+                            KafkaPartitionSplit.toSplitId(normalSplit.getTopicPartition()),
+                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition()));
         }
     }
 

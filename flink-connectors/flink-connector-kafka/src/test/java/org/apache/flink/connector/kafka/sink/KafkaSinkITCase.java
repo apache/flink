@@ -111,8 +111,6 @@ import static org.apache.flink.connector.kafka.testutils.KafkaUtil.createKafkaCo
 import static org.apache.flink.util.DockerImageVersions.KAFKA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.contains;
 
 /** Tests for using KafkaSink writing to a Kafka cluster. */
 public class KafkaSinkITCase extends TestLogger {
@@ -230,17 +228,10 @@ public class KafkaSinkITCase extends TestLogger {
                 1,
                 (records) ->
                         assertThat(records)
-                                .satisfies(
-                                        matching(
-                                                contains(
-                                                        LongStream.range(
-                                                                        1,
-                                                                        lastCheckpointedRecord
-                                                                                        .get()
-                                                                                        .get()
-                                                                                + 1)
-                                                                .boxed()
-                                                                .toArray()))));
+                                .contains(
+                                        (LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray(Long[]::new))));
     }
 
     @Test
@@ -250,17 +241,10 @@ public class KafkaSinkITCase extends TestLogger {
                 2,
                 (records) ->
                         assertThat(records)
-                                .satisfies(
-                                        matching(
-                                                contains(
-                                                        LongStream.range(
-                                                                        1,
-                                                                        lastCheckpointedRecord
-                                                                                        .get()
-                                                                                        .get()
-                                                                                + 1)
-                                                                .boxed()
-                                                                .toArray()))));
+                                .contains(
+                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray(Long[]::new)));
     }
 
     @Test
@@ -294,12 +278,10 @@ public class KafkaSinkITCase extends TestLogger {
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
         assertThat(deserializeValues(collectedRecords))
-                .satisfies(
-                        matching(
-                                contains(
-                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
-                                                .boxed()
-                                                .toArray())));
+                .contains(
+                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                .boxed()
+                                .toArray(Long[]::new));
     }
 
     @Test
@@ -323,12 +305,10 @@ public class KafkaSinkITCase extends TestLogger {
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
                 drainAllRecordsFromTopic(topic, true);
         assertThat(deserializeValues(collectedRecords))
-                .satisfies(
-                        matching(
-                                contains(
-                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
-                                                .boxed()
-                                                .toArray())));
+                .contains(
+                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                .boxed()
+                                .toArray(Long[]::new));
     }
 
     private void executeWithMapper(
@@ -418,9 +398,7 @@ public class KafkaSinkITCase extends TestLogger {
         final long recordsCount = expectedRecords.get().get();
         assertThat(recordsCount).isEqualTo(collectedRecords.size());
         assertThat(deserializeValues(collectedRecords))
-                .satisfies(
-                        matching(
-                                contains(LongStream.range(1, recordsCount + 1).boxed().toArray())));
+                .contains(LongStream.range(1, recordsCount + 1).boxed().toArray(Long[]::new));
         checkProducerLeak();
     }
 
