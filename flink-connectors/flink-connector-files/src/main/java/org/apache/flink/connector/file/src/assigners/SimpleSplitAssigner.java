@@ -41,7 +41,7 @@ public class SimpleSplitAssigner implements FileSplitAssigner {
     // ------------------------------------------------------------------------
 
     @Override
-    public Optional<FileSourceSplit> getNext(int subTask, String hostname) {
+    public Optional<FileSourceSplit> getNext(int subTaskId, String hostname) {
         final int size = splits.size();
         return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
     }

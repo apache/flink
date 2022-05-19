@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
@@ -31,6 +32,7 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
+import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -44,10 +46,16 @@ import org.junit.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +69,7 @@ public class HiveDialectQueryITCase {
 
     private static HiveCatalog hiveCatalog;
     private static TableEnvironment tableEnv;
+    private static String warehouse;
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -69,6 +78,8 @@ public class HiveDialectQueryITCase {
         hiveCatalog.getHiveConf().setVar(HiveConf.ConfVars.HIVE_QUOTEDID_SUPPORT, "none");
         hiveCatalog.open();
         tableEnv = getTableEnvWithHiveCatalog();
+        warehouse =
+                hiveCatalog.getHiveConf().get(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, "none");
 
         // create tables
         tableEnv.executeSql("create table foo (x int, y int)");
@@ -249,14 +260,9 @@ public class HiveDialectQueryITCase {
         try {
             tableEnv.executeSql("insert into temp values (1,2,3)").await();
             List<String> results =
-                    CollectionUtil.iteratorToList(
-                                    tableEnv.executeSql(
-                                                    "select x,y,z,grouping__id,grouping(x),grouping(z) from temp group by x,y,z with cube")
-                                            .collect())
-                            .stream()
-                            .map(Row::toString)
-                            .sorted()
-                            .collect(Collectors.toList());
+                    querySortedResult(
+                            tableEnv.sqlQuery(
+                                    "select x,y,z,grouping__id,grouping(x),grouping(z) from temp group by x,y,z with cube"));
             if (HiveParserUtils.legacyGrouping(hiveCatalog.getHiveConf())) {
                 // the grouping function in older version (2.2.0) hive has some serious bug and is
                 // barely usable, therefore we only care about the group__id here
@@ -328,6 +334,83 @@ public class HiveDialectQueryITCase {
             tableEnv.executeSql("drop table test2a");
             tableEnv.executeSql("drop table test2b");
         }
+    }
+
+    @Test
+    public void testBucketedTable() throws Exception {
+        tableEnv.executeSql(
+                "create table bucketed_table_dest (x int,y int) clustered by (x) sorted by (y) into 2 buckets");
+        tableEnv.executeSql("create table bucketed_table_src (x int, y int)");
+        try {
+            tableEnv.executeSql(
+                            "insert into bucketed_table_src values(1, 3), (2, 2), (1, 2), (2, 3), (3, 1)")
+                    .await();
+            tableEnv.executeSql("insert into bucketed_table_dest select * from bucketed_table_src")
+                    .await();
+
+            List<String> results =
+                    querySortedResult(tableEnv.sqlQuery("select * from bucketed_table_dest"));
+            assertThat(results.toString())
+                    .isEqualTo("[+I[1, 2], +I[1, 3], +I[2, 2], +I[2, 3], +I[3, 1]]");
+
+            // collect the all buckets and the files belonged to the bucket
+            Map<Integer, String> bucketFile = new HashMap<>();
+            List<Path> filePaths =
+                    Files.list(Paths.get(warehouse, "bucketed_table_dest"))
+                            .collect(Collectors.toList());
+            for (Path path : filePaths) {
+                if (!Files.isHidden(path)) {
+                    String fileName = path.toFile().getName();
+                    bucketFile.put(Utilities.getBucketIdFromFile(fileName), fileName);
+                }
+            }
+
+            // verify the buckets for the files should be 0,1
+            assertThat(bucketFile.keySet()).isEqualTo(new HashSet<>(Arrays.asList(0, 1)));
+            // verify the data in each bucket
+            // hive 3 use murmur_hash to calculate bucket id
+            if (HiveVersionTestUtil.HIVE_310_OR_LATER) {
+                assertThat(
+                                Files.readAllLines(
+                                        Paths.get(
+                                                warehouse,
+                                                "bucketed_table_dest",
+                                                bucketFile.get(0))))
+                        .isEqualTo(Arrays.asList("3\0011", "2\0012", "2\0013"));
+                assertThat(
+                                Files.readAllLines(
+                                        Paths.get(
+                                                warehouse,
+                                                "bucketed_table_dest",
+                                                bucketFile.get(1))))
+                        .isEqualTo(Arrays.asList("1\0012", "1\0013"));
+            } else {
+                assertThat(
+                                Files.readAllLines(
+                                        Paths.get(
+                                                warehouse,
+                                                "bucketed_table_dest",
+                                                bucketFile.get(0))))
+                        .isEqualTo(Arrays.asList("2\0012", "2\0013"));
+                assertThat(
+                                Files.readAllLines(
+                                        Paths.get(
+                                                warehouse,
+                                                "bucketed_table_dest",
+                                                bucketFile.get(1))))
+                        .isEqualTo(Arrays.asList("3\0011", "1\0012", "1\0013"));
+            }
+        } finally {
+            tableEnv.executeSql("drop table bucketed_table_src");
+            tableEnv.executeSql("drop table bucketed_table_dest");
+        }
+    }
+
+    private List<String> querySortedResult(Table table) {
+        return CollectionUtil.iteratorToList(table.execute().collect()).stream()
+                .map(Row::toString)
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     private void runQFile(File qfile) throws Exception {

@@ -170,10 +170,18 @@ following parameters in `TableConfig` (note that these parameters affect all sou
 
 Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
 
+### Write Hive's bucketed table
+
+For writing Hive's bucketed table, the data will be clustered and sorted just like what Hive does.
+
+**NOTE:** This feature is only supported in Hive dialect and Flink `batch` mode, and you have to load [HiveModule]({{< ref "docs/dev/table/modules" >}}#hivemodule) firstly.
+
 ### Read bucketed table
 
 By default, for Hive bucketed table, all the data files belonged to same bucket will be read by same reader. The default behavior will limit source parallelism when reading Hive bucketed table for the maximum parallelism is up to the number of buckets .
 You can use to disable the default behavior by setting `table.exec.hive.bucketing.enabled` to `false`, which means the data files can be read by any reader.
+
+**Note**: Such bucketed read behavior only works in batch mode. In stream mode, the bucketed table will always be considered as normal table.
 
 ## Temporal Table Join
 

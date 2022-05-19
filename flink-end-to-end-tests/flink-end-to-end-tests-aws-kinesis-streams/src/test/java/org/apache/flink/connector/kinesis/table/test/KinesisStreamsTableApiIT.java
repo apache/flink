@@ -199,7 +199,7 @@ public class KinesisStreamsTableApiIT {
     private <T> T fromJson(final String json, final Class<T> type) {
         try {
             return new ObjectMapper().readValue(json, type);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException("Test Failure.", e);
         }
     }

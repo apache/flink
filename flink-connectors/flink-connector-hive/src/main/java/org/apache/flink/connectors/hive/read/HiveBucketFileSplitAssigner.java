@@ -53,19 +53,19 @@ public class HiveBucketFileSplitAssigner implements FileSplitAssigner {
     }
 
     @Override
-    public Optional<FileSourceSplit> getNext(int subTask, @Nullable String hostname) {
+    public Optional<FileSourceSplit> getNext(int subTaskId, @Nullable String hostname) {
         // we have assigned one split of a bucket to the reader, still assign the splits with same
         // bucket id to it
-        if (assignments.get(subTask) != null) {
-            List<FileSourceSplit> splits = remainingBucketSplits.get(assignments.get(subTask));
+        if (assignments.get(subTaskId) != null) {
+            List<FileSourceSplit> splits = remainingBucketSplits.get(assignments.get(subTaskId));
             // there isn't any split for the bucket, try to assign it a new bucket
             if (splits.isEmpty()) {
-                return assignNewBucketSplit(subTask);
+                return assignNewBucketSplit(subTaskId);
             }
             // return a split belonged to the bucket
             return Optional.of(splits.remove(splits.size() - 1));
         } else {
-            return assignNewBucketSplit(subTask);
+            return assignNewBucketSplit(subTaskId);
         }
     }
 

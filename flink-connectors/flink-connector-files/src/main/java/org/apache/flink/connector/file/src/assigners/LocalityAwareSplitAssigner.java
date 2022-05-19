@@ -84,7 +84,7 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public Optional<FileSourceSplit> getNext(int subTask, @Nullable String host) {
+    public Optional<FileSourceSplit> getNext(int subTaskId, @Nullable String host) {
         // for a null host, we always return a remote split
         if (StringUtils.isNullOrWhitespaceOnly(host)) {
             final Optional<FileSourceSplit> split = getRemoteSplit();

@@ -23,10 +23,13 @@ import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ArrayUtils;
@@ -567,6 +570,7 @@ public class HiveRunnerITCase {
         TableEnvironment tableEnv =
                 batch ? getTableEnvWithHiveCatalog() : getStreamTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");
+        loadHiveModule(tableEnv);
         try {
             tableEnv.executeSql("create table db1.src (x string,y string)");
             hiveShell.execute(
@@ -578,13 +582,26 @@ public class HiveRunnerITCase {
                                             .await())
                     .isInstanceOf(FlinkHiveException.class)
                     .hasMessage("Reading or writing ACID table db1.dest is not supported.");
-            assertThatThrownBy(
-                            () ->
-                                    tableEnv.executeSql(
-                                                    "insert into db1.dest select * from db1.src")
-                                            .await())
-                    .isInstanceOf(FlinkHiveException.class)
-                    .hasMessage("Reading or writing ACID table db1.dest is not supported.");
+            if (batch) {
+                assertThatThrownBy(
+                                () ->
+                                        tableEnv.executeSql(
+                                                        "insert into db1.dest select * from db1.src")
+                                                .await())
+                        .isInstanceOf(FlinkHiveException.class)
+                        .hasMessage("Reading or writing ACID table db1.dest is not supported.");
+            } else {
+                // to insert into bucketed table, we need generate distributed by node, but it's not
+                // supported in stream mode.
+                // so, the message will differ for it'll fail in generating physical plan phase
+                assertThatThrownBy(
+                                () ->
+                                        tableEnv.executeSql(
+                                                        "insert into db1.dest select * from db1.src")
+                                                .await())
+                        .isInstanceOf(TableException.class)
+                        .hasMessageContaining("Cannot generate a valid execution plan for the given query");
+            }
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -616,6 +633,18 @@ public class HiveRunnerITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
+    }
+
+    private static void loadHiveModule(TableEnvironment tableEnv) {
+        // we need to load hive module for writing bucket table reply on Hive's built-in hash
+        // function
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
     }
 
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {

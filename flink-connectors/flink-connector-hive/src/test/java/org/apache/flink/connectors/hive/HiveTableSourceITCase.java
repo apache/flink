@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.HiveVersionTestUtil;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -521,10 +520,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     public void testParallelismWithoutParallelismInfer() throws Exception {
         final String dbName = "source_db";
         final String tblName = "test_parallelism_no_infer";
-        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
-        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
-        tEnv.registerCatalog("hive", hiveCatalog);
-        tEnv.useCatalog("hive");
+        TableEnvironment tEnv = createTableEnv();
         tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
         tEnv.executeSql(
                 "CREATE TABLE source_db.test_parallelism_no_infer "
@@ -550,14 +546,30 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         // when there's no infer, should use the default parallelism
         assertThat(transformation.getParallelism())
                 .isEqualTo(
-                        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM
-                                .defaultValue()
-                                .intValue());
+                        tEnv.getConfig()
+                                .get(
+                                        ExecutionConfigOptions
+                                                .TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM));
     }
 
     @Test
     public void testParallelismOnBucketedTable() {
-        // todo add test
+        TableEnvironment tEnv = createTableEnv();
+        tEnv.executeSql(
+                "CREATE TABLE bucketed_table "
+                        + "(x int, y string) clustered by (x) sorted by (y desc) into 20 buckets");
+        Table table = tEnv.sqlQuery("select * from bucketed_table");
+        // the parallelism should be same to the number of bucket
+        testParallelismSettingTranslateAndAssert(20, table, tEnv);
+
+        // disable bucketed read, the parallelism should be default value
+        tEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_BUCKETING_ENABLE, false);
+        table = tEnv.sqlQuery("select * from bucketed_table");
+        testParallelismSettingTranslateAndAssert(
+                tEnv.getConfig()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM),
+                table,
+                tEnv);
     }
 
     @Test
