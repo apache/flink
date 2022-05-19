@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 /** Tests for {@link GetTypeStrategy}. */
 class GetTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(

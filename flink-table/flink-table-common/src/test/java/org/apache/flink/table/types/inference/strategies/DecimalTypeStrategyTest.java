@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 /** Tests for decimal {@link TypeStrategy TypeStrategies}. */
 class DecimalTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Find a decimal sum", SpecificTypeStrategies.DECIMAL_PLUS)

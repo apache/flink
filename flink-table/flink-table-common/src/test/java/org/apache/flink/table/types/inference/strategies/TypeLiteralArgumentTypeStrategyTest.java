@@ -29,6 +29,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 /** Tests for {@link TypeLiteralArgumentTypeStrategy}. */
 class TypeLiteralArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Type literal", sequence(TYPE_LITERAL))

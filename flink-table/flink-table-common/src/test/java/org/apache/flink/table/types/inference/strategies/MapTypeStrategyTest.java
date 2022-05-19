@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 /** Tests for {@link MapTypeStrategy}. */
 class MapTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Infer a map type", SpecificTypeStrategies.MAP)

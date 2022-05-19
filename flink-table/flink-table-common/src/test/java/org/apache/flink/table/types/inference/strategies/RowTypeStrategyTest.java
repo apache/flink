@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 /** Tests for {@link RowTypeStrategy}. */
 class RowTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Infer a row type", SpecificTypeStrategies.ROW)

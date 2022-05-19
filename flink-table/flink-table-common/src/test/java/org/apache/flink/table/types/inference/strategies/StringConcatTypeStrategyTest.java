@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 /** Tests for {@link StringConcatTypeStrategy}. */
 class StringConcatTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Concat two strings", SpecificTypeStrategies.STRING_CONCAT)

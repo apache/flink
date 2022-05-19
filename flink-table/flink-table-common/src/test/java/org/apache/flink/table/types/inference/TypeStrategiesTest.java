@@ -35,6 +35,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.varyingStrin
 /** Tests for built-in {@link TypeStrategies}. */
 class TypeStrategiesTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 // missing strategy with arbitrary argument

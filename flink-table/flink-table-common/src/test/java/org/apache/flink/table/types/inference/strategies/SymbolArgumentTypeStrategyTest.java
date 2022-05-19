@@ -38,6 +38,7 @@ class SymbolArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static final InputTypeStrategy STRATEGY = sequence(symbol(TestEnum.class));
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Valid argument", STRATEGY)

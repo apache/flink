@@ -34,6 +34,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 /** Tests for {@link SubsequenceInputTypeStrategy}. */
 class SubsequenceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(

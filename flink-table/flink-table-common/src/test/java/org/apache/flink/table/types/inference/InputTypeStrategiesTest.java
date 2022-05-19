@@ -43,6 +43,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 /** Tests for built-in {@link InputTypeStrategies}. */
 class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 // wildcard with 2 arguments

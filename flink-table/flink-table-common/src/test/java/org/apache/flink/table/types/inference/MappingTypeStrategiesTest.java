@@ -29,6 +29,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 /** Tests for {@link TypeStrategies#mapping(Map)}. */
 class MappingTypeStrategiesTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 // (INT, BOOLEAN) -> STRING

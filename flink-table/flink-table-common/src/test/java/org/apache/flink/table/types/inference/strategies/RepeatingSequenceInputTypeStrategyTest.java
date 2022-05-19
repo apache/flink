@@ -30,6 +30,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.repeati
 /** Tests for {@link RepeatingSequenceInputTypeStrategy}. */
 class RepeatingSequenceInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(

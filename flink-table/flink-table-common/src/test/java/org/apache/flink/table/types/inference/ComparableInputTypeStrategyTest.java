@@ -46,6 +46,7 @@ import static java.util.Collections.singletonList;
 /** Tests for {@link ComparableTypeStrategy}. */
 class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(

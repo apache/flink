@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 /** Tests for {@link ArrayTypeStrategy}. */
 class ArrayTypeStrategyTest extends TypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Infer an array type", SpecificTypeStrategies.ARRAY)

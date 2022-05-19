@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 /** Tests for {@link CurrentWatermarkInputTypeStrategy}. */
 class CurrentWatermarkInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
+    @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(
