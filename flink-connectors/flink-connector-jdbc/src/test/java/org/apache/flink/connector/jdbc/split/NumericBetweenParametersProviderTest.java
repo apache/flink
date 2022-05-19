@@ -116,9 +116,9 @@ public class NumericBetweenParametersProviderTest {
     }
 
     private void check(long[][] expected, Serializable[][] actual) {
-        assertThat(actual).hasDimensions(expected.length, 2);
+        assertThat(actual).hasDimensions(expected.length, expected[0].length);
         for (int i = 0; i < expected.length; i++) {
-            for (int j = 0; j < 2; j++) {
+            for (int j = 0; j < expected[i].length; j++) {
                 assertThat(((Long) actual[i][j]).longValue()).isEqualTo(expected[i][j]);
             }
         }
