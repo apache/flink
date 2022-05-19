@@ -115,10 +115,10 @@ public final class TimerRegistration {
      * Returns if there's any event-time timer in the queue, that should be triggered because
      * watermark advance.
      */
-    public boolean isTimerQueueClean(long watermark) throws Exception {
+    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception {
         return TimerUtils.hasEventTimeTimerBeforeTimestamp(
                 internalEventTimeTimersQueue,
-                watermark,
+                timestamp,
                 PythonOperatorUtils.inBatchExecutionMode(keyedStateBackend));
     }
 

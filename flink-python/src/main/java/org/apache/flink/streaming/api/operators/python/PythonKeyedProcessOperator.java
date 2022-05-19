@@ -244,7 +244,7 @@ public class PythonKeyedProcessOperator<OUT>
         do {
             timeServiceManager.advanceWatermark(mark);
             invokeFinishBundle();
-        } while (!timerRegistration.isTimerQueueClean(timestamp));
+        } while (!timerRegistration.hasEventTimeTimerBeforeTimestamp(timestamp));
     }
 
     /**
