@@ -49,9 +49,6 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThan;
 
 /** IT cases for using Kinesis consumer/producer based on Kinesalite. */
 @Ignore("See FLINK-23528")
@@ -123,7 +120,7 @@ public class FlinkKinesisITCase extends TestLogger {
             List<String> result = stream.executeAndCollect(10000);
             // stop with savepoint will most likely only return a small subset of the elements
             // validate that the prefix is as expected
-            assertThat(result).satisfies(matching(hasSize(lessThan(numElements))));
+            assertThat(result).size().isLessThan(numElements);
             assertThat(result)
                     .isEqualTo(
                             IntStream.range(0, numElements)

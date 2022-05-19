@@ -63,9 +63,6 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -197,7 +194,7 @@ public class KinesisProxyTest {
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
         List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
-        assertThat(actualShardList).satisfies(matching(hasSize(4)));
+        assertThat(actualShardList).hasSize(4);
         for (int i = 0; i < 4; i++) {
             StreamShardHandle shardHandle =
                     new StreamShardHandle(
@@ -209,11 +206,8 @@ public class KinesisProxyTest {
         }
 
         assertThat(actualShardList)
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        expectedStreamShard.toArray(
-                                                new StreamShardHandle[actualShardList.size()]))));
+                .containsExactlyInAnyOrder(
+                        expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()]));
     }
 
     @Test
@@ -253,7 +247,7 @@ public class KinesisProxyTest {
 
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        assertThat(actualShardList).satisfies(matching(hasSize(2)));
+        assertThat(actualShardList).hasSize(2);
 
         List<StreamShardHandle> expectedStreamShard =
                 IntStream.range(0, actualShardList.size())
@@ -269,11 +263,8 @@ public class KinesisProxyTest {
                         .collect(Collectors.toList());
 
         assertThat(actualShardList)
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        expectedStreamShard.toArray(
-                                                new StreamShardHandle[actualShardList.size()]))));
+                .containsExactlyInAnyOrder(
+                        expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()]));
 
         // given new shards
         ListShardsResult responseSecond =
@@ -296,7 +287,7 @@ public class KinesisProxyTest {
 
         List<StreamShardHandle> newActualShardList =
                 newShardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        assertThat(newActualShardList).satisfies(matching(hasSize(1)));
+        assertThat(newActualShardList).hasSize(1);
 
         List<StreamShardHandle> newExpectedStreamShard =
                 Collections.singletonList(
@@ -308,12 +299,9 @@ public class KinesisProxyTest {
                                                         2))));
 
         assertThat(newActualShardList)
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        newExpectedStreamShard.toArray(
-                                                new StreamShardHandle
-                                                        [newActualShardList.size()]))));
+                .containsExactlyInAnyOrder(
+                        newExpectedStreamShard.toArray(
+                                new StreamShardHandle[newActualShardList.size()]));
     }
 
     @Test

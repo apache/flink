@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -92,7 +91,6 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -981,11 +979,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         testHarness.close();
 
         assertThat(testHarness.getOutput()).as("record count").hasSize(recordCount);
-        assertThat(watermarks)
-                .satisfies(
-                        matching(
-                                org.hamcrest.Matchers.contains(
-                                        new Watermark(-3), new Watermark(5))));
+        assertThat(watermarks).contains(new Watermark(-3), new Watermark(5));
         assertThat(watermarks).as("watermark count").hasSize(watermarkCount);
     }
 
@@ -1137,8 +1131,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         expectedResults.add(new Watermark(-4));
         // verify watermark
         awaitRecordCount(results, expectedResults.size());
-        assertThat(results)
-                .satisfies(matching(org.hamcrest.Matchers.contains(expectedResults.toArray())));
+        assertThat(results).contains(expectedResults);
         assertThat(TestWatermarkTracker.WATERMARK.get()).isEqualTo(0);
 
         // trigger sync
@@ -1171,15 +1164,13 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
         expectedResults.add(Long.toString(record2));
         awaitRecordCount(results, expectedResults.size());
-        assertThat(results)
-                .satisfies(matching(org.hamcrest.Matchers.contains(expectedResults.toArray())));
+        assertThat(results).contains(expectedResults);
         TestWatermarkTracker.assertGlobalWatermark(3000);
 
         // Trigger watermark update and emit
         testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
         expectedResults.add(new Watermark(3000));
-        assertThat(results)
-                .satisfies(matching(org.hamcrest.Matchers.contains(expectedResults.toArray())));
+        assertThat(results).contains(expectedResults);
 
         // verify exception propagation
         assertThat(sourceThreadError.get()).isNull();
@@ -1213,8 +1204,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
         @Override
         public void open(DeserializationSchema.InitializationContext context) throws Exception {
-            assertThat(context.getMetricGroup())
-                    .satisfies(matching(notNullValue(MetricGroup.class)));
+            assertThat(context.getMetricGroup()).isNotNull();
             this.opened = true;
         }
 
