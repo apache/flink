@@ -20,17 +20,17 @@ package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.table.data.DecimalData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the data generator is valid for every combination of precision and scale. */
-public class DecimalDataRandomGeneratorTest {
+class DecimalDataRandomGeneratorTest {
 
     @Test
-    public void testGenerateDecimalValues() {
+    void testGenerateDecimalValues() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 DecimalDataRandomGenerator gen =
@@ -88,7 +88,7 @@ public class DecimalDataRandomGeneratorTest {
     }
 
     @Test
-    public void testMinMax() {
+    void testMinMax() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 BigDecimal min = BigDecimal.valueOf(-10.0);
