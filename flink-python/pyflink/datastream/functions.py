@@ -22,7 +22,7 @@ from typing import Union, Any, Generic, TypeVar, Iterable
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState, BroadcastState, ReadOnlyBroadcastState
+    AggregatingStateDescriptor, AggregatingState, BroadcastState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
@@ -132,24 +132,6 @@ class OperatorStateStore(ABC):
         """
         Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
         which has read/write access to the broadcast operator state.
-        """
-        pass
-
-    @abstractmethod
-    def get_read_only_broadcast_state(
-        self, state_descriptor: MapStateDescriptor
-    ) -> ReadOnlyBroadcastState:
-        """
-        Fetches the :class:`~state.ReadOnlyBroadcastState` described by
-        :class:`~state.MapStateDescriptor`, which only has read access to the broadcast operator
-        state.
-        """
-        pass
-
-    @abstractmethod
-    def commit(self):
-        """
-        Commits all cached broadcast states at Python side to Java side.
         """
         pass
 
