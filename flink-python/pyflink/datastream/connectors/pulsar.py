@@ -171,9 +171,20 @@ class StopCursor(object):
 
     @staticmethod
     def at_event_time(timestamp: int) -> 'StopCursor':
+        warnings.warn(
+            "at_event_time is deprecated. Use at_publish_time instead.", DeprecationWarning)
         JStopCursor = get_gateway().jvm \
             .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
         return StopCursor(JStopCursor.atEventTime(timestamp))
+
+    @staticmethod
+    def at_publish_time(timestamp: int) -> 'StopCursor':
+        """
+        Stop when message publishTime is greater than the specified timestamp.
+        """
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.atPublishTime(timestamp))
 
 
 class PulsarSource(Source):
@@ -254,7 +265,7 @@ class PulsarSourceBuilder(object):
         ...     .set_topics([TOPIC1, TOPIC2]) \\
         ...     .set_deserialization_schema(
         ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
-        ...     .set_bounded_stop_cursor(StopCursor.at_event_time(int(time.time() * 1000)))
+        ...     .set_bounded_stop_cursor(StopCursor.at_publish_time(int(time.time() * 1000)))
         ...     .build()
     """
 

@@ -179,7 +179,7 @@ class FlinkPulsarTest(ConnectorTestBase):
             .set_topics('ada') \
             .set_start_cursor(StartCursor.earliest()) \
             .set_unbounded_stop_cursor(StopCursor.never()) \
-            .set_bounded_stop_cursor(StopCursor.at_event_time(22)) \
+            .set_bounded_stop_cursor(StopCursor.at_publish_time(22)) \
             .set_subscription_name('ff') \
             .set_subscription_type(SubscriptionType.Exclusive) \
             .set_deserialization_schema(
@@ -257,6 +257,7 @@ class FlinkPulsarTest(ConnectorTestBase):
             .set_topics('ada') \
             .set_deserialization_schema(
                 PulsarDeserializationSchema.flink_type_info(Types.STRING(), None)) \
+            .set_unbounded_stop_cursor(StopCursor.at_event_time(4444)) \
             .set_subscription_name('ff') \
             .set_config(test_option, True) \
             .set_config_with_dict({'pulsar.source.autoCommitCursorInterval': '1000'}) \
