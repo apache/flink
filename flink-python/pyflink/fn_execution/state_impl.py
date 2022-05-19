@@ -18,14 +18,13 @@
 import base64
 import collections
 from abc import ABC, abstractmethod
-from enum import Enum
-from functools import partial
-from io import BytesIO
-
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
 from apache_beam.transforms import userstate
+from enum import Enum
+from functools import partial
+from io import BytesIO
 from typing import List, Tuple, Any, Dict, Collection, cast
 
 from pyflink.datastream import ReduceFunction
@@ -1317,13 +1316,6 @@ class RemoteOperatorStateBackend(OperatorStateStore):
         )
         self._state_cache.put(state_name, broadcast_state)
         return broadcast_state
-
-    def get_read_only_broadcast_state(
-        self, state_descriptor: MapStateDescriptor
-    ) -> 'SynchronousReadOnlyBroadcastRuntimeState':
-        return cast(
-            SynchronousBroadcastRuntimeState, self.get_broadcast_state(state_descriptor)
-        ).to_read_only_broadcast_state()
 
     def commit(self):
         for state in self._state_cache:
