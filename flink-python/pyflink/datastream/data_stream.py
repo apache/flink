@@ -446,6 +446,20 @@ class DataStream(object):
         return self.process(FilterProcessFunctionAdapter(func), output_type=output_type) \
             .name("Filter")
 
+    def window_all(self, window_assigner: WindowAssigner) -> 'AllWindowedStream':
+        """
+        Windows this data stream to a AllWindowedStream, which evaluates windows over a non key
+        grouped stream. Elements are put into windows by a WindowAssigner. The grouping of
+        elements is done by window.
+
+        A Trigger can be defined to specify when windows are evaluated. However, WindowAssigners
+        have a default Trigger that is used if a Trigger is not specified.
+
+        :param window_assigner: The WindowAssigner that assigns elements to windows.
+        :return: The trigger windows data stream.
+        """
+        return AllWindowedStream(self, window_assigner)
+
     def union(self, *streams: 'DataStream') -> 'DataStream':
         """
         Creates a new DataStream by merging DataStream outputs of the same type with each other. The
@@ -1552,20 +1566,6 @@ class KeyedStream(DataStream):
         else:
             return WindowedStream(self, CountSlidingWindowAssigner(size, slide))
 
-    def window_all(self, window_assigner: WindowAssigner) -> 'AllWindowedStream':
-        """
-        Windows this data stream to a AllWindowedStream, which evaluates windows over a non key
-        grouped stream. Elements are put into windows by a WindowAssigner. The grouping of
-        elements is done by window.
-
-        A Trigger can be defined to specify when windows are evaluated. However, WindowAssigners
-        have a default Trigger that is used if a Trigger is not specified.
-
-        :param window_assigner: The WindowAssigner that assigns elements to windows.
-        :return: The trigger windows data stream.
-        """
-        return AllWindowedStream(self, window_assigner)
-
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
 
@@ -1924,7 +1924,7 @@ class AllWindowedStream(object):
     def get_input_type(self):
         return _from_java_type(self._input_stream._original_data_type_info.get_java_type_info())
 
-    def trigger(self, trigger: Trigger):
+    def trigger(self, trigger: Trigger) -> 'AllWindowedStream':
         """
         Sets the Trigger that should be used to trigger window emission.
         """
@@ -1945,6 +1945,31 @@ class AllWindowedStream(object):
         Setting an allowed lateness is only valid for event-time windows.
         """
         self._allowed_lateness = time_ms
+        return self
+
+    def side_output_late_data(self, output_tag: OutputTag):
+        """
+        Send late arriving data to the side output identified by the given :class:`OutputTag`. Data
+        is considered late after the watermark has passed the end of the window plus the allowed
+        lateness set using :func:`allowed_lateness`.
+
+        You can get the stream of late data using :func:`~DataStream.get_side_output` on the
+        :class:`DataStream` resulting from the windowed operation with the same :class:`OutputTag`.
+
+        Example:
+        ::
+
+            >>> tag = OutputTag("late-data", Types.TUPLE([Types.INT(), Types.STRING()]))
+            >>> main_stream = ds.key_by(lambda x: x[1]) \\
+            ...                 .window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...                 .side_output_late_data(tag) \\
+            ...                 .process(ProcessAllWindowFunction[tuple, tuple, TimeWindow](),
+            ...                      Types.TUPLE([Types.LONG(), Types.LONG(), Types.INT()]))
+            >>> late_stream = main_stream.get_side_output(tag)
+
+        .. versionadded:: 1.16.0
+        """
+        self._late_data_output_tag = output_tag
         return self
 
     def apply(self,
@@ -2016,8 +2041,11 @@ class AllWindowedStream(object):
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
                 output_type)
 
+        op_name = "TriggerWindow({}, {}, {}, AllWindowedStream)" \
+            .format(self._window_assigner, window_state_descriptor, self._window_trigger)
+
         return DataStream(self._input_stream._j_data_stream.transform(
-            "WINDOW",
+            op_name,
             j_output_type_info,
             j_python_data_stream_function_operator))
 

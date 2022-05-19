@@ -460,7 +460,6 @@ class WindowTests(PyFlinkStreamingTestCase):
                 pass
 
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.STRING()) \
             .window_all(TumblingEventTimeWindows.of(Time.milliseconds(5))) \
             .process(CountAllWindowProcessFunction(),
                      Types.TUPLE([Types.LONG(), Types.LONG(), Types.INT()])) \

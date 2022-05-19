@@ -1608,14 +1608,13 @@ val globalResults = resultsPerKey
 ```python
 input = ...  # type: DataStream
 
-input \
+results_per_key = input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
     .reduce(Summer())
 
-input \
-    .key_by(<key selector>) \
-    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
     .process(TopKWindowFunction())
 ```
 {{< /tab >}}

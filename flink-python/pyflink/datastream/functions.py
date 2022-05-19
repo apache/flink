@@ -997,7 +997,6 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         """
         pass
 
-    @abstractmethod
     def clear(self, context: 'ProcessWindowFunction.Context') -> None:
         """
         Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
@@ -1010,7 +1009,7 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
 
 class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
     """
-    Base interface for functions that are evaluated over keyed (grouped) windows using a context
+    Base interface for functions that are evaluated over non-keyed windows using a context
     for retrieving extra information.
     """
 
@@ -1059,7 +1058,6 @@ class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
         """
         pass
 
-    @abstractmethod
     def clear(self, context: 'ProcessAllWindowFunction.Context') -> None:
         """
         Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
