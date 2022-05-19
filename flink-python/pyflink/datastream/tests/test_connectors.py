@@ -179,7 +179,7 @@ class FlinkPulsarTest(ConnectorTestBase):
             .set_topics('ada') \
             .set_start_cursor(StartCursor.earliest()) \
             .set_unbounded_stop_cursor(StopCursor.never()) \
-            .set_bounded_stop_cursor(StopCursor.at_event_time(22)) \
+            .set_bounded_stop_cursor(StopCursor.at_publish_time(22)) \
             .set_subscription_name('ff') \
             .set_subscription_type(SubscriptionType.Exclusive) \
             .set_deserialization_schema(
@@ -254,12 +254,13 @@ class FlinkPulsarTest(ConnectorTestBase):
         pulsar_source = PulsarSource.builder() \
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
-            .set_topics_pattern('ada.*') \
+            .set_topic_pattern('ada.*') \
             .set_deserialization_schema(
                 PulsarDeserializationSchema.flink_type_info(Types.STRING())) \
+            .set_unbounded_stop_cursor(StopCursor.at_publish_time(4444)) \
             .set_subscription_name('ff') \
             .set_config(test_option, True) \
-            .set_config_with_dict({'pulsar.source.autoCommitCursorInterval': '1000'}) \
+            .set_properties({'pulsar.source.autoCommitCursorInterval': '1000'}) \
             .build()
         configuration = get_field_value(pulsar_source.get_java_function(), "sourceConfiguration")
         self.assertEqual(
