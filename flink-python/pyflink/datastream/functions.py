@@ -38,7 +38,6 @@ __all__ = [
     'ReduceFunction',
     'AggregateFunction',
     'KeySelector',
-    'NullByteKeySelector',
     'FilterFunction',
     'Partitioner',
     'SourceFunction',
@@ -916,7 +915,7 @@ class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
 
 class AllWindowFunction(Function, Generic[IN, OUT, W]):
     """
-    Base interface for functions that are evaluated over keyed (grouped) windows.
+    Base interface for functions that are evaluated over non-keyed windows.
     """
 
     @abstractmethod
