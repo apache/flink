@@ -24,7 +24,6 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -113,17 +112,6 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
             keyContext.setCurrentKey(timer.getKey());
             consumer.accept(timer.getNamespace(), timer.getTimestamp());
         }
-    }
-
-    @Override
-    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception {
-        Iterator<Timer<K, N>> iterator = watermarkTimersQueue.iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().getTimestamp() <= timestamp) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

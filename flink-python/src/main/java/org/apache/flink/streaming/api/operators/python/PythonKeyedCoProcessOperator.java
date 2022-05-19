@@ -63,6 +63,9 @@ public class PythonKeyedCoProcessOperator<OUT>
     /** TimerService for current operator to register or fire timer. */
     private transient InternalTimerService<VoidNamespace> internalTimerService;
 
+    /** TimerRegistration for handling timer registering. */
+    private transient TimerRegistration timerRegistration;
+
     /** The TypeInformation of the key. */
     private transient TypeInformation<Row> keyTypeInfo;
 
@@ -104,6 +107,13 @@ public class PythonKeyedCoProcessOperator<OUT>
                         timerDataTypeInfo);
 
         timerHandler = new TimerHandler();
+        timerRegistration =
+                new TimerRegistration(
+                        getKeyedStateBackend(),
+                        internalTimerService,
+                        this,
+                        VoidNamespaceSerializer.INSTANCE,
+                        timerDataSerializer);
 
         super.open();
     }
@@ -131,13 +141,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 getOperatorStateBackend(),
                 keyTypeSerializer,
                 null,
-                new TimerRegistration(
-                        getKeyedStateBackend(),
-                        internalTimerService,
-                        this,
-                        VoidNamespaceSerializer.INSTANCE,
-                        PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
-                                timerDataTypeInfo)),
+                timerRegistration,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -221,7 +225,7 @@ public class PythonKeyedCoProcessOperator<OUT>
         do {
             timeServiceManager.advanceWatermark(mark);
             invokeFinishBundle();
-        } while (internalTimerService.hasEventTimeTimerBeforeTimestamp(timestamp));
+        } while (!timerRegistration.isTimerQueueClean(timestamp));
     }
 
     /**

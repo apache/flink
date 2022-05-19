@@ -70,6 +70,9 @@ public class PythonKeyedProcessOperator<OUT>
     /** TimerService for current operator to register or fire timer. */
     private transient InternalTimerService internalTimerService;
 
+    /** TimerRegistration for handling timer registering. */
+    private transient TimerRegistration timerRegistration;
+
     /** The TypeInformation of the key. */
     private transient TypeInformation<Row> keyTypeInfo;
 
@@ -124,6 +127,13 @@ public class PythonKeyedProcessOperator<OUT>
                         timerDataTypeInfo);
 
         timerHandler = new TimerHandler();
+        timerRegistration =
+                new TimerRegistration(
+                        getKeyedStateBackend(),
+                        internalTimerService,
+                        this,
+                        namespaceSerializer,
+                        timerDataSerializer);
 
         super.open();
     }
@@ -161,12 +171,7 @@ public class PythonKeyedProcessOperator<OUT>
                 getOperatorStateBackend(),
                 keyTypeSerializer,
                 namespaceSerializer,
-                new TimerRegistration(
-                        getKeyedStateBackend(),
-                        internalTimerService,
-                        this,
-                        namespaceSerializer,
-                        timerDataSerializer),
+                timerRegistration,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -239,7 +244,7 @@ public class PythonKeyedProcessOperator<OUT>
         do {
             timeServiceManager.advanceWatermark(mark);
             invokeFinishBundle();
-        } while (internalTimerService.hasEventTimeTimerBeforeTimestamp(timestamp));
+        } while (!timerRegistration.isTimerQueueClean(timestamp));
     }
 
     /**

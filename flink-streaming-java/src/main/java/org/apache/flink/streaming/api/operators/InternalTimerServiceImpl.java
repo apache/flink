@@ -253,20 +253,6 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     }
 
     @Override
-    public boolean hasEventTimeTimerBeforeTimestamp(long timestamp) throws Exception {
-        try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator =
-                eventTimeTimersQueue.iterator()) {
-            while (iterator.hasNext()) {
-                TimerHeapInternalTimer<K, N> timer = iterator.next();
-                if (timer.getTimestamp() <= timestamp) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    @Override
     public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
             throws Exception {
         foreachTimer(consumer, processingTimeTimersQueue);
