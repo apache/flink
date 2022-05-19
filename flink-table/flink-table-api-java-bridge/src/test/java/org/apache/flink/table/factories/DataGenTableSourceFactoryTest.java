@@ -38,7 +38,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
-public class DataGenTableSourceFactoryTest {
+class DataGenTableSourceFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -62,7 +62,7 @@ public class DataGenTableSourceFactoryTest {
                     Column.physical("f3", DataTypes.TIMESTAMP()));
 
     @Test
-    public void testDataTypeCoverage() throws Exception {
+    void testDataTypeCoverage() throws Exception {
         ResolvedSchema schema =
                 ResolvedSchema.of(
                         Column.physical("f0", DataTypes.CHAR(1)),
@@ -129,7 +129,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testSource() throws Exception {
+    void testSource() throws Exception {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
         descriptor.putLong(DataGenConnectorOptions.ROWS_PER_SECOND.key(), 100);
@@ -204,7 +204,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testSequenceCheckpointRestore() throws Exception {
+    void testSequenceCheckpointRestore() throws Exception {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
         descriptor.putString(
@@ -241,7 +241,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testLackStartForSequence() {
+    void testLackStartForSequence() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
@@ -268,7 +268,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testLackEndForSequence() {
+    void testLackEndForSequence() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
@@ -295,7 +295,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testWrongKey() {
+    void testWrongKey() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
@@ -313,7 +313,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testWrongStartInRandom() {
+    void testWrongStartInRandom() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
@@ -340,7 +340,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testWrongLenInRandomLong() {
+    void testWrongLenInRandomLong() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
@@ -367,7 +367,7 @@ public class DataGenTableSourceFactoryTest {
     }
 
     @Test
-    public void testWrongTypes() {
+    void testWrongTypes() {
         assertThatThrownBy(
                         () -> {
                             DescriptorProperties descriptor = new DescriptorProperties();
