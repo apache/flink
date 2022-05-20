@@ -34,8 +34,6 @@ import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,15 +41,9 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /** Migration tests for boxed-value array serializer snapshots. */
-@RunWith(Parameterized.class)
-public class ValueArraySerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class ValueArraySerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public ValueArraySerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
