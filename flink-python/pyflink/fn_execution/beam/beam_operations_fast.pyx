@@ -19,19 +19,25 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+from apache_beam.coders.coder_impl cimport
+
+OutputStream as BOutputStream
+from apache_beam.runners.worker.bundle_processor import DataOutputOperation
+from apache_beam.utils cimport
+
+windowed_value
+from apache_beam.utils.windowed_value cimport
+
+WindowedValue
 from libc.stdint cimport *
 
-from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
-from apache_beam.runners.worker.bundle_processor import DataOutputOperation
-from apache_beam.utils cimport windowed_value
-from apache_beam.utils.windowed_value cimport WindowedValue
-
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
-from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
-from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-from pyflink.fn_execution.table.operations import BundleOperation, BaseOperation as TableOperation
-from pyflink.fn_execution.profiler import Profiler
+from pyflink.fn_execution.coder_impl_fast cimport
 
+InputStreamWrapper
+from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+from pyflink.fn_execution.profiler import Profiler
+from pyflink.fn_execution.table.operations import BundleOperation
 
 cdef class InputProcessor:
 
@@ -110,7 +116,8 @@ cdef class FunctionOperation(Operation):
     each input element.
     """
 
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
+    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
+                 operator_state_backend):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         consumer = consumers[DEFAULT_OUTPUT_TAG][0]
         if isinstance(consumer, DataOutputOperation):
@@ -125,6 +132,7 @@ cdef class FunctionOperation(Operation):
         self._output_processors = FunctionOperation._create_output_processors(consumers)  \
             # type: Dict[str, List[OutputProcessor]]
         self.operation_cls = operation_cls
+        self.operator_state_backend = operator_state_backend
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
@@ -227,24 +235,26 @@ cdef class FunctionOperation(Operation):
 
 
 cdef class StatelessFunctionOperation(FunctionOperation):
-    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
+    def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
+                 operator_state_backend):
         super(StatelessFunctionOperation, self).__init__(
-            name, spec, counter_factory, sampler, consumers, operation_cls)
+            name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend)
 
     cdef object generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn)
+        return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
 
 
 cdef class StatefulFunctionOperation(FunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
-                 keyed_state_backend):
+                 keyed_state_backend, operator_stat_backend):
         self._keyed_state_backend = keyed_state_backend
         self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
-            name, spec, counter_factory, sampler, consumers, operation_cls)
+            name, spec, counter_factory, sampler, consumers, operation_cls, operator_stat_backend)
 
     cdef object generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
+        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
+                                  self.operator_state_backend)
 
     cpdef void add_timer_info(self, timer_family_id, timer_info):
         # ignore timer_family_id
