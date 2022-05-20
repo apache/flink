@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Collection of tests that verify assumptions that table sources should meet. */
-public abstract class TableSourceTestBase {
+abstract class TableSourceTestBase {
 
     /**
      * Constructs a table source to be tested.

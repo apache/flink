@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -45,11 +45,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link UserDefinedFunctionHelper}. */
 @SuppressWarnings("unused")
-public class UserDefinedFunctionHelperTest {
+class UserDefinedFunctionHelperTest {
 
     @ParameterizedTest
     @MethodSource("testSpecs")
-    public void testInstantiation(TestSpec testSpec) {
+    void testInstantiation(TestSpec testSpec) {
         final Supplier<UserDefinedFunction> supplier;
         if (testSpec.functionClass != null) {
             supplier = () -> instantiateFunction(testSpec.functionClass);
@@ -77,7 +77,7 @@ public class UserDefinedFunctionHelperTest {
 
     @ParameterizedTest
     @MethodSource("testSpecs")
-    public void testValidation(TestSpec testSpec) {
+    void testValidation(TestSpec testSpec) {
         final Runnable runnable;
         if (testSpec.functionClass != null) {
             runnable = () -> validateClass(testSpec.functionClass);
@@ -98,7 +98,7 @@ public class UserDefinedFunctionHelperTest {
     }
 
     @Test
-    public void testSerialization() {
+    void testSerialization() {
         assertThat(isClassNameSerializable(new ValidTableFunction())).isTrue();
 
         assertThat(isClassNameSerializable(new ValidScalarFunction())).isTrue();

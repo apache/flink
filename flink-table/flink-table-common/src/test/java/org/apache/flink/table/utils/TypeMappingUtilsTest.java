@@ -37,7 +37,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -56,10 +56,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TypeMappingUtils}. */
-public class TypeMappingUtilsTest {
+class TypeMappingUtilsTest {
 
     @Test
-    public void testFieldMappingReordered() {
+    void testFieldMappingReordered() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -74,7 +74,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingNonMatchingTypes() {
+    void testFieldMappingNonMatchingTypes() {
         assertThatThrownBy(
                         () ->
                                 TypeMappingUtils.computePhysicalIndices(
@@ -94,7 +94,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingNonMatchingPrecision() {
+    void testFieldMappingNonMatchingPrecision() {
         assertThatThrownBy(
                         () ->
                                 TypeMappingUtils.computePhysicalIndices(
@@ -112,7 +112,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testNameMappingDoesNotExist() {
+    void testNameMappingDoesNotExist() {
         assertThatThrownBy(
                         () ->
                                 TypeMappingUtils.computePhysicalIndices(
@@ -127,7 +127,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyDecimalType() {
+    void testFieldMappingLegacyDecimalType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -141,7 +141,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyDecimalTypeNotMatchingPrecision() {
+    void testFieldMappingLegacyDecimalTypeNotMatchingPrecision() {
         assertThatThrownBy(
                         () ->
                                 TypeMappingUtils.computePhysicalIndices(
@@ -166,7 +166,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
+    void testFieldMappingRowTypeNotMatchingNamesInNestedType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -191,7 +191,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingRowTypeNotMatchingTypesInNestedType() {
+    void testFieldMappingRowTypeNotMatchingTypesInNestedType() {
         assertThatThrownBy(
                         () ->
                                 TypeMappingUtils.computePhysicalIndices(
@@ -220,7 +220,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyCompositeType() {
+    void testFieldMappingLegacyCompositeType() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -236,7 +236,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testFieldMappingLegacyCompositeTypeWithRenaming() {
+    void testFieldMappingLegacyCompositeTypeWithRenaming() {
         int[] indices =
                 TypeMappingUtils.computePhysicalIndices(
                         TableSchema.builder()
@@ -261,7 +261,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithBatchTimeAttributes() {
+    void testMappingWithBatchTimeAttributes() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -281,7 +281,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithStreamTimeAttributes() {
+    void testMappingWithStreamTimeAttributes() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -301,7 +301,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testMappingWithStreamTimeAttributesFromCompositeType() {
+    void testMappingWithStreamTimeAttributesFromCompositeType() {
         TestTableSource tableSource =
                 new TestTableSource(
                         ROW(FIELD("b", TIME()), FIELD("a", DataTypes.BIGINT())),
@@ -323,7 +323,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testWrongLogicalTypeForRowtimeAttribute() {
+    void testWrongLogicalTypeForRowtimeAttribute() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -347,7 +347,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testWrongLogicalTypeForProctimeAttribute() {
+    void testWrongLogicalTypeForProctimeAttribute() {
         TestTableSource tableSource =
                 new TestTableSource(
                         DataTypes.BIGINT(), Collections.singletonList("rowtime"), "proctime");
@@ -370,7 +370,7 @@ public class TypeMappingUtilsTest {
     }
 
     @Test
-    public void testCheckPhysicalLogicalTypeCompatible() {
+    void testCheckPhysicalLogicalTypeCompatible() {
         TableSchema tableSchema =
                 TableSchema.builder()
                         .field("a", DataTypes.VARCHAR(2))

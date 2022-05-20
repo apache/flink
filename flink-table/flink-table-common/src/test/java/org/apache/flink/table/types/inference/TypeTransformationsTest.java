@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -44,10 +44,10 @@ import static org.apache.flink.table.types.inference.TypeTransformations.toNulla
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for built-in {@link TypeTransformations}. */
-public class TypeTransformationsTest {
+class TypeTransformationsTest {
 
     @Test
-    public void testToInternal() {
+    void testToInternal() {
         DataType dataType =
                 DataTypes.STRUCTURED(
                         SimplePojo.class,
@@ -68,7 +68,7 @@ public class TypeTransformationsTest {
     }
 
     @Test
-    public void testTimeToSqlTypes() {
+    void testTimeToSqlTypes() {
         DataType dataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("a", DataTypes.STRING()),
@@ -99,7 +99,7 @@ public class TypeTransformationsTest {
     }
 
     @Test
-    public void testLegacyRawToTypeInfoRaw() {
+    void testLegacyRawToTypeInfoRaw() {
         DataType dataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("a", DataTypes.STRING()),
@@ -121,7 +121,7 @@ public class TypeTransformationsTest {
     }
 
     @Test
-    public void testToNullable() {
+    void testToNullable() {
         DataType dataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("a", DataTypes.STRING().notNull()),
