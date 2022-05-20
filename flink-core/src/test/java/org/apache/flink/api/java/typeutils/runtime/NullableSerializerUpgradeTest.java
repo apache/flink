@@ -26,8 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,15 +33,9 @@ import java.util.Collection;
 import static org.hamcrest.CoreMatchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
-@RunWith(Parameterized.class)
-public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
+class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 
-    public NullableSerializerUpgradeTest(TestSpecification<Long, Long> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {

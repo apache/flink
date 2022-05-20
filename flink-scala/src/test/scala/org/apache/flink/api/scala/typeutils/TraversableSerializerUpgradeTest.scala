@@ -23,11 +23,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase.TestSpecification
 import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.api.scala.typeutils.TraversableSerializerUpgradeTest._
+import org.apache.flink.api.scala.typeutils.TraversableSerializerUpgradeTest.Types.Pojo
 
 import org.hamcrest.Matcher
 import org.hamcrest.Matchers.is
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 import java.util
 import java.util.function.Supplier
@@ -35,46 +35,10 @@ import java.util.function.Supplier
 import scala.collection.{mutable, BitSet, LinearSeq}
 
 /** A [[TypeSerializerUpgradeTestBase]] for [[TraversableSerializer]]. */
-@RunWith(classOf[Parameterized])
-class TraversableSerializerUpgradeTest(
-    testSpecification: TypeSerializerUpgradeTestBase.TestSpecification[
-      TraversableOnce[_],
-      TraversableOnce[_]])
-  extends TypeSerializerUpgradeTestBase[TraversableOnce[_], TraversableOnce[_]](testSpecification)
+class TraversableSerializerUpgradeTest
+  extends TypeSerializerUpgradeTestBase[TraversableOnce[_], TraversableOnce[_]] {
 
-object TraversableSerializerUpgradeTest {
-
-  object Types {
-
-    class Pojo(var name: String, var count: Int) {
-      def this() = this("", -1)
-
-      override def equals(other: Any): Boolean = {
-        other match {
-          case oP: Pojo => name == oP.name && count == oP.count
-          case _ => false
-        }
-      }
-    }
-
-    val seqTypeInfo = implicitly[TypeInformation[Seq[Int]]]
-    val indexedSeqTypeInfo =
-      implicitly[TypeInformation[IndexedSeq[Int]]]
-    val linearSeqTypeInfo = implicitly[TypeInformation[LinearSeq[Int]]]
-    val mapTypeInfo = implicitly[TypeInformation[Map[String, Int]]]
-    val setTypeInfo = implicitly[TypeInformation[Set[Int]]]
-    val bitsetTypeInfo = implicitly[TypeInformation[BitSet]]
-    val mutableListTypeInfo =
-      implicitly[TypeInformation[mutable.MutableList[Int]]]
-    val seqTupleTypeInfo = implicitly[TypeInformation[Seq[(Int, String)]]]
-    val seqPojoTypeInfo = implicitly[TypeInformation[Seq[Pojo]]]
-  }
-
-  import Types._
-
-  @Parameterized.Parameters(name = "Test Specification = {0}")
-  def testSpecifications: util.Collection[TestSpecification[_, _]] = {
-
+  override def createTestSpecifications(): util.Collection[TestSpecification[_, _]] = {
     val testSpecifications =
       new util.ArrayList[TypeSerializerUpgradeTestBase.TestSpecification[_, _]]
     TypeSerializerUpgradeTestBase.MIGRATION_VERSIONS.forEach(
@@ -136,6 +100,37 @@ object TraversableSerializerUpgradeTest {
       })
     testSpecifications
   }
+}
+
+object TraversableSerializerUpgradeTest {
+
+  object Types {
+
+    class Pojo(var name: String, var count: Int) {
+      def this() = this("", -1)
+
+      override def equals(other: Any): Boolean = {
+        other match {
+          case oP: Pojo => name == oP.name && count == oP.count
+          case _ => false
+        }
+      }
+    }
+
+    val seqTypeInfo = implicitly[TypeInformation[Seq[Int]]]
+    val indexedSeqTypeInfo =
+      implicitly[TypeInformation[IndexedSeq[Int]]]
+    val linearSeqTypeInfo = implicitly[TypeInformation[LinearSeq[Int]]]
+    val mapTypeInfo = implicitly[TypeInformation[Map[String, Int]]]
+    val setTypeInfo = implicitly[TypeInformation[Set[Int]]]
+    val bitsetTypeInfo = implicitly[TypeInformation[BitSet]]
+    val mutableListTypeInfo =
+      implicitly[TypeInformation[mutable.MutableList[Int]]]
+    val seqTupleTypeInfo = implicitly[TypeInformation[Seq[(Int, String)]]]
+    val seqPojoTypeInfo = implicitly[TypeInformation[Seq[Pojo]]]
+  }
+
+  import Types._
 
   final class BitsetSerializerSetup extends TypeSerializerUpgradeTestBase.PreUpgradeSetup[BitSet] {
     override def createPriorSerializer: TypeSerializer[BitSet] =

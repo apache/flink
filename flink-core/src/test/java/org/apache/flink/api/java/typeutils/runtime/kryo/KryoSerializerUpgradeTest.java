@@ -31,8 +31,6 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTes
 
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,15 +41,9 @@ import static org.hamcrest.Matchers.is;
 
 /** Tests migrations for {@link KryoSerializerSnapshot}. */
 @SuppressWarnings("WeakerAccess")
-@RunWith(Parameterized.class)
-public class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public KryoSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -27,8 +28,6 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -37,17 +36,12 @@ import java.util.stream.Collectors;
 import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link LinkedListSerializer}. */
-@RunWith(Parameterized.class)
+@VisibleForTesting
 public class LinkedListSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<LinkedList<Long>, LinkedList<Long>> {
 
-    public LinkedListSerializerUpgradeTest(
-            TestSpecification<LinkedList<Long>, LinkedList<Long>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @SuppressWarnings("unchecked")
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() {
         return FlinkVersion.rangeOf(FlinkVersion.v1_13, CURRENT_VERSION).stream()
                 .map(
                         version -> {

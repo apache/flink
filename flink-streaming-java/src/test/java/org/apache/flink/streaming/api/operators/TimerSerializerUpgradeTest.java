@@ -26,8 +26,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,22 +33,11 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.is;
 
 /** Migration test for {@link TimerSerializer}. */
-@RunWith(Parameterized.class)
-public class TimerSerializerUpgradeTest
+class TimerSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 TimerHeapInternalTimer<String, Integer>, TimerHeapInternalTimer<String, Integer>> {
 
-    public TimerSerializerUpgradeTest(
-            TestSpecification<
-                            TimerHeapInternalTimer<String, Integer>,
-                            TimerHeapInternalTimer<String, Integer>>
-                    testSpecification) {
-        super(testSpecification);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
