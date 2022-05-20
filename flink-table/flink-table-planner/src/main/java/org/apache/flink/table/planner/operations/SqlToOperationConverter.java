@@ -104,6 +104,8 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.resource.ResourceType;
+import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
@@ -652,19 +654,24 @@ public class SqlToOperationConverter {
     private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
-
+        List<ResourceUri> resourceUris =
+                sqlCreateFunction.getJarPaths().stream()
+                        .map(path -> new ResourceUri(ResourceType.JAR, path))
+                        .collect(Collectors.toList());
         if (sqlCreateFunction.isSystemFunction()) {
             return new CreateTempSystemFunctionOperation(
                     unresolvedIdentifier.getObjectName(),
                     sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
                     sqlCreateFunction.isIfNotExists(),
-                    parseLanguage(sqlCreateFunction.getFunctionLanguage()));
+                    parseLanguage(sqlCreateFunction.getFunctionLanguage()),
+                    resourceUris);
         } else {
             FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
             CatalogFunction catalogFunction =
                     new CatalogFunctionImpl(
                             sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
-                            language);
+                            language,
+                            resourceUris);
             ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
             return new CreateCatalogFunctionOperation(

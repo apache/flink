@@ -42,6 +42,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -49,6 +50,8 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.resource.ResourceType;
+import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
@@ -81,8 +84,10 @@ import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -1211,6 +1216,54 @@ public class SqlToOperationConverterTest {
                         .build();
 
         assertThat(actualSchema).isEqualTo(expectedSchema);
+    }
+
+    @Test
+    public void testCreateFunction() {
+        // test create catalog function
+        String sql =
+                "CREATE FUNCTION test_udf AS 'org.apache.fink.function.function1' "
+                        + "LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'";
+        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+        assertThat(operation).isInstanceOf(CreateCatalogFunctionOperation.class);
+        CatalogFunction actualFunction =
+                ((CreateCatalogFunctionOperation) operation).getCatalogFunction();
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE CATALOG FUNCTION: (catalogFunction: [Optional[This is a user-defined function]], "
+                                + "identifier: [`builtin`.`default`.`test_udf`], ignoreIfExists: [false], isTemporary: [false])");
+
+        // here doesn't assert the CatalogFunction directly because of the isGeneric method will
+        // load the class
+        assertThat(actualFunction.getClassName()).isEqualTo("org.apache.fink.function.function1");
+        assertThat(actualFunction.getFunctionLanguage()).isEqualTo(FunctionLanguage.JAVA);
+        assertThat(actualFunction.getFunctionResources())
+                .isEqualTo(
+                        Arrays.asList(
+                                new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
+
+        // test create temporary system function
+        sql =
+                "CREATE TEMPORARY SYSTEM FUNCTION test_udf2 AS 'org.apache.fink.function.function2' "
+                        + "LANGUAGE SCALA USING JAR 'file:///path/to/test.jar'";
+        operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
+        assertThat(operation).isInstanceOf(CreateTempSystemFunctionOperation.class);
+        CreateTempSystemFunctionOperation tempSystemFunctionOperation =
+                (CreateTempSystemFunctionOperation) operation;
+        actualFunction = tempSystemFunctionOperation.getCatalogFunction();
+
+        // here doesn't assert the CreateTempSystemFunctionOperation directly because of the
+        // isGeneric method will load the class
+        assertThat(tempSystemFunctionOperation.getFunctionName()).isEqualTo("test_udf2");
+        assertThat(tempSystemFunctionOperation.isIgnoreIfExists()).isEqualTo(false);
+        assertThat(actualFunction.getClassName()).isEqualTo("org.apache.fink.function.function2");
+        assertThat(actualFunction.getFunctionLanguage()).isEqualTo(FunctionLanguage.SCALA);
+        assertThat(actualFunction.getFunctionResources())
+                .isEqualTo(
+                        Arrays.asList(
+                                new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
     }
 
     @Test

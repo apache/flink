@@ -22,12 +22,14 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Operation to describe a CREATE FUNCTION statement for temporary system function. */
@@ -40,10 +42,12 @@ public class CreateTempSystemFunctionOperation implements CreateOperation {
             String functionName,
             String functionClass,
             boolean ignoreIfExists,
-            FunctionLanguage functionLanguage) {
+            FunctionLanguage functionLanguage,
+            List<ResourceUri> resourceUris) {
         this.functionName = functionName;
         this.ignoreIfExists = ignoreIfExists;
-        this.catalogFunction = new CatalogFunctionImpl(functionClass, functionLanguage);
+        this.catalogFunction =
+                new CatalogFunctionImpl(functionClass, functionLanguage, resourceUris);
     }
 
     public CreateTempSystemFunctionOperation(

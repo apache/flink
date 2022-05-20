@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -42,8 +43,10 @@ import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -711,6 +714,11 @@ public final class FunctionCatalog {
         @Override
         public FunctionLanguage getFunctionLanguage() {
             return FunctionLanguage.JAVA;
+        }
+
+        @Override
+        public List<ResourceUri> getFunctionResources() {
+            return Collections.emptyList();
         }
 
         public FunctionDefinition getDefinition() {

@@ -33,6 +33,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -137,5 +138,12 @@ public class SqlCreateFunction extends SqlCreate {
 
     public String[] getFunctionIdentifier() {
         return functionIdentifier.names.toArray(new String[0]);
+    }
+
+    public List<String> getJarPaths() {
+        return jarPaths.getList().stream()
+                .map(SqlCharStringLiteral.class::cast)
+                .map(path -> path.getValueAs(String.class))
+                .collect(Collectors.toList());
     }
 }

@@ -19,7 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.resource.ResourceUri;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Interface for a function in a catalog. */
@@ -57,6 +59,9 @@ public interface CatalogFunction {
     /**
      * Distinguish if the function is a generic function.
      *
+     * @deprecated This method is currently only used in hive to determine if a function is a
+     *     generic function. The behavior should be implemented by hive itself, instead of providing
+     *     a public api, so we deprecate it.
      * @return whether the function is a generic function
      * @deprecated There is no replacement for this function, as now functions have type inference
      *     strategies
@@ -70,4 +75,11 @@ public interface CatalogFunction {
      * @return the language type of the function definition
      */
     FunctionLanguage getFunctionLanguage();
+
+    /**
+     * Get a detailed resource description of the function.
+     *
+     * @return an {@link ResourceUri} list of the function
+     */
+    List<ResourceUri> getFunctionResources();
 }
