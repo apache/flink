@@ -71,6 +71,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
+    private static final int DEFAULT_PRIORITY_SEQUENCE_NUMBER = -1;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -171,7 +173,7 @@ public class PipelinedSubpartition extends ResultSubpartition
         checkNotNull(bufferConsumer);
 
         final boolean notifyDataAvailable;
-        int prioritySequenceNumber = -1;
+        int prioritySequenceNumber = DEFAULT_PRIORITY_SEQUENCE_NUMBER;
         int newBufferSize;
         synchronized (buffers) {
             if (isFinished || isReleased) {
@@ -191,9 +193,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             newBufferSize = bufferSize;
         }
 
-        if (prioritySequenceNumber != -1) {
-            notifyPriorityEvent(prioritySequenceNumber);
-        }
+        notifyPriorityEvent(prioritySequenceNumber);
         if (notifyDataAvailable) {
             notifyDataAvailable();
         }
@@ -593,7 +593,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     private void notifyPriorityEvent(int prioritySequenceNumber) {
         final PipelinedSubpartitionView readView = this.readView;
-        if (readView != null) {
+        if (readView != null && prioritySequenceNumber != DEFAULT_PRIORITY_SEQUENCE_NUMBER) {
             readView.notifyPriorityEvent(prioritySequenceNumber);
         }
     }
