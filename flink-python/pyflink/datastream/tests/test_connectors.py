@@ -242,7 +242,7 @@ class FlinkPulsarTest(ConnectorTestBase):
         PulsarSource.builder() \
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
-            .set_topics_pattern('ada.*') \
+            .set_topic_pattern('ada.*') \
             .set_subscription_name('ff') \
             .set_deserialization_schema(
                 PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
@@ -254,7 +254,7 @@ class FlinkPulsarTest(ConnectorTestBase):
         pulsar_source = PulsarSource.builder() \
             .set_service_url('pulsar://localhost:6650') \
             .set_admin_url('http://localhost:8080') \
-            .set_topics('ada') \
+            .set_topics_pattern('ada.*') \
             .set_deserialization_schema(
                 PulsarDeserializationSchema.flink_type_info(Types.STRING(), None)) \
             .set_subscription_name('ff') \
