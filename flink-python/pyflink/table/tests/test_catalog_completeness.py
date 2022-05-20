@@ -98,7 +98,7 @@ class CatalogFunctionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlink
 
     @classmethod
     def excluded_methods(cls):
-    return {'getFunctionResources'}
+        return {'getFunctionResources'}
 
 
 class CatalogPartitionAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
