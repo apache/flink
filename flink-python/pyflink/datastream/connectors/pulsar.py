@@ -311,7 +311,17 @@ class PulsarSourceBuilder(object):
         Set a topic pattern to consume from the java regex str. You can set topics once either with
         setTopics or setTopicPattern in this builder.
         """
+        warnings.warn("set_topics_pattern is deprecated. Use set_topic_pattern instead.",
+                      DeprecationWarning, stacklevel=2)
         self._j_pulsar_source_builder.setTopicPattern(topics_pattern)
+        return self
+
+    def set_topic_pattern(self, topic_pattern: str) -> 'PulsarSourceBuilder':
+        """
+        Set a topic pattern to consume from the java regex str. You can set topics once either with
+        setTopics or setTopicPattern in this builder.
+        """
+        self._j_pulsar_source_builder.setTopicPattern(topic_pattern)
         return self
 
     def set_start_cursor(self, start_cursor: StartCursor) -> 'PulsarSourceBuilder':
