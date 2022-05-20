@@ -35,6 +35,11 @@ Entry point classes of Flink DataStream API:
       Represent two connected streams of (possibly) different data types. Connected
       streams are useful for cases where operations on one stream directly affect the operations on
       the other stream, usually via shared state between the streams.
+    - :class:`BroadcastStream`:
+      Represent a stream with :class:`state.BroadcastState` (s).
+    - :class:`BroadcastConnectedStream`:
+      Represents the result of connecting a keyed or non-keyed stream, with a
+      :class:`BroadcastStream` with :class:`state.BroadcastState` (s)
 
 Functions used to transform a :class:`DataStream` into another :class:`DataStream`:
 
@@ -70,6 +75,10 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
       information such as the current timestamp, the watermark, etc.
     - :class:`AggregateFunction`:
       Base class for a user-defined aggregate function.
+    - :class:`BroadcastProcessFunction`:
+      A function to be applied to a :class:`BroadcastConnectedStream` that connects
+      :class:`BroadcastStream`, i.e. a stream with broadcast state, with a non-keyed
+      :class:`DataStream`.
     - :class:`RuntimeContext`:
       Contains information about the context in which functions are executed. Each
       parallel instance of the function will have a context through which it can access static
@@ -145,7 +154,7 @@ Classes for state operations:
       A type of state that can be created to store the state of a :class:`BroadcastStream`. This
       state assumes that the same elements are sent to all instances of an operator.
     - :class:`state.ReadOnlyBroadcastState`:
-      A read-only view of the :class:`BroadcastState`.
+      A read-only view of the :class:`state.BroadcastState`.
     - :class:`state.StateTtlConfig`:
       Configuration of state TTL logic.
 
@@ -202,14 +211,14 @@ Other important classes:
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
-    ConnectedStreams, DataStreamSink
+    ConnectedStreams, DataStreamSink, BroadcastStream, BroadcastConnectedStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
                                           CoFlatMapFunction, ReduceFunction, RuntimeContext,
                                           KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
-                                          ProcessWindowFunction)
+                                          ProcessWindowFunction, BroadcastProcessFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
@@ -233,6 +242,8 @@ __all__ = [
     'KeyedStream',
     'WindowedStream',
     'ConnectedStreams',
+    'BroadcastStream',
+    'BroadcastConnectedStream',
     'DataStreamSink',
     'MapFunction',
     'CoMapFunction',
@@ -247,6 +258,7 @@ __all__ = [
     'WindowFunction',
     'ProcessWindowFunction',
     'AggregateFunction',
+    'BroadcastProcessFunction',
     'RuntimeContext',
     'TimerService',
     'CheckpointingMode',

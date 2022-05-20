@@ -304,7 +304,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==3.7.9 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install flake8 failed \
         please try to exec the script again.\
@@ -328,7 +328,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==3.5.4 Docutils==0.16 "Jinja2<3.1.0" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\

@@ -114,8 +114,20 @@ class InternalMapState(InternalKvState[N], MapState[K, V], ABC):
 
 
 class InternalReadOnlyBroadcastState(ReadOnlyBroadcastState[K, V], ABC):
+    """
+    The peer to :class:`ReadOnlyBroadcastState`.
+    """
     pass
 
 
 class InternalBroadcastState(InternalReadOnlyBroadcastState[K, V], BroadcastState[K, V], ABC):
-    pass
+    """
+    The peer to :class:`BroadcastState`.
+    """
+
+    @abstractmethod
+    def to_read_only_broadcast_state(self) -> InternalReadOnlyBroadcastState[K, V]:
+        """
+        Convert to :class:`ReadOnlyBroadcastState` interface with the same underlying state.
+        """
+        pass

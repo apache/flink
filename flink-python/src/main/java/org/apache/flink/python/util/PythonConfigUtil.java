@@ -24,7 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
@@ -35,16 +38,20 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.api.transformations.python.PythonBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -82,8 +89,7 @@ public class PythonConfigUtil {
         return (Configuration) configurationField.get(env);
     }
 
-    public static void configPythonOperator(StreamExecutionEnvironment env)
-            throws IllegalAccessException, NoSuchFieldException {
+    public static void configPythonOperator(StreamExecutionEnvironment env) throws Exception {
         final Configuration config =
                 extractPythonConfiguration(env.getCachedFiles(), env.getConfiguration());
 
@@ -103,6 +109,7 @@ public class PythonConfigUtil {
         }
 
         processSideOutput(env.getTransformations());
+        registerPythonBroadcastTransformationTranslator();
     }
 
     /** Extract the configurations which is used in the Python operators. */
@@ -240,6 +247,8 @@ public class PythonConfigUtil {
         } else if (transform instanceof AbstractMultipleInputTransformation) {
             return isPythonOperator(
                     ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory());
+        } else if (transform instanceof PythonBroadcastStateTransformation) {
+            return true;
         } else {
             return false;
         }
@@ -324,5 +333,34 @@ public class PythonConfigUtil {
         } else {
             return Optional.of(inputTransformation);
         }
+    }
+
+    @SuppressWarnings("rawtypes,unchecked")
+    public static void registerPythonBroadcastTransformationTranslator() throws Exception {
+        final Field translatorMapField =
+                StreamGraphGenerator.class.getDeclaredField("translatorMap");
+        translatorMapField.setAccessible(true);
+        final Map<Class<? extends Transformation>, TransformationTranslator<?, ?>> translatorMap =
+                (Map<Class<? extends Transformation>, TransformationTranslator<?, ?>>)
+                        translatorMapField.get(null);
+        final Field underlyingMapField = translatorMap.getClass().getDeclaredField("m");
+        underlyingMapField.setAccessible(true);
+        final Map<Class<? extends Transformation>, TransformationTranslator<?, ?>> underlyingMap =
+                (Map<Class<? extends Transformation>, TransformationTranslator<?, ?>>)
+                        underlyingMapField.get(translatorMap);
+
+        underlyingMap.put(
+                PythonBroadcastStateTransformation.class,
+                new PythonBroadcastStateTransformationTranslator<>());
+    }
+
+    @SuppressWarnings("rawtypes")
+    public static SingleOutputStreamOperator<?> createSingleOutputStreamOperator(
+            StreamExecutionEnvironment env, Transformation<?> transformation) throws Exception {
+        Constructor<SingleOutputStreamOperator> constructor =
+                SingleOutputStreamOperator.class.getDeclaredConstructor(
+                        StreamExecutionEnvironment.class, Transformation.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(env, transformation);
     }
 }
