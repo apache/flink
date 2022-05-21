@@ -52,16 +52,17 @@ class PulsarDeserializationSchema(object):
         return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
 
     @staticmethod
-    def flink_type_info(type_information: TypeInformation, execution_config: ExecutionConfig) \
-            -> 'PulsarDeserializationSchema':
+    def flink_type_info(type_information: TypeInformation,
+                        execution_config: ExecutionConfig = None) -> 'PulsarDeserializationSchema':
         """
         Create a PulsarDeserializationSchema by using the given TypeInformation. This method is
         only used for treating message that was written into pulsar by TypeInformation.
         """
         JPulsarDeserializationSchema = get_gateway().jvm.org.apache.flink \
             .connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema
+        JExecutionConfig = get_gateway().jvm.org.apache.flink.api.common.ExecutionConfig
         _j_execution_config = execution_config._j_execution_config \
-            if execution_config is not None else None
+            if execution_config is not None else JExecutionConfig()
         _j_pulsar_deserialization_schema = JPulsarDeserializationSchema.flinkTypeInfo(
             type_information.get_java_type_info(), _j_execution_config)
         return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
