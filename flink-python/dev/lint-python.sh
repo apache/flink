@@ -182,7 +182,7 @@ function install_wget() {
 
 # The script choose miniconda as our package management tool.
 # The script use miniconda to create all kinds of python versions and
-# some pakcages including checks such as tox and flake8.
+# some packages including checks such as tox and flake8.
 
 function install_miniconda() {
     OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" \
