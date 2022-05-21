@@ -183,7 +183,7 @@ class FlinkPulsarTest(ConnectorTestBase):
             .set_subscription_name('ff') \
             .set_subscription_type(SubscriptionType.Exclusive) \
             .set_deserialization_schema(
-                PulsarDeserializationSchema.flink_type_info(Types.STRING(), None)) \
+                PulsarDeserializationSchema.flink_type_info(Types.STRING())) \
             .set_deserialization_schema(
                 PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \
             .set_config(test_option, True) \
