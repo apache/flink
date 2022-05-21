@@ -46,10 +46,10 @@ git clone {{< github_repo >}}
 The simplest way of building Flink is by running:
 
 ```bash
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ```
 
-This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
+This instructs [Maven](http://maven.apache.org) (`mvnw`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`). We are using the mvnw wrapper instead of mvn directly to ensure that the supported version of Maven will be used.
 
 To speed up the build you can:
 - skip tests by using ' -DskipTests'
@@ -62,7 +62,7 @@ To speed up the build you can:
 
 The build script will be:
 ```bash
-mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
+./mvnw clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
 The `fast` and `skip-webui-build` profiles have a significant impact on the build time, particularly on slower storage devices, due to them reading/writing many small files.
 

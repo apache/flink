@@ -48,10 +48,10 @@ git clone {{< github_repo >}}
 最简单的构建 Flink 的方法是执行如下命令：
 
 ```bash
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ```
 
-上面的 [Maven](http://maven.apache.org) 指令（`mvn`）首先删除（`clean`）所有存在的构建，然后构建一个新的 Flink 运行包（`install`）。
+上面的 [Maven](http://maven.apache.org) 指令（`mvnw`）首先删除（`clean`）所有存在的构建，然后构建一个新的 Flink 运行包（`install`）。
 
 为了加速构建，可以：
 - 使用 ' -DskipTests' 跳过测试
@@ -61,7 +61,7 @@ mvn clean install -DskipTests
 
 构建脚本如下：
 ```bash
-mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
+./mvnw clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
 `fast` 和 `skip-webui-build` 这两个 Maven profiles 对整体构建时间影响比较大，特别是在存储设备比较慢的机器上，因为对应的任务会读写很多小文件。
 
