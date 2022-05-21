@@ -1354,7 +1354,7 @@ class PulsarSourceBuilder(object):
         """
         Set a pulsar topic list for flink source. Some topic may not exist currently, consuming this
         non-existed topic wouldn't throw any exception. But the best solution is just consuming by
-        using a topic regex. You can set topics once either with setTopics or setTopicPattern in
+        using a topic regex. You can set topics once either with set_topics or set_topic_pattern in
         this builder.
         """
         if not isinstance(topics, list):
@@ -1365,9 +1365,17 @@ class PulsarSourceBuilder(object):
     def set_topics_pattern(self, topics_pattern: str) -> 'PulsarSourceBuilder':
         """
         Set a topic pattern to consume from the java regex str. You can set topics once either with
-        setTopics or setTopicPattern in this builder.
+        set_topics or set_topic_pattern in this builder.
         """
         self._j_pulsar_source_builder.setTopicPattern(topics_pattern)
+        return self
+
+    def set_topic_pattern(self, topic_pattern: str) -> 'PulsarSourceBuilder':
+        """
+        Set a topic pattern to consume from the java regex str. You can set topics once either with
+        set_topics or set_topic_pattern in this builder.
+        """
+        self._j_pulsar_source_builder.setTopicPattern(topic_pattern)
         return self
 
     def set_start_cursor(self, start_cursor: StartCursor) -> 'PulsarSourceBuilder':
