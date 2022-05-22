@@ -25,6 +25,7 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -264,9 +265,16 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
 
     /** Called before emitting watermark to downstream. */
-    protected void preEmitWatermark(Watermark mark) throws Exception {
-        if (getTimeServiceManager().isPresent()) {
-            getTimeServiceManager().get().advanceWatermark(mark);
+    private void preEmitWatermark(Watermark watermark) throws Exception {
+        if (!getTimeServiceManager().isPresent()) {
+            return;
+        }
+        InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+        timeServiceManager.advanceWatermark(watermark);
+
+        while (!isBundleFinished()) {
+            invokeFinishBundle();
+            timeServiceManager.advanceWatermark(watermark);
         }
     }
 
