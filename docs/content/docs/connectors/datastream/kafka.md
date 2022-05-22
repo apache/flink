@@ -375,9 +375,9 @@ KafkaSink<String> sink = KafkaSink.<String>builder()
         .setRecordSerializer(KafkaRecordSerializationSchema.builder()
             .setTopic("topic-name")
             .setValueSerializationSchema(new SimpleStringSchema())
-            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
             .build()
         )
+        .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
         .build();
         
 stream.sinkTo(sink);
