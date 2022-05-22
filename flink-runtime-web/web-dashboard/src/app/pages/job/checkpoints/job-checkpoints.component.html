@@ -500,10 +500,10 @@
           </tr>
           <tr>
             <td>Interval</td>
-            <td *ngIf="checkPointConfig['interval'] === '0x7fffffffffffffff'">
+            <td *ngIf="checkPointConfig['interval'] === disabledInterval">
               Periodic checkpoints disabled
             </td>
-            <td *ngIf="checkPointConfig['interval'] !== '0x7fffffffffffffff'">
+            <td *ngIf="checkPointConfig['interval'] !== disabledInterval">
               {{ checkPointConfig['interval'] | humanizeDuration }}
             </td>
           </tr>
