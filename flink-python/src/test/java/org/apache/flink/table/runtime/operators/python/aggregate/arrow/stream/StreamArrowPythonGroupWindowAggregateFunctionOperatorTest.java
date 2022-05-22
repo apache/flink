@@ -91,8 +91,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         testHarness.processWatermark(Long.MAX_VALUE);
         testHarness.close();
 
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
-
         expectedOutput.add(
                 new StreamRecord<>(
                         newRow(
@@ -145,6 +143,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 2L,
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
+
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -172,51 +172,49 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         // checkpoint trigger finishBundle
         testHarness.prepareSnapshotPreBarrier(0L);
 
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(-5000L),
+                                TimestampData.fromEpochMillis(5000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c2",
+                                3L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+
+        expectedOutput.add(
+                new StreamRecord<>(
+                        newRow(
+                                true,
+                                "c1",
+                                0L,
+                                TimestampData.fromEpochMillis(0L),
+                                TimestampData.fromEpochMillis(10000L))));
+
         expectedOutput.add(new Watermark(10000L));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(-5000L),
-                                TimestampData.fromEpochMillis(5000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c2",
-                                3L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
-
-        expectedOutput.add(
-                new StreamRecord<>(
-                        newRow(
-                                true,
-                                "c1",
-                                0L,
-                                TimestampData.fromEpochMillis(0L),
-                                TimestampData.fromEpochMillis(10000L))));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(20000L);
 
         testHarness.close();
-
-        expectedOutput.add(new Watermark(20000L));
 
         expectedOutput.add(
                 new StreamRecord<>(
@@ -234,6 +232,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 2L,
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
+
+        expectedOutput.add(new Watermark(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -301,8 +301,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         testHarness.processWatermark(20000L);
         testHarness.close();
 
-        expectedOutput.add(new Watermark(20000L));
-
         expectedOutput.add(
                 new StreamRecord<>(
                         newRow(
@@ -319,6 +317,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 2L,
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
+
+        expectedOutput.add(new Watermark(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -344,7 +344,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         testHarness.processElement(
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 4));
         testHarness.processWatermark(new Watermark(20000L));
-        expectedOutput.add(new Watermark(20000L));
         assertOutputEquals(
                 "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
@@ -400,6 +399,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                                 2L,
                                 TimestampData.fromEpochMillis(10000L),
                                 TimestampData.fromEpochMillis(20000L))));
+
+        expectedOutput.add(new Watermark(20000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 

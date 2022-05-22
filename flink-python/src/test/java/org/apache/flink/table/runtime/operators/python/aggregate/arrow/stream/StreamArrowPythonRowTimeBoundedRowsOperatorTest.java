@@ -76,11 +76,11 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
 
         testHarness.close();
 
-        expectedOutput.add(new Watermark(Long.MAX_VALUE));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+        expectedOutput.add(new Watermark(Long.MAX_VALUE));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
@@ -106,7 +106,6 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 2L), initialTime + 3));
         testHarness.processWatermark(new Watermark(10000L));
 
-        expectedOutput.add(new Watermark(10000L));
         assertOutputEquals(
                 "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
         // checkpoint trigger finishBundle
@@ -116,6 +115,7 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+        expectedOutput.add(new Watermark(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -178,7 +178,6 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
         testHarness.processElement(
                 new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 2L), initialTime + 3));
         testHarness.processWatermark(new Watermark(10000L));
-        expectedOutput.add(new Watermark(10000L));
         assertOutputEquals(
                 "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
@@ -187,6 +186,7 @@ public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
         expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+        expectedOutput.add(new Watermark(10000L));
 
         assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
