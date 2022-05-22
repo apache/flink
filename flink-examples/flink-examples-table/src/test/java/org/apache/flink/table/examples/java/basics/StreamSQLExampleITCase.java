@@ -20,20 +20,20 @@ package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.table.examples.utils.ExampleOutputTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for Java {@link StreamSQLExample}. */
-public class StreamSQLExampleITCase extends ExampleOutputTestBase {
+class StreamSQLExampleITCase extends ExampleOutputTestBase {
 
     @Test
-    public void testExample() throws Exception {
+    void testExample() throws Exception {
         StreamSQLExample.main(new String[0]);
         final String consoleOutput = getOutputString();
-        assertThat(consoleOutput, containsString("Order{user=1, product='beer', amount=3}"));
-        assertThat(consoleOutput, containsString("Order{user=4, product='beer', amount=1}"));
-        assertThat(consoleOutput, containsString("Order{user=1, product='diaper', amount=4}"));
+        assertThat(consoleOutput)
+                .contains("Order{user=1, product='beer', amount=3}")
+                .contains("Order{user=4, product='beer', amount=1}")
+                .contains("Order{user=1, product='diaper', amount=4}");
     }
 }
