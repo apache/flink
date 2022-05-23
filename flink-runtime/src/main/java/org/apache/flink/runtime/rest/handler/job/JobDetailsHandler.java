@@ -218,7 +218,10 @@ public class JobDetailsHandler
                         counts.getNumRecordsIn(),
                         counts.isNumRecordsInComplete(),
                         counts.getNumRecordsOut(),
-                        counts.isNumRecordsOutComplete());
+                        counts.isNumRecordsOutComplete(),
+                        counts.getAccumulateBackPressuredTime(),
+                        counts.getAccumulateIdleTime(),
+                        counts.getAccumulateBusyTime());
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),

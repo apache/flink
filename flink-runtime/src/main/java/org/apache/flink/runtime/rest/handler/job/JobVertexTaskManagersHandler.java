@@ -206,7 +206,10 @@ public class JobVertexTaskManagersHandler
                             counts.getNumRecordsIn(),
                             counts.isNumRecordsInComplete(),
                             counts.getNumRecordsOut(),
-                            counts.isNumRecordsOutComplete());
+                            counts.isNumRecordsOutComplete(),
+                            counts.getAccumulateBackPressuredTime(),
+                            counts.getAccumulateIdleTime(),
+                            counts.getAccumulateBusyTime());
 
             Map<ExecutionState, Integer> statusCounts =
                     new HashMap<>(ExecutionState.values().length);

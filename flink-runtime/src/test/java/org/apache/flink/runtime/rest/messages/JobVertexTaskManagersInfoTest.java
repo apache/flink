@@ -54,7 +54,10 @@ public class JobVertexTaskManagersInfoTest
                         random.nextLong(),
                         random.nextBoolean(),
                         random.nextLong(),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
         int count = 100;
         for (ExecutionState executionState : ExecutionState.values()) {
             statusCounts.put(executionState, count++);

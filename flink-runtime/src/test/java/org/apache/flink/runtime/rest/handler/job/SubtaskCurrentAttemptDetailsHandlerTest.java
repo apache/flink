@@ -72,8 +72,19 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
         final long bytesOut = 10L;
         final long recordsIn = 20L;
         final long recordsOut = 30L;
+        final long accumulateIdleTime = 40L;
+        final long accumulateBusyTime = 50L;
+        final long accumulateBackPressuredTime = 60L;
 
-        final IOMetrics ioMetrics = new IOMetrics(bytesIn, bytesOut, recordsIn, recordsOut);
+        final IOMetrics ioMetrics =
+                new IOMetrics(
+                        bytesIn,
+                        bytesOut,
+                        recordsIn,
+                        recordsOut,
+                        accumulateIdleTime,
+                        accumulateBusyTime,
+                        accumulateBackPressuredTime);
 
         final long[] timestamps = new long[ExecutionState.values().length];
         timestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs;
@@ -146,7 +157,18 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 
         // Verify
         final IOMetricsInfo ioMetricsInfo =
-                new IOMetricsInfo(bytesIn, true, bytesOut, true, recordsIn, true, recordsOut, true);
+                new IOMetricsInfo(
+                        bytesIn,
+                        true,
+                        bytesOut,
+                        true,
+                        recordsIn,
+                        true,
+                        recordsOut,
+                        true,
+                        accumulateBackPressuredTime,
+                        accumulateIdleTime,
+                        accumulateBusyTime);
 
         final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo =
                 new SubtaskExecutionAttemptDetailsInfo(

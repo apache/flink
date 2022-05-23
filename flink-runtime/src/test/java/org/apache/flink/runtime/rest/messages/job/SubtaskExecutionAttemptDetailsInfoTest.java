@@ -46,7 +46,10 @@ public class SubtaskExecutionAttemptDetailsInfoTest
                         Math.abs(random.nextLong()),
                         random.nextBoolean(),
                         Math.abs(random.nextLong()),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
 
         return new SubtaskExecutionAttemptDetailsInfo(
                 Math.abs(random.nextInt()),

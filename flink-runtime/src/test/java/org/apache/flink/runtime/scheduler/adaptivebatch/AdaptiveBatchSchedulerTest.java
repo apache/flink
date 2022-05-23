@@ -133,7 +133,7 @@ public class AdaptiveBatchSchedulerTest extends TestLogger {
                             state,
                             null,
                             null,
-                            new IOMetrics(0, 0, 0, 0)));
+                            new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
         }
     }
 

@@ -1628,6 +1628,15 @@ components:
           format: int64
         write-records-complete:
           type: boolean
+        accumulated-backpressured-time:
+          type: integer
+          format: int64
+        accumulated-idle-time:
+          type: integer
+          format: int64
+        accumulated-busy-time:
+          type: number
+          format: double
     SavepointFormatType:
       type: string
       enum:
