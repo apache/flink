@@ -57,6 +57,18 @@
             <td>The time period when keytab login happens automatically in order to always have a valid TGT.</td>
         </tr>
         <tr>
+            <td><h5>security.kerberos.tokens.renewal.retry.backoff</h5></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The time period how long to wait before retrying to obtain new delegation tokens after a failure.</td>
+        </tr>
+        <tr>
+            <td><h5>security.kerberos.tokens.renewal.time-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.75</td>
+            <td>Double</td>
+            <td>Ratio of the tokens's expiration time when new credentials should be re-obtained.</td>
+        </tr>
+        <tr>
             <td><h5>security.module.factory.classes</h5></td>
             <td style="word-wrap: break-word;">"org.apache.flink.runtime.security.modules.HadoopModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.JaasModuleFactory";<wbr>"org.apache.flink.runtime.security.modules.ZookeeperModuleFactory"</td>
             <td>List&lt;String&gt;</td>
