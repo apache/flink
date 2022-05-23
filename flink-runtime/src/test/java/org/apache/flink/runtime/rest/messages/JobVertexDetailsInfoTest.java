@@ -47,7 +47,10 @@ public class JobVertexDetailsInfoTest
                         random.nextLong(),
                         random.nextBoolean(),
                         random.nextLong(),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
         List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(

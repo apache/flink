@@ -159,7 +159,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                 execution -> {
                     execution.cancel();
                     execution.completeCancelling(
-                            Collections.emptyMap(), new IOMetrics(0, 0, 0, 0), false);
+                            Collections.emptyMap(), new IOMetrics(0, 0, 0, 0, 0, 0, 0), false);
                 },
                 PartitionReleaseResult.STOP_TRACKING);
     }
@@ -182,7 +182,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                                 new Exception("Test exception"),
                                 false,
                                 Collections.emptyMap(),
-                                new IOMetrics(0, 0, 0, 0),
+                                new IOMetrics(0, 0, 0, 0, 0, 0, 0),
                                 false,
                                 true),
                 PartitionReleaseResult.STOP_TRACKING);

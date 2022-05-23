@@ -344,7 +344,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         // verify behavior for canceled executions
         Execution execution1 = executions.values().iterator().next();
 
-        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
         accumulators.put("acc", new IntCounter(4));
         AccumulatorSnapshot accumulatorSnapshot =
@@ -367,7 +367,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         // verify behavior for failed executions
         Execution execution2 = executions.values().iterator().next();
 
-        IOMetrics ioMetrics2 = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics2 = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators2 = new HashMap<>();
         accumulators2.put("acc", new IntCounter(8));
         AccumulatorSnapshot accumulatorSnapshot2 =
@@ -405,7 +405,7 @@ public class DefaultExecutionGraphDeploymentTest extends TestLogger {
         Map<ExecutionAttemptID, Execution> executions =
                 scheduler.getExecutionGraph().getRegisteredExecutions();
 
-        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0);
+        IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
         Map<String, Accumulator<?, ?>> accumulators = Collections.emptyMap();
 
         Execution execution1 = executions.values().iterator().next();
