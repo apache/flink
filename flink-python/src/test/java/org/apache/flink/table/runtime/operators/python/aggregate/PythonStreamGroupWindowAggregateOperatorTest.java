@@ -207,8 +207,6 @@ class PythonStreamGroupWindowAggregateOperatorTest
         testHarness.processElement(newRecord(true, initialTime + 3, "c1", "c6", 2L, 10000L));
         testHarness.processElement(newRecord(true, initialTime + 4, "c2", "c8", 3L, 0L));
         testHarness.processWatermark(new Watermark(20000L));
-        assertOutputEquals(
-                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
         testHarness.setProcessingTime(1000L);
         expectedOutput.add(newWindowRecord(-5000L, 5000L, "c1", 0L));

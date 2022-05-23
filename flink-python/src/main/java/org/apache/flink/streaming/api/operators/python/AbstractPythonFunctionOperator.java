@@ -181,14 +181,18 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // Approach 1) is the easiest and gives better latency, yet 2)
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
+
+        // advance the watermark and do not emit watermark to downstream operators
+        if (getTimeServiceManager().isPresent()) {
+            getTimeServiceManager().get().advanceWatermark(mark);
+        }
+
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
-            preEmitWatermark(mark);
+            advanceWatermark(mark);
             output.emitWatermark(mark);
         } else if (isBundleFinished()) {
-            // forward the watermark immediately if the bundle is already finished.
-            preEmitWatermark(mark);
             output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
@@ -196,8 +200,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             bundleFinishedCallback =
                     () -> {
                         try {
+                            advanceWatermark(mark);
                             // at this point the bundle is finished, allow the watermark to pass
-                            preEmitWatermark(mark);
                             output.emitWatermark(mark);
                         } catch (Exception e) {
                             throw new RuntimeException(
@@ -264,17 +268,19 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
 
-    /** Called before emitting watermark to downstream. */
-    private void preEmitWatermark(Watermark watermark) throws Exception {
-        if (!getTimeServiceManager().isPresent()) {
-            return;
-        }
-        InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
-        timeServiceManager.advanceWatermark(watermark);
-
-        while (!isBundleFinished()) {
-            invokeFinishBundle();
+    /**
+     * Advances the watermark of all managed timer services, potentially firing event time timers.
+     * It also ensures that the fired timers are processed in the Python user-defined functions.
+     */
+    private void advanceWatermark(Watermark watermark) throws Exception {
+        if (getTimeServiceManager().isPresent()) {
+            InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
             timeServiceManager.advanceWatermark(watermark);
+
+            while (!isBundleFinished()) {
+                invokeFinishBundle();
+                timeServiceManager.advanceWatermark(watermark);
+            }
         }
     }
 
