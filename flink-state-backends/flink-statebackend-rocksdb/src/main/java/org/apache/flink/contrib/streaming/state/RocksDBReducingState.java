@@ -44,7 +44,7 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
         implements InternalReducingState<K, N, V> {
 
     /** User-specified reduce function. */
-    private final ReduceFunction<V> reduceFunction;
+    private ReduceFunction<V> reduceFunction;
 
     /**
      * Creates a new {@code RocksDBReducingState}.
@@ -154,6 +154,11 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
         }
     }
 
+    RocksDBReducingState<K, N, V> setReduceFunction(ReduceFunction<V> reduceFunction) {
+        this.reduceFunction = reduceFunction;
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
@@ -168,5 +173,19 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
                         stateDesc.getDefaultValue(),
                         ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
                         backend);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            IS existingState) {
+        return (IS)
+                ((RocksDBReducingState<K, N, SV>) existingState)
+                        .setReduceFunction(
+                                ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction())
+                        .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }

@@ -49,10 +49,10 @@ import java.io.IOException;
 public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K, N, V>, State {
 
     /** Serializer for the namespace. */
-    final TypeSerializer<N> namespaceSerializer;
+    TypeSerializer<N> namespaceSerializer;
 
     /** Serializer for the state values. */
-    final TypeSerializer<V> valueSerializer;
+    TypeSerializer<V> valueSerializer;
 
     /** The current namespace, which the next value methods will refer to. */
     private N currentNamespace;
@@ -63,7 +63,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     /** The column family of this particular instance of state. */
     protected ColumnFamilyHandle columnFamily;
 
-    protected final V defaultValue;
+    protected V defaultValue;
 
     protected final WriteOptions writeOptions;
 
@@ -215,6 +215,22 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
         } else {
             return null;
         }
+    }
+
+    protected AbstractRocksDBState<K, N, V> setNamespaceSerializer(
+            TypeSerializer<N> namespaceSerializer) {
+        this.namespaceSerializer = namespaceSerializer;
+        return this;
+    }
+
+    protected AbstractRocksDBState<K, N, V> setValueSerializer(TypeSerializer<V> valueSerializer) {
+        this.valueSerializer = valueSerializer;
+        return this;
+    }
+
+    protected AbstractRocksDBState<K, N, V> setDefaultValue(V defaultValue) {
+        this.defaultValue = defaultValue;
+        return this;
     }
 
     @Override
