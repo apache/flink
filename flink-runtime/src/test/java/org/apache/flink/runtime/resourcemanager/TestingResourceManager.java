@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -31,10 +32,13 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
@@ -42,6 +46,7 @@ import java.util.function.Function;
 public class TestingResourceManager extends ResourceManager<ResourceID> {
 
     private final Function<ResourceID, Boolean> stopWorkerFunction;
+    private final CompletableFuture<Void> readyToServeFuture;
 
     public TestingResourceManager(
             RpcService rpcService,
@@ -55,7 +60,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
             JobLeaderIdService jobLeaderIdService,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
-            Function<ResourceID, Boolean> stopWorkerFunction) {
+            Function<ResourceID, Boolean> stopWorkerFunction,
+            CompletableFuture<Void> readyToServeFuture) {
         super(
                 rpcService,
                 leaderSessionId,
@@ -73,6 +79,7 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 ForkJoinPool.commonPool());
 
         this.stopWorkerFunction = stopWorkerFunction;
+        this.readyToServeFuture = readyToServeFuture;
     }
 
     @Override
@@ -105,5 +112,14 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
     @Override
     public boolean stopWorker(ResourceID worker) {
         return stopWorkerFunction.apply(worker);
+    }
+
+    @Override
+    public CompletableFuture<Void> getReadyToServeFuture() {
+        return readyToServeFuture;
+    }
+
+    public <T> CompletableFuture<T> runInMainThread(Callable<T> callable, Time timeout) {
+        return callAsync(callable, TimeUtils.toDuration(timeout));
     }
 }

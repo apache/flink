@@ -547,9 +547,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         if (null != jobManagerRegistration) {
             if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
-                slotManager.processResourceRequirements(resourceRequirements);
-
-                return CompletableFuture.completedFuture(Acknowledge.get());
+                return getReadyToServeFuture()
+                        .thenApply(
+                                acknowledge -> {
+                                    validateRunsInMainThread();
+                                    slotManager.processResourceRequirements(resourceRequirements);
+                                    return null;
+                                });
             } else {
                 return FutureUtils.completedExceptionally(
                         new ResourceManagerException(
@@ -1251,6 +1255,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
      * @return True if the worker was stopped, otherwise false
      */
     public abstract boolean stopWorker(WorkerType worker);
+
+    /**
+     * Get the ready to serve future of the resource manager.
+     *
+     * @return The ready to serve future of the resource manager, which indicated whether it is
+     *     ready to serve.
+     */
+    protected abstract CompletableFuture<Void> getReadyToServeFuture();
 
     /**
      * Set {@link SlotManager} whether to fail unfulfillable slot requests.

@@ -238,5 +238,10 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             return getTerminationFutureFunction.apply(
                     MockResourceManager.this, super.getTerminationFuture());
         }
+
+        @Override
+        public CompletableFuture<Void> getReadyToServeFuture() {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 }
