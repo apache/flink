@@ -47,6 +47,8 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
+
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -67,6 +69,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
@@ -841,6 +844,71 @@ public class ActiveResourceManagerTest extends TestLogger {
         };
     }
 
+    @Test
+    public void testResourceManagerRecoveredAfterAllTMRegistered() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId1 = ResourceID.generate();
+                final ResourceID tmResourceId2 = ResourceID.generate();
+
+                runTest(
+                        () -> {
+                            // workers recovered
+                            runInMainThread(
+                                    () ->
+                                            getResourceManager()
+                                                    .onPreviousAttemptWorkersRecovered(
+                                                            ImmutableSet.of(
+                                                                    tmResourceId1, tmResourceId2)));
+
+                            runInMainThread(
+                                    () -> getResourceManager().onWorkerRegistered(tmResourceId1));
+                            runInMainThread(
+                                    () -> getResourceManager().onWorkerRegistered(tmResourceId2));
+                            runInMainThread(
+                                            () ->
+                                                    assertTrue(
+                                                            getResourceManager()
+                                                                    .getReadyToServeFuture()
+                                                                    .isDone()))
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testResourceManagerRecoveredAfterReconcileTimeout() throws Exception {
+        new Context() {
+            {
+                final ResourceID tmResourceId1 = ResourceID.generate();
+                final ResourceID tmResourceId2 = ResourceID.generate();
+
+                flinkConfig.set(
+                        ResourceManagerOptions.RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT,
+                        Duration.ofMillis(TESTING_START_WORKER_TIMEOUT_MS));
+
+                runTest(
+                        () -> {
+                            // workers recovered
+                            runInMainThread(
+                                    () -> {
+                                        getResourceManager()
+                                                .onPreviousAttemptWorkersRecovered(
+                                                        ImmutableSet.of(
+                                                                tmResourceId1, tmResourceId2));
+                                    });
+
+                            runInMainThread(
+                                    () -> getResourceManager().onWorkerRegistered(tmResourceId1));
+                            getResourceManager()
+                                    .getReadyToServeFuture()
+                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                        });
+            }
+        };
+    }
+
     private static class Context {
 
         final Configuration flinkConfig = new Configuration();
@@ -886,6 +954,10 @@ public class ActiveResourceManagerTest extends TestLogger {
                     configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
             final Duration workerRegistrationTimeout =
                     configuration.get(ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT);
+            final Duration previousWorkerRecoverTimeout =
+                    configuration.get(
+                            ResourceManagerOptions
+                                    .RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT);
 
             final ActiveResourceManager<ResourceID> activeResourceManager =
                     new ActiveResourceManager<>(
@@ -907,6 +979,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     configuration),
                             retryInterval,
                             workerRegistrationTimeout,
+                            previousWorkerRecoverTimeout,
                             ForkJoinPool.commonPool());
 
             activeResourceManager.start();
@@ -917,8 +990,8 @@ public class ActiveResourceManagerTest extends TestLogger {
             return activeResourceManager;
         }
 
-        void runInMainThread(Runnable runnable) {
-            resourceManager.runInMainThread(
+        CompletableFuture<Void> runInMainThread(Runnable runnable) {
+            return resourceManager.runInMainThread(
                     () -> {
                         runnable.run();
                         return null;

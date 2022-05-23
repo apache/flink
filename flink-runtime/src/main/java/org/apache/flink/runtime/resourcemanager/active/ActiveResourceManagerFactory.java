@@ -109,6 +109,10 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
         final Duration workerRegistrationTimeout =
                 configuration.get(ResourceManagerOptions.TASK_MANAGER_REGISTRATION_TIMEOUT);
+        final Duration previousWorkerRecoverTimeout =
+                configuration.get(
+                        ResourceManagerOptions.RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT);
+
         return new ActiveResourceManager<>(
                 createResourceManagerDriver(
                         configuration, webInterfaceUrl, rpcService.getAddress()),
@@ -128,6 +132,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
                 failureRater,
                 retryInterval,
                 workerRegistrationTimeout,
+                previousWorkerRecoverTimeout,
                 ioExecutor);
     }
 

@@ -103,6 +103,12 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
      */
     private CompletableFuture<Void> startWorkerCoolDown;
 
+    /** The future indicates whether the rm is ready to serve. */
+    private final CompletableFuture<Void> readyToServeFuture;
+
+    /** Timeout to wait for all the previous attempts workers to recover. */
+    private final Duration previousWorkerRecoverTimeout;
+
     public ActiveResourceManager(
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
             Configuration flinkConfig,
@@ -121,6 +127,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ThresholdMeter startWorkerFailureRater,
             Duration retryInterval,
             Duration workerRegistrationTimeout,
+            Duration previousWorkerRecoverTimeout,
             Executor ioExecutor) {
         super(
                 rpcService,
@@ -150,6 +157,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.startWorkerRetryInterval = retryInterval;
         this.workerRegistrationTimeout = workerRegistrationTimeout;
         this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
+        this.previousWorkerRecoverTimeout = previousWorkerRecoverTimeout;
+        this.readyToServeFuture = new CompletableFuture<>();
     }
 
     // ------------------------------------------------------------------------
@@ -213,7 +222,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
         final WorkerResourceSpec workerResourceSpec =
                 currentAttemptUnregisteredWorkers.remove(resourceId);
-        previousAttemptUnregisteredWorkers.remove(resourceId);
+        tryRemovePreviousPendingRecoveryTaskManager(resourceId);
         if (workerResourceSpec != null) {
             final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
             log.info(
@@ -250,6 +259,18 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             log.info(
                     "Worker {} recovered from previous attempt.",
                     resourceId.getStringWithMetadata());
+        }
+        if (recoveredWorkers.size() > 0 && !previousWorkerRecoverTimeout.isZero()) {
+            scheduleRunAsync(
+                    () -> {
+                        readyToServeFuture.complete(null);
+                        log.info(
+                                "Timeout to wait recovery taskmanagers, recovery future is completed.");
+                    },
+                    previousWorkerRecoverTimeout.toMillis(),
+                    TimeUnit.MILLISECONDS);
+        } else {
+            readyToServeFuture.complete(null);
         }
     }
 
@@ -367,7 +388,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
         WorkerResourceSpec workerResourceSpec =
                 currentAttemptUnregisteredWorkers.remove(resourceId);
-        previousAttemptUnregisteredWorkers.remove(resourceId);
+        tryRemovePreviousPendingRecoveryTaskManager(resourceId);
         if (workerResourceSpec != null) {
             final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
             log.info(
@@ -422,6 +443,27 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             log.info("Will not retry creating worker in {}.", startWorkerRetryInterval);
             startWorkerCoolDown = new CompletableFuture<>();
             scheduleRunAsync(() -> startWorkerCoolDown.complete(null), startWorkerRetryInterval);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> getReadyToServeFuture() {
+        return readyToServeFuture;
+    }
+
+    private void tryRemovePreviousPendingRecoveryTaskManager(ResourceID resourceID) {
+        long sizeBeforeRemove = previousAttemptUnregisteredWorkers.size();
+        if (previousAttemptUnregisteredWorkers.remove(resourceID)) {
+            log.info(
+                    "Pending recovery taskmanagers {} -> {}.{}",
+                    sizeBeforeRemove,
+                    previousAttemptUnregisteredWorkers.size(),
+                    previousAttemptUnregisteredWorkers.size() == 0
+                            ? " Resource manager is ready to serve."
+                            : "");
+        }
+        if (previousAttemptUnregisteredWorkers.size() == 0) {
+            readyToServeFuture.complete(null);
         }
     }
 

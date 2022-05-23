@@ -301,6 +301,69 @@ class ResourceManagerTest {
     }
 
     @Test
+    void testProcessResourceRequirementsWhenRecoveryFinished() throws Exception {
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final JobLeaderIdService jobLeaderIdService =
+                TestingJobLeaderIdService.newBuilder()
+                        .setGetLeaderIdFunction(
+                                jobId ->
+                                        CompletableFuture.completedFuture(
+                                                jobMasterGateway.getFencingToken()))
+                        .build();
+
+        final CompletableFuture<Void> processRequirementsFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> readyToServeFuture = new CompletableFuture<>();
+
+        final SlotManager slotManager =
+                new TestingSlotManagerBuilder()
+                        .setProcessRequirementsConsumer(
+                                r -> processRequirementsFuture.complete(null))
+                        .createSlotManager();
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withJobLeaderIdService(jobLeaderIdService)
+                        .withSlotManager(slotManager)
+                        .withReadyToServeFuture(readyToServeFuture)
+                        .buildAndStart();
+
+        final JobID jobId = JobID.generate();
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+        resourceManagerGateway
+                .registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        ResourceID.generate(),
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        TIMEOUT)
+                .get();
+
+        resourceManagerGateway.declareRequiredResources(
+                jobMasterGateway.getFencingToken(),
+                ResourceRequirements.create(
+                        jobId,
+                        jobMasterGateway.getAddress(),
+                        Collections.singleton(
+                                ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
+                TIMEOUT);
+        resourceManager
+                .runInMainThread(
+                        () -> {
+                            assertThat(processRequirementsFuture.isDone()).isFalse();
+                            readyToServeFuture.complete(null);
+                            assertThat(processRequirementsFuture.isDone()).isTrue();
+                            return null;
+                        },
+                        TIMEOUT)
+                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
+
+    @Test
     void testHeartbeatTimeoutWithJobMaster() throws Exception {
         final CompletableFuture<ResourceID> heartbeatRequestFuture = new CompletableFuture<>();
         final CompletableFuture<ResourceManagerId> disconnectFuture = new CompletableFuture<>();
@@ -427,12 +490,11 @@ class ResourceManagerTest {
                                     stopWorkerFuture.complete(worker);
                                     return true;
                                 }),
-                resourceManagerGateway -> {
-                    registerTaskExecutor(
-                            resourceManagerGateway,
-                            taskExecutorId,
-                            taskExecutorGateway.getAddress());
-                },
+                resourceManagerGateway ->
+                        registerTaskExecutor(
+                                resourceManagerGateway,
+                                taskExecutorId,
+                                taskExecutorGateway.getAddress()),
                 resourceManagerResourceId -> {
                     // might have been completed or not depending whether the timeout was triggered
                     // first
@@ -727,6 +789,8 @@ class ResourceManagerTest {
         private BlocklistHandler.Factory blocklistHandlerFactory =
                 new NoOpBlocklistHandler.Factory();
         private Function<ResourceID, Boolean> stopWorkerFunction = null;
+        private CompletableFuture<Void> readyToServeFuture =
+                CompletableFuture.completedFuture(null);
 
         private ResourceManagerBuilder withHeartbeatServices(HeartbeatServices heartbeatServices) {
             this.heartbeatServices = heartbeatServices;
@@ -753,6 +817,12 @@ class ResourceManagerTest {
         private ResourceManagerBuilder withStopWorkerFunction(
                 Function<ResourceID, Boolean> stopWorkerFunction) {
             this.stopWorkerFunction = stopWorkerFunction;
+            return this;
+        }
+
+        public ResourceManagerBuilder withReadyToServeFuture(
+                CompletableFuture<Void> readyToServeFuture) {
+            this.readyToServeFuture = readyToServeFuture;
             return this;
         }
 
@@ -793,7 +863,8 @@ class ResourceManagerTest {
                             jobLeaderIdService,
                             testingFatalErrorHandler,
                             UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                            stopWorkerFunction);
+                            stopWorkerFunction,
+                            readyToServeFuture);
 
             resourceManager.start();
             resourceManager.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());

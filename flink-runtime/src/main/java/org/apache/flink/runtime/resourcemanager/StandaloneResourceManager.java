@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -125,5 +126,10 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                     startupPeriodMillis,
                     TimeUnit.MILLISECONDS);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> getReadyToServeFuture() {
+        return CompletableFuture.completedFuture(null);
     }
 }
