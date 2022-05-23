@@ -15,29 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
+import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
+export interface JobOverviewTaskManagersTableAction {
+  taskManager?: VertexTaskManagerDetail;
+}
 
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
+@Component({
+  selector: 'flink-taskmanagers-table-action',
+  templateUrl: './taskmanagers-table-action.component.html',
+  styleUrls: ['./taskmanagers-table-action.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {
+  @Input() taskManager?: VertexTaskManagerDetail;
 }

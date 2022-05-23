@@ -15,29 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
+import { EditorModule } from '@flink-runtime-web/share/common/editor/editor.module';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
+import { AddonCompactComponent } from './addon-compact/addon-compact.component';
+import { AddonInlineComponent } from './addon-inline/addon-inline.component';
 
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
-}
+@NgModule({
+  declarations: [AddonCompactComponent, AddonInlineComponent],
+  exports: [AddonCompactComponent, AddonInlineComponent, EditorModule],
+  imports: [CommonModule, NzButtonModule, NzIconModule, NzDividerModule, EditorModule]
+})
+export class AddonModule {}

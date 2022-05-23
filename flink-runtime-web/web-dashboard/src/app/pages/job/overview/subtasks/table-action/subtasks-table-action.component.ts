@@ -15,29 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
+import { JobSubTask } from '@flink-runtime-web/interfaces';
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
+export interface JobOverviewSubtasksTableAction {
+  subtask?: JobSubTask;
+}
 
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
+@Component({
+  selector: 'flink-table-actions',
+  templateUrl: './subtasks-table-action.component.html',
+  styleUrls: ['./subtasks-table-action.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
+  @Input() subtask?: JobSubTask;
 }
