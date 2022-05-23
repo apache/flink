@@ -61,7 +61,6 @@ public class GlobalConfigurationTest extends TestLogger {
                 pw.println(" :  "); // SKIP
                 pw.println("   "); // SKIP (silently)
                 pw.println(" "); // SKIP (silently)
-                pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
                 pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
                 pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
                 pw.println("mykey7: "); // SKIP, no value provided
@@ -69,7 +68,9 @@ public class GlobalConfigurationTest extends TestLogger {
 
                 pw.println("mykey9: myvalue9"); // OK
                 pw.println("mykey9: myvalue10"); // OK, overwrite last value
-
+                pw.println("mykey10: myvalue10 #some comments"); // with comments
+                pw.println("mykey11: myvalue11#123"); // OK.
+                pw.println("mykey12: myvalue12#123 #some comments"); // with comments
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
@@ -77,18 +78,20 @@ public class GlobalConfigurationTest extends TestLogger {
             Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 
             // all distinct keys from confFile1 + confFile2 key
-            assertEquals(6, conf.keySet().size());
+            assertEquals(8, conf.keySet().size());
 
             // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
             assertEquals("myvalue1", conf.getString("mykey1", null));
             assertEquals("myvalue2", conf.getString("mykey2", null));
             assertEquals("null", conf.getString("mykey3", "null"));
-            assertEquals("myvalue4", conf.getString("mykey4", null));
             assertEquals("myvalue5", conf.getString("mykey5", null));
             assertEquals("my: value6", conf.getString("mykey6", null));
             assertEquals("null", conf.getString("mykey7", "null"));
             assertEquals("null", conf.getString("mykey8", "null"));
             assertEquals("myvalue10", conf.getString("mykey9", null));
+            assertEquals("myvalue10", conf.getString("mykey10", null));
+            assertEquals("myvalue11#123", conf.getString("mykey11", null));
+            assertEquals("myvalue12#123", conf.getString("mykey12", null));
         } finally {
             confFile.delete();
             tmpDir.delete();
