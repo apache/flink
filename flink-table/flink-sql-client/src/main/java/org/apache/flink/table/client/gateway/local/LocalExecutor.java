@@ -170,8 +170,8 @@ public class LocalExecutor implements Executor {
         List<Operation> operations;
         try {
             operations = context.wrapClassLoader(() -> parser.parse(statement));
-        } catch (Exception e) {
-            throw new SqlExecutionException("Failed to parse statement: " + statement, e);
+        } catch (Throwable t) {
+            throw new SqlExecutionException("Failed to parse statement: " + statement, t);
         }
         if (operations.isEmpty()) {
             throw new SqlExecutionException("Failed to parse statement: " + statement);
@@ -207,8 +207,8 @@ public class LocalExecutor implements Executor {
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
             return context.wrapClassLoader(() -> tEnv.executeInternal(operation));
-        } catch (Exception e) {
-            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
+        } catch (Throwable t) {
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, t);
         }
     }
 
@@ -220,8 +220,8 @@ public class LocalExecutor implements Executor {
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
             return context.wrapClassLoader(() -> tEnv.executeInternal(operations));
-        } catch (Exception e) {
-            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
+        } catch (Throwable t) {
+            throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, t);
         }
     }
 
@@ -299,8 +299,8 @@ public class LocalExecutor implements Executor {
         try {
             // this operator will also stop flink job
             result.close();
-        } catch (Exception e) {
-            throw new SqlExecutionException("Could not cancel the query execution", e);
+        } catch (Throwable t) {
+            throw new SqlExecutionException("Could not cancel the query execution", t);
         }
         resultStore.removeResult(resultId);
     }
