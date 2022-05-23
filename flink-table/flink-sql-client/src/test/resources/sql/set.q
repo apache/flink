@@ -116,6 +116,10 @@ Was expecting one of:
 
 !error
 
+set 'sql-client.verbose' = 'true';
+[INFO] Session property has been set.
+!info
+
 set;
 'execution.attached' = 'true'
 'execution.savepoint-restore-mode' = 'NO_CLAIM'
@@ -126,6 +130,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'sql-client.verbose' = 'true'
 'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
@@ -147,6 +152,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
+'sql-client.verbose' = 'true'
 'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
@@ -169,6 +175,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
 'rest.port' = '$VAR_REST_PORT'
+'sql-client.verbose' = 'true'
 'table.exec.legacy-cast-behaviour' = 'DISABLED'
 !ok
 
