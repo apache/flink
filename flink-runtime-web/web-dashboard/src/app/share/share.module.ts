@@ -31,7 +31,6 @@ import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/che
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
 import { JobChartComponent } from '@flink-runtime-web/share/customize/job-chart/job-chart.component';
 import { JobListComponent } from '@flink-runtime-web/share/customize/job-list/job-list.component';
-import { RefreshDownloadComponent } from '@flink-runtime-web/share/customize/refresh-download/refresh-download.component';
 import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
 import { PipeModule } from '@flink-runtime-web/share/pipes/pipe.module';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -68,7 +67,6 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobListComponent,
     FileReadDirective,
     NavigationComponent,
-    RefreshDownloadComponent,
     ResizeComponent,
     JobChartComponent,
     CheckpointBadgeComponent,
@@ -84,7 +82,6 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     DynamicModule,
     FileReadDirective,
     NavigationComponent,
-    RefreshDownloadComponent,
     JobBadgeComponent,
     TaskBadgeComponent,
     ResizeComponent,
