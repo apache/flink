@@ -27,6 +27,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -232,6 +233,11 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
         public CompletableFuture<Void> getTerminationFuture() {
             return getTerminationFutureFunction.apply(
                     MockResourceManager.this, super.getTerminationFuture());
+        }
+
+        @Override
+        public CompletableFuture<Acknowledge> getRecoveryFuture() {
+            return CompletableFuture.completedFuture(Acknowledge.get());
         }
     }
 }

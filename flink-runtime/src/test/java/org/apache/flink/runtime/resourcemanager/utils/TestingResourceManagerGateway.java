@@ -120,6 +120,9 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private volatile Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction;
 
+    private volatile CompletableFuture<Acknowledge> recoveryFuture =
+            CompletableFuture.completedFuture(Acknowledge.get());
+
     public TestingResourceManagerGateway() {
         this(
                 ResourceManagerId.generate(),
@@ -233,6 +236,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>>
                     declareRequiredResourcesFunction) {
         this.declareRequiredResourcesFunction = declareRequiredResourcesFunction;
+    }
+
+    public void setRecoveryFuture(CompletableFuture<Acknowledge> recoveryFuture) {
+        this.recoveryFuture = recoveryFuture;
     }
 
     @Override
@@ -465,6 +472,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             return FutureUtils.completedExceptionally(
                     new UnknownTaskExecutorException(taskManagerId));
         }
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> getRecoveryFuture() {
+        return this.recoveryFuture;
     }
 
     @Override

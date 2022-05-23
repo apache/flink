@@ -1124,7 +1124,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     new EstablishedResourceManagerConnection(
                             resourceManagerGateway, resourceManagerResourceId);
 
-            slotPoolService.connectToResourceManager(resourceManagerGateway);
+            CompletableFuture<Acknowledge> rmReady = resourceManagerGateway.getRecoveryFuture();
+            rmReady.whenComplete(
+                    (ignore, throwable) -> {
+                        if (throwable != null) {
+                            log.warn(
+                                    "Error occur during waiting for resource manager recovery",
+                                    throwable);
+                        }
+                        slotPoolService.connectToResourceManager(resourceManagerGateway);
+                        log.info("The slotPoolService is connecting to resource manager.");
+                    });
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,

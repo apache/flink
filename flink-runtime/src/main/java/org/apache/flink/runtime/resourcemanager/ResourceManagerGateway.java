@@ -264,4 +264,12 @@ public interface ResourceManagerGateway
      */
     CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+    /**
+     * Get the recovery future of the resource manager.
+     *
+     * @return The recovery future of the resource manager, which indicated whether it is ready to
+     *     serve.
+     */
+    CompletableFuture<Acknowledge> getRecoveryFuture();
 }

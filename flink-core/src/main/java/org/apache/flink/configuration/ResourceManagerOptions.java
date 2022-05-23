@@ -253,6 +253,14 @@ public class ResourceManagerOptions {
                                     + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
                                     + "'.");
 
+    /** Timeout for ResourceManager to recover all the previous attempts workers. */
+    public static final ConfigOption<Duration> RESOURCE_MANAGER_PREVIOUS_WORKER_RECOVERY_TIMEOUT =
+            ConfigOptions.key("resourcemanager.previous-worker.recovery.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(5))
+                    .withDescription(
+                            "Timeout for resource manager to recover all the previous attempts workers.");
+
     // ---------------------------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */

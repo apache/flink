@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -35,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -122,5 +124,10 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                     startupPeriodMillis,
                     TimeUnit.MILLISECONDS);
         }
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> getRecoveryFuture() {
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 }

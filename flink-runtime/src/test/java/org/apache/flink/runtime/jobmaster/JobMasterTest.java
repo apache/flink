@@ -169,6 +169,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link JobMaster}. */
@@ -999,6 +1000,52 @@ public class JobMasterTest extends TestLogger {
             final JobMasterId firstRegistrationAttempt = registrationQueue.take();
 
             assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+        }
+    }
+
+    @Test
+    public void testJobMasterConnectToRMAfterRMRecoveryCompleted() throws Exception {
+        TestingSlotPoolServiceBuilder slotPoolServiceBuilder =
+                TestingSlotPoolServiceBuilder.newBuilder();
+        CompletableFuture<Void> slotPoolConnectToRMFuture = new CompletableFuture<>();
+        slotPoolServiceBuilder.setConnectToResourceManagerConsumer(
+                resourceManagerGateway -> slotPoolConnectToRMFuture.complete(null));
+        try (JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withJobMasterId(jobMasterId)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        slotPoolServiceBuilder,
+                                        new TestingSchedulerNGFactory(
+                                                TestingSchedulerNG.newBuilder().build())))
+                        .createJobMaster()) {
+
+            final TestingResourceManagerGateway testingResourceManagerGateway =
+                    createAndRegisterTestingResourceManagerGateway();
+            CompletableFuture<Acknowledge> recoveryFuture = new CompletableFuture<>();
+            testingResourceManagerGateway.setRecoveryFuture(recoveryFuture);
+
+            final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
+            testingResourceManagerGateway.setRegisterJobManagerFunction(
+                    (jobMasterId, resourceID, s, jobID) -> {
+                        registrationQueue.offer(jobMasterId);
+                        return CompletableFuture.completedFuture(
+                                testingResourceManagerGateway.getJobMasterRegistrationSuccess());
+                    });
+
+            notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
+
+            jobMaster.start();
+
+            final JobMasterId firstRegistrationAttempt = registrationQueue.take();
+
+            assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+            assertFalse(slotPoolConnectToRMFuture.isDone());
+            recoveryFuture.complete(Acknowledge.get());
+            slotPoolConnectToRMFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
         }
     }
 
