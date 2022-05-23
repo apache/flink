@@ -355,7 +355,7 @@ PulsarSink<String> sink = PulsarSink.builder()
     .setAdminUrl(adminUrl)
     .setTopics("topic1")
     .setSerializationSchema(PulsarSerializationSchema.flinkSchema(new SimpleStringSchema()))
-    .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
     .build();
 
 stream.sinkTo(sink);
