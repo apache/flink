@@ -161,7 +161,6 @@ class ChangelogBackendLogApplier {
         // An alternative solution to load metadata "natively" by the base backends would require
         // base state to be always present, i.e. the 1st checkpoint would have to be "full" always.
         StateDescriptor stateDescriptor = toStateDescriptor(meta, defaultValue);
-        // todo: support changing ttl (FLINK-23143)
         if (ttlConfig.isEnabled()) {
             stateDescriptor.enableTimeToLive(ttlConfig);
         }

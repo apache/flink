@@ -457,15 +457,12 @@ env.enable_changelog_statebackend(true)
 
 仅支持从 [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 恢复。从 [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}}) 恢复计划在未来版本中支持。
 
-当前不支持**状态迁移**（包括改变 TTL）。
-
 <a name="limitations"></a>
 
 ### 限制
 - 最多同时创建一个 checkpoint
 - 本地恢复暂不支持
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持状态迁移（包括修改 TTL）
 - 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
 
 {{< top >}}

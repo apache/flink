@@ -66,4 +66,32 @@ public interface KeyedStateFactory {
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception;
+
+    /**
+     * Creates or updates internal state and returns a new {@link InternalKvState}.
+     *
+     * @param namespaceSerializer TypeSerializer for the state namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+     * @param snapshotTransformFactory factory of state snapshot transformer.
+     * @param allowFutureMetadataUpdates whether allow metadata to update in the future or not.
+     * @param <N> The type of the namespace.
+     * @param <SV> The type of the stored state value.
+     * @param <SEV> The type of the stored state value or entry for collection types (list or map).
+     * @param <S> The type of the public API state.
+     * @param <IS> The type of internal state.
+     */
+    @Nonnull
+    default <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<S, SV> stateDesc,
+            @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+            boolean allowFutureMetadataUpdates)
+            throws Exception {
+        if (allowFutureMetadataUpdates) {
+            throw new UnsupportedOperationException(
+                    this.getClass().getName() + "doesn't support to allow future metadata update");
+        } else {
+            return createInternalState(namespaceSerializer, stateDesc, snapshotTransformFactory);
+        }
+    }
 }

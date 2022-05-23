@@ -456,13 +456,10 @@ Resuming only from [savepoints]({{< ref "docs/ops/state/savepoints#resuming-from
 is supported. Resuming from [checkpoints]({{<  ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 is planned in the future versions.
 
-**State migration** (including changing TTL) is currently not supported
-
 ### Limitations
  - At most one concurrent checkpoint
  - Local recovery not supported
  - As of Flink 1.15, only `filesystem` changelog implementation is available
- - State migration (including changing TTL) is currently not supported
 - [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
 
 ## Migrating from Legacy Backends

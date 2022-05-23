@@ -47,7 +47,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
         implements InternalAggregatingState<K, N, T, ACC, R> {
 
     /** User-specified aggregation function. */
-    private final AggregateFunction<T, ACC, R> aggFunction;
+    private AggregateFunction<T, ACC, R> aggFunction;
 
     /**
      * Creates a new {@code RocksDBAggregatingState}.
@@ -161,6 +161,12 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
         }
     }
 
+    RocksDBAggregatingState<K, N, T, ACC, R> setAggFunction(
+            AggregateFunction<T, ACC, R> aggFunction) {
+        this.aggFunction = aggFunction;
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
             StateDescriptor<S, SV> stateDesc,
@@ -175,5 +181,20 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
                         stateDesc.getDefaultValue(),
                         ((AggregatingStateDescriptor<?, SV, ?>) stateDesc).getAggregateFunction(),
                         backend);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            IS existingState) {
+        return (IS)
+                ((RocksDBAggregatingState<K, N, ?, SV, ?>) existingState)
+                        .setAggFunction(
+                                ((AggregatingStateDescriptor) stateDesc).getAggregateFunction())
+                        .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
+                        .setValueSerializer(registerResult.f1.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }
