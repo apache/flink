@@ -16,25 +16,23 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
+import { InjectionToken } from '@angular/core';
 
-@Component({
-  selector: 'flink-refresh-download',
-  templateUrl: './refresh-download.component.html',
-  styleUrls: ['./refresh-download.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class RefreshDownloadComponent {
-  @Input() downloadName: string;
-  @Input() downloadHref: string;
-  @Input() isLoading = false;
-  @Input() compactMode = false;
-  @Output() reload = new EventEmitter<void>();
-  @Output() fullScreen = new EventEmitter<boolean>();
-  isFullScreen = false;
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 
-  toggleFullScreen(): void {
-    this.isFullScreen = !this.isFullScreen;
-    this.fullScreen.emit(this.isFullScreen);
+type routerKeys = 'jobManager';
+
+export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents'>;
+
+export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
+  editorOptions: flinkEditorOptions,
+  routerFactories: {
+    jobManager: (jobManagerName: string) => [jobManagerName]
   }
-}
+};
+
+export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
+  providedIn: 'root',
+  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
+});

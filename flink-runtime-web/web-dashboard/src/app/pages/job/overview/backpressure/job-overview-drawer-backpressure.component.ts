@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil, tap } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
 import { JobBackpressure, JobBackpressureSubtask, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -39,36 +45,46 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
   public selectedVertex: NodesItemCorrect | null;
   public backpressure = {} as JobBackpressure;
   public listOfSubTaskBackpressure: JobBackpressureSubtask[] = [];
+  public stateBadgeComponent: Type<unknown>;
+  public readonly narrowLogData = typeDefinition<JobBackpressureSubtask>();
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
-    private readonly cdr: ChangeDetectorRef
-  ) {}
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.backpressureBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.backpressureBadgeComponent;
+  }
 
   public ngOnInit(): void {
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
-        tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id)),
+        tap(data => {
+          this.selectedVertex = data.vertex;
+          this.cdr.markForCheck();
+        }),
+        mergeMap(data =>
+          this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id).pipe(
+            catchError(() => {
+              return of({} as JobBackpressure);
+            })
+          )
+        ),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.isLoading = false;
-          this.now = Date.now();
-          this.backpressure = data;
-          this.listOfSubTaskBackpressure = data.subtasks || [];
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(data => {
+        this.isLoading = false;
+        this.now = Date.now();
+        this.backpressure = data;
+        this.listOfSubTaskBackpressure = data?.subtasks || [];
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {

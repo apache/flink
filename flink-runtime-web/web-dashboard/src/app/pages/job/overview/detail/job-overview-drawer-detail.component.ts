@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRef, Inject, Type } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -32,11 +37,23 @@ import { JobLocalService } from '../../job-local.service';
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   public node: NodesItemCorrect | null;
-  public multilineNameCSS = '';
+  public stateBadgeComponent: Type<unknown>;
+  public taskCountComponent: Type<unknown>;
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobLocalService: JobLocalService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
+    this.taskCountComponent =
+      moduleConfig.customComponents?.taskCountBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskCountBadgeComponent;
+  }
 
   public ngOnInit(): void {
     this.jobLocalService
@@ -46,7 +63,6 @@ export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
         this.node = node;
         if (this.node != null && this.node.description != null) {
           if (this.node.description.indexOf('<br/>') > 0) {
-            this.multilineNameCSS = 'name-multi-line';
             this.node.description = this.node.description.replace(/<br\/>/g, '\n');
           }
         }

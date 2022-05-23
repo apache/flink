@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-:host {
-  position: absolute;
-  top: 8px;
-  right: 32px;
-}
+import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 
-.operate-icon {
-  margin-right: 6px;
-}
+import { DynamicHostComponent } from '@flink-runtime-web/share/common/dynamic/dynamic-host.component';
 
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+import { DynamicDirective } from './dynamic.directive';
+
+@NgModule({
+  declarations: [DynamicDirective, DynamicHostComponent],
+  exports: [DynamicDirective, DynamicHostComponent],
+  imports: [CommonModule]
+})
+export class DynamicModule {}

@@ -19,22 +19,28 @@
 @import "theme";
 
 :host {
-  nz-table {
-    ::ng-deep {
-      td,
-      th {
-        font-size: 12px;
-      }
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
     }
 
-    th,
-    .title {
-      border-bottom: 1px solid @border-color-split;
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
     }
   }
 
-  flink-backpressure-badge {
+  flink-backpressure-badge,
+  flink-dynamic-host {
     display: inline-block;
-    margin-left: 4px;
+    margin-left: @margin-xss;
   }
 }
