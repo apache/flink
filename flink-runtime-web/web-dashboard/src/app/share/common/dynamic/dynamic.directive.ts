@@ -15,29 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { Directive, ViewContainerRef } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
-
-    ::-webkit-scrollbar {
-      display: none;
-    }
-
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
+@Directive({
+  selector: '[flink-dynamic]'
+})
+export class DynamicDirective {
+  constructor(public readonly viewContainerRef: ViewContainerRef) {}
 }

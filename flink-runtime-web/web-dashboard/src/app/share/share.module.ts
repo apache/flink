@@ -19,10 +19,14 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
+import { AddonModule } from '@flink-runtime-web/share/common/addon/addon.module';
 import { DagreModule } from '@flink-runtime-web/share/common/dagre/dagre.module';
+import { DynamicModule } from '@flink-runtime-web/share/common/dynamic/dynamic.module';
+import { EditorModule } from '@flink-runtime-web/share/common/editor/editor.module';
 import { FileReadDirective } from '@flink-runtime-web/share/common/file-read/file-read.directive';
 import { NavigationComponent } from '@flink-runtime-web/share/common/navigation/navigation.component';
 import { ResizeComponent } from '@flink-runtime-web/share/common/resize/resize.component';
+import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
 import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/checkpoint-badge/checkpoint-badge.component';
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
 import { JobChartComponent } from '@flink-runtime-web/share/customize/job-chart/job-chart.component';
@@ -39,8 +43,6 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
-import { AutoResizeDirective } from './common/editor/auto-resize.directive';
-import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
 
 @NgModule({
@@ -48,6 +50,7 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     CommonModule,
     PipeModule,
     DagreModule,
+    AddonModule,
     NzCardModule,
     NzTableModule,
     NzButtonModule,
@@ -55,7 +58,9 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     NzToolTipModule,
     NzMessageModule,
     NzTabsModule,
-    NzIconModule
+    NzIconModule,
+    EditorModule,
+    DynamicModule
   ],
   declarations: [
     JobBadgeComponent,
@@ -68,13 +73,15 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent,
-    AutoResizeDirective
+    FlameGraphComponent
   ],
   exports: [
     JobListComponent,
     PipeModule,
     DagreModule,
+    AddonModule,
+    EditorModule,
+    DynamicModule,
     FileReadDirective,
     NavigationComponent,
     RefreshDownloadComponent,
@@ -84,8 +91,7 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     JobChartComponent,
     CheckpointBadgeComponent,
     BackpressureBadgeComponent,
-    FlameGraphComponent,
-    AutoResizeDirective
+    FlameGraphComponent
   ]
 })
 export class ShareModule {}

@@ -15,29 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
+@Component({
+  selector: 'flink-addon-compact',
+  templateUrl: './addon-compact.component.html',
+  styleUrls: ['./addon-compact.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class AddonCompactComponent {
+  @Input() downloadName: string;
+  @Input() downloadHref: string;
+  @Input() loading = false;
+  @Output() reload = new EventEmitter<void>();
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
-
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
+  constructor() {}
 }

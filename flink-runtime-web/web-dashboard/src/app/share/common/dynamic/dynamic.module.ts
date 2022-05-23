@@ -15,29 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
+import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 
-  ::ng-deep {
-    .ant-table-cell {
-      font-size: @font-size-sm;
-    }
+import { DynamicHostComponent } from '@flink-runtime-web/share/common/dynamic/dynamic-host.component';
 
-    ::-webkit-scrollbar {
-      display: none;
-    }
+import { DynamicDirective } from './dynamic.directive';
 
-    nz-table,
-    nz-spin,
-    cdk-virtual-scroll-viewport,
-    nz-table-inner-scroll,
-    .ant-spin-container,
-    .ant-table {
-      height: 100%;
-    }
-  }
-}
+@NgModule({
+  declarations: [DynamicDirective, DynamicHostComponent],
+  exports: [DynamicDirective, DynamicHostComponent],
+  imports: [CommonModule]
+})
+export class DynamicModule {}
