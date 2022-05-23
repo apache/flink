@@ -16,24 +16,30 @@
   ~ limitations under the License.
   -->
 
-<nz-table
+<nz-descriptions
+  nzBordered
   nzSize="small"
-  [nzData]="listOfConfig"
-  [nzFrontPagination]="false"
-  [nzShowPagination]="false"
+  [nzColumn]="1"
+  *ngIf="listOfConfig.length; else noDataTemplate"
 >
-  <thead>
-    <tr>
-      <th nzWidth="50%">Key</th>
-      <th nzWidth="50%">Value</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let config of listOfConfig">
-      <td>
-        <strong>{{ config.key }}</strong>
+  <nz-descriptions-item
+    *ngFor="let config of listOfConfig; trackBy: trackByConfig"
+    [nzTitle]="itemTitle"
+  >
+    <span>
+      {{ config.value }}
+    </span>
+    <ng-template #itemTitle>
+      <td class="ant-descriptions-item-label">
+        {{ config.key }}
       </td>
-      <td>{{ config.value }}</td>
-    </tr>
-  </tbody>
-</nz-table>
+    </ng-template>
+  </nz-descriptions-item>
+</nz-descriptions>
+
+<ng-template #noDataTemplate>
+  <div class="empty">
+    <nz-spin *ngIf="loading"></nz-spin>
+    <nz-empty [nzNotFoundContent]="null" *ngIf="!loading"></nz-empty>
+  </div>
+</ng-template>

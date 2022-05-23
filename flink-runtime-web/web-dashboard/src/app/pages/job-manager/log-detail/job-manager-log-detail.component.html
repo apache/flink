@@ -28,13 +28,13 @@
       {{ logName }}
     </nz-breadcrumb-item>
   </nz-breadcrumb>
-  <flink-refresh-download
+  <flink-addon-inline
     [isLoading]="isLoading"
     [downloadHref]="downloadUrl"
     [downloadName]="logName"
     (reload)="reload()"
     (fullScreen)="toggleFullScreen($event)"
-  ></flink-refresh-download>
+  ></flink-addon-inline>
 </div>
 <div class="editor-container">
   <nz-code-editor

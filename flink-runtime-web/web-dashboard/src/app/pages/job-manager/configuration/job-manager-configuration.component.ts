@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
+import { JobManagerConfig } from '@flink-runtime-web/interfaces';
 import { JobManagerService } from '@flink-runtime-web/services';
 
 @Component({
@@ -26,15 +29,33 @@ import { JobManagerService } from '@flink-runtime-web/services';
   styleUrls: ['./job-manager-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class JobManagerConfigurationComponent implements OnInit {
+export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
   public listOfConfig: Array<{ key: string; value: string }> = [];
+  public loading = true;
+  private destroy$ = new Subject<void>();
+
+  public readonly trackByConfig = (_: number, value: JobManagerConfig): string => {
+    return value.key;
+  };
 
   constructor(private readonly jobManagerService: JobManagerService, private readonly cdr: ChangeDetectorRef) {}
 
   public ngOnInit(): void {
-    this.jobManagerService.loadConfig().subscribe(data => {
-      this.listOfConfig = data.sort((pre, next) => (pre.key > next.key ? 1 : -1));
-      this.cdr.markForCheck();
-    });
+    this.jobManagerService
+      .loadConfig()
+      .pipe(
+        catchError(() => of([] as JobManagerConfig[])),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(data => {
+        this.listOfConfig = data.sort((pre, next) => (pre.key > next.key ? 1 : -1));
+        this.loading = false;
+        this.cdr.markForCheck();
+      });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
