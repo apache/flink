@@ -16,18 +16,28 @@
  * limitations under the License.
  */
 
+@import "theme";
+
 :host {
-  position: absolute;
-  top: 8px;
-  right: 32px;
-}
-
-.operate-icon {
-  margin-right: 6px;
-}
-
-.flex-center {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 1;
+
+  ::ng-deep {
+    .ant-table-cell {
+      font-size: @font-size-sm;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    nz-table,
+    nz-spin,
+    cdk-virtual-scroll-viewport,
+    nz-table-inner-scroll,
+    .ant-spin-container,
+    .ant-table {
+      height: 100%;
+    }
+  }
 }
