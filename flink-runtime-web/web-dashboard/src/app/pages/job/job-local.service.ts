@@ -17,8 +17,8 @@
  */
 
 import { Injectable } from '@angular/core';
-import { combineLatest, Observable, ReplaySubject } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
+import { Observable, ReplaySubject } from 'rxjs';
+import { filter, map, withLatestFrom } from 'rxjs/operators';
 
 import { JobDetailCorrect, NodesItemCorrect } from '@flink-runtime-web/interfaces';
 
@@ -42,10 +42,11 @@ export class JobLocalService {
 
   /** Current activated job with vertex. */
   jobWithVertexChanges(): Observable<JobWithVertex> {
-    return combineLatest([this.jobDetail$, this.selectedVertex$]).pipe(
+    return this.selectedVertex$.pipe(
+      withLatestFrom(this.jobDetail$),
       map(data => {
-        const [job, vertex] = data;
-        return { job, vertex };
+        const [vertex, job] = data;
+        return { vertex, job };
       }),
       filter((data): data is JobWithVertex => !!data.vertex)
     );

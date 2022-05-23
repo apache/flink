@@ -20,6 +20,7 @@ import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { SubtasksTableActionComponent } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
 import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -43,6 +44,7 @@ import { JobOverviewComponent } from './job-overview.component';
 import { JobOverviewListComponent } from './list/job-overview-list.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';
+import { TaskmanagersTableActionComponent } from './taskmanagers/table-action/taskmanagers-table-action.component';
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
 
 @NgModule({
@@ -73,7 +75,9 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     JobOverviewDrawerWatermarksComponent,
     JobOverviewDrawerAccumulatorsComponent,
     JobOverviewDrawerBackpressureComponent,
-    JobOverviewDrawerFlameGraphComponent
+    JobOverviewDrawerFlameGraphComponent,
+    TaskmanagersTableActionComponent,
+    SubtasksTableActionComponent
   ]
 })
 export class JobOverviewModule {}

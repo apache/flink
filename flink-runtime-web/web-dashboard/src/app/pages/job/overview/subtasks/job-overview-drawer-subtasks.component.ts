@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { mergeMap, takeUntil } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
+import { of, Subject } from 'rxjs';
+import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobSubTask } from '@flink-runtime-web/interfaces';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 import { JobLocalService } from '../../job-local.service';
@@ -51,36 +57,42 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   public readonly sortStatusFn = createSortFn(item => item.status);
 
   public listOfTask: JobSubTask[] = [];
-  public sortName: string;
-  public sortValue: string;
   public isLoading = true;
+  public virtualItemSize = 36;
+  public actionComponent: Type<unknown>;
+  public stateBadgeComponent: Type<unknown>;
+  public readonly narrowLogData = typeDefinition<JobSubTask>();
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
-    private readonly cdr: ChangeDetectorRef
-  ) {}
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.actionComponent =
+      moduleConfig.customComponents?.subtaskActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.subtaskActionComponent;
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
+  }
 
   public ngOnInit(): void {
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
-        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id)),
+        mergeMap(data =>
+          this.jobService.loadSubTasks(data.job.jid, data.vertex!.id).pipe(catchError(() => of([] as JobSubTask[])))
+        ),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.listOfTask = data;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(data => {
+        this.listOfTask = data;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {
