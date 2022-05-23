@@ -532,12 +532,20 @@ class AggFunctionFactory(
   }
 
   private def createRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    val argTypes = if (orderKeyIndexes != null) {
+      orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    } else {
+      Array[LogicalType]()
+    }
     new RankAggFunction(argTypes)
   }
 
   private def createDenseRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    val argTypes = if (orderKeyIndexes != null) {
+      orderKeyIndexes.map(inputRowType.getChildren.get(_))
+    } else {
+      Array[LogicalType]()
+    }
     new DenseRankAggFunction(argTypes)
   }
 
