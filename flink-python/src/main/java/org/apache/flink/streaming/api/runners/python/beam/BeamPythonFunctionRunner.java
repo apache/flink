@@ -71,7 +71,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -542,7 +542,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(INPUT_COLLECTION_ID)
                         .build());
@@ -550,7 +550,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
@@ -560,7 +560,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                             .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                             .setPayload(
-                                    org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf
+                                    org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
                                             .ByteString.copyFrom(baos.toByteArray()))
                             .setInputOrOutputId(entry.getKey())
                             .build());
