@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -203,6 +204,8 @@ public class AdaptiveScheduler
 
     private int numRestarts = 0;
 
+    private final int defaultParallelism;
+
     private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
             new DefaultVertexAttemptNumberStore();
 
@@ -237,9 +240,10 @@ public class AdaptiveScheduler
         assertPreconditions(jobGraph);
 
         this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
+        this.defaultParallelism = configuration.get(CoreOptions.DEFAULT_PARALLELISM);
 
         VertexParallelismStore vertexParallelismStore =
-                computeVertexParallelismStore(jobGraph, executionMode);
+                computeVertexParallelismStore(jobGraph, executionMode, defaultParallelism);
         this.initialParallelismStore = vertexParallelismStore;
         this.jobInformation = new JobGraphJobInformation(jobGraph, vertexParallelismStore);
 
@@ -335,6 +339,7 @@ public class AdaptiveScheduler
     static VertexParallelismStore computeReactiveModeVertexParallelismStore(
             Iterable<JobVertex> vertices,
             Function<JobVertex, Integer> defaultMaxParallelismFunc,
+            int defaultParallelism,
             boolean adjustParallelism) {
         DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
 
@@ -348,7 +353,7 @@ public class AdaptiveScheduler
             // vertex. Otherwise, scale it to the max parallelism to attempt to be "as parallel as
             // possible"
             final int parallelism;
-            if (adjustParallelism) {
+            if (adjustParallelism && vertex.getParallelism() == defaultParallelism) {
                 parallelism = maxParallelism;
             } else {
                 parallelism = vertex.getParallelism();
@@ -383,10 +388,13 @@ public class AdaptiveScheduler
      * @return The parallelism store.
      */
     private static VertexParallelismStore computeVertexParallelismStore(
-            JobGraph jobGraph, SchedulerExecutionMode executionMode) {
+            JobGraph jobGraph, SchedulerExecutionMode executionMode, int defaultParallelism) {
         if (executionMode == SchedulerExecutionMode.REACTIVE) {
             return computeReactiveModeVertexParallelismStore(
-                    jobGraph.getVertices(), SchedulerBase::getDefaultMaxParallelism, true);
+                    jobGraph.getVertices(),
+                    SchedulerBase::getDefaultMaxParallelism,
+                    defaultParallelism,
+                    true);
         }
         return SchedulerBase.computeVertexParallelismStore(jobGraph);
     }
@@ -405,10 +413,11 @@ public class AdaptiveScheduler
     static VertexParallelismStore computeVertexParallelismStoreForExecution(
             JobGraph jobGraph,
             SchedulerExecutionMode executionMode,
-            Function<JobVertex, Integer> defaultMaxParallelismFunc) {
+            Function<JobVertex, Integer> defaultMaxParallelismFunc,
+            int defaultParallelism) {
         if (executionMode == SchedulerExecutionMode.REACTIVE) {
             return computeReactiveModeVertexParallelismStore(
-                    jobGraph.getVertices(), defaultMaxParallelismFunc, false);
+                    jobGraph.getVertices(), defaultMaxParallelismFunc, defaultParallelism, false);
         }
         return SchedulerBase.computeVertexParallelismStore(
                 jobGraph.getVertices(), defaultMaxParallelismFunc);
@@ -945,7 +954,8 @@ public class AdaptiveScheduler
                                 VertexParallelismInformation vertexParallelismInfo =
                                         initialParallelismStore.getParallelismInfo(vertex.getID());
                                 return vertexParallelismInfo.getMaxParallelism();
-                            });
+                            },
+                            defaultParallelism);
         } catch (Exception exception) {
             return FutureUtils.completedExceptionally(exception);
         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
@@ -78,6 +79,8 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
     @Parameterized.Parameter(4)
     public boolean expectedCanRescaleTo;
 
+    public int defaultParallelism = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
+
     @Test
     public void testCreateStoreWithoutAdjustedParallelism() {
         JobVertex jobVertex = createNoOpVertex("test", parallelism, maxParallelism);
@@ -85,6 +88,7 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
                 AdaptiveScheduler.computeReactiveModeVertexParallelismStore(
                         Collections.singleton(jobVertex),
                         SchedulerBase::getDefaultMaxParallelism,
+                        defaultParallelism,
                         false);
 
         VertexParallelismInformation info = store.getParallelismInfo(jobVertex.getID());
@@ -105,6 +109,7 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
                 AdaptiveScheduler.computeReactiveModeVertexParallelismStore(
                         Collections.singleton(jobVertex),
                         SchedulerBase::getDefaultMaxParallelism,
+                        defaultParallelism,
                         true);
 
         VertexParallelismInformation info = store.getParallelismInfo(jobVertex.getID());
