@@ -139,11 +139,11 @@ public class NetworkBufferPool
 
             throw new OutOfMemoryError(
                     "Could not allocate enough memory segments for NetworkBufferPool "
-                            + "(required (Mb): "
+                            + "(required (MB): "
                             + requiredMb
-                            + ", allocated (Mb): "
+                            + ", allocated (MB): "
                             + allocatedMb
-                            + ", missing (Mb): "
+                            + ", missing (MB): "
                             + missingMb
                             + "). Cause: "
                             + err.getMessage());
