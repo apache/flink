@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -737,7 +736,6 @@ public class SubtaskCheckpointCoordinatorTest {
                 new TestCheckpointStorageWorkerView(100),
                 "test",
                 StreamTaskActionExecutor.IMMEDIATE,
-                new CloseableRegistry(),
                 newDirectExecutorService(),
                 new DummyEnvironment(),
                 (message, unused) -> fail(message),
