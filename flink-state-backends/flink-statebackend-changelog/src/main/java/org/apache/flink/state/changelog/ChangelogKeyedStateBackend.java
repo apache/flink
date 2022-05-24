@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendLocalHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -381,11 +382,12 @@ public class ChangelogKeyedStateBackend<K>
         changelogTruncateHelper.checkpoint(checkpointId, lastUploadedTo);
 
         LOG.info(
-                "snapshot of {} for checkpoint {}, change range: {}..{}",
+                "snapshot of {} for checkpoint {}, change range: {}..{}, materialization ID {}",
                 subtaskName,
                 checkpointId,
                 lastUploadedFrom,
-                lastUploadedTo);
+                lastUploadedTo,
+                changelogSnapshotState.getMaterializationID());
 
         ChangelogSnapshotState changelogStateBackendStateCopy = changelogSnapshotState;
 
@@ -430,25 +432,20 @@ public class ChangelogKeyedStateBackend<K>
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
         } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()) {
-            return SnapshotResult.withLocalState(
+            ChangelogStateBackendHandleImpl jmHandle =
                     new ChangelogStateBackendHandleImpl(
                             changelogStateBackendStateCopy.getMaterializedSnapshot(),
                             prevDeltaCopy,
                             getKeyGroupRange(),
                             checkpointId,
                             changelogStateBackendStateCopy.materializationID,
-                            persistedSizeOfThisCheckpoint),
-                    new ChangelogStateBackendHandleImpl(
+                            persistedSizeOfThisCheckpoint);
+            return SnapshotResult.withLocalState(
+                    jmHandle,
+                    new ChangelogStateBackendLocalHandle(
                             changelogStateBackendStateCopy.getLocalMaterializedSnapshot(),
-                            // TODO: Restore ChangelogStateHandles from remote temporarily, because
-                            // ChangelogStateHandles are small(about 10MB).
-                            //  In the future, the double-stream option may be implemented according
-                            // to the test results.
                             prevDeltaCopy,
-                            getKeyGroupRange(),
-                            checkpointId,
-                            changelogStateBackendStateCopy.materializationID,
-                            persistedSizeOfThisCheckpoint));
+                            jmHandle));
         } else {
             return SnapshotResult.of(
                     new ChangelogStateBackendHandleImpl(
@@ -630,16 +627,39 @@ public class ChangelogKeyedStateBackend<K>
         List<KeyedStateHandle> materialized = new ArrayList<>();
         List<ChangelogStateHandle> restoredNonMaterialized = new ArrayList<>();
 
+        List<KeyedStateHandle> localMaterialized = new ArrayList<>();
+        List<ChangelogStateHandle> localRestoredNonMaterialized = new ArrayList<>();
+
         for (ChangelogStateBackendHandle h : stateHandles) {
             if (h != null) {
-                materialized.addAll(h.getMaterializedStateHandles());
-                restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+                if (h instanceof ChangelogStateBackendLocalHandle) {
+                    ChangelogStateBackendLocalHandle localHandle =
+                            (ChangelogStateBackendLocalHandle) h;
+                    materialized.addAll(localHandle.getRemoteMaterializedStateHandles());
+                    restoredNonMaterialized.addAll(
+                            localHandle.getRemoteNonMaterializedStateHandles());
+                    localMaterialized.addAll(localHandle.getMaterializedStateHandles());
+                    localRestoredNonMaterialized.addAll(
+                            localHandle.getNonMaterializedStateHandles());
+                } else {
+                    materialized.addAll(h.getMaterializedStateHandles());
+                    restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+                }
                 // choose max materializationID to handle rescaling
                 materializationId = Math.max(materializationId, h.getMaterializationID());
             }
         }
         this.materializedId = materializationId + 1;
-        // Todo: distinguish whether the handle is local or remote
+
+        if (!localMaterialized.isEmpty() || !localRestoredNonMaterialized.isEmpty()) {
+            return new ChangelogSnapshotState(
+                    materialized,
+                    localMaterialized,
+                    restoredNonMaterialized,
+                    localRestoredNonMaterialized,
+                    stateChangelogWriter.initialSequenceNumber(),
+                    materializationId);
+        }
         return new ChangelogSnapshotState(
                 materialized,
                 restoredNonMaterialized,
@@ -872,22 +892,21 @@ public class ChangelogKeyedStateBackend<K>
                 List<ChangelogStateHandle> localRestoredNonMaterialized,
                 SequenceNumber materializedTo,
                 long materializationID) {
+            ChangelogStateBackendHandleImpl jmHandle =
+                    new ChangelogStateBackendHandleImpl(
+                            materializedSnapshot,
+                            restoredNonMaterialized,
+                            getKeyGroupRange(),
+                            lastCheckpointId,
+                            materializationID,
+                            0L);
             this.changelogSnapshot =
                     SnapshotResult.withLocalState(
-                            new ChangelogStateBackendHandleImpl(
-                                    materializedSnapshot,
-                                    restoredNonMaterialized,
-                                    getKeyGroupRange(),
-                                    lastCheckpointId,
-                                    materializationID,
-                                    0L),
-                            new ChangelogStateBackendHandleImpl(
+                            jmHandle,
+                            new ChangelogStateBackendLocalHandle(
                                     localMaterializedSnapshot,
                                     localRestoredNonMaterialized,
-                                    getKeyGroupRange(),
-                                    lastCheckpointId,
-                                    materializationID,
-                                    0L));
+                                    jmHandle));
             this.materializedTo = materializedTo;
             this.materializationID = materializationID;
         }
