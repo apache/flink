@@ -42,7 +42,7 @@ import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VER
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_0_0;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_1_1;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_2_0;
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_4;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -97,7 +97,7 @@ public class HiveModuleTest {
             case HIVE_VERSION_V2_2_0:
                 assertEquals(257, hiveModule.listFunctions().size());
                 break;
-            case HIVE_VERSION_V2_3_4:
+            case HIVE_VERSION_V2_3_9:
                 assertEquals(275, hiveModule.listFunctions().size());
                 break;
             case HIVE_VERSION_V3_1_1:
