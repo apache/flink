@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -126,7 +125,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointStorageWorkerView checkpointStorage,
             String taskName,
             StreamTaskActionExecutor actionExecutor,
-            CloseableRegistry closeableRegistry,
             ExecutorService asyncOperationsThreadPool,
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
@@ -141,7 +139,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 checkpointStorage,
                 taskName,
                 actionExecutor,
-                closeableRegistry,
                 asyncOperationsThreadPool,
                 env,
                 asyncExceptionHandler,
@@ -156,7 +153,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointStorageWorkerView checkpointStorage,
             String taskName,
             StreamTaskActionExecutor actionExecutor,
-            CloseableRegistry closeableRegistry,
             ExecutorService asyncOperationsThreadPool,
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
@@ -172,7 +168,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 checkpointStorage,
                 taskName,
                 actionExecutor,
-                closeableRegistry,
                 asyncOperationsThreadPool,
                 env,
                 asyncExceptionHandler,
@@ -190,7 +185,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointStorageWorkerView checkpointStorage,
             String taskName,
             StreamTaskActionExecutor actionExecutor,
-            CloseableRegistry closeableRegistry,
             ExecutorService asyncOperationsThreadPool,
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
@@ -216,7 +210,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.abortedCheckpointIds =
                 createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
         this.lastCheckpointId = -1L;
-        closeableRegistry.registerCloseable(this);
         this.closed = false;
         this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
         this.registerTimer = registerTimer;
@@ -550,6 +543,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     @Override
     public void close() throws IOException {
+        cancelAlignmentTimer();
+        cancel();
+    }
+
+    public void cancel() throws IOException {
         List<AsyncCheckpointRunnable> asyncCheckpointRunnables = null;
         synchronized (lock) {
             if (!closed) {

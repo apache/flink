@@ -455,7 +455,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             checkpointStorageAccess,
                             getName(),
                             actionExecutor,
-                            getCancelables(),
                             getAsyncOperationsThreadPool(),
                             environment,
                             this,
@@ -468,6 +467,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             this::prepareInputSnapshot,
                             BarrierAlignmentUtil.createRegisterTimerCallback(
                                     mainMailboxExecutor, systemTimerService));
+            resourceCloser.registerCloseable(subtaskCheckpointCoordinator::close);
 
             // Register to stop all timers and threads. Should be closed first.
             resourceCloser.registerCloseable(this::tryShutdownTimerService);
@@ -971,6 +971,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                 // can be invoked from a different thread
                                 mailboxProcessor.allActionsCompleted();
                                 try {
+                                    subtaskCheckpointCoordinator.cancel();
                                     cancelables.close();
                                 } catch (IOException e) {
                                     throw new CompletionException(e);
