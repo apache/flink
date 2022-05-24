@@ -36,6 +36,8 @@ import io.swagger.v3.oas.annotations.Hidden;
 
 import javax.annotation.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /** The sub task execution attempt response. */
@@ -60,6 +62,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
     public static final String FIELD_NAME_METRICS = "metrics";
 
     public static final String FIELD_NAME_TASKMANAGER_ID = "taskmanager-id";
+
+    public static final String FIELD_NAME_STATUS_DURATION = "status-duration";
 
     @JsonProperty(FIELD_NAME_SUBTASK_INDEX)
     private final int subtaskIndex;
@@ -92,6 +96,9 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_TASKMANAGER_ID)
     private final String taskmanagerId;
 
+    @JsonProperty(FIELD_NAME_STATUS_DURATION)
+    private final Map<ExecutionState, Long> statusDuration;
+
     @JsonCreator
     public SubtaskExecutionAttemptDetailsInfo(
             @JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
@@ -102,7 +109,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_END_TIME) long endTime,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo ioMetricsInfo,
-            @JsonProperty(FIELD_NAME_TASKMANAGER_ID) String taskmanagerId) {
+            @JsonProperty(FIELD_NAME_TASKMANAGER_ID) String taskmanagerId,
+            @JsonProperty(FIELD_NAME_STATUS_DURATION) Map<ExecutionState, Long> statusDuration) {
 
         this.subtaskIndex = subtaskIndex;
         this.status = Preconditions.checkNotNull(status);
@@ -114,6 +122,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         this.duration = duration;
         this.ioMetricsInfo = Preconditions.checkNotNull(ioMetricsInfo);
         this.taskmanagerId = Preconditions.checkNotNull(taskmanagerId);
+        this.statusDuration = Preconditions.checkNotNull(statusDuration);
     }
 
     public int getSubtaskIndex() {
@@ -148,6 +157,14 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         return duration;
     }
 
+    public Map<ExecutionState, Long> getStatusDuration() {
+        return statusDuration;
+    }
+
+    public long getStatusDuration(ExecutionState state) {
+        return statusDuration.get(state);
+    }
+
     public IOMetricsInfo getIoMetricsInfo() {
         return ioMetricsInfo;
     }
@@ -176,7 +193,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 && endTime == that.endTime
                 && duration == that.duration
                 && Objects.equals(ioMetricsInfo, that.ioMetricsInfo)
-                && Objects.equals(taskmanagerId, that.taskmanagerId);
+                && Objects.equals(taskmanagerId, that.taskmanagerId)
+                && Objects.equals(statusDuration, that.statusDuration);
     }
 
     @Override
@@ -191,7 +209,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 endTime,
                 duration,
                 ioMetricsInfo,
-                taskmanagerId);
+                taskmanagerId,
+                statusDuration);
     }
 
     public static SubtaskExecutionAttemptDetailsInfo create(
@@ -240,6 +259,56 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 endTime,
                 duration,
                 ioMetricsInfo,
-                taskmanagerId);
+                taskmanagerId,
+                getExecutionStateDuration(execution));
+    }
+
+    private static Map<ExecutionState, Long> getExecutionStateDuration(AccessExecution execution) {
+        Map<ExecutionState, Long> executionStateDuration = new HashMap<>();
+        long now = System.currentTimeMillis();
+        ExecutionState state = execution.getState();
+        executionStateDuration.put(
+                ExecutionState.CREATED,
+                calculateStateDuration(
+                        execution.getStateTimestamp(ExecutionState.CREATED),
+                        state == ExecutionState.CREATED
+                                ? now
+                                : execution.getStateEndTimestamp(ExecutionState.CREATED)));
+        executionStateDuration.put(
+                ExecutionState.SCHEDULED,
+                calculateStateDuration(
+                        execution.getStateTimestamp(ExecutionState.SCHEDULED),
+                        state == ExecutionState.SCHEDULED
+                                ? now
+                                : execution.getStateEndTimestamp(ExecutionState.SCHEDULED)));
+        executionStateDuration.put(
+                ExecutionState.DEPLOYING,
+                calculateStateDuration(
+                        execution.getStateTimestamp(ExecutionState.DEPLOYING),
+                        state == ExecutionState.DEPLOYING
+                                ? now
+                                : execution.getStateEndTimestamp(ExecutionState.DEPLOYING)));
+        executionStateDuration.put(
+                ExecutionState.INITIALIZING,
+                calculateStateDuration(
+                        execution.getStateTimestamp(ExecutionState.INITIALIZING),
+                        state == ExecutionState.INITIALIZING
+                                ? now
+                                : execution.getStateEndTimestamp(ExecutionState.INITIALIZING)));
+        executionStateDuration.put(
+                ExecutionState.RUNNING,
+                calculateStateDuration(
+                        execution.getStateTimestamp(ExecutionState.RUNNING),
+                        state == ExecutionState.RUNNING
+                                ? now
+                                : execution.getStateEndTimestamp(ExecutionState.RUNNING)));
+        return executionStateDuration;
+    }
+
+    private static long calculateStateDuration(long start, long end) {
+        if (start == 0 || end == 0) {
+            return -1;
+        }
+        return end - start;
     }
 }

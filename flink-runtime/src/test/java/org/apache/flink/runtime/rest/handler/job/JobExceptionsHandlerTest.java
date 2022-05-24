@@ -330,6 +330,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final StringifiedAccumulatorResult[] emptyAccumulators =
                 new StringifiedAccumulatorResult[0];
         final long[] timestamps = new long[ExecutionState.values().length];
+        final long[] endTimestamps = new long[ExecutionState.values().length];
         final ExecutionState expectedState = ExecutionState.RUNNING;
 
         final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
@@ -352,7 +353,8 @@ public class JobExceptionsHandlerTest extends TestLogger {
                                             System.currentTimeMillis()),
                                     assignedResourceLocation,
                                     allocationID,
-                                    timestamps),
+                                    timestamps,
+                                    endTimestamps),
                             new ExecutionHistory(0))
                 },
                 jobVertexID,

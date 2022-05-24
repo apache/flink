@@ -80,6 +80,7 @@ class ExecutionHistoryTest {
                 null,
                 null,
                 null,
+                new long[ExecutionState.values().length],
                 new long[ExecutionState.values().length]);
     }
 }
