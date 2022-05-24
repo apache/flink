@@ -660,8 +660,7 @@ public class ChangelogCsvFormat implements DecodingFormat<DeserializationSchema<
       DynamicTableSource.Context context,
       DataType producedDataType) {
     // create type information for the DeserializationSchema
-    final TypeInformation<RowData> producedTypeInfo = (TypeInformation<RowData>) context.createTypeInformation(
-      producedDataType);
+    final TypeInformation<RowData> producedTypeInfo = context.createTypeInformation(producedDataType);
 
     // most of the code in DeserializationSchema will not work on internal data structures
     // create a converter for conversion at the end
@@ -804,7 +803,7 @@ public class SocketSourceFunction extends RichSourceFunction<RowData> implements
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    deserializer.open(() -> getRuntimeContext().getMetricGroup());
+    deserializer.open(RuntimeContextInitializationContextAdapters.deserializationAdapter(getRuntimeContext()));
   }
 
   @Override
