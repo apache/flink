@@ -137,6 +137,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ClusterOptions.PROCESS_WORKING_DIR_BASE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -321,7 +322,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         WorkingDirectory.create(
                                 ClusterEntrypointUtils.generateWorkingDirectoryFile(
                                         configuration,
-                                        Optional.empty(),
+                                        Optional.of(PROCESS_WORKING_DIR_BASE),
                                         "minicluster_" + ResourceID.generate()));
 
                 initializeIOFormatClasses(configuration);
