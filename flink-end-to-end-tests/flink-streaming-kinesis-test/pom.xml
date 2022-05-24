@@ -107,33 +107,6 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<!-- required for the Kinesis e2e test -->
-							<shadeTestJar>true</shadeTestJar>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<artifactSet combine.children="append">
-								<includes>
-									<include>io.netty:*</include>
-								</includes>
-							</artifactSet>
-							<relocations combine.children="override">
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
-					<execution>
 						<id>fat-jar-kinesis-example</id>
 						<phase>package</phase>
 						<goals>
