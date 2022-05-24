@@ -99,6 +99,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         null,
                         null,
                         null,
+                        new long[ExecutionState.values().length],
                         new long[ExecutionState.values().length]);
 
         // Invoke tested method.

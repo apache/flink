@@ -1687,6 +1687,11 @@ components:
           $ref: '#/components/schemas/IOMetricsInfo'
         taskmanager-id:
           type: string
+        status-duration:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
     JobResult:
       type: object
       properties:

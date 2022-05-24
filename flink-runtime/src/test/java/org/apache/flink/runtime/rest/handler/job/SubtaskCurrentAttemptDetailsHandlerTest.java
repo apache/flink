@@ -50,6 +50,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
@@ -87,7 +88,9 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         accumulateBackPressuredTime);
 
         final long[] timestamps = new long[ExecutionState.values().length];
+        final long[] endTimestamps = new long[ExecutionState.values().length];
         timestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs;
+        endTimestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs + 10;
         final ExecutionState expectedState = ExecutionState.FINISHED;
 
         timestamps[expectedState.ordinal()] = finishedTs;
@@ -106,7 +109,8 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         null,
                         assignedResourceLocation,
                         allocationID,
-                        timestamps);
+                        timestamps,
+                        endTimestamps);
 
         final ArchivedExecutionVertex executionVertex =
                 new ArchivedExecutionVertex(
@@ -170,6 +174,13 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         accumulateIdleTime,
                         accumulateBusyTime);
 
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, -1L);
+        statusDuration.put(ExecutionState.SCHEDULED, -1L);
+        statusDuration.put(ExecutionState.DEPLOYING, 10L);
+        statusDuration.put(ExecutionState.INITIALIZING, -1L);
+        statusDuration.put(ExecutionState.RUNNING, -1L);
+
         final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo =
                 new SubtaskExecutionAttemptDetailsInfo(
                         subtaskIndex,
@@ -180,7 +191,8 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         finishedTs,
                         finishedTs - deployingTs,
                         ioMetricsInfo,
-                        assignedResourceLocation.getResourceID().getResourceIdString());
+                        assignedResourceLocation.getResourceID().getResourceIdString(),
+                        statusDuration);
 
         assertEquals(expectedDetailsInfo, detailsInfo);
     }

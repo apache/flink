@@ -52,6 +52,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
@@ -107,6 +108,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                                             null,
                                             null,
                                             null,
+                                            new long[ExecutionState.values().length],
                                             new long[ExecutionState.values().length]),
                                     new ExecutionHistory(0))
                         },
@@ -175,6 +177,13 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         accumulateIdleTime,
                         accumulateBusyTime);
 
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, -1L);
+        statusDuration.put(ExecutionState.SCHEDULED, -1L);
+        statusDuration.put(ExecutionState.DEPLOYING, -1L);
+        statusDuration.put(ExecutionState.INITIALIZING, -1L);
+        statusDuration.put(ExecutionState.RUNNING, -1L);
+
         final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo =
                 new SubtaskExecutionAttemptDetailsInfo(
                         subtaskIndex,
@@ -185,7 +194,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         0L,
                         -1L,
                         ioMetricsInfo,
-                        "(unassigned)");
+                        "(unassigned)",
+                        statusDuration);
 
         assertEquals(expectedDetailsInfo, detailsInfo);
     }

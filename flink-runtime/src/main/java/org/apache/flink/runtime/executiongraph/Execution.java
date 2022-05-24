@@ -133,6 +133,12 @@ public class Execution
      */
     private final long[] stateTimestamps;
 
+    /**
+     * The end timestamps when state transitions occurred, indexed by {@link
+     * ExecutionState#ordinal()}.
+     */
+    private final long[] stateEndTimestamps;
+
     private final Time rpcTimeout;
 
     private final Collection<PartitionInfo> partitionInfos;
@@ -211,6 +217,7 @@ public class Execution
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.stateTimestamps = new long[ExecutionState.values().length];
+        this.stateEndTimestamps = new long[ExecutionState.values().length];
         markTimestamp(CREATED, startTimestamp);
 
         this.partitionInfos = new ArrayList<>(16);
@@ -338,8 +345,18 @@ public class Execution
     }
 
     @Override
+    public long[] getStateEndTimestamps() {
+        return stateEndTimestamps;
+    }
+
+    @Override
     public long getStateTimestamp(ExecutionState state) {
         return this.stateTimestamps[state.ordinal()];
+    }
+
+    @Override
+    public long getStateEndTimestamp(ExecutionState state) {
+        return this.stateEndTimestamps[state.ordinal()];
     }
 
     public boolean isFinished() {
@@ -1405,7 +1422,7 @@ public class Execution
 
         if (state == currentState) {
             state = targetState;
-            markTimestamp(targetState);
+            markTimestamp(currentState, targetState);
 
             if (error == null) {
                 LOG.info(
@@ -1454,12 +1471,18 @@ public class Execution
         }
     }
 
-    private void markTimestamp(ExecutionState state) {
-        markTimestamp(state, System.currentTimeMillis());
+    private void markTimestamp(ExecutionState currentState, ExecutionState targetState) {
+        long now = System.currentTimeMillis();
+        markTimestamp(targetState, now);
+        markEndTimestamp(currentState, now);
     }
 
     private void markTimestamp(ExecutionState state, long timestamp) {
         this.stateTimestamps[state.ordinal()] = timestamp;
+    }
+
+    private void markEndTimestamp(ExecutionState state, long timestamp) {
+        this.stateEndTimestamps[state.ordinal()] = timestamp;
     }
 
     public String getVertexWithAttempt() {

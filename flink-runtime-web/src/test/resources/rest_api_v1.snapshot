@@ -2191,6 +2191,12 @@
               "taskmanager-id" : {
                 "type" : "string"
               },
+              "status-duration" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              },
               "start_time" : {
                 "type" : "integer"
               }
@@ -2561,6 +2567,12 @@
         "taskmanager-id" : {
           "type" : "string"
         },
+        "status-duration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer"
+          }
+        },
         "start_time" : {
           "type" : "integer"
         }
@@ -2655,6 +2667,12 @@
         },
         "taskmanager-id" : {
           "type" : "string"
+        },
+        "status-duration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer"
+          }
         },
         "start_time" : {
           "type" : "integer"
