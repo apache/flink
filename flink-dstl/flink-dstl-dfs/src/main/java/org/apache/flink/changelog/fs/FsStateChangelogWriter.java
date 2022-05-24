@@ -162,7 +162,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         activeChangeSetSize += value.length;
         if (activeChangeSetSize >= preEmptivePersistThresholdInBytes) {
             LOG.debug(
-                    "pre-emptively flush {}Mb of appended changes to the common store",
+                    "pre-emptively flush {}MB of appended changes to the common store",
                     activeChangeSetSize / 1024 / 1024);
             persistInternal(notUploaded.isEmpty() ? activeSequenceNumber : notUploaded.firstKey());
         }
