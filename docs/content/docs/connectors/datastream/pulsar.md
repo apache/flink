@@ -246,7 +246,7 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
   {{< /tab >}}
   {{< tab "Python" >}}
   ```python
-  PulsarDeserializationSchema.flink_type_info(TypeInformation, ExecutionConfig)
+  PulsarDeserializationSchema.flink_type_info(TypeInformation)
   ```
   {{< /tab >}}
   {{< /tabs >}}
@@ -501,7 +501,7 @@ PulsarSource.builder()
 ```python
 # discover new partitions per 10 seconds
 PulsarSource.builder()
-    .set_config(PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 10000)
+    .set_config("pulsar.source.partitionDiscoveryIntervalMs", 10000)
 ```
 
 {{< /tab >}}

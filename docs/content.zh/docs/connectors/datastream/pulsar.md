@@ -224,7 +224,7 @@ Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
   {{< /tab >}}
   {{< tab "Python" >}}
   ```python
-  PulsarDeserializationSchema.flink_type_info(TypeInformation, ExecutionConfig)
+  PulsarDeserializationSchema.flink_type_info(TypeInformation)
   ```
   {{< /tab >}}
   {{< /tabs >}}
@@ -444,7 +444,7 @@ PulsarSource.builder()
 ```python
 # 10 秒查询一次分区信息
 PulsarSource.builder()
-    .set_config(PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 10000)
+    .set_config("pulsar.source.partitionDiscoveryIntervalMs", 10000)
 ```
 
 {{< /tab >}}
