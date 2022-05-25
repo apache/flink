@@ -192,6 +192,7 @@ public class HiveParserCalcitePlanner {
             new LinkedHashMap<>();
     private final LinkedHashMap<RelNode, Map<String, Integer>> relToHiveColNameCalcitePosMap =
             new LinkedHashMap<>();
+    private final HiveConf hiveConf;
     // correlated vars across subqueries within same query needs to have different ID
     // this will be used in HiveParserRexNodeConverter to create cor var
     private int subqueryId = 0;
@@ -212,6 +213,7 @@ public class HiveParserCalcitePlanner {
         flinkPlanner = plannerContext.createFlinkPlanner();
         this.plannerContext = plannerContext;
         this.frameworkConfig = frameworkConfig;
+        this.hiveConf = queryState.getConf();
         this.semanticAnalyzer =
                 new HiveParserSemanticAnalyzer(
                         queryState, hiveShim, frameworkConfig, plannerContext.getCluster());
@@ -2013,6 +2015,8 @@ public class HiveParserCalcitePlanner {
 
         ArrayList<ExprNodeDesc> exprNodeDescs = new ArrayList<>();
 
+        HiveParserASTNode trfm = null;
+
         // 1. Get Select Expression List
         HiveParserQBParseInfo qbp = qb.getParseInfo();
         String selClauseName = qbp.getClauseNames().iterator().next();
@@ -2037,13 +2041,12 @@ public class HiveParserCalcitePlanner {
         boolean isInTransform =
                 selExprList.getChild(posn).getChild(0).getType() == HiveASTParser.TOK_TRANSFORM;
         if (isInTransform) {
-            String msg =
-                    "SELECT TRANSFORM is currently not supported in CBO, turn off cbo to use TRANSFORM.";
-            throw new SemanticException(msg);
+            trfm = (HiveParserASTNode) selExprList.getChild(posn).getChild(0);
         }
 
         // 2.Row resolvers for input, output
         HiveParserRowResolver outRR = new HiveParserRowResolver();
+        // SELECT * or SELECT TRANSFORM(*)
         Integer pos = 0;
         // TODO: will this also fix windowing? try
         HiveParserRowResolver inputRR = relToRowResolver.get(srcRel), starRR = inputRR;
@@ -2130,13 +2133,19 @@ public class HiveParserCalcitePlanner {
 
         // 6. Iterate over all expression (after SELECT)
         HiveParserASTNode exprList;
-        if (udtfOperator != null) {
+        if (isInTransform) {
+            exprList = (HiveParserASTNode) trfm.getChild(0);
+        } else if (udtfOperator != null) {
             exprList = expr;
         } else {
             exprList = selExprList;
         }
         // For UDTF's, skip the function name to get the expressions
         int startPos = udtfOperator != null ? posn + 1 : posn;
+        if (isInTransform) {
+            startPos = 0;
+        }
+
         // track the col aliases provided by user
         List<String> colAliases = new ArrayList<>();
         for (int i = startPos; i < exprList.getChildCount(); ++i) {
@@ -2144,12 +2153,18 @@ public class HiveParserCalcitePlanner {
 
             // 6.1 child can be EXPR AS ALIAS, or EXPR.
             HiveParserASTNode child = (HiveParserASTNode) exprList.getChild(i);
-            boolean hasAsClause = child.getChildCount() == 2;
+            boolean hasAsClause = child.getChildCount() == 2 && !isInTransform;
+            boolean isWindowSpec =
+                    child.getChildCount() == 3
+                            && child.getChild(2).getType() == HiveASTParser.TOK_WINDOWSPEC;
 
             // 6.2 EXPR AS (ALIAS,...) parses, but is only allowed for UDTF's
             // This check is not needed and invalid when there is a transform b/c the AST's are
             // slightly different.
-            if (udtfOperator == null && child.getChildCount() > 2) {
+            if (!isWindowSpec
+                    && !isInTransform
+                    && udtfOperator == null
+                    && child.getChildCount() > 2) {
                 throw new SemanticException(
                         generateErrorMessage(
                                 (HiveParserASTNode) child.getChild(2),
@@ -2159,7 +2174,7 @@ public class HiveParserCalcitePlanner {
             String tabAlias;
             String colAlias;
 
-            if (udtfOperator != null) {
+            if (isInTransform || udtfOperator != null) {
                 tabAlias = null;
                 colAlias = semanticAnalyzer.getAutogenColAliasPrfxLbl() + i;
                 expr = child;
@@ -2329,7 +2344,6 @@ public class HiveParserCalcitePlanner {
                 }
             }
         }
-
         // 7. Convert Hive projections to Calcite
         List<RexNode> calciteColLst = new ArrayList<>();
 
@@ -2353,7 +2367,12 @@ public class HiveParserCalcitePlanner {
 
         // 8. Build Calcite Rel
         RelNode res;
-        if (udtfOperator != null) {
+        if (isInTransform) {
+            HiveParserScriptTransformHelper transformHelper =
+                    new HiveParserScriptTransformHelper(
+                            cluster, relToRowResolver, relToHiveColNameCalcitePosMap, hiveConf);
+            res = transformHelper.genScriptPlan(trfm, qb, calciteColLst, srcRel);
+        } else if (udtfOperator != null) {
             // The basic idea for CBO support of UDTF is to treat UDTF as a special project.
             res =
                     genUDTFPlan(

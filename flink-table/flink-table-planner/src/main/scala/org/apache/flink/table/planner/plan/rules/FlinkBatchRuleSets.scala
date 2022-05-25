@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.rules.logical.{RemoveUnreachableCoalesceArgumentsRule, _}
-import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
+import org.apache.flink.table.planner.plan.rules.physical.{batch, FlinkExpandConversionRule}
 import org.apache.flink.table.planner.plan.rules.physical.batch._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -324,7 +324,8 @@ object FlinkBatchRuleSets {
     FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER,
     FlinkLogicalLegacySink.CONVERTER,
-    FlinkLogicalDistribution.BATCH_CONVERTER
+    FlinkLogicalDistribution.BATCH_CONVERTER,
+    FlinkLogicalScriptTransform.BATCH_CONVERTER
   )
 
   /** RuleSet to do logical optimize for batch */
@@ -422,7 +423,9 @@ object FlinkBatchRuleSets {
     BatchPhysicalSinkRule.INSTANCE,
     BatchPhysicalLegacySinkRule.INSTANCE,
     // hive distribution
-    BatchPhysicalDistributionRule.INSTANCE
+    BatchPhysicalDistributionRule.INSTANCE,
+    // hive transform
+    BatchPhysicalScriptTransformRule.INSTANCE
   )
 
   /** RuleSet to optimize plans after batch exec execution. */
