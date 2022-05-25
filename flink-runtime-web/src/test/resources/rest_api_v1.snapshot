@@ -2202,6 +2202,30 @@
               }
             }
           }
+        },
+        "aggregated" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:AggregatedTaskDetailsInfo",
+          "properties" : {
+            "metrics" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            },
+            "status-duration" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -2917,6 +2941,30 @@
               },
               "taskmanager-id" : {
                 "type" : "string"
+              },
+              "aggregated" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:AggregatedTaskDetailsInfo",
+                "properties" : {
+                  "metrics" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "object",
+                      "additionalProperties" : {
+                        "type" : "integer"
+                      }
+                    }
+                  },
+                  "status-duration" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "object",
+                      "additionalProperties" : {
+                        "type" : "integer"
+                      }
+                    }
+                  }
+                }
               }
             }
           }

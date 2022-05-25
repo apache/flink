@@ -24,8 +24,9 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetails
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /** Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled. */
@@ -53,6 +54,12 @@ public class JobVertexDetailsInfoTest
                         Math.abs(random.nextLong()),
                         Math.abs(random.nextDouble()));
         List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, 10L);
+        statusDuration.put(ExecutionState.SCHEDULED, 20L);
+        statusDuration.put(ExecutionState.DEPLOYING, 30L);
+        statusDuration.put(ExecutionState.INITIALIZING, 40L);
+        statusDuration.put(ExecutionState.RUNNING, 50L);
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(
                         0,
@@ -64,7 +71,7 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId1",
-                        Collections.singletonMap(ExecutionState.CREATED, 10L)));
+                        statusDuration));
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(
                         1,
@@ -76,7 +83,7 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId2",
-                        Collections.singletonMap(ExecutionState.CREATED, 10L)));
+                        statusDuration));
         vertexTaskDetailList.add(
                 new SubtaskExecutionAttemptDetailsInfo(
                         2,
@@ -88,7 +95,7 @@ public class JobVertexDetailsInfoTest
                         1L,
                         jobVertexMetrics,
                         "taskmanagerId3",
-                        Collections.singletonMap(ExecutionState.CREATED, 10L)));
+                        statusDuration));
 
         int parallelism = 1 + (random.nextInt() / 3);
         return new JobVertexDetailsInfo(
