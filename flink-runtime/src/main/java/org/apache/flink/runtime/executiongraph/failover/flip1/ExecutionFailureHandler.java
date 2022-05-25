@@ -18,12 +18,17 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.io.network.partition.PartitionException;
+import org.apache.flink.runtime.scheduler.CacheCorruptedException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.IterableUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * tasks to restart to recover from failures.
  */
 public class ExecutionFailureHandler {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutionFailureHandler.class);
 
     private final SchedulingTopology schedulingTopology;
 
@@ -121,6 +128,32 @@ public class ExecutionFailureHandler {
                     new JobException("The failure is not recoverable", cause),
                     timestamp,
                     globalFailure);
+        }
+
+        if (!globalFailure) {
+            try {
+                final SchedulingExecutionVertex failedVertex =
+                        schedulingTopology.getVertex(failingExecutionVertexId);
+                if (cause instanceof PartitionException
+                        && !failedVertex.getCacheIntermediateDataSetIds().isEmpty()) {
+                    return FailureHandlingResult.unrecoverable(
+                            failingExecutionVertexId,
+                            new CacheCorruptedException(
+                                    "Fail to consume cache",
+                                    cause,
+                                    failedVertex.getCacheIntermediateDataSetIds()),
+                            timestamp,
+                            globalFailure);
+                } else if (cause instanceof CacheCorruptedException) {
+                    return FailureHandlingResult.unrecoverable(
+                            failingExecutionVertexId, cause, timestamp, globalFailure);
+                }
+            } catch (IllegalArgumentException e) {
+                // warn and ignore
+                LOG.warn(
+                        "Fail to find failing scheduling execution vertex with id {}",
+                        failingExecutionVertexId);
+            }
         }
 
         restartBackoffTimeStrategy.notifyFailure(cause);

@@ -44,6 +44,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
             resultPartitionsById;
+    private final List<IntermediateDataSetID> cachedIntermediateDataSetID;
 
     private ExecutionState executionState;
 
@@ -53,13 +54,15 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                     resultPartitionsById,
-            ExecutionState executionState) {
+            ExecutionState executionState,
+            List<IntermediateDataSetID> cachedIntermediateDataSetID) {
 
         this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
         this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.producedPartitions = new ArrayList<>();
         this.resultPartitionsById = checkNotNull(resultPartitionsById);
         this.executionState = executionState;
+        this.cachedIntermediateDataSetID = cachedIntermediateDataSetID;
     }
 
     @Override
@@ -89,6 +92,11 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     @Override
     public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
         return consumedPartitionGroups;
+    }
+
+    @Override
+    public List<IntermediateDataSetID> getCacheIntermediateDataSetIds() {
+        return cachedIntermediateDataSetID;
     }
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
@@ -178,7 +186,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     subtaskIndex,
                     consumedPartitionGroups,
                     resultPartitionsById,
-                    executionState);
+                    executionState,
+                    cachedIntermediateDataset);
         }
 
         public Builder addCachedIntermediateDataSetID(

@@ -17,6 +17,9 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -29,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.scheduler.CacheCorruptedException;
 import org.apache.flink.types.IntValue;
 
 import org.junit.Test;
@@ -149,6 +153,59 @@ public class JobIntermediateDatasetReuseTest {
             jobResult = jobResultFuture.get();
             assertFalse(jobResult.isSuccess());
             assertTrue(jobResult.getSerializedThrowable().isPresent());
+        }
+    }
+
+    @Test
+    public void testClusterPartitionReuseWithTMFail() throws Exception {
+        final TestingMiniClusterConfiguration miniClusterConfiguration =
+                TestingMiniClusterConfiguration.newBuilder().build();
+
+        try (TestingMiniCluster miniCluster =
+                TestingMiniCluster.newBuilder(miniClusterConfiguration).build()) {
+            miniCluster.start();
+
+            IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+            final JobGraph firstJobGraph = createFirstJobGraph(1, intermediateDataSetID);
+            miniCluster.submitJob(firstJobGraph).get();
+            CompletableFuture<JobResult> jobResultFuture =
+                    miniCluster.requestJobResult(firstJobGraph.getJobID());
+            JobResult jobResult = jobResultFuture.get();
+            assertTrue(jobResult.isSuccess());
+
+            miniCluster.terminateTaskManager(0);
+            miniCluster.startTaskManager();
+
+            final JobGraph secondJobGraph = createSecondJobGraph(1, intermediateDataSetID);
+            final ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1024, 1000));
+            secondJobGraph.setExecutionConfig(executionConfig);
+            miniCluster.submitJob(secondJobGraph).get();
+            jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
+            jobResult = jobResultFuture.get();
+            assertFalse(jobResult.isSuccess());
+            assertTrue(jobResult.getSerializedThrowable().isPresent());
+            final Throwable cause =
+                    jobResult
+                            .getSerializedThrowable()
+                            .get()
+                            .deserializeError(Thread.currentThread().getContextClassLoader());
+            assertTrue(cause instanceof CacheCorruptedException);
+            assertEquals(
+                    intermediateDataSetID,
+                    ((CacheCorruptedException) cause).getCorruptedIntermediateDataSetID().get(0));
+
+            firstJobGraph.setJobID(new JobID());
+            miniCluster.submitJob(firstJobGraph).get();
+            jobResultFuture = miniCluster.requestJobResult(firstJobGraph.getJobID());
+            jobResult = jobResultFuture.get();
+            assertTrue(jobResult.isSuccess());
+
+            secondJobGraph.setJobID(new JobID());
+            miniCluster.submitJob(secondJobGraph).get();
+            jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
+            jobResult = jobResultFuture.get();
+            assertTrue(jobResult.isSuccess());
         }
     }
 
