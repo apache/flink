@@ -73,11 +73,14 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
     @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
   ) {
     this.actionComponent =
-      moduleConfig.taskManagerActionComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.taskManagerActionComponent;
+      moduleConfig.customComponents?.taskManagerActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskManagerActionComponent;
     this.taskCountBadgeComponent =
-      moduleConfig.taskCountBadgeComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.taskCountBadgeComponent;
+      moduleConfig.customComponents?.taskCountBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskCountBadgeComponent;
     this.stateBadgeComponent =
-      moduleConfig.stateBadgeComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.stateBadgeComponent;
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
   }
 
   ngOnInit(): void {

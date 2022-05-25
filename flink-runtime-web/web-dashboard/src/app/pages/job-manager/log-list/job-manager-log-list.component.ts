@@ -57,7 +57,7 @@ export class JobManagerLogListComponent implements OnInit, OnDestroy {
     @Inject(JOB_MANAGER_MODULE_CONFIG) readonly moduleConfig: JobManagerModuleConfig
   ) {
     this.logRouterFactory =
-      moduleConfig.jobManagerLogRouterFactory || JOB_MANAGER_MODULE_DEFAULT_CONFIG.jobManagerLogRouterFactory;
+      moduleConfig.routerFactories?.jobManager || JOB_MANAGER_MODULE_DEFAULT_CONFIG.routerFactories.jobManager;
   }
 
   public ngOnInit(): void {

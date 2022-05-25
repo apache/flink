@@ -18,24 +18,19 @@
 
 import { InjectionToken } from '@angular/core';
 
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
-export interface TaskManagerModuleConfig {
-  editorOptions?: EditorOptions;
-  taskManagerLogRouterFactory?: (...args: string[]) => string | string[];
-}
+export type TaskManagerModuleConfig = Omit<ModuleConfig, 'customComponents'>;
 
 export const TASK_MANAGER_MODULE_DEFAULT_CONFIG: Required<TaskManagerModuleConfig> = {
   editorOptions: flinkEditorOptions,
-  taskManagerLogRouterFactory: taskManagerName => [taskManagerName]
+  routerFactories: {
+    taskManager: (taskManagerName: string) => [taskManagerName]
+  }
 };
 
 export const TASK_MANAGER_MODULE_CONFIG = new InjectionToken<TaskManagerModuleConfig>('task-manager-module-config', {
   providedIn: 'root',
-  factory: JOB_MANAGER_MODULE_CONFIG_FACTORY
+  factory: () => TASK_MANAGER_MODULE_DEFAULT_CONFIG
 });
-
-function JOB_MANAGER_MODULE_CONFIG_FACTORY(): TaskManagerModuleConfig {
-  return TASK_MANAGER_MODULE_DEFAULT_CONFIG;
-}

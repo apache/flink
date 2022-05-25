@@ -16,26 +16,16 @@
  * limitations under the License.
  */
 
-import {
-  Component,
-  ChangeDetectionStrategy,
-  OnInit,
-  OnDestroy,
-  ChangeDetectorRef,
-  Optional,
-  Inject,
-  Type
-} from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRef, Inject, Type } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
-import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
-import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -55,10 +45,14 @@ export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   constructor(
     private readonly jobLocalService: JobLocalService,
     private readonly cdr: ChangeDetectorRef,
-    @Optional() @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
   ) {
-    this.stateBadgeComponent = moduleConfig?.stateBadgeComponent || JobBadgeComponent;
-    this.taskCountComponent = moduleConfig?.taskCountBadgeComponent || TaskBadgeComponent;
+    this.stateBadgeComponent =
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
+    this.taskCountComponent =
+      moduleConfig.customComponents?.taskCountBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.taskCountBadgeComponent;
   }
 
   public ngOnInit(): void {

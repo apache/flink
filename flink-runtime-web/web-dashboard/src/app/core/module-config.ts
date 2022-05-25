@@ -16,21 +16,14 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
+import { Type } from '@angular/core';
 
-import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
-export type JobManagerModuleConfig = Omit<ModuleConfig, 'customComponents'>;
+type RouterFactory = (...args: string[]) => string | string[];
 
-export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
-  editorOptions: flinkEditorOptions,
-  routerFactories: {
-    jobManager: (jobManagerName: string) => [jobManagerName]
-  }
-};
-
-export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
-  providedIn: 'root',
-  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
-});
+export interface ModuleConfig {
+  editorOptions?: EditorOptions; // customize editor options
+  routerFactories?: Record<string, RouterFactory>; // customize router navigation
+  customComponents?: Record<string, Type<unknown>>; // customize component
+}

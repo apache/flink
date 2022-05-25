@@ -58,7 +58,8 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
     @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
   ) {
     this.stateBadgeComponent =
-      moduleConfig.backpressureBadgeComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.backpressureBadgeComponent;
+      moduleConfig.customComponents?.backpressureBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.backpressureBadgeComponent;
   }
 
   public ngOnInit(): void {
