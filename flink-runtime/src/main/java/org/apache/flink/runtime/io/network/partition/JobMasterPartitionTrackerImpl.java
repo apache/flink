@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.Preconditions;
 
@@ -28,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -52,6 +56,7 @@ public class JobMasterPartitionTrackerImpl
     private final ShuffleMaster<?> shuffleMaster;
 
     private final PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup;
+    private ResourceManagerGateway resourceManagerGateway;
 
     public JobMasterPartitionTrackerImpl(
             JobID jobId,
@@ -118,6 +123,26 @@ public class JobMasterPartitionTrackerImpl
     @Override
     public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
         return partitionInfos.values().stream().map(PartitionInfo::getMetaInfo).collect(toList());
+    }
+
+    @Override
+    public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {
+        this.resourceManagerGateway = resourceManagerGateway;
+    }
+
+    @Override
+    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        Preconditions.checkNotNull(
+                resourceManagerGateway, "JobMaster is not connected to ResourceManager");
+        try {
+            return this.resourceManagerGateway
+                    .getClusterPartitionsShuffleDescriptors(intermediateDataSetID)
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     private void stopTrackingAndHandlePartitions(

@@ -1125,6 +1125,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                             resourceManagerGateway, resourceManagerResourceId);
 
             slotPoolService.connectToResourceManager(resourceManagerGateway);
+            partitionTracker.connectToResourceManager(resourceManagerGateway);
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,

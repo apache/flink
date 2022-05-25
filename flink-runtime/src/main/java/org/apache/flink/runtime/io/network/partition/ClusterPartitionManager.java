@@ -19,8 +19,10 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,4 +53,13 @@ public interface ClusterPartitionManager {
      */
     CompletableFuture<Void> reportClusterPartitions(
             ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport);
+
+    /**
+     * Get the shuffle descriptors of the cluster partitions.
+     *
+     * @param intermediateDataSetID The id of the dataset.
+     * @return shuffle descriptors of the cluster partitions.
+     */
+    CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID);
 }
