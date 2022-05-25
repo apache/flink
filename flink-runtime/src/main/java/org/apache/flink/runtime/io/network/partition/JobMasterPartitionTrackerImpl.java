@@ -20,11 +20,15 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +56,9 @@ public class JobMasterPartitionTrackerImpl
     private final ShuffleMaster<?> shuffleMaster;
 
     private final PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup;
+    private ResourceManagerGateway resourceManagerGateway;
+    private final Map<IntermediateDataSetID, List<ShuffleDescriptor>>
+            clusterPartitionShuffleDescriptors;
 
     public JobMasterPartitionTrackerImpl(
             JobID jobId,
@@ -61,6 +68,7 @@ public class JobMasterPartitionTrackerImpl
         this.jobId = Preconditions.checkNotNull(jobId);
         this.shuffleMaster = Preconditions.checkNotNull(shuffleMaster);
         this.taskExecutorGatewayLookup = taskExecutorGatewayLookup;
+        this.clusterPartitionShuffleDescriptors = new HashMap<>();
     }
 
     @Override
@@ -116,6 +124,35 @@ public class JobMasterPartitionTrackerImpl
     @Override
     public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
         return partitionInfos.values().stream().map(PartitionInfo::getMetaInfo).collect(toList());
+    }
+
+    @Override
+    public void connectToResourceManager(ResourceManagerGateway resourceManagerGateway) {
+        this.resourceManagerGateway = resourceManagerGateway;
+    }
+
+    @Override
+    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
+        return clusterPartitionShuffleDescriptors.computeIfAbsent(
+                intermediateDataSetID, this::requestShuffleDescriptorsFromResourceManager);
+    }
+
+    private List<ShuffleDescriptor> requestShuffleDescriptorsFromResourceManager(
+            IntermediateDataSetID intermediateDataSetID) {
+        Preconditions.checkNotNull(
+                resourceManagerGateway, "JobMaster is not connected to ResourceManager");
+        try {
+            return this.resourceManagerGateway
+                    .getClusterPartitionsShuffleDescriptors(intermediateDataSetID)
+                    .get();
+        } catch (Throwable e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Failed to get shuffle descriptors of intermediate dataset %s from ResourceManager",
+                            intermediateDataSetID),
+                    e);
+        }
     }
 
     private void stopTrackingAndHandlePartitions(

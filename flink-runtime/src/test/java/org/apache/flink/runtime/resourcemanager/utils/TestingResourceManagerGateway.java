@@ -46,18 +46,21 @@ import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorEx
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -490,6 +493,18 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     @Override
     public CompletableFuture<Void> releaseClusterPartitions(
             IntermediateDataSetID dataSetToRelease) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> reportClusterPartitions(
+            ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID) {
         return CompletableFuture.completedFuture(null);
     }
 }

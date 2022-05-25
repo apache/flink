@@ -907,7 +907,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         try {
             partitionTracker.stopTrackingAndReleaseJobPartitions(partitionToRelease);
             partitionTracker.promoteJobPartitions(partitionsToPromote);
-
+            if (establishedResourceManagerConnection != null) {
+                establishedResourceManagerConnection
+                        .getResourceManagerGateway()
+                        .reportClusterPartitions(
+                                getResourceID(), partitionTracker.createClusterPartitionReport());
+            }
             closeJobManagerConnectionIfNoAllocatedResources(jobId);
         } catch (Throwable t) {
             // TODO: Do we still need this catch branch?
