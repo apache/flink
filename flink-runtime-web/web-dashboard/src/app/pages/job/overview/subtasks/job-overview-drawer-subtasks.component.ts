@@ -72,9 +72,11 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
     @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
   ) {
     this.actionComponent =
-      moduleConfig.subtaskActionComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.subtaskActionComponent;
+      moduleConfig.customComponents?.subtaskActionComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.subtaskActionComponent;
     this.stateBadgeComponent =
-      moduleConfig.stateBadgeComponent || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.stateBadgeComponent;
+      moduleConfig.customComponents?.stateBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
   }
 
   public ngOnInit(): void {

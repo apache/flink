@@ -25,8 +25,8 @@ import { ActivatedRoute } from '@angular/router';
 import {
   TASK_MANAGER_MODULE_CONFIG,
   TASK_MANAGER_MODULE_DEFAULT_CONFIG,
-  TaskManagerModuleConfig
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
+import {ModuleConfig} from "@flink-runtime-web/core/module-config";
 
 @Component({
   selector: 'flink-task-manager-logs',
@@ -49,7 +49,7 @@ export class TaskManagerLogsComponent implements OnInit, OnDestroy {
     private readonly configService: ConfigService,
     private activatedRoute: ActivatedRoute,
     private readonly cdr: ChangeDetectorRef,
-    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: TaskManagerModuleConfig
+    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: ModuleConfig
   ) {
     this.editorOptions = moduleConfig.editorOptions || TASK_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
   }

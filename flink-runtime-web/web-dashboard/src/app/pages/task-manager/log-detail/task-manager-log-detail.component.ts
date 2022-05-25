@@ -19,10 +19,10 @@ import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import {
   TASK_MANAGER_MODULE_CONFIG,
-  TASK_MANAGER_MODULE_DEFAULT_CONFIG,
-  TaskManagerModuleConfig
+  TASK_MANAGER_MODULE_DEFAULT_CONFIG
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { TaskManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
@@ -51,7 +51,7 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
     private readonly taskManagerService: TaskManagerService,
     private readonly cdr: ChangeDetectorRef,
     private readonly activatedRoute: ActivatedRoute,
-    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: TaskManagerModuleConfig
+    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: ModuleConfig
   ) {
     this.editorOptions = moduleConfig.editorOptions || TASK_MANAGER_MODULE_DEFAULT_CONFIG.editorOptions;
   }

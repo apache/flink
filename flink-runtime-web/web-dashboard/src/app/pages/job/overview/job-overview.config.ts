@@ -16,41 +16,28 @@
  * limitations under the License.
  */
 
-import { InjectionToken, Type } from '@angular/core';
+import { InjectionToken } from '@angular/core';
 
-import {
-  JobOverviewSubtasksTableAction,
-  SubtasksTableActionComponent
-} from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
-import {
-  JobOverviewTaskManagersTableAction,
-  TaskmanagersTableActionComponent
-} from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+import { SubtasksTableActionComponent } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
+import { TaskmanagersTableActionComponent } from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
 import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
 import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
 
-export interface JobOverviewModuleConfig {
-  taskManagerActionComponent?: Type<JobOverviewTaskManagersTableAction>;
-  subtaskActionComponent?: Type<JobOverviewSubtasksTableAction>;
-  stateBadgeComponent?: Type<unknown>;
-  taskCountBadgeComponent?: Type<unknown>;
-  backpressureBadgeComponent?: Type<unknown>;
-}
+export type JobOverviewModuleConfig = Omit<ModuleConfig, 'editorOptions' | 'routerFactories'>;
 
 export const JOB_OVERVIEW_MODULE_DEFAULT_CONFIG: Required<JobOverviewModuleConfig> = {
-  taskManagerActionComponent: TaskmanagersTableActionComponent,
-  subtaskActionComponent: SubtasksTableActionComponent,
-  stateBadgeComponent: JobBadgeComponent,
-  taskCountBadgeComponent: TaskBadgeComponent,
-  backpressureBadgeComponent: BackpressureBadgeComponent
+  customComponents: {
+    taskManagerActionComponent: TaskmanagersTableActionComponent,
+    subtaskActionComponent: SubtasksTableActionComponent,
+    stateBadgeComponent: JobBadgeComponent,
+    taskCountBadgeComponent: TaskBadgeComponent,
+    backpressureBadgeComponent: BackpressureBadgeComponent
+  }
 };
 
 export const JOB_OVERVIEW_MODULE_CONFIG = new InjectionToken<JobOverviewModuleConfig>('job-manager-module-config', {
   providedIn: 'root',
-  factory: JOB_OVERVIEW_MODULE_CONFIG_FACTORY
+  factory: () => JOB_OVERVIEW_MODULE_DEFAULT_CONFIG
 });
-
-function JOB_OVERVIEW_MODULE_CONFIG_FACTORY(): JobOverviewModuleConfig {
-  return JOB_OVERVIEW_MODULE_DEFAULT_CONFIG;
-}

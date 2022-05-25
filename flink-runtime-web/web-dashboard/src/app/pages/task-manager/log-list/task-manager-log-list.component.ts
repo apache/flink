@@ -56,7 +56,7 @@ export class TaskManagerLogListComponent implements OnInit, OnDestroy {
     @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: TaskManagerModuleConfig
   ) {
     this.logRouterFactory =
-      moduleConfig.taskManagerLogRouterFactory || TASK_MANAGER_MODULE_DEFAULT_CONFIG.taskManagerLogRouterFactory;
+      moduleConfig.routerFactories?.taskManager || TASK_MANAGER_MODULE_DEFAULT_CONFIG.routerFactories.taskManager;
   }
 
   public ngOnInit(): void {
