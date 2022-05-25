@@ -57,14 +57,15 @@ import org.junit.Assert._
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  private val settings = EnvironmentSettings.newInstance().inBatchMode().build()
-  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
+  protected var settings = EnvironmentSettings.newInstance().inBatchMode().build()
+  protected var testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
     .create(settings, catalogManager = None, TableConfig.getDefault)
-  val tEnv: TableEnvironment = testingTableEnv
-  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  val env: StreamExecutionEnvironment = planner.getExecEnv
+  protected var tEnv: TableEnvironment = testingTableEnv
+  protected var planner =
+    tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+  protected var env: StreamExecutionEnvironment = planner.getExecEnv
   env.getConfig.enableObjectReuse()
-  val tableConfig: TableConfig = tEnv.getConfig
+  protected var tableConfig: TableConfig = tEnv.getConfig
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile(

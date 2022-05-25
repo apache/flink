@@ -64,7 +64,7 @@ public final class FunctionCatalog {
     private final ReadableConfig config;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
-    private final ClassLoader classLoader;
+    private ClassLoader classLoader;
 
     private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
@@ -84,6 +84,11 @@ public final class FunctionCatalog {
         this.config = checkNotNull(config);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
+        this.classLoader = classLoader;
+    }
+
+    /** Updates the classloader, this is a temporary solution until FLINK-14055 is fixed. */
+    public void updateClassLoader(ClassLoader classLoader) {
         this.classLoader = classLoader;
     }
 
@@ -151,7 +156,7 @@ public final class FunctionCatalog {
                                         normalizedIdentifier.toObjectPath(), catalogFunction);
             }
             try {
-                catalogFunction = validateAndPrepareFunction(catalogFunction);
+                validateAndPrepareFunction(catalogFunction);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
@@ -373,7 +378,7 @@ public final class FunctionCatalog {
      */
     @Deprecated
     public void registerTempSystemScalarFunction(String name, ScalarFunction function) {
-        function = UserDefinedFunctionHelper.prepareInstance(config, classLoader, function);
+        UserDefinedFunctionHelper.prepareInstance(config, function);
 
         registerTempSystemFunction(name, new ScalarFunctionDefinition(name, function));
     }
@@ -385,7 +390,7 @@ public final class FunctionCatalog {
     @Deprecated
     public <T> void registerTempSystemTableFunction(
             String name, TableFunction<T> function, TypeInformation<T> resultType) {
-        function = UserDefinedFunctionHelper.prepareInstance(config, classLoader, function);
+        UserDefinedFunctionHelper.prepareInstance(config, function);
 
         registerTempSystemFunction(name, new TableFunctionDefinition(name, function, resultType));
     }
@@ -400,7 +405,7 @@ public final class FunctionCatalog {
             ImperativeAggregateFunction<T, ACC> function,
             TypeInformation<T> resultType,
             TypeInformation<ACC> accType) {
-        function = UserDefinedFunctionHelper.prepareInstance(config, classLoader, function);
+        UserDefinedFunctionHelper.prepareInstance(config, function);
 
         final FunctionDefinition definition;
         if (function instanceof AggregateFunction) {
@@ -424,7 +429,7 @@ public final class FunctionCatalog {
      */
     @Deprecated
     public void registerTempCatalogScalarFunction(ObjectIdentifier oi, ScalarFunction function) {
-        function = UserDefinedFunctionHelper.prepareInstance(config, classLoader, function);
+        UserDefinedFunctionHelper.prepareInstance(config, function);
 
         registerTempCatalogFunction(oi, new ScalarFunctionDefinition(oi.getObjectName(), function));
     }
@@ -498,7 +503,7 @@ public final class FunctionCatalog {
         final String normalizedName = FunctionIdentifier.normalizeName(name);
 
         try {
-            function = validateAndPrepareFunction(function);
+            validateAndPrepareFunction(function);
         } catch (Throwable t) {
             throw new ValidationException(
                     String.format(
@@ -626,7 +631,7 @@ public final class FunctionCatalog {
     }
 
     @SuppressWarnings("unchecked")
-    private CatalogFunction validateAndPrepareFunction(CatalogFunction function)
+    private void validateAndPrepareFunction(CatalogFunction function)
             throws ClassNotFoundException {
         // If the input is instance of UserDefinedFunction, it means it uses the new type inference.
         // In this situation the UDF have not been validated and cleaned, so we need to validate it
@@ -637,9 +642,7 @@ public final class FunctionCatalog {
         if (function instanceof InlineCatalogFunction) {
             FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
             if (definition instanceof UserDefinedFunction) {
-                return new InlineCatalogFunction(
-                        UserDefinedFunctionHelper.prepareInstance(
-                                config, classLoader, (UserDefinedFunction) definition));
+                UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
@@ -647,7 +650,6 @@ public final class FunctionCatalog {
                     (Class<? extends UserDefinedFunction>)
                             classLoader.loadClass(function.getClassName()));
         }
-        return function;
     }
 
     private FunctionDefinition getFunctionDefinition(String name, CatalogFunction function) {

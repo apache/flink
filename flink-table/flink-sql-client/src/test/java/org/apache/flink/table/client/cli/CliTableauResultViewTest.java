@@ -87,7 +87,12 @@ public class CliTableauResultViewTest {
                         Column.physical(
                                 "timestamp", DataTypes.TIMESTAMP(6).bridgedTo(Timestamp.class)),
                         Column.physical("binary", DataTypes.BYTES()));
-        rowDataToStringConverter = new RowDataToStringConverterImpl(schema.toPhysicalRowDataType());
+        rowDataToStringConverter =
+                new RowDataToStringConverterImpl(
+                        schema.toPhysicalRowDataType(),
+                        DateTimeUtils.UTC_ZONE.toZoneId(),
+                        Thread.currentThread().getContextClassLoader(),
+                        false);
 
         List<Row> rows =
                 Arrays.asList(
