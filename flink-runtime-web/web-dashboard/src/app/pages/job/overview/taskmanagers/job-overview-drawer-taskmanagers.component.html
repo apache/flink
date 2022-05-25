@@ -47,7 +47,9 @@
     <ng-template nz-virtual-scroll let-data>
       <ng-container *ngIf="narrowLogData(data) as taskManager">
         <tr>
-          <td nzLeft>{{ taskManager.host }}</td>
+          <td nzLeft>
+            <span class="ellipsis-cell">{{ taskManager.host }}</span>
+          </td>
           <td>
             <span *ngIf="taskManager['metrics']['read-bytes-complete']; else loadingTemplate">
               {{ taskManager['metrics']['read-bytes'] | humanizeBytes }}

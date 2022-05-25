@@ -15,7 +15,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<span *ngIf="isLoading; else reloadTpl">Loading...</span>
+<a *ngIf="isLoading; else reloadTpl">Loading...</a>
 <ng-template #reloadTpl>
   <a (click)="reload.emit()">
     <i nz-icon class="operate-icon" nzType="sync" nzTheme="outline"></i>
