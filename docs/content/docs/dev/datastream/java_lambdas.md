@@ -64,7 +64,7 @@ org.apache.flink.api.common.functions.InvalidTypesException: The generic type pa
     Otherwise the type has to be specified explicitly using type information.
 ```
 
-In this case, the type information needs to be *specified explicitly*, otherwise the output will be treated as type `Object` which leads to unefficient serialization.
+In this case, the type information needs to be *specified explicitly*, otherwise the output will be treated as type `Object` which leads to inefficient serialization.
 
 ```java
 DataStream<Integer> input = env.fromElements(1, 2, 3);
