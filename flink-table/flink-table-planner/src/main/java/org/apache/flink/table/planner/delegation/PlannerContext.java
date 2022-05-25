@@ -102,7 +102,7 @@ public class PlannerContext {
             List<RelTraitDef> traitDefs,
             ClassLoader classLoader) {
         this.typeSystem = FlinkTypeSystem.INSTANCE;
-        this.typeFactory = new FlinkTypeFactory(typeSystem);
+        this.typeFactory = new FlinkTypeFactory(classLoader, typeSystem);
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
@@ -114,7 +114,8 @@ public class PlannerContext {
                                 typeFactory,
                                 this::createFlinkPlanner,
                                 this::getCalciteSqlDialect,
-                                this::createRelBuilder));
+                                this::createRelBuilder),
+                        classLoader);
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,

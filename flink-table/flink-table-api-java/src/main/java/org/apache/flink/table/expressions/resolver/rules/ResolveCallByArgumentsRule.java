@@ -31,16 +31,12 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
-import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
-import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -321,50 +317,37 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         private FunctionDefinition prepareInlineUserDefinedFunction(FunctionDefinition definition) {
             if (definition instanceof ScalarFunctionDefinition) {
                 final ScalarFunctionDefinition sf = (ScalarFunctionDefinition) definition;
-                final ScalarFunction fnInstance =
-                        UserDefinedFunctionHelper.prepareInstance(
-                                resolutionContext.configuration(),
-                                resolutionContext.userClassLoader(),
-                                sf.getScalarFunction());
-                return new ScalarFunctionDefinition(sf.getName(), fnInstance);
+                UserDefinedFunctionHelper.prepareInstance(
+                        resolutionContext.configuration(), sf.getScalarFunction());
+                return new ScalarFunctionDefinition(sf.getName(), sf.getScalarFunction());
             } else if (definition instanceof TableFunctionDefinition) {
                 final TableFunctionDefinition tf = (TableFunctionDefinition) definition;
-                final TableFunction<?> fnInstance =
-                        UserDefinedFunctionHelper.prepareInstance(
-                                resolutionContext.configuration(),
-                                resolutionContext.userClassLoader(),
-                                tf.getTableFunction());
-                return new TableFunctionDefinition(tf.getName(), fnInstance, tf.getResultType());
+                UserDefinedFunctionHelper.prepareInstance(
+                        resolutionContext.configuration(), tf.getTableFunction());
+                return new TableFunctionDefinition(
+                        tf.getName(), tf.getTableFunction(), tf.getResultType());
             } else if (definition instanceof AggregateFunctionDefinition) {
                 final AggregateFunctionDefinition af = (AggregateFunctionDefinition) definition;
-                final AggregateFunction<?, ?> afInstance =
-                        UserDefinedFunctionHelper.prepareInstance(
-                                resolutionContext.configuration(),
-                                resolutionContext.userClassLoader(),
-                                af.getAggregateFunction());
+                UserDefinedFunctionHelper.prepareInstance(
+                        resolutionContext.configuration(), af.getAggregateFunction());
                 return new AggregateFunctionDefinition(
                         af.getName(),
-                        afInstance,
+                        af.getAggregateFunction(),
                         af.getResultTypeInfo(),
                         af.getAccumulatorTypeInfo());
             } else if (definition instanceof TableAggregateFunctionDefinition) {
                 final TableAggregateFunctionDefinition taf =
                         (TableAggregateFunctionDefinition) definition;
-                final TableAggregateFunction<?, ?> tafInstance =
-                        UserDefinedFunctionHelper.prepareInstance(
-                                resolutionContext.configuration(),
-                                resolutionContext.userClassLoader(),
-                                taf.getTableAggregateFunction());
+                UserDefinedFunctionHelper.prepareInstance(
+                        resolutionContext.configuration(), taf.getTableAggregateFunction());
                 return new TableAggregateFunctionDefinition(
                         taf.getName(),
-                        tafInstance,
+                        taf.getTableAggregateFunction(),
                         taf.getResultTypeInfo(),
                         taf.getAccumulatorTypeInfo());
             } else if (definition instanceof UserDefinedFunction) {
-                return UserDefinedFunctionHelper.prepareInstance(
-                        resolutionContext.configuration(),
-                        resolutionContext.userClassLoader(),
-                        (UserDefinedFunction) definition);
+                UserDefinedFunctionHelper.prepareInstance(
+                        resolutionContext.configuration(), (UserDefinedFunction) definition);
             }
             return definition;
         }

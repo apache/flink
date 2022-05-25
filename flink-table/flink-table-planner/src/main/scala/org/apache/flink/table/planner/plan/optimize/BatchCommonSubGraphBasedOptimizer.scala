@@ -101,9 +101,9 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
         override def getModuleManager: ModuleManager = planner.moduleManager
 
-      override def getRexFactory: RexFactory = context.getRexFactory
+        override def getRexFactory: RexFactory = context.getRexFactory
 
-      override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
+        override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
         override def needFinalTimeIndicatorConversion: Boolean = true
 

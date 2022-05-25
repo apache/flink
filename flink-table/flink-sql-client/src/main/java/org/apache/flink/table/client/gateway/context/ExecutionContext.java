@@ -109,6 +109,11 @@ public class ExecutionContext {
                 new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
 
         final Executor executor = lookupExecutor(streamExecEnv);
+
+        // Updates the classloader of FunctionCatalog by the new classloader to solve ClassNotFound
+        // exception when use an udf created by add jar syntax, temporary solution until FLINK-14055
+        // is fixed
+        sessionState.functionCatalog.updateClassLoader(classLoader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
