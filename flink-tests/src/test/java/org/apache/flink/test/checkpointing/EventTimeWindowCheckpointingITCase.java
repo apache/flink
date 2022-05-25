@@ -68,6 +68,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -203,7 +204,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(config, tempFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                config, tempFolder.newFolder(), Duration.ofMinutes(1), 10);
 
         return config;
     }

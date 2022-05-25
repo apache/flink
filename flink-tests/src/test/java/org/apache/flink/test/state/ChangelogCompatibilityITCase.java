@@ -38,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -292,7 +293,8 @@ public class ChangelogCompatibilityITCase {
         Configuration config = new Configuration();
         config.setString(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
         config.setString(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
-        FsStateChangelogStorageFactory.configure(config, TEMPORARY_FOLDER.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

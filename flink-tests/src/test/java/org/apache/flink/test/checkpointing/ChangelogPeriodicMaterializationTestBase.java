@@ -269,7 +269,8 @@ public abstract class ChangelogPeriodicMaterializationTestBase extends TestLogge
 
     private Configuration configure() throws IOException {
         Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(configuration, TEMPORARY_FOLDER.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         return configuration;
     }
 
