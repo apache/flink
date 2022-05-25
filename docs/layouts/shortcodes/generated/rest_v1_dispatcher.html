@@ -3630,6 +3630,30 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo",
   "properties" : {
+    "aggregated" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:AggregatedTaskDetailsInfo",
+      "properties" : {
+        "metrics" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "status-duration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "integer"
+            }
+          }
+        }
+      }
+    },
     "id" : {
       "type" : "any"
     },
@@ -4924,6 +4948,30 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
         "properties" : {
+          "aggregated" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:AggregatedTaskDetailsInfo",
+            "properties" : {
+              "metrics" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "integer"
+                  }
+                }
+              },
+              "status-duration" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            }
+          },
           "duration" : {
             "type" : "integer"
           },

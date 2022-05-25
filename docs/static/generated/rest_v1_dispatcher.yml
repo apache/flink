@@ -1418,6 +1418,23 @@ paths:
                 $ref: '#/components/schemas/ThreadDumpInfo'
 components:
   schemas:
+    AggregatedTaskDetailsInfo:
+      type: object
+      properties:
+        metrics:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+        status-duration:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
     JarFileInfo:
       type: object
       properties:
@@ -1730,6 +1747,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubtaskExecutionAttemptDetailsInfo'
+        aggregated:
+          $ref: '#/components/schemas/AggregatedTaskDetailsInfo'
     DistributedCacheFile:
       type: object
       properties:

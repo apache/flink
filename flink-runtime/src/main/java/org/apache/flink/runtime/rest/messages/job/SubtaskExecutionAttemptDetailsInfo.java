@@ -36,9 +36,10 @@ import io.swagger.v3.oas.annotations.Hidden;
 
 import javax.annotation.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.runtime.rest.messages.job.StatusDurationUtils.getExecutionStateDuration;
 
 /** The sub task execution attempt response. */
 public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
@@ -261,54 +262,5 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
                 ioMetricsInfo,
                 taskmanagerId,
                 getExecutionStateDuration(execution));
-    }
-
-    private static Map<ExecutionState, Long> getExecutionStateDuration(AccessExecution execution) {
-        Map<ExecutionState, Long> executionStateDuration = new HashMap<>();
-        long now = System.currentTimeMillis();
-        ExecutionState state = execution.getState();
-        executionStateDuration.put(
-                ExecutionState.CREATED,
-                calculateStateDuration(
-                        execution.getStateTimestamp(ExecutionState.CREATED),
-                        state == ExecutionState.CREATED
-                                ? now
-                                : execution.getStateEndTimestamp(ExecutionState.CREATED)));
-        executionStateDuration.put(
-                ExecutionState.SCHEDULED,
-                calculateStateDuration(
-                        execution.getStateTimestamp(ExecutionState.SCHEDULED),
-                        state == ExecutionState.SCHEDULED
-                                ? now
-                                : execution.getStateEndTimestamp(ExecutionState.SCHEDULED)));
-        executionStateDuration.put(
-                ExecutionState.DEPLOYING,
-                calculateStateDuration(
-                        execution.getStateTimestamp(ExecutionState.DEPLOYING),
-                        state == ExecutionState.DEPLOYING
-                                ? now
-                                : execution.getStateEndTimestamp(ExecutionState.DEPLOYING)));
-        executionStateDuration.put(
-                ExecutionState.INITIALIZING,
-                calculateStateDuration(
-                        execution.getStateTimestamp(ExecutionState.INITIALIZING),
-                        state == ExecutionState.INITIALIZING
-                                ? now
-                                : execution.getStateEndTimestamp(ExecutionState.INITIALIZING)));
-        executionStateDuration.put(
-                ExecutionState.RUNNING,
-                calculateStateDuration(
-                        execution.getStateTimestamp(ExecutionState.RUNNING),
-                        state == ExecutionState.RUNNING
-                                ? now
-                                : execution.getStateEndTimestamp(ExecutionState.RUNNING)));
-        return executionStateDuration;
-    }
-
-    private static long calculateStateDuration(long start, long end) {
-        if (start == 0 || end == 0) {
-            return -1;
-        }
-        return end - start;
     }
 }
