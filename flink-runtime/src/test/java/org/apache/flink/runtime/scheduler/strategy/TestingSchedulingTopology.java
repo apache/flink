@@ -177,6 +177,15 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         return newVertex;
     }
 
+    public TestingSchedulingExecutionVertex newExecutionVertex(
+            IntermediateDataSetID cachedIntermediateDataSetID) {
+        final TestingSchedulingExecutionVertex newVertex =
+                TestingSchedulingExecutionVertex.withCachedIntermediateDataset(
+                        cachedIntermediateDataSetID);
+        addSchedulingExecutionVertex(newVertex);
+        return newVertex;
+    }
+
     public TestingSchedulingTopology connect(
             final TestingSchedulingExecutionVertex producer,
             final TestingSchedulingExecutionVertex consumer) {
@@ -352,7 +361,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                     ConsumedPartitionGroup.fromMultiplePartitions(
                             resultPartitions.stream()
                                     .map(TestingSchedulingResultPartition::getId)
-                                    .collect(Collectors.toList()));
+                                    .collect(Collectors.toList()),
+                            resultPartitions.get(0).getResultType());
             Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                     consumedPartitionById =
                             resultPartitions.stream()

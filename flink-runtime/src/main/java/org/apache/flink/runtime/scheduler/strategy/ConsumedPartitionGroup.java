@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -38,11 +39,16 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     private final IntermediateDataSetID intermediateDataSetID;
 
-    private ConsumedPartitionGroup(List<IntermediateResultPartitionID> resultPartitions) {
+    private final ResultPartitionType resultPartitionType;
+
+    private ConsumedPartitionGroup(
+            List<IntermediateResultPartitionID> resultPartitions,
+            ResultPartitionType resultPartitionType) {
         checkArgument(
                 resultPartitions.size() > 0,
                 "The size of result partitions in the ConsumedPartitionGroup should be larger than 0.");
         this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
+        this.resultPartitionType = resultPartitionType;
 
         // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
         // IntermediateDataSetID
@@ -56,13 +62,16 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
     }
 
     public static ConsumedPartitionGroup fromMultiplePartitions(
-            List<IntermediateResultPartitionID> resultPartitions) {
-        return new ConsumedPartitionGroup(resultPartitions);
+            List<IntermediateResultPartitionID> resultPartitions,
+            ResultPartitionType resultPartitionType) {
+        return new ConsumedPartitionGroup(resultPartitions, resultPartitionType);
     }
 
     public static ConsumedPartitionGroup fromSinglePartition(
-            IntermediateResultPartitionID resultPartition) {
-        return new ConsumedPartitionGroup(Collections.singletonList(resultPartition));
+            IntermediateResultPartitionID resultPartition,
+            ResultPartitionType resultPartitionType) {
+        return new ConsumedPartitionGroup(
+                Collections.singletonList(resultPartition), resultPartitionType);
     }
 
     @Override
@@ -102,5 +111,9 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public boolean areAllPartitionsFinished() {
         return unfinishedPartitions.get() == 0;
+    }
+
+    public ResultPartitionType getResultPartitionType() {
+        return resultPartitionType;
     }
 }

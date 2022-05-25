@@ -44,6 +44,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.CompressedSerializedValue;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -51,9 +52,12 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -71,6 +75,8 @@ public class TaskDeploymentDescriptorFactory {
     private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionRetriever;
     private final BlobWriter blobWriter;
+    private final Map<IntermediateDataSetID, ShuffleDescriptor[]>
+            consumedClusterPartitionShuffleDescriptors;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -81,7 +87,9 @@ public class TaskDeploymentDescriptorFactory {
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
                     resultPartitionRetriever,
-            BlobWriter blobWriter) {
+            BlobWriter blobWriter,
+            Map<IntermediateDataSetID, ShuffleDescriptor[]>
+                    consumedClusterPartitionShuffleDescriptors) {
         this.executionId = executionId;
         this.serializedJobInformation = serializedJobInformation;
         this.taskInfo = taskInfo;
@@ -90,6 +98,8 @@ public class TaskDeploymentDescriptorFactory {
         this.consumedPartitionGroups = consumedPartitionGroups;
         this.resultPartitionRetriever = resultPartitionRetriever;
         this.blobWriter = blobWriter;
+        this.consumedClusterPartitionShuffleDescriptors =
+                consumedClusterPartitionShuffleDescriptors;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -135,6 +145,16 @@ public class TaskDeploymentDescriptorFactory {
                             consumedSubpartitionRange,
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult, consumedPartitionGroup)));
+        }
+
+        for (Map.Entry<IntermediateDataSetID, ShuffleDescriptor[]> entry :
+                consumedClusterPartitionShuffleDescriptors.entrySet()) {
+            inputGates.add(
+                    new InputGateDeploymentDescriptor(
+                            entry.getKey(),
+                            ResultPartitionType.BLOCKING_PERSISTENT,
+                            0,
+                            entry.getValue()));
         }
 
         return inputGates;
@@ -234,6 +254,8 @@ public class TaskDeploymentDescriptorFactory {
             ExecutionVertex executionVertex) throws IOException {
         InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
+        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors;
+        clusterPartitionShuffleDescriptors = getClusterPartitionShuffleDescriptors(executionVertex);
 
         return new TaskDeploymentDescriptorFactory(
                 executionVertex.getCurrentExecutionAttempt().getAttemptId(),
@@ -244,7 +266,50 @@ public class TaskDeploymentDescriptorFactory {
                 internalExecutionGraphAccessor.getPartitionLocationConstraint(),
                 executionVertex.getAllConsumedPartitionGroups(),
                 internalExecutionGraphAccessor::getResultPartitionOrThrow,
-                internalExecutionGraphAccessor.getBlobWriter());
+                internalExecutionGraphAccessor.getBlobWriter(),
+                clusterPartitionShuffleDescriptors);
+    }
+
+    private static Map<IntermediateDataSetID, ShuffleDescriptor[]>
+            getClusterPartitionShuffleDescriptors(ExecutionVertex executionVertex) {
+        final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
+                executionVertex.getExecutionGraphAccessor();
+        final List<IntermediateDataSetID> consumedClusterDataSetIds =
+                executionVertex.getJobVertex().getJobVertex().getIntermediateDataSetIdToConsume();
+        Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors =
+                new HashMap<>();
+
+        for (IntermediateDataSetID consumedClusterDataSetId : consumedClusterDataSetIds) {
+            Collection<? extends ShuffleDescriptor> shuffleDescriptors =
+                    internalExecutionGraphAccessor.getClusterPartitionShuffleDescriptors(
+                            consumedClusterDataSetId);
+
+            Preconditions.checkState(
+                    executionVertex.getTotalNumberOfParallelSubtasks() == shuffleDescriptors.size(),
+                    "The parallelism (%s) of the cache consuming job vertex is "
+                            + "different from the number of shuffle descriptors (%s) of the intermediate data set",
+                    executionVertex.getTotalNumberOfParallelSubtasks(),
+                    shuffleDescriptors.size());
+
+            shuffleDescriptors =
+                    shuffleDescriptors.stream()
+                            .filter(
+                                    descriptor ->
+                                            descriptor
+                                                            .getResultPartitionID()
+                                                            .getPartitionId()
+                                                            .getPartitionNumber()
+                                                    == executionVertex.getParallelSubtaskIndex())
+                            .collect(Collectors.toList());
+
+            Preconditions.checkState(
+                    shuffleDescriptors.size() == 1,
+                    "Expecting one shuffle descriptor but got %s",
+                    shuffleDescriptors.size());
+            clusterPartitionShuffleDescriptors.put(
+                    consumedClusterDataSetId, shuffleDescriptors.toArray(new ShuffleDescriptor[0]));
+        }
+        return clusterPartitionShuffleDescriptors;
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(

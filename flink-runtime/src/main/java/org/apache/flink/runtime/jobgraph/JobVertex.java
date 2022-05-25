@@ -142,6 +142,11 @@ public class JobVertex implements java.io.Serializable {
      */
     private String resultOptimizerProperties;
 
+    /**
+     * The intermediateDataSetId of the cached intermediate dataset that the job vertex consumes.
+     */
+    private final List<IntermediateDataSetID> intermediateDataSetIdsToConsume = new ArrayList<>();
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -481,8 +486,18 @@ public class JobVertex implements java.io.Serializable {
 
     public JobEdge connectNewDataSetAsInput(
             JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
+        return this.connectNewDataSetAsInput(
+                input, distPattern, partitionType, new IntermediateDataSetID());
+    }
 
-        IntermediateDataSet dataSet = input.createAndAddResultDataSet(partitionType);
+    public JobEdge connectNewDataSetAsInput(
+            JobVertex input,
+            DistributionPattern distPattern,
+            ResultPartitionType partitionType,
+            IntermediateDataSetID intermediateDataSetId) {
+
+        IntermediateDataSet dataSet =
+                input.createAndAddResultDataSet(intermediateDataSetId, partitionType);
 
         JobEdge edge = new JobEdge(dataSet, this, distPattern);
         this.inputs.add(edge);
@@ -566,6 +581,14 @@ public class JobVertex implements java.io.Serializable {
 
     public void setResultOptimizerProperties(String resultOptimizerProperties) {
         this.resultOptimizerProperties = resultOptimizerProperties;
+    }
+
+    public void addIntermediateDataSetIdToConsume(IntermediateDataSetID intermediateDataSetId) {
+        intermediateDataSetIdsToConsume.add(intermediateDataSetId);
+    }
+
+    public List<IntermediateDataSetID> getIntermediateDataSetIdToConsume() {
+        return intermediateDataSetIdsToConsume;
     }
 
     // --------------------------------------------------------------------------------------------

@@ -182,7 +182,8 @@ public class EdgeManagerBuildUtil {
             IntermediateResultPartitionID consumedPartitionId,
             IntermediateResult intermediateResult) {
         ConsumedPartitionGroup consumedPartitionGroup =
-                ConsumedPartitionGroup.fromSinglePartition(consumedPartitionId);
+                ConsumedPartitionGroup.fromSinglePartition(
+                        consumedPartitionId, intermediateResult.getResultType());
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
     }
@@ -191,7 +192,8 @@ public class EdgeManagerBuildUtil {
             List<IntermediateResultPartitionID> consumedPartitions,
             IntermediateResult intermediateResult) {
         ConsumedPartitionGroup consumedPartitionGroup =
-                ConsumedPartitionGroup.fromMultiplePartitions(consumedPartitions);
+                ConsumedPartitionGroup.fromMultiplePartitions(
+                        consumedPartitions, intermediateResult.getResultType());
         registerConsumedPartitionGroupToEdgeManager(consumedPartitionGroup, intermediateResult);
         return consumedPartitionGroup;
     }

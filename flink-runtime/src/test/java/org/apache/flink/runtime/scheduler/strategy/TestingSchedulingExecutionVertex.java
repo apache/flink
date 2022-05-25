@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -91,7 +93,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
         final ConsumedPartitionGroup consumedPartitionGroup =
-                ConsumedPartitionGroup.fromSinglePartition(consumedPartition.getId());
+                ConsumedPartitionGroup.fromSinglePartition(
+                        consumedPartition.getId(), consumedPartition.getResultType());
 
         consumedPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
         if (consumedPartition.getState() == ResultPartitionState.CONSUMABLE) {
@@ -123,6 +126,11 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         return newBuilder().withExecutionVertexID(jobVertexId, subtaskIndex).build();
     }
 
+    public static TestingSchedulingExecutionVertex withCachedIntermediateDataset(
+            IntermediateDataSetID cachedIntermediateDatasetID) {
+        return newBuilder().addCachedIntermediateDataSetID(cachedIntermediateDatasetID).build();
+    }
+
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
     public static class Builder {
         private JobVertexID jobVertexId = new JobVertexID();
@@ -131,6 +139,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                 resultPartitionsById = new HashMap<>();
         private ExecutionState executionState = ExecutionState.CREATED;
+        private final List<IntermediateDataSetID> cachedIntermediateDataset = new ArrayList<>();
 
         Builder withExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
             this.jobVertexId = jobVertexId;
@@ -143,6 +152,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                 Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                         resultPartitionsById) {
             this.resultPartitionsById.putAll(resultPartitionsById);
+            final ResultPartitionType resultType =
+                    resultPartitionsById.values().iterator().next().getResultType();
 
             for (ConsumedPartitionGroup partitionGroup : consumedPartitionGroups) {
                 List<IntermediateResultPartitionID> partitionIds =
@@ -151,7 +162,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     partitionIds.add(partitionId);
                 }
                 this.consumedPartitionGroups.add(
-                        ConsumedPartitionGroup.fromMultiplePartitions(partitionIds));
+                        ConsumedPartitionGroup.fromMultiplePartitions(partitionIds, resultType));
             }
             return this;
         }
@@ -168,6 +179,12 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     consumedPartitionGroups,
                     resultPartitionsById,
                     executionState);
+        }
+
+        public Builder addCachedIntermediateDataSetID(
+                IntermediateDataSetID cachedIntermediateDatasetID) {
+            this.cachedIntermediateDataset.add(cachedIntermediateDatasetID);
+            return this;
         }
     }
 }
