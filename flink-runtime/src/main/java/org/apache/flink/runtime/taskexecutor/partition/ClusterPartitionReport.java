@@ -19,10 +19,12 @@ package org.apache.flink.runtime.taskexecutor.partition;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -57,12 +59,21 @@ public class ClusterPartitionReport implements Serializable {
 
         private final IntermediateDataSetID dataSetId;
         private final Set<ResultPartitionID> hostedPartitions;
+        private final Set<ShuffleDescriptor> shuffleDescriptors;
         private final int numTotalPartitions;
 
         public ClusterPartitionReportEntry(
                 IntermediateDataSetID dataSetId,
                 Set<ResultPartitionID> hostedPartitions,
                 int numTotalPartitions) {
+            this(dataSetId, hostedPartitions, numTotalPartitions, Collections.emptySet());
+        }
+
+        public ClusterPartitionReportEntry(
+                IntermediateDataSetID dataSetId,
+                Set<ResultPartitionID> hostedPartitions,
+                int numTotalPartitions,
+                Set<ShuffleDescriptor> shuffleDescriptors) {
             Preconditions.checkNotNull(dataSetId);
             Preconditions.checkNotNull(hostedPartitions);
             Preconditions.checkArgument(!hostedPartitions.isEmpty());
@@ -72,6 +83,7 @@ public class ClusterPartitionReport implements Serializable {
             this.dataSetId = dataSetId;
             this.hostedPartitions = hostedPartitions;
             this.numTotalPartitions = numTotalPartitions;
+            this.shuffleDescriptors = shuffleDescriptors;
         }
 
         public IntermediateDataSetID getDataSetId() {
@@ -84,6 +96,10 @@ public class ClusterPartitionReport implements Serializable {
 
         public int getNumTotalPartitions() {
             return numTotalPartitions;
+        }
+
+        public Set<ShuffleDescriptor> getShuffleDescriptors() {
+            return shuffleDescriptors;
         }
     }
 }

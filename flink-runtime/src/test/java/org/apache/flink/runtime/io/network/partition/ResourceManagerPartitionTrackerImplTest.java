@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.TestLogger;
 
@@ -31,8 +32,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -187,6 +190,23 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
         assertThat(tracker.areAllMapsEmpty(), is(true));
     }
 
+    @Test
+    public void testGetClusterPartitionShuffleDescriptors() {
+        final ResourceManagerPartitionTrackerImpl tracker =
+                new ResourceManagerPartitionTrackerImpl(new TestClusterPartitionReleaser());
+
+        assertThat(tracker.listDataSets().size(), is(0));
+
+        report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
+        report(tracker, TASK_EXECUTOR_ID_2, DATA_SET_ID, 2, PARTITION_ID_2);
+
+        assertThat(tracker.getClusterPartitionShuffleDescriptors(DATA_SET_ID).size(), is(2));
+
+        reportEmpty(tracker, TASK_EXECUTOR_ID_1);
+        reportEmpty(tracker, TASK_EXECUTOR_ID_2);
+        assertThat(tracker.areAllMapsEmpty(), is(true));
+    }
+
     private static void reportEmpty(
             ResourceManagerPartitionTracker tracker, ResourceID... taskExecutorIds) {
         for (ResourceID taskExecutorId : taskExecutorIds) {
@@ -210,12 +230,35 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
             IntermediateDataSetID dataSetId,
             int numTotalPartitions,
             ResultPartitionID... partitionId) {
+        final Set<ShuffleDescriptor> shuffleDescriptors =
+                Arrays.stream(partitionId)
+                        .map(TestShuffleDescriptor::new)
+                        .collect(Collectors.toSet());
         return new ClusterPartitionReport(
                 Collections.singletonList(
                         new ClusterPartitionReport.ClusterPartitionReportEntry(
                                 dataSetId,
                                 new HashSet<>(Arrays.asList(partitionId)),
-                                numTotalPartitions)));
+                                numTotalPartitions,
+                                shuffleDescriptors)));
+    }
+
+    private static class TestShuffleDescriptor implements ShuffleDescriptor {
+        private final ResultPartitionID resultPartitionID;
+
+        TestShuffleDescriptor(ResultPartitionID resultPartitionID) {
+            this.resultPartitionID = resultPartitionID;
+        }
+
+        @Override
+        public ResultPartitionID getResultPartitionID() {
+            return resultPartitionID;
+        }
+
+        @Override
+        public Optional<ResourceID> storesLocalResourcesOn() {
+            return Optional.empty();
+        }
     }
 
     private static class TestClusterPartitionReleaser

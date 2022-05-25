@@ -20,16 +20,19 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -98,6 +101,16 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
                         dataSetId, ignored -> new CompletableFuture<>());
         internalReleasePartitions(Collections.singleton(dataSetId));
         return partitionReleaseCompletionFuture;
+    }
+
+    @Override
+    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID dataSetID) {
+        final DataSetMetaInfo dataSetMetaInfo = this.dataSetMetaInfo.get(dataSetID);
+        if (dataSetMetaInfo == null) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(dataSetMetaInfo.getShuffleDescriptors());
     }
 
     private void internalProcessClusterPartitionReport(
@@ -192,14 +205,21 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
                                         entry.getDataSetId(),
                                         (dataSetID, dataSetMetaInfo) -> {
                                             if (dataSetMetaInfo == null) {
-                                                return DataSetMetaInfo
-                                                        .withoutNumRegisteredPartitions(
-                                                                entry.getNumTotalPartitions());
+                                                final DataSetMetaInfo res =
+                                                        DataSetMetaInfo
+                                                                .withoutNumRegisteredPartitions(
+                                                                        entry
+                                                                                .getNumTotalPartitions());
+                                                res.addShuffleDescriptors(
+                                                        entry.getShuffleDescriptors());
+                                                return res;
                                             } else {
                                                 // double check that the meta data is consistent
                                                 Preconditions.checkState(
                                                         dataSetMetaInfo.getNumTotalPartitions()
                                                                 == entry.getNumTotalPartitions());
+                                                dataSetMetaInfo.addShuffleDescriptors(
+                                                        entry.getShuffleDescriptors());
                                                 return dataSetMetaInfo;
                                             }
                                         }));

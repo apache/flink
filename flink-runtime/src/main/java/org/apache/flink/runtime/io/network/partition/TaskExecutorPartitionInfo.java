@@ -19,6 +19,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Objects;
 
@@ -30,6 +31,7 @@ public final class TaskExecutorPartitionInfo {
 
     private final ResultPartitionID resultPartitionId;
     private final IntermediateDataSetID intermediateDataSetId;
+    private final ShuffleDescriptor shuffleDescriptor;
 
     private final int numberOfPartitions;
 
@@ -37,8 +39,17 @@ public final class TaskExecutorPartitionInfo {
             ResultPartitionID resultPartitionId,
             IntermediateDataSetID intermediateDataSetId,
             int numberOfPartitions) {
+        this(resultPartitionId, intermediateDataSetId, numberOfPartitions, null);
+    }
+
+    public TaskExecutorPartitionInfo(
+            ResultPartitionID resultPartitionId,
+            IntermediateDataSetID intermediateDataSetId,
+            int numberOfPartitions,
+            ShuffleDescriptor shuffleDescriptor) {
         this.resultPartitionId = checkNotNull(resultPartitionId);
         this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
+        this.shuffleDescriptor = shuffleDescriptor;
         checkArgument(numberOfPartitions > 0);
         this.numberOfPartitions = numberOfPartitions;
     }
@@ -79,6 +90,11 @@ public final class TaskExecutorPartitionInfo {
         return new TaskExecutorPartitionInfo(
                 resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID(),
                 resultPartitionDeploymentDescriptor.getResultId(),
-                resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions());
+                resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions(),
+                resultPartitionDeploymentDescriptor.getShuffleDescriptor());
+    }
+
+    public ShuffleDescriptor getShuffleDescriptor() {
+        return shuffleDescriptor;
     }
 }

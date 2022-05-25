@@ -19,6 +19,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.CollectionUtil;
@@ -92,6 +93,8 @@ public class TaskExecutorPartitionTrackerImpl
                             dataSetMetaInfo.getIntermediateDataSetId(),
                             ignored -> new DataSetEntry(dataSetMetaInfo.getNumberOfPartitions()));
             dataSetEntry.addPartition(partitionTrackerEntry.getResultPartitionId());
+            dataSetEntry.addShuffleDescriptor(
+                    partitionTrackerEntry.getMetaInfo().getShuffleDescriptor());
         }
     }
 
@@ -122,7 +125,8 @@ public class TaskExecutorPartitionTrackerImpl
                                         new ClusterPartitionReport.ClusterPartitionReportEntry(
                                                 entry.getKey(),
                                                 entry.getValue().getPartitionIds(),
-                                                entry.getValue().getTotalNumberOfPartitions()))
+                                                entry.getValue().getTotalNumberOfPartitions(),
+                                                entry.getValue().getShuffleDescriptors()))
                         .collect(Collectors.toList());
 
         return new ClusterPartitionReport(reportEntries);
@@ -131,6 +135,7 @@ public class TaskExecutorPartitionTrackerImpl
     private static class DataSetEntry {
 
         private final Set<ResultPartitionID> partitionIds = new HashSet<>();
+        private final Set<ShuffleDescriptor> shuffleDescriptors = new HashSet<>();
         private final int totalNumberOfPartitions;
 
         private DataSetEntry(int totalNumberOfPartitions) {
@@ -141,12 +146,20 @@ public class TaskExecutorPartitionTrackerImpl
             partitionIds.add(resultPartitionId);
         }
 
+        void addShuffleDescriptor(ShuffleDescriptor shuffleDescriptor) {
+            shuffleDescriptors.add(shuffleDescriptor);
+        }
+
         public Set<ResultPartitionID> getPartitionIds() {
             return partitionIds;
         }
 
         public int getTotalNumberOfPartitions() {
             return totalNumberOfPartitions;
+        }
+
+        public Set<ShuffleDescriptor> getShuffleDescriptors() {
+            return shuffleDescriptors;
         }
     }
 }
