@@ -164,7 +164,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :param accumulator: the accumulator which contains the current aggregated results
         :param args: the input value (usually obtained from new arrived data).
         """
-        pass
+        raise RuntimeError("Method retract is not implemented")
 
     def merge(self, accumulator: ACC, accumulators):
         """
@@ -178,7 +178,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
                             custom merge method.
         :param accumulators: a group of accumulators that will be merged.
         """
-        pass
+        raise RuntimeError("Method merge is not implemented")
 
     def get_result_type(self) -> DataType:
         """
@@ -187,7 +187,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's result.
 
         """
-        pass
+        raise RuntimeError("Method get_result_type is not implemented")
 
     def get_accumulator_type(self) -> DataType:
         """
@@ -196,7 +196,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         :return: The :class:`~pyflink.table.types.DataType` of the AggregateFunction's accumulator.
 
         """
-        pass
+        raise RuntimeError("Method get_accumulator_type is not implemented")
 
 
 class AggregateFunction(ImperativeAggregateFunction):
