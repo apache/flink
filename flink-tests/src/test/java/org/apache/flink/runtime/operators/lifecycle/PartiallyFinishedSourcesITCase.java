@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle;
 
+import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -40,6 +41,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -47,10 +49,7 @@ import java.util.List;
 import static java.util.Arrays.asList;
 import static java.util.stream.StreamSupport.stream;
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
-import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
-import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
-import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.TestCommandScope.ALL_SUBTASKS;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.TestCommandScope.SINGLE_SUBTASK;
@@ -90,8 +89,8 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         // implementation - use fs-based instead.
         // The randomization currently happens on the job level (environment); while this factory
         // can only be set on the cluster level; so we do it unconditionally here.
-        configuration.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
-        configuration.setString(BASE_PATH, TEMPORARY_FOLDER.newFolder().getAbsolutePath());
+        FsStateChangelogStorageFactory.configure(
+                configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
 
         miniClusterResource =
                 new MiniClusterWithClientResource(

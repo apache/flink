@@ -57,6 +57,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
@@ -284,7 +285,8 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(config, temporaryFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                config, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
 
         // ZooKeeper recovery mode?
         if (zooKeeperQuorum != null) {
