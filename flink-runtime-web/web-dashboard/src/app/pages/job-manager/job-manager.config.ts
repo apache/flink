@@ -21,7 +21,9 @@ import { InjectionToken } from '@angular/core';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 
-export type JobManagerModuleConfig = Omit<ModuleConfig, 'customComponents'>;
+type routerKeys = 'jobManager';
+
+export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents'>;
 
 export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
   editorOptions: flinkEditorOptions,

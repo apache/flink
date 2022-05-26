@@ -25,7 +25,17 @@ import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/b
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
 import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badge/task-badge.component';
 
-export type JobOverviewModuleConfig = Omit<ModuleConfig, 'editorOptions' | 'routerFactories'>;
+type customComponentKeys =
+  | 'taskManagerActionComponent'
+  | 'subtaskActionComponent'
+  | 'stateBadgeComponent'
+  | 'taskCountBadgeComponent'
+  | 'backpressureBadgeComponent';
+
+export type JobOverviewModuleConfig = Omit<
+  ModuleConfig<string, customComponentKeys>,
+  'editorOptions' | 'routerFactories'
+>;
 
 export const JOB_OVERVIEW_MODULE_DEFAULT_CONFIG: Required<JobOverviewModuleConfig> = {
   customComponents: {
