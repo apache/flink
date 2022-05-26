@@ -21,7 +21,9 @@ import { InjectionToken } from '@angular/core';
 import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 
-export type TaskManagerModuleConfig = Omit<ModuleConfig, 'customComponents'>;
+type routerKeys = 'taskManager';
+
+export type TaskManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents'>;
 
 export const TASK_MANAGER_MODULE_DEFAULT_CONFIG: Required<TaskManagerModuleConfig> = {
   editorOptions: flinkEditorOptions,
