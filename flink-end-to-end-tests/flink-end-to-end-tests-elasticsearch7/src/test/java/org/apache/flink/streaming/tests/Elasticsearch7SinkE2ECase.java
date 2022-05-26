@@ -51,5 +51,10 @@ public class Elasticsearch7SinkE2ECase
                             TestUtils.getResource("dependencies/flink-connector-test-utils.jar")
                                     .toAbsolutePath()
                                     .toUri()
+                                    .toURL(),
+                            TestUtils.getResource(
+                                            "dependencies/flink-connector-elasticsearch-test-utils.jar")
+                                    .toAbsolutePath()
+                                    .toUri()
                                     .toURL()));
 }

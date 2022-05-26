@@ -54,11 +54,13 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-end-to-end-tests-common-elasticsearch</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
 			<version>${log4j.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -116,6 +118,15 @@ under the License.
 				</executions>
 				<configuration>
 					<artifactItems>
+						<artifactItem>
+							<groupId>org.apache.flink</groupId>
+							<artifactId>flink-end-to-end-tests-common-elasticsearch</artifactId>
+							<version>${project.version}</version>
+							<destFileName>flink-connector-elasticsearch-test-utils.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies
+							</outputDirectory>
+						</artifactItem>
 						<artifactItem>
 							<groupId>org.apache.flink</groupId>
 							<artifactId>flink-connector-test-utils</artifactId>
