@@ -121,6 +121,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -565,7 +566,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // ------------------ Check if the specified queue exists --------------------
 
-        checkYarnQueues(yarnClient);
+        checkYarnQueues();
 
         // ------------------ Check if the YARN ClusterClient has the requested resources
         // --------------
@@ -744,7 +745,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
     }
 
-    private void checkYarnQueues(YarnClient yarnClient) {
+    @VisibleForTesting
+    boolean checkYarnQueues() {
         try {
             List<QueueInfo> queues = yarnClient.getAllQueues();
             if (queues.size() > 0
@@ -753,14 +755,31 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 // this session.
                 boolean queueFound = false;
                 for (QueueInfo queue : queues) {
-                    if (queue.getQueueName().equals(this.yarnQueue)
-                            || queue.getQueueName().equals("root." + this.yarnQueue)) {
+                    String queueName = queue.getQueueName();
+                    if (queueName.equals(this.yarnQueue)
+                            || queueName.equals("root." + this.yarnQueue)) {
                         queueFound = true;
                         break;
                     }
+
+                    // Distinguish capacity and fair scheduler based on whether queue name contains
+                    // ".". The fair scheduler always returns a full-path queue
+                    // name(e.g.root.parent.q1), while the capacity scheduler returns a leaf queue
+                    // name(e.g. q2).
+                    if (!queueName.contains(".")) {
+                        String[] splitArray = this.yarnQueue.split("\\.");
+                        if (queueName.equals(splitArray[splitArray.length - 1])) {
+                            queueFound = true;
+                            break;
+                        }
+                    }
                 }
                 if (!queueFound) {
-                    String queueNames = StringUtils.toQuotedListString(queues.toArray());
+                    String queueNames =
+                            queues.stream()
+                                    .filter(Objects::nonNull)
+                                    .map(v -> v.getQueueName().toLowerCase())
+                                    .collect(Collectors.joining(", ", "\"", "\""));
                     LOG.warn(
                             "The specified queue '"
                                     + this.yarnQueue
@@ -768,6 +787,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                     + "Available queues: "
                                     + queueNames);
                 }
+                return queueFound;
             } else {
                 LOG.debug("The YARN cluster does not have any queues configured");
             }
@@ -777,6 +797,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 LOG.debug("Error details", e);
             }
         }
+        return false;
     }
 
     private ApplicationReport startAppMaster(
