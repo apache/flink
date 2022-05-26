@@ -45,7 +45,7 @@ DataGen 连接器是内置的。
 
 每个列，都有两种生成数据的方法：
 
-- 随机生成器是默认的生成器，您可以指定随机生成的最大和最小值。char、varchar、string （类型）可以指定长度。它是无界的生成器。
+- 随机生成器是默认的生成器，您可以指定随机生成的最大和最小值。char、varchar、binary、varbinary, string （类型）可以指定长度。它是无界的生成器。
 
 - 序列生成器，您可以指定序列的起始和结束值。它是有界的生成器，当序列数字达到结束值，读取结束。
 
@@ -136,7 +136,7 @@ CREATE TABLE datagen (
       <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>随机生成器生成字符的长度，适用于 char、varchar、string。</td>
+      <td>随机生成器生成字符的长度，适用于 char、varchar、binary、varbinary、string。</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
