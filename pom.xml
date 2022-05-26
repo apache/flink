@@ -1336,8 +1336,7 @@ under the License.
 								<configuration>
 									<rules>
 										<requireMavenVersion>
-											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
-											<version>(,3.3)</version>
+											<version>3.8.6</version>
 										</requireMavenVersion>
 										<requireJavaVersion>
 											<version>1.8.0</version>
@@ -1593,8 +1592,6 @@ under the License.
 						<exclude>tools/japicmp-output/**</exclude>
 						<!-- artifacts created during release process -->
 						<exclude>tools/releasing/release/**</exclude>
-						<!-- manually installed version on travis -->
-						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->
