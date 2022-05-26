@@ -39,6 +39,27 @@ public class PrometheusPushGatewayReporterOptions {
                     .defaultValue(-1)
                     .withDescription("The PushGateway server port.");
 
+    public static final ConfigOption<Boolean> NEED_BASIC_AUTH =
+            ConfigOptions.key("needBasicAuth")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies whether the push gateway server needs HTTP basic authentication.");
+
+    public static final ConfigOption<String> USERNAME =
+            ConfigOptions.key("username")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "Specifies the user if the push gateway server use HTTP basic authentication.");
+
+    public static final ConfigOption<String> PASSWORD =
+            ConfigOptions.key("password")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "Specifies the password if the push gateway server use HTTP basic authentication.");
+
     public static final ConfigOption<String> JOB_NAME =
             ConfigOptions.key("jobName")
                     .defaultValue("")
