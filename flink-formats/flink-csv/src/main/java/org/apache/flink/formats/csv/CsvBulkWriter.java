@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.common.Converter;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -54,9 +53,6 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
         this.stream = checkNotNull(stream);
         this.converterContext = converterContext;
         this.csvWriter = mapper.writer(schema);
-
-        // Prevent Jackson's writeValue() method calls from closing the stream.
-        mapper.getFactory().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
     }
 
     /**
@@ -80,24 +76,10 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
         return new CsvBulkWriter<>(mapper, schema, converter, converterContext, stream);
     }
 
-    /**
-     * Builds a writer based on a POJO class definition.
-     *
-     * @param pojoClass The class of the POJO.
-     * @param stream The output stream.
-     * @param <T> The type of the elements accepted by this writer.
-     */
-    static <T> CsvBulkWriter<T, T, Void> forPojo(Class<T> pojoClass, FSDataOutputStream stream) {
-        final Converter<T, T, Void> converter = (value, context) -> value;
-        final CsvMapper csvMapper = new CsvMapper();
-        final CsvSchema schema = csvMapper.schemaFor(pojoClass).withoutQuoteChar();
-        return new CsvBulkWriter<>(csvMapper, schema, converter, null, stream);
-    }
-
     @Override
     public void addElement(T element) throws IOException {
         final R r = converter.convert(element, converterContext);
-        csvWriter.writeValue(stream, r);
+        stream.write(csvWriter.writeValueAsBytes(r));
     }
 
     @Override
