@@ -801,6 +801,7 @@ class PyFlinkEmbeddedThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTest
         super(PyFlinkEmbeddedThreadTests, self).setUp()
         self.t_env.get_config().set("python.execution-mode", "thread")
 
+
 # test specify the input_types
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
 def add(i, j):
