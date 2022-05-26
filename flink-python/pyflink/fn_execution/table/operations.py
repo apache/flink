@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import abc
-import inspect
 from functools import reduce
 from itertools import chain
 from typing import Tuple
@@ -52,7 +51,6 @@ except ImportError:
     has_cython = False
 
 from pyflink.table import FunctionContext, Row
-from pyflink.table.udf import AggregateFunction
 
 # UDF
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
@@ -480,10 +478,6 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
         else:
             trigger = CountTrigger(self._window.window_size)
 
-        if isinstance(window_assigner, (SlidingWindowAssigner, SessionWindowAssigner)):
-            for user_defined_agg in user_defined_aggs:
-                self._check_needed_merged_method(user_defined_agg)
-
         window_aggregator = SimpleNamespaceAggsHandleFunction(
             user_defined_aggs,
             input_extractors,
@@ -560,17 +554,3 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             return eval('lambda value: [%s]' % named_property_extractor_str)
         else:
             return None
-
-    def _check_needed_merged_method(self, agg: AggregateFunction):
-        base_merge_method = None
-        for name, method in inspect.getmembers(AggregateFunction, predicate=inspect.isfunction):
-            if name == 'merge':
-                base_merge_method = method
-                break
-
-        assert base_merge_method is not None
-
-        for name, method in inspect.getmembers(agg.__class__, predicate=inspect.isfunction):
-            if name == 'merge' and base_merge_method == method:
-                raise NotImplementedError('You need to implement the `merge` method of {0} since '
-                                          'it is used in Sliding/Session Time Window.'.format(agg))
