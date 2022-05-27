@@ -22,9 +22,15 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 
 type RouterFactory = (...args: string[]) => string | string[];
 
+export interface RouterTab {
+  title: string;
+  path: string;
+}
+
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 export interface ModuleConfig<T extends keyof any = string, P extends keyof any = string> {
   editorOptions?: EditorOptions; // customize editor options
+  routerTabs?: RouterTab[];
   routerFactories?: Record<T, RouterFactory>; // customize router navigation
   customComponents?: Record<P, Type<unknown>>; // customize component
 }

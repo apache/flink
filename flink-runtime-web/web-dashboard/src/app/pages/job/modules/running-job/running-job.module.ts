@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 
-import { ModuleConfig } from '@flink-runtime-web/core/module-config';
-import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
+import { RunningJobRoutingModule } from '@flink-runtime-web/pages/job/modules/running-job/running-job-routing.module';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 
-type routerKeys = 'jobManager';
-
-export type JobManagerModuleConfig = Omit<ModuleConfig<routerKeys>, 'customComponents' | 'routerTabs'>;
-
-export const JOB_MANAGER_MODULE_DEFAULT_CONFIG: Required<JobManagerModuleConfig> = {
-  editorOptions: flinkEditorOptions,
-  routerFactories: {
-    jobManager: (jobManagerName: string) => [jobManagerName]
-  }
-};
-
-export const JOB_MANAGER_MODULE_CONFIG = new InjectionToken<JobManagerModuleConfig>('job-manager-module-config', {
-  providedIn: 'root',
-  factory: () => JOB_MANAGER_MODULE_DEFAULT_CONFIG
-});
+@NgModule({
+  declarations: [],
+  imports: [CommonModule, RunningJobRoutingModule, ShareModule, NzIconModule, NzSkeletonModule, NzAlertModule]
+})
+export class RunningJobModule {}

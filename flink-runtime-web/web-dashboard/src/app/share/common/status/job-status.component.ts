@@ -21,9 +21,8 @@ import { merge, Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil, tap } from 'rxjs/operators';
 
 import { JobDetailCorrect } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService, StatusService } from '@flink-runtime-web/services';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-status',
