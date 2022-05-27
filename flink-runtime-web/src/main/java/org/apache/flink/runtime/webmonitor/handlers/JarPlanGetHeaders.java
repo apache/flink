@@ -33,4 +33,9 @@ public class JarPlanGetHeaders extends AbstractJarPlanHeaders {
     public static JarPlanGetHeaders getInstance() {
         return INSTANCE;
     }
+
+    @Override
+    public String operationId() {
+        return "retrieveJarPlan";
+    }
 }

@@ -83,6 +83,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -92,6 +94,13 @@ import java.util.stream.Collectors;
  * be embedded into .md files using {@code {% include ${generated.docs.dir}/file.yml %}}.
  */
 public class OpenApiSpecGenerator {
+
+    /**
+     * A pattern for filtering verb suffixes in header names, to avoid operationIds like
+     * "deleteJarDelete".
+     */
+    private static final Pattern HTTPS_VERB_SUFFIX_PATTERN =
+            Pattern.compile("(.*?)(?:Get|Post|Delete)?Headers");
 
     private static final ModelConverterContext modelConverterContext;
 
@@ -289,11 +298,25 @@ public class OpenApiSpecGenerator {
 
         operation.description(spec.getDescription());
 
+        setOperationId(operation, spec);
         setParameters(operation, spec);
         setRequest(operation, spec);
         setResponse(operation, spec);
 
         pathItem.operation(convert(spec.getHttpMethod()), operation);
+    }
+
+    private static void setOperationId(
+            final Operation operation, final MessageHeaders<?, ?, ?> spec) {
+        final String baseId = spec.operationId();
+
+        final Matcher matcher = HTTPS_VERB_SUFFIX_PATTERN.matcher(baseId);
+        if (matcher.matches()) {
+            final String group = matcher.group(1);
+            operation.setOperationId(group);
+        } else {
+            operation.setOperationId(baseId);
+        }
     }
 
     private static void setParameters(

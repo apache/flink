@@ -22,6 +22,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Locale;
 
 /**
  * This class links {@link RequestBody}s to {@link ResponseBody}s types and contains meta-data
@@ -66,4 +67,13 @@ public interface MessageHeaders<
      * @return description for the header
      */
     String getDescription();
+
+    /**
+     * Returns a short description for this header suitable for method code generation.
+     *
+     * @return short description
+     */
+    default String operationId() {
+        return getHttpMethod().name().toLowerCase(Locale.ROOT) + getClass().getSimpleName();
+    }
 }

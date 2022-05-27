@@ -83,4 +83,9 @@ public class JobSubmitHeaders
     public boolean acceptsFileUploads() {
         return true;
     }
+
+    @Override
+    public String operationId() {
+        return "submitJob";
+    }
 }
