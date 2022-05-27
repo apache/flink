@@ -96,6 +96,7 @@ public class OpenApiSpecGenerator {
     private static final ModelConverterContext modelConverterContext;
 
     static {
+        ModelResolver.enumsAsRef = true;
         final ObjectMapper mapper =
                 new ObjectMapper().configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         modelConverterContext =
