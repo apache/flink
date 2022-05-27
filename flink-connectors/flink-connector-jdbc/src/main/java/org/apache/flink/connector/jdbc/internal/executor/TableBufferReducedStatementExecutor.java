@@ -90,16 +90,24 @@ public final class TableBufferReducedStatementExecutor
 
     @Override
     public void executeBatch() throws SQLException {
+        boolean upsertExecuteBatchFlag = false;
+        boolean deleteExecuteBatchFlag = false;
         for (Map.Entry<RowData, Tuple2<Boolean, RowData>> entry : reduceBuffer.entrySet()) {
             if (entry.getValue().f0) {
                 upsertExecutor.addToBatch(entry.getValue().f1);
+                upsertExecuteBatchFlag = true;
             } else {
                 // delete by key
                 deleteExecutor.addToBatch(entry.getKey());
+                deleteExecuteBatchFlag = true;
             }
         }
-        upsertExecutor.executeBatch();
-        deleteExecutor.executeBatch();
+        if (upsertExecuteBatchFlag) {
+            upsertExecutor.executeBatch();
+        }
+        if (deleteExecuteBatchFlag) {
+            deleteExecutor.executeBatch();
+        }
         reduceBuffer.clear();
     }
 
