@@ -555,7 +555,7 @@ class VectorUDT(UserDefinedType):
             values = [float(v) for v in obj._values]
             return 1, None, None, values
         else:
-            raise TypeError("Cannot serialize %r of type %r".format(obj, type(obj)))
+            raise TypeError("Cannot serialize {!r} of type {!r}".format(obj, type(obj)))
 
     def deserialize(self, datum):
         pass
