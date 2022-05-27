@@ -24,7 +24,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 
@@ -81,7 +80,7 @@ class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
-        final String deserializedObjTerm = newName("deserializedObj");
+        final String deserializedObjTerm = CodeGenUtils.newName("deserializedObj");
 
         final String resultStringTerm = CodeGenUtils.newName("resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
