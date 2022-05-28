@@ -372,12 +372,6 @@ class LocalBufferPool implements BufferPool {
         synchronized (availableMemorySegments) {
             checkDestroyed();
 
-            // target channel over quota; do not return a segment
-            if (targetChannel != UNKNOWN_CHANNEL
-                    && subpartitionBuffersCount[targetChannel] >= maxBuffersPerChannel) {
-                return null;
-            }
-
             segment = availableMemorySegments.poll();
 
             if (segment == null) {
