@@ -111,8 +111,8 @@ env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
-在启动时，每个 Checkpoint 仍将作为对齐 Checkpoint 开始，但是如果全局 Checkpoint 开始的时间和某个子任务上 Checkpoint
-开始的时间相差超过了对齐 Checkpoint 的超时时间，那么 Checkpoint 将会作为非对齐 Checkpoint 处理。
+在启动时，每个 Checkpoint 仍然是 aligned checkpoint，但是当全局 Checkpoint 持续时间超过
+`aligned-checkpoint-timeout` 时， 如果 aligned checkpoint 还没完成，那么 Checkpoint 将会转换为 Unaligned Checkpoint。
 
 ### 限制
 
