@@ -453,7 +453,11 @@ public class LocalBufferPoolTest extends TestLogger {
         final BufferBuilder bufferBuilder02 = localBufferPool.requestBufferBuilderBlocking(0);
         assertFalse(localBufferPool.getAvailableFuture().isDone());
 
-        assertNull(localBufferPool.requestBufferBuilder(0));
+        // When this channel reaches maxBuffersPerChannel, LocalBufferPool will be unavailable. But
+        // when a memory segment is requested from LocalBufferPool and availableMemorySegments isn't
+        // empty, maxBuffersPerChannel will be ignored and buffers will continue to be allocated.
+        // Check FLINK-27522 for more information.
+        final BufferBuilder bufferBuilder03 = localBufferPool.requestBufferBuilderBlocking(0);
         final BufferBuilder bufferBuilder21 = localBufferPool.requestBufferBuilderBlocking(2);
         final BufferBuilder bufferBuilder22 = localBufferPool.requestBufferBuilderBlocking(2);
         assertFalse(localBufferPool.getAvailableFuture().isDone());
@@ -464,8 +468,10 @@ public class LocalBufferPoolTest extends TestLogger {
         bufferBuilder21.close();
         assertFalse(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder02.close();
-        assertTrue(localBufferPool.getAvailableFuture().isDone());
+        assertFalse(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder01.close();
+        assertTrue(localBufferPool.getAvailableFuture().isDone());
+        bufferBuilder03.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
         bufferBuilder22.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
