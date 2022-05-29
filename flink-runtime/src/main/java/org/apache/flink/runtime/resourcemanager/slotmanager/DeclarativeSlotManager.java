@@ -84,6 +84,12 @@ public class DeclarativeSlotManager implements SlotManager {
     /** Delay of the requirement change check in the slot manager. */
     private final Duration requirementsCheckDelay;
 
+    /** The long delay of the requirements check. */
+    private final Duration requirementsCheckLongDelay;
+
+    /** The flag to control whether we need to trigger a long delay. */
+    private boolean isRequirementsCheckLongDelay = false;
+
     private boolean sendNotEnoughResourceNotifications = true;
 
     /** Scheduled executor for timeouts. */
@@ -117,6 +123,7 @@ public class DeclarativeSlotManager implements SlotManager {
         this.resourceTracker = Preconditions.checkNotNull(resourceTracker);
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
         this.requirementsCheckDelay = slotManagerConfiguration.getRequirementCheckDelay();
+        this.requirementsCheckLongDelay = slotManagerConfiguration.getRequirementCheckLongDelay();
 
         pendingSlotAllocations = new HashMap<>(16);
 
@@ -177,6 +184,11 @@ public class DeclarativeSlotManager implements SlotManager {
         if (failUnfulfillableRequest) {
             checkResourceRequirementsWithDelay();
         }
+    }
+
+    @Override
+    public void enlargeRequirementsCheckDelayOnce() {
+        this.isRequirementsCheckLongDelay = true;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -434,10 +446,15 @@ public class DeclarativeSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (requirementsCheckDelay.toMillis() <= 0) {
-            checkResourceRequirements();
-        } else {
-            if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
+        long delay =
+                isRequirementsCheckLongDelay
+                        ? requirementsCheckLongDelay.toMillis()
+                        : requirementsCheckDelay.toMillis();
+        boolean hasPendingRequirementsCheck =
+                requirementsCheckFuture != null && !requirementsCheckFuture.isDone();
+
+        if (!hasPendingRequirementsCheck) {
+            if (delay > 0) {
                 requirementsCheckFuture = new CompletableFuture<>();
                 scheduledExecutor.schedule(
                         () ->
@@ -447,8 +464,11 @@ public class DeclarativeSlotManager implements SlotManager {
                                             Preconditions.checkNotNull(requirementsCheckFuture)
                                                     .complete(null);
                                         }),
-                        requirementsCheckDelay.toMillis(),
+                        delay,
                         TimeUnit.MILLISECONDS);
+                isRequirementsCheckLongDelay = false;
+            } else {
+                checkResourceRequirements();
             }
         }
     }

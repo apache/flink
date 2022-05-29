@@ -37,8 +37,10 @@ import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,6 +48,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -751,5 +754,57 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
         };
 
         System.setSecurityManager(null);
+    }
+
+    @Test
+    public void testRequirementLongDelayOnlyTakeEffectOnce() throws Exception {
+        final List<CompletableFuture<Void>> allocateFutures = new ArrayList<>();
+        final AtomicInteger current = new AtomicInteger(0);
+        allocateFutures.add(new CompletableFuture<>());
+        allocateFutures.add(new CompletableFuture<>());
+
+        new Context() {
+            {
+                setRequirementCheckDelay(Duration.ZERO);
+                Duration longDelay = Duration.ofMillis(500);
+                setRequirementCheckLongDelay(longDelay);
+                resourceActionsBuilder.setAllocateResourceFunction(
+                        workerResourceSpec -> {
+                            allocateFutures.get(current.get()).complete(null);
+                            return true;
+                        });
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> {
+                                        current.set(0);
+                                        getSlotManager().enlargeRequirementsCheckDelayOnce();
+                                        getSlotManager()
+                                                .processResourceRequirements(
+                                                        createResourceRequirements(
+                                                                new JobID(),
+                                                                1,
+                                                                DEFAULT_SLOT_RESOURCE_PROFILE));
+                                    });
+                            assertFutureNotComplete(allocateFutures.get(current.get()));
+                            assertFutureCompleteAndReturn(allocateFutures.get(current.get()));
+
+                            runInMainThread(
+                                    () -> {
+                                        current.set(1);
+                                        getSlotManager()
+                                                .processResourceRequirements(
+                                                        createResourceRequirements(
+                                                                new JobID(),
+                                                                1,
+                                                                DEFAULT_SLOT_RESOURCE_PROFILE));
+                                    });
+                            // the second requirements finished directly after process resource
+                            // requirements.
+                            Assertions.assertThat(allocateFutures.get(current.get()).isDone())
+                                    .isEqualTo(true);
+                        });
+            }
+        };
     }
 }

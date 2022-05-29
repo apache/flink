@@ -151,6 +151,21 @@ public class ResourceManagerOptions {
                     .withDescription("The delay of the resource requirements check.");
 
     /**
+     * The long delay of requirements check. This is only used for waiting for the previous
+     * TaskManagers registration and will only take effect in the first requirements check.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> REQUIREMENTS_CHECK_LONG_DELAY =
+            ConfigOptions.key("slotmanager.requirement-check.long-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "The long delay of requirements check. This is only used for waiting for the previous "
+                                    + "TaskManagers registration and will only take effect in the first requirements "
+                                    + "check. If redundant TaskManager are launched during the JobManager failover, "
+                                    + "we could increase this delay to solve it.");
+
+    /**
      * The timeout for a slot request to be discarded, in milliseconds.
      *
      * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.

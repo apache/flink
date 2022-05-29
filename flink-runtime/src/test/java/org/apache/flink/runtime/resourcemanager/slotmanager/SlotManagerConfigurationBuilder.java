@@ -33,6 +33,7 @@ public class SlotManagerConfigurationBuilder {
     private Time slotRequestTimeout;
     private Time taskManagerTimeout;
     private Duration requirementCheckDelay;
+    private Duration requirementCheckLongDelay;
     private boolean waitResultConsumedBeforeRelease;
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
@@ -46,6 +47,8 @@ public class SlotManagerConfigurationBuilder {
         this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
         this.requirementCheckDelay = ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY.defaultValue();
+        this.requirementCheckLongDelay =
+                ResourceManagerOptions.REQUIREMENTS_CHECK_LONG_DELAY.defaultValue();
         this.waitResultConsumedBeforeRelease = true;
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
         this.numSlotsPerWorker = 1;
@@ -79,6 +82,12 @@ public class SlotManagerConfigurationBuilder {
     public SlotManagerConfigurationBuilder setRequirementCheckDelay(
             Duration requirementCheckDelay) {
         this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
+    public SlotManagerConfigurationBuilder setRequirementCheckLongDelay(
+            Duration requirementCheckLongDelay) {
+        this.requirementCheckLongDelay = requirementCheckLongDelay;
         return this;
     }
 
@@ -125,6 +134,7 @@ public class SlotManagerConfigurationBuilder {
                 slotRequestTimeout,
                 taskManagerTimeout,
                 requirementCheckDelay,
+                requirementCheckLongDelay,
                 waitResultConsumedBeforeRelease,
                 AnyMatchingSlotMatchingStrategy.INSTANCE,
                 defaultWorkerResourceSpec,

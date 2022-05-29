@@ -964,6 +964,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 MetricNames.NUM_REGISTERED_TASK_MANAGERS, () -> (long) taskExecutors.size());
     }
 
+    protected void enlargeRequirementsCheckDelayOnce() {
+        slotManager.enlargeRequirementsCheckDelayOnce();
+    }
+
     private void clearStateInternal() {
         jobManagerRegistrations.clear();
         jmResourceIdRegistrations.clear();

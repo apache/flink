@@ -152,6 +152,8 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
         private Duration requirementCheckDelay = Duration.ZERO;
+        private Duration requirementCheckLongDelay =
+                Duration.ofMillis(FUTURE_EXPECT_TIMEOUT_MS * 2);
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
@@ -181,6 +183,10 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
             this.requirementCheckDelay = requirementCheckDelay;
         }
 
+        public void setRequirementCheckLongDelay(Duration requirementCheckLongDelay) {
+            this.requirementCheckLongDelay = requirementCheckLongDelay;
+        }
+
         public void setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
             this.slotManagerMetricGroup = slotManagerMetricGroup;
         }
@@ -203,7 +209,10 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
             slotManager =
                     new FineGrainedSlotManager(
                             scheduledExecutor,
-                            slotManagerConfigurationBuilder.build(),
+                            slotManagerConfigurationBuilder
+                                    .setRequirementCheckDelay(requirementCheckDelay)
+                                    .setRequirementCheckLongDelay(requirementCheckLongDelay)
+                                    .build(),
                             slotManagerMetricGroup,
                             resourceTracker,
                             taskManagerTracker,

@@ -58,9 +58,9 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
+import org.assertj.core.api.Assertions;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -1449,20 +1449,68 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             final JobID jobId = new JobID();
 
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
-            Assertions.assertEquals(0, allocatedResourceCounter.get());
-            Assertions.assertEquals(
-                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+            Assertions.assertThat(allocatedResourceCounter.get()).isEqualTo(0);
+            Assertions.assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask().size())
+                    .isEqualTo(1);
             final ScheduledFuture<?> future =
                     scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
-            Assertions.assertEquals(delay.toMillis(), future.getDelay(TimeUnit.MILLISECONDS));
+            Assertions.assertThat(future.getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(delay.toMillis());
 
             // the second request is skipped
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
-            Assertions.assertEquals(
-                    1, scheduledExecutor.getActiveNonPeriodicScheduledTask().size());
+            Assertions.assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask().size())
+                    .isEqualTo(1);
 
             scheduledExecutor.triggerNonPeriodicScheduledTask();
-            Assertions.assertEquals(1, allocatedResourceCounter.get());
+            Assertions.assertThat(allocatedResourceCounter.get()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testProcessResourceRequirementsWithLongDelay() throws Exception {
+        final ResourceTracker resourceTracker = new DefaultResourceTracker();
+        final AtomicInteger allocatedResourceCounter = new AtomicInteger(0);
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final Duration longDelay = Duration.ofSeconds(1);
+        final Duration delay = Duration.ofMillis(500);
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder(scheduledExecutor)
+                        .setResourceTracker(resourceTracker)
+                        .setRequirementCheckDelay(delay)
+                        .setRequirementCheckLongDelay(longDelay)
+                        .buildAndStartWithDirectExec(
+                                ResourceManagerId.generate(),
+                                new TestingResourceActionsBuilder()
+                                        .setAllocateResourceConsumer(
+                                                workerResourceSpec ->
+                                                        allocatedResourceCounter.getAndIncrement())
+                                        .build())) {
+
+            final JobID jobId = new JobID();
+
+            slotManager.enlargeRequirementsCheckDelayOnce();
+
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+
+            Assertions.assertThat(allocatedResourceCounter.get()).isEqualTo(0);
+            Assertions.assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
+            final ScheduledFuture<?> future =
+                    scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
+            // the first is long delay
+            Assertions.assertThat(future.getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(longDelay.toMillis());
+            scheduledExecutor.triggerNonPeriodicScheduledTask();
+            Assertions.assertThat(allocatedResourceCounter.get()).isEqualTo(1);
+
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            Assertions.assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).hasSize(1);
+            final ScheduledFuture<?> secondFuture =
+                    scheduledExecutor.getActiveNonPeriodicScheduledTask().iterator().next();
+            // the long delay only take effects once, so the second is normal delay
+            Assertions.assertThat(secondFuture.getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(delay.toMillis());
         }
     }
 

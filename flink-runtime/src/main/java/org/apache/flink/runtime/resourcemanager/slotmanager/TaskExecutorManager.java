@@ -57,7 +57,7 @@ import java.util.stream.StreamSupport;
  *   <li>tracking registered task executors
  *   <li>allocating new task executors (both on-demand, and for redundancy)
  *   <li>releasing idle task executors
- *   <li>tracking pending slots (expected slots from executors that are currently being allocated
+ *   <li>tracking pending slots (expected slots from executors that are currently being allocated)
  *   <li>tracking how many slots are used on each task executor
  * </ul>
  *

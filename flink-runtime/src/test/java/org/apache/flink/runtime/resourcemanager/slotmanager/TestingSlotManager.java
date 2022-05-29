@@ -153,5 +153,8 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
+    public void enlargeRequirementsCheckDelayOnce() {}
+
+    @Override
     public void close() throws Exception {}
 }

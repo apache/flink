@@ -83,6 +83,12 @@ public class FineGrainedSlotManager implements SlotManager {
     /** Delay of the requirement change check in the slot manager. */
     private final Duration requirementsCheckDelay;
 
+    /** The long delay of the requirement change check in the slot manager. */
+    private final Duration requirementsCheckLongDelay;
+
+    /** The flag to control whether we need to trigger a long delay. */
+    private boolean isRequirementsCheckLongDelay = false;
+
     private final SlotManagerMetricGroup slotManagerMetricGroup;
 
     private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
@@ -132,6 +138,8 @@ public class FineGrainedSlotManager implements SlotManager {
                 slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
         this.requirementsCheckDelay =
                 Preconditions.checkNotNull(slotManagerConfiguration.getRequirementCheckDelay());
+        this.requirementsCheckLongDelay =
+                Preconditions.checkNotNull(slotManagerConfiguration.getRequirementCheckLongDelay());
 
         this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
 
@@ -258,6 +266,11 @@ public class FineGrainedSlotManager implements SlotManager {
         jobMasterTargetAddresses.remove(jobId);
         taskManagerTracker.clearPendingAllocationsOfJob(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
+    }
+
+    @Override
+    public void enlargeRequirementsCheckDelayOnce() {
+        isRequirementsCheckLongDelay = true;
     }
 
     @Override
@@ -491,10 +504,15 @@ public class FineGrainedSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (requirementsCheckDelay.toMillis() <= 0) {
-            checkResourceRequirements();
-        } else {
-            if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
+        long delay =
+                isRequirementsCheckLongDelay
+                        ? requirementsCheckLongDelay.toMillis()
+                        : requirementsCheckDelay.toMillis();
+        boolean hasPendingRequirementsCheck =
+                requirementsCheckFuture != null && !requirementsCheckFuture.isDone();
+
+        if (!hasPendingRequirementsCheck) {
+            if (delay > 0) {
                 requirementsCheckFuture = new CompletableFuture<>();
                 scheduledExecutor.schedule(
                         () ->
@@ -504,8 +522,11 @@ public class FineGrainedSlotManager implements SlotManager {
                                             Preconditions.checkNotNull(requirementsCheckFuture)
                                                     .complete(null);
                                         }),
-                        requirementsCheckDelay.toMillis(),
+                        delay,
                         TimeUnit.MILLISECONDS);
+                isRequirementsCheckLongDelay = false;
+            } else {
+                checkResourceRequirements();
             }
         }
     }

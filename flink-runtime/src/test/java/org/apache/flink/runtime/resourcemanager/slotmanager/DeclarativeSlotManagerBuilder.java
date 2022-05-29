@@ -49,6 +49,7 @@ public class DeclarativeSlotManagerBuilder {
     private ResourceTracker resourceTracker;
     private SlotTracker slotTracker;
     private Duration requirementCheckDelay;
+    private Duration requirementCheckLongDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -67,6 +68,7 @@ public class DeclarativeSlotManagerBuilder {
         this.resourceTracker = new DefaultResourceTracker();
         this.slotTracker = new DefaultSlotTracker();
         this.requirementCheckDelay = Duration.ZERO;
+        this.requirementCheckLongDelay = Duration.ZERO;
     }
 
     public static DeclarativeSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
@@ -143,6 +145,12 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setRequirementCheckLongDelay(
+            Duration requirementCheckLongDelay) {
+        this.requirementCheckLongDelay = requirementCheckLongDelay;
+        return this;
+    }
+
     public DeclarativeSlotManager build() {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
@@ -150,6 +158,7 @@ public class DeclarativeSlotManagerBuilder {
                         slotRequestTimeout,
                         taskManagerTimeout,
                         requirementCheckDelay,
+                        requirementCheckLongDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
                         defaultWorkerResourceSpec,

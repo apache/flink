@@ -74,5 +74,11 @@
             <td>Integer</td>
             <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn).</td>
         </tr>
+        <tr>
+            <td><h5>slotmanager.requirement-check.long-delay</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The long delay of requirements check. This is only used for waiting for the previous TaskManagers registration and will only take effect in the first requirements check. If redundant TaskManager are launched during the JobManager failover, we could increase this delay to solve it.</td>
+        </tr>
     </tbody>
 </table>

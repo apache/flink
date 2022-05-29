@@ -149,4 +149,10 @@ public interface SlotManager extends AutoCloseable {
     void freeSlot(SlotID slotId, AllocationID allocationId);
 
     void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
+
+    /**
+     * Enlarge the delay of requirements check. This is only used for waiting for the previous
+     * TaskManagers registration and will only take effect in the first requirements check.
+     */
+    void enlargeRequirementsCheckDelayOnce();
 }
