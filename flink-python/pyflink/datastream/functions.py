@@ -22,7 +22,7 @@ from typing import Union, Any, Generic, TypeVar, Iterable
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
-    AggregatingStateDescriptor, AggregatingState, BroadcastState
+    AggregatingStateDescriptor, AggregatingState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
@@ -114,22 +114,6 @@ class KeyedStateStore(ABC):
         aggregates values with different types.
 
         This state is only accessible if the function is executed on a KeyedStream.
-        """
-        pass
-
-
-class OperatorStateStore(ABC):
-    """
-    Interface for getting operator states. Currently, only :class:`~state.BroadcastState` is
-    supported.
-    .. versionadded:: 1.16.0
-    """
-
-    @abstractmethod
-    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
-        """
-        Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
-        which has read/write access to the broadcast operator state.
         """
         pass
 

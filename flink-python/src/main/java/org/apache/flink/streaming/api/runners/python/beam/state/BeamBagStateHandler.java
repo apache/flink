@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Set;
 
 /** BeamBagStateHandler handles operations on {@link ListState}, which backs Beam bag states. */
-public class BeamBagStateHandler implements BeamStateHandler<ListState<byte[]>> {
+public class BeamBagStateHandler extends AbstractBeamStateHandler<ListState<byte[]>> {
 
     private static final String MERGE_NAMESPACES_MARK = "merge_namespaces";
 

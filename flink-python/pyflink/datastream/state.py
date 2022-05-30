@@ -17,11 +17,10 @@
 ################################################################################
 from abc import ABC, abstractmethod
 from enum import Enum
-
 from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple, Optional
 
-from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.common.time import Time
+from pyflink.common.typeinfo import TypeInformation, Types
 
 __all__ = [
     'ValueStateDescriptor',
@@ -36,7 +35,8 @@ __all__ = [
     'AggregatingState',
     'ReadOnlyBroadcastState',
     'BroadcastState',
-    'StateTtlConfig'
+    'StateTtlConfig',
+    'OperatorStateStore',
 ]
 
 T = TypeVar('T')
@@ -44,6 +44,22 @@ K = TypeVar('K')
 V = TypeVar('V')
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
+
+
+class OperatorStateStore(ABC):
+    """
+    Interface for getting operator states. Currently, only :class:`~state.BroadcastState` is
+    supported.
+    .. versionadded:: 1.16.0
+    """
+
+    @abstractmethod
+    def get_broadcast_state(self, state_descriptor: 'MapStateDescriptor') -> 'BroadcastState':
+        """
+        Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
+        which has read/write access to the broadcast operator state.
+        """
+        pass
 
 
 class State(ABC):

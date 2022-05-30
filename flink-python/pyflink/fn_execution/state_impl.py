@@ -28,8 +28,8 @@ from io import BytesIO
 from typing import List, Tuple, Any, Dict, Collection, cast
 
 from pyflink.datastream import ReduceFunction
-from pyflink.datastream.functions import AggregateFunction, OperatorStateStore
-from pyflink.datastream.state import StateTtlConfig, MapStateDescriptor
+from pyflink.datastream.functions import AggregateFunction
+from pyflink.datastream.state import StateTtlConfig, MapStateDescriptor, OperatorStateStore
 from pyflink.fn_execution.beam.beam_coders import FlinkCoder
 from pyflink.fn_execution.coders import FieldCoder, MapCoder, from_type_info
 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor as pb2_StateDescriptor

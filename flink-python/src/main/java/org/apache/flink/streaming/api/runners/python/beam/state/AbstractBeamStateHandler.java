@@ -20,24 +20,23 @@ package org.apache.flink.streaming.api.runners.python.beam.state;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
-/** Interface for doing actual operations on Flink state based on {@link BeamFnApi.StateRequest}. */
-public interface BeamStateHandler<S> {
+/** Abstract class extends {@link BeamStateHandler}, which implements the common handle logic. */
+public abstract class AbstractBeamStateHandler<S> implements BeamStateHandler<S> {
 
-    /**
-     * Dispatches {@link BeamFnApi.StateRequest} to different handle functions base on request case.
-     */
-    BeamFnApi.StateResponse.Builder handle(BeamFnApi.StateRequest request, S state)
-            throws Exception;
-
-    /** Handles GET requests. */
-    BeamFnApi.StateResponse.Builder handleGet(BeamFnApi.StateRequest request, S state)
-            throws Exception;
-
-    /** Handles APPEND requests. */
-    BeamFnApi.StateResponse.Builder handleAppend(BeamFnApi.StateRequest request, S state)
-            throws Exception;
-
-    /** Handles CLEAR requests. */
-    BeamFnApi.StateResponse.Builder handleClear(BeamFnApi.StateRequest request, S state)
-            throws Exception;
+    public BeamFnApi.StateResponse.Builder handle(BeamFnApi.StateRequest request, S state)
+            throws Exception {
+        switch (request.getRequestCase()) {
+            case GET:
+                return handleGet(request, state);
+            case APPEND:
+                return handleAppend(request, state);
+            case CLEAR:
+                return handleClear(request, state);
+            default:
+                throw new RuntimeException(
+                        String.format(
+                                "Unsupported request type %s for user state.",
+                                request.getRequestCase()));
+        }
+    }
 }

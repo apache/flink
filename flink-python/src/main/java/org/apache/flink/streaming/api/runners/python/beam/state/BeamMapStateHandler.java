@@ -36,7 +36,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /** BeamMapStateHandler handles operations on a {@link MapState}. */
-public class BeamMapStateHandler implements BeamStateHandler<MapState<ByteArrayWrapper, byte[]>> {
+public class BeamMapStateHandler
+        extends AbstractBeamStateHandler<MapState<ByteArrayWrapper, byte[]>> {
 
     private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
 
