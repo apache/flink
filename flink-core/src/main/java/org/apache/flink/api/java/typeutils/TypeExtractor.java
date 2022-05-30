@@ -524,7 +524,7 @@ public class TypeExtractor {
                 lambdaOutputTypeArgumentIndices != null,
                 "Indices for output type arguments within lambda not provided");
 
-        // explicit result type has highest precedence
+        // explicit result type has the highest precedence
         if (function instanceof ResultTypeQueryable) {
             return ((ResultTypeQueryable<OUT>) function).getProducedType();
         }
@@ -668,7 +668,7 @@ public class TypeExtractor {
                 lambdaOutputTypeArgumentIndices != null,
                 "Indices for output type arguments within lambda not provided");
 
-        // explicit result type has highest precedence
+        // explicit result type has the highest precedence
         if (function instanceof ResultTypeQueryable) {
             return ((ResultTypeQueryable<OUT>) function).getProducedType();
         }
