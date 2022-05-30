@@ -48,7 +48,7 @@ public interface ClusterPartitionManager {
      * Report the cluster partitions status in the task executor.
      *
      * @param taskExecutorId The id of the task executor.
-     * @param clusterPartitionReport THe status of the cluster partitions.
+     * @param clusterPartitionReport The status of the cluster partitions.
      * @return future that is completed once the report have been processed.
      */
     CompletableFuture<Void> reportClusterPartitions(
