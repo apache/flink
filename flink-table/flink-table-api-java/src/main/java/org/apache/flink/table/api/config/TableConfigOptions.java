@@ -178,6 +178,15 @@ public class TableConfigOptions {
                     .withDescription(
                             "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+    public static final ConfigOption<String> DOWNLOADED_RESOURCES_TMP_DIR =
+            key("table.downloaded.resources.tmpdir")
+                    .stringType()
+                    .defaultValue(System.getProperty("java.io.tmpdir"))
+                    .withDescription(
+                            "Temporary local directory for downloaded resources from the remote file system.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
