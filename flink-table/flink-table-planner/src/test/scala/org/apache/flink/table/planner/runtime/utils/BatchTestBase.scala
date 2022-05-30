@@ -72,6 +72,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     "(?s)From line ([0-9]+),"
       + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
+  @throws(classOf[Exception])
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(tableConfig)

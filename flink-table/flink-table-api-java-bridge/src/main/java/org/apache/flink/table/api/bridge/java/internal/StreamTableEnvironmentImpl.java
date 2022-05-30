@@ -46,14 +46,18 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -70,40 +74,43 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     public StreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             TableConfig tableConfig,
             StreamExecutionEnvironment executionEnvironment,
             Planner planner,
             Executor executor,
-            boolean isStreamingMode,
-            ClassLoader userClassLoader) {
+            boolean isStreamingMode) {
         super(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
                 isStreamingMode,
-                userClassLoader,
                 executionEnvironment);
     }
 
     public static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-        final ClassLoader classLoader = settings.getUserClassLoader();
-
-        final Executor executor = lookupExecutor(classLoader, executionEnvironment);
+        final MutableURLClassLoader userClassLoader =
+                FlinkUserCodeClassLoaders.create(
+                        new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
+        final Executor executor = lookupExecutor(userClassLoader, executionEnvironment);
 
         final TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(executor.getConfiguration());
         tableConfig.addConfiguration(settings.getConfiguration());
 
+        final ResourceManager resourceManager =
+                new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(classLoader)
+                        .classLoader(userClassLoader)
                         .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -114,13 +121,13 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         .build();
 
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager, classLoader);
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
                         executor,
                         tableConfig,
-                        classLoader,
+                        userClassLoader,
                         moduleManager,
                         catalogManager,
                         functionCatalog);
@@ -128,13 +135,13 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 executionEnvironment,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                classLoader);
+                settings.isStreamingMode());
     }
 
     @Override

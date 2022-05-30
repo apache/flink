@@ -43,6 +43,7 @@ class StreamingTestBase extends AbstractTestBase {
   @Rule
   def tempFolder: TemporaryFolder = _tempFolder
 
+  @throws(classOf[Exception])
   @Before
   @BeforeEach
   def before(): Unit = {

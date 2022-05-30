@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.utils;
+package org.apache.flink.table.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,14 +29,23 @@ import org.apache.flink.types.Row;
 /** A bunch of UDFs for testing the SQL Client. */
 public class UserDefinedFunctions {
 
-    public static final String GENERATED_UDF_CLASS = "LowerUDF";
+    public static final String GENERATED_LOWER_UDF_CLASS = "LowerUDF";
+    public static final String GENERATED_UPPER_UDF_CLASS = "UpperUDF";
 
-    public static final String GENERATED_UDF_CODE =
+    public static final String GENERATED_LOWER_UDF_CODE =
             "public class "
-                    + GENERATED_UDF_CLASS
+                    + "%s"
                     + " extends org.apache.flink.table.functions.ScalarFunction {\n"
                     + "  public String eval(String str) {\n"
                     + "    return str.toLowerCase();\n"
+                    + "  }\n"
+                    + "}\n";
+    public static final String GENERATED_UPPER_UDF_CODE =
+            "public class "
+                    + "%s"
+                    + " extends org.apache.flink.table.functions.ScalarFunction {\n"
+                    + "  public String eval(String str) {\n"
+                    + "    return str.toUpperCase();\n"
                     + "  }\n"
                     + "}\n";
 

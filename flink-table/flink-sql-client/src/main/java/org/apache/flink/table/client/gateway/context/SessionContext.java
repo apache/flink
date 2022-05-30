@@ -19,12 +19,9 @@
 package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -35,7 +32,12 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.resource.ClientResourceManager;
+import org.apache.flink.table.client.util.ClientClassloaderUtil;
+import org.apache.flink.table.client.util.ClientWrapperClassLoader;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -45,11 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,17 +69,14 @@ public class SessionContext {
     private final Configuration sessionConfiguration;
 
     private final SessionState sessionState;
-    // SafetyNetWrapperClassLoader doesn't override the getURL therefore we need to maintain the
-    // dependencies by ourselves.
-    private Set<URL> dependencies;
-    private URLClassLoader classLoader;
+    private final ClientWrapperClassLoader classLoader;
     private ExecutionContext executionContext;
 
     private SessionContext(
             DefaultContext defaultContext,
             String sessionId,
             Configuration sessionConfiguration,
-            URLClassLoader classLoader,
+            ClientWrapperClassLoader classLoader,
             SessionState sessionState,
             ExecutionContext executionContext) {
         this.defaultContext = defaultContext;
@@ -90,7 +85,6 @@ public class SessionContext {
         this.classLoader = classLoader;
         this.sessionState = sessionState;
         this.executionContext = executionContext;
-        this.dependencies = new HashSet<>(defaultContext.getDependencies());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -115,7 +109,7 @@ public class SessionContext {
 
     @VisibleForTesting
     Set<URL> getDependencies() {
-        return dependencies;
+        return sessionState.resourceManager.getLocalJarResources();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -133,9 +127,6 @@ public class SessionContext {
         // If rebuild a new Configuration, it loses control of the SessionState if users wants to
         // modify the configuration
         resetSessionConfigurationToDefault(defaultContext.getFlinkConfig());
-        // Reset configuration will revert the `pipeline.jars`. To make the current classloader
-        // still work, add the maintained dependencies into the configuration.
-        updateClassLoaderAndDependencies(dependencies);
         executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
     }
 
@@ -186,11 +177,7 @@ public class SessionContext {
                 sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
             }
         }
-        try {
-            classLoader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing class loader.", e);
-        }
+        classLoader.close();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -208,25 +195,30 @@ public class SessionContext {
         // Init classloader
         // --------------------------------------------------------------------------------------------------------------
 
-        URLClassLoader classLoader =
-                ClientUtils.buildUserCodeClassLoader(
-                        defaultContext.getDependencies(),
-                        Collections.emptyList(),
-                        SessionContext.class.getClassLoader(),
+        // here use ClientMutableURLClassLoader to support remove jar
+        final ClientWrapperClassLoader userClassLoader =
+                new ClientWrapperClassLoader(
+                        ClientClassloaderUtil.buildUserClassLoader(
+                                defaultContext.getDependencies(),
+                                SessionContext.class.getClassLoader(),
+                                new Configuration(configuration)),
                         configuration);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init session state
         // --------------------------------------------------------------------------------------------------------------
 
-        ModuleManager moduleManager = new ModuleManager();
+        final ClientResourceManager resourceManager =
+                new ClientResourceManager(configuration, userClassLoader);
+
+        final ModuleManager moduleManager = new ModuleManager();
 
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
-        CatalogManager catalogManager =
+        final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(classLoader)
+                        .classLoader(userClassLoader)
                         .config(configuration)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -235,69 +227,63 @@ public class SessionContext {
                                         settings.getBuiltInDatabaseName()))
                         .build();
 
-        FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, catalogManager, moduleManager, classLoader);
-        SessionState sessionState =
-                new SessionState(catalogManager, moduleManager, functionCatalog);
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
+        final SessionState sessionState =
+                new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init ExecutionContext
         // --------------------------------------------------------------------------------------------------------------
 
         ExecutionContext executionContext =
-                new ExecutionContext(configuration, classLoader, sessionState);
+                new ExecutionContext(configuration, userClassLoader, sessionState);
 
         return new SessionContext(
                 defaultContext,
                 sessionId,
                 configuration,
-                classLoader,
+                userClassLoader,
                 sessionState,
                 executionContext);
     }
 
     public void addJar(String jarPath) {
-        URL jarURL = getURLFromPath(jarPath, "SQL Client only supports to add local jars.");
-        if (dependencies.contains(jarURL)) {
-            return;
+        checkJarPath(jarPath, "SQL Client only supports to add local jars.");
+        try {
+            sessionState.resourceManager.registerJarResources(
+                    Collections.singletonList(new ResourceUri(ResourceType.JAR, jarPath)));
+        } catch (Exception e) {
+            LOG.warn(String.format("Could not register the specified jar [%s].", jarPath), e);
         }
-
-        // merge the jars in config with the jars maintained in session
-        Set<URL> jarsInConfig = getJarsInConfig();
-
-        Set<URL> newDependencies = new HashSet<>(dependencies);
-        newDependencies.addAll(jarsInConfig);
-        newDependencies.add(jarURL);
-        updateClassLoaderAndDependencies(newDependencies);
-
-        // renew the execution context
-        executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
     }
 
     public void removeJar(String jarPath) {
-        URL jarURL = getURLFromPath(jarPath, "SQL Client only supports to remove local jars.");
-        if (!dependencies.contains(jarURL)) {
+        // if is relative path, convert to absolute path
+        URL jarURL = checkJarPath(jarPath, "SQL Client only supports to remove local jars.");
+        // remove jar from resource manager
+        jarURL = sessionState.resourceManager.unregisterJarResource(jarURL.getPath());
+        if (jarURL == null) {
             LOG.warn(
                     String.format(
-                            "Could not remove the specified jar because the jar path(%s) is not found in session classloader.",
+                            "Could not remove the specified jar because the jar path [%s] hadn't registered to classloader.",
                             jarPath));
             return;
         }
-
-        Set<URL> newDependencies = new HashSet<>(dependencies);
-        // merge the jars in config with the jars maintained in session
-        Set<URL> jarsInConfig = getJarsInConfig();
-        newDependencies.addAll(jarsInConfig);
-        newDependencies.remove(jarURL);
-
-        updateClassLoaderAndDependencies(newDependencies);
-
-        // renew the execution context
-        executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
+        // remove jar from classloader
+        classLoader.removeURL(jarURL);
     }
 
     public List<String> listJars() {
-        return dependencies.stream().map(URL::getPath).collect(Collectors.toList());
+        List<String> jars =
+                sessionState.resourceManager.getResources().keySet().stream()
+                        .filter(
+                                resourceUri ->
+                                        ResourceType.JAR.equals(resourceUri.getResourceType()))
+                        .map(ResourceUri::getUri)
+                        .collect(Collectors.toList());
+        LOG.info(String.format("Registered jars: %s", jars));
+        return jars;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -308,15 +294,18 @@ public class SessionContext {
     public static class SessionState {
 
         public final CatalogManager catalogManager;
-        public final FunctionCatalog functionCatalog;
         public final ModuleManager moduleManager;
+        public final ClientResourceManager resourceManager;
+        public final FunctionCatalog functionCatalog;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
+                ClientResourceManager resourceManager,
                 FunctionCatalog functionCatalog) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;
+            this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
         }
     }
@@ -332,25 +321,7 @@ public class SessionContext {
         sessionConfiguration.addAll(defaultConf);
     }
 
-    private void updateClassLoaderAndDependencies(Collection<URL> newDependencies) {
-        // replace jars with the new dependencies
-        ConfigUtils.encodeCollectionToConfig(
-                sessionConfiguration,
-                PipelineOptions.JARS,
-                new ArrayList<>(newDependencies),
-                URL::toString);
-
-        // TODO: update the classloader in CatalogManager.
-        classLoader =
-                ClientUtils.buildUserCodeClassLoader(
-                        new ArrayList<>(newDependencies),
-                        Collections.emptyList(),
-                        SessionContext.class.getClassLoader(),
-                        sessionConfiguration);
-        dependencies = new HashSet<>(newDependencies);
-    }
-
-    private URL getURLFromPath(String jarPath, String message) {
+    private URL checkJarPath(String jarPath, String message) {
         Path path = new Path(jarPath);
         String scheme = path.toUri().getScheme();
         if (scheme != null && !scheme.equals("file")) {
@@ -371,19 +342,5 @@ public class SessionContext {
                     String.format("Failed to get the jar file with specified path: %s", jarPath),
                     e);
         }
-    }
-
-    private Set<URL> getJarsInConfig() {
-        Set<URL> jarsInConfig;
-        try {
-            jarsInConfig =
-                    new HashSet<>(
-                            ConfigUtils.decodeListFromConfig(
-                                    sessionConfiguration, PipelineOptions.JARS, URL::new));
-        } catch (MalformedURLException e) {
-            throw new SqlExecutionException(
-                    "Failed to parse the option `pipeline.jars` in configuration.", e);
-        }
-        return jarsInConfig;
     }
 }
