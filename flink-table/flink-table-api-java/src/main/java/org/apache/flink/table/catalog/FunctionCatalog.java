@@ -40,9 +40,11 @@ import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -67,7 +69,7 @@ public final class FunctionCatalog {
     private final ReadableConfig config;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
-    private ClassLoader classLoader;
+    private final ResourceManager resourceManager;
 
     private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
@@ -83,16 +85,11 @@ public final class FunctionCatalog {
             ReadableConfig config,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
-            ClassLoader classLoader) {
+            ResourceManager resourceManager) {
         this.config = checkNotNull(config);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
-        this.classLoader = classLoader;
-    }
-
-    /** Updates the classloader, this is a temporary solution until FLINK-14055 is fixed. */
-    public void updateClassLoader(ClassLoader classLoader) {
-        this.classLoader = classLoader;
+        this.resourceManager = resourceManager;
     }
 
     public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -159,7 +156,7 @@ public final class FunctionCatalog {
                                         normalizedIdentifier.toObjectPath(), catalogFunction);
             }
             try {
-                validateAndPrepareFunction(catalogFunction);
+                validateAndPrepareFunction(identifier.asSummaryString(), catalogFunction);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
@@ -506,7 +503,7 @@ public final class FunctionCatalog {
         final String normalizedName = FunctionIdentifier.normalizeName(name);
 
         try {
-            validateAndPrepareFunction(function);
+            validateAndPrepareFunction(name, function);
         } catch (Throwable t) {
             throw new ValidationException(
                     String.format(
@@ -585,7 +582,10 @@ public final class FunctionCatalog {
                     fd =
                             catalog.getFunctionDefinitionFactory()
                                     .get()
-                                    .createFunctionDefinition(oi.getObjectName(), catalogFunction);
+                                    .createFunctionDefinition(
+                                            oi.getObjectName(),
+                                            catalogFunction,
+                                            resourceManager.getUserClassLoader());
                 } else {
                     fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
                 }
@@ -634,7 +634,7 @@ public final class FunctionCatalog {
     }
 
     @SuppressWarnings("unchecked")
-    private void validateAndPrepareFunction(CatalogFunction function)
+    private void validateAndPrepareFunction(String name, CatalogFunction function)
             throws ClassNotFoundException {
         // If the input is instance of UserDefinedFunction, it means it uses the new type inference.
         // In this situation the UDF have not been validated and cleaned, so we need to validate it
@@ -649,9 +649,15 @@ public final class FunctionCatalog {
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
+            // If the resource of UDF used is not empty, register it to classloader before
+            // validate.
+            registerFunctionResource(name, function.getFunctionResources());
+
             UserDefinedFunctionHelper.validateClass(
                     (Class<? extends UserDefinedFunction>)
-                            classLoader.loadClass(function.getClassName()));
+                            resourceManager
+                                    .getUserClassLoader()
+                                    .loadClass(function.getClassName()));
         }
     }
 
@@ -662,12 +668,33 @@ public final class FunctionCatalog {
             // directly.
             return ((InlineCatalogFunction) function).getDefinition();
         }
+        // If the resource of UDF used is not empty, register it to classloader before
+        // validate.
+        registerFunctionResource(name, function.getFunctionResources());
+
         return UserDefinedFunctionHelper.instantiateFunction(
-                classLoader,
+                resourceManager.getUserClassLoader(),
                 // future
                 config,
                 name,
                 function);
+    }
+
+    private void registerFunctionResource(String functionName, List<ResourceUri> resourceUris) {
+        if (!resourceUris.isEmpty()) {
+            resourceUris.forEach(
+                    resourceUri -> {
+                        try {
+                            resourceManager.registerResource(resourceUri);
+                        } catch (IOException e) {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Failed to register resource '%s' of function '%s'.",
+                                            resourceUri, functionName),
+                                    e);
+                        }
+                    });
+        }
     }
 
     /** The CatalogFunction which holds a instantiated UDF. */

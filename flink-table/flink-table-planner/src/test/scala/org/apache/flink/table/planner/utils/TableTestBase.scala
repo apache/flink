@@ -42,7 +42,7 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
+import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -57,6 +57,7 @@ import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, Tes
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
@@ -64,6 +65,7 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.{ClassLoaderUtil, FlinkUserCodeClassLoaders}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
@@ -78,6 +80,7 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import java.io.{File, IOException}
+import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.time.Duration
 
@@ -1431,21 +1434,21 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
 class TestingTableEnvironment private (
     catalogManager: CatalogManager,
     moduleManager: ModuleManager,
+    resourceManager: ResourceManager,
     tableConfig: TableConfig,
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreamingMode: Boolean,
-    userClassLoader: ClassLoader)
+    isStreamingMode: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
+    resourceManager,
     tableConfig,
     executor,
     functionCatalog,
     planner,
-    isStreamingMode,
-    userClassLoader) {
+    isStreamingMode) {
 
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
@@ -1507,10 +1510,15 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    val classLoader = settings.getUserClassLoader
+    val userClassLoader: FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader =
+      ClassLoaderUtil
+        .buildSafetyNetWrapperClassLoader(
+          new Array[URL](0),
+          settings.getUserClassLoader,
+          settings.getConfiguration)
 
     val executorFactory = FactoryUtil.discoverFactory(
-      classLoader,
+      userClassLoader,
       classOf[ExecutorFactory],
       ExecutorFactory.DEFAULT_IDENTIFIER)
 
@@ -1525,7 +1533,7 @@ object TestingTableEnvironment {
       case Some(c) => c
       case _ =>
         CatalogManager.newBuilder
-          .classLoader(classLoader)
+          .classLoader(userClassLoader)
           .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
@@ -1535,22 +1543,30 @@ object TestingTableEnvironment {
           .build
     }
 
+    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
+
     val functionCatalog =
-      new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager, classLoader)
+      new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager, resourceManager)
 
     val planner = PlannerFactoryUtil
-      .createPlanner(executor, tableConfig, classLoader, moduleManager, catalogMgr, functionCatalog)
+      .createPlanner(
+        executor,
+        tableConfig,
+        userClassLoader,
+        moduleManager,
+        catalogMgr,
+        functionCatalog)
       .asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,
       moduleManager,
+      resourceManager,
       tableConfig,
       executor,
       functionCatalog,
       planner,
-      settings.isStreamingMode,
-      classLoader)
+      settings.isStreamingMode)
   }
 }
 

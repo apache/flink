@@ -27,9 +27,11 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExecutorMock;
 import org.apache.flink.table.utils.PlannerMock;
+import org.apache.flink.table.utils.ResourceManagerMocks;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
@@ -77,20 +79,18 @@ class StreamTableEnvironmentImplTest {
         TableConfig tableConfig = TableConfig.getDefault();
         CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         ModuleManager moduleManager = new ModuleManager();
+        ResourceManager resourceManager = ResourceManagerMocks.createEmptyResourceManager();
+
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
-                new FunctionCatalog(
-                        tableConfig,
-                        catalogManager,
-                        moduleManager,
-                        StreamTableEnvironmentImplTest.class.getClassLoader()),
+                resourceManager,
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager),
                 tableConfig,
                 env,
                 new TestPlanner(elements.getTransformation()),
                 new ExecutorMock(),
-                true,
-                this.getClass().getClassLoader());
+                true);
     }
 
     private static class TestPlanner extends PlannerMock {

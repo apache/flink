@@ -25,6 +25,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
 
 /** Mocking {@link TableEnvironment} for tests. */
 public class TableEnvironmentMock extends TableEnvironmentImpl {
@@ -40,6 +41,7 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
     protected TableEnvironmentMock(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager userResourceManager,
             TableConfig tableConfig,
             ExecutorMock executor,
             FunctionCatalog functionCatalog,
@@ -48,13 +50,12 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
         super(
                 catalogManager,
                 moduleManager,
+                userResourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode,
-                TableEnvironmentMock.class.getClassLoader());
-
+                isStreamingMode);
         this.catalogManager = catalogManager;
         this.executor = executor;
         this.functionCatalog = functionCatalog;
@@ -73,12 +74,15 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
         final TableConfig tableConfig = TableConfig.getDefault();
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         final ModuleManager moduleManager = new ModuleManager();
+        final ResourceManager resourceManager = ResourceManagerMocks.createEmptyResourceManager();
+
         return new TableEnvironmentMock(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 createExecutor(),
-                createFunctionCatalog(tableConfig, catalogManager, moduleManager),
+                createFunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager),
                 createPlanner(),
                 isStreamingMode);
     }
@@ -88,9 +92,11 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
     }
 
     private static FunctionCatalog createFunctionCatalog(
-            ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        return new FunctionCatalog(
-                config, catalogManager, moduleManager, TableEnvironmentMock.class.getClassLoader());
+            ReadableConfig config,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            ResourceManager resourceManager) {
+        return new FunctionCatalog(config, catalogManager, moduleManager, resourceManager);
     }
 
     private static PlannerMock createPlanner() {

@@ -31,7 +31,9 @@ import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ResourceManagerMocks;
 
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelTraitDef;
@@ -59,6 +61,7 @@ public class PlannerMocks {
             boolean isBatchMode,
             TableConfig tableConfig,
             CatalogManager catalogManager,
+            ResourceManager resourceManager,
             List<RelTraitDef> traitDefs,
             CalciteSchema rootSchema) {
         this.catalogManager = catalogManager;
@@ -67,11 +70,7 @@ public class PlannerMocks {
         final ModuleManager moduleManager = new ModuleManager();
 
         this.functionCatalog =
-                new FunctionCatalog(
-                        tableConfig,
-                        catalogManager,
-                        moduleManager,
-                        PlannerMocks.class.getClassLoader());
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager);
 
         this.plannerContext =
                 new PlannerContext(
@@ -156,6 +155,7 @@ public class PlannerMocks {
         private boolean batchMode = false;
         private TableConfig tableConfig = TableConfig.getDefault();
         private CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        private ResourceManager resourceManager = ResourceManagerMocks.createEmptyResourceManager();
         private List<RelTraitDef> traitDefs = Collections.emptyList();
         private CalciteSchema rootSchema;
 
@@ -181,6 +181,11 @@ public class PlannerMocks {
             return this;
         }
 
+        public Builder withResourceManager(ResourceManager resourceManager) {
+            this.resourceManager = resourceManager;
+            return this;
+        }
+
         public Builder withTraitDefs(List<RelTraitDef> traitDefs) {
             this.traitDefs = traitDefs;
             return this;
@@ -192,7 +197,8 @@ public class PlannerMocks {
         }
 
         public PlannerMocks build() {
-            return new PlannerMocks(batchMode, tableConfig, catalogManager, traitDefs, rootSchema);
+            return new PlannerMocks(
+                    batchMode, tableConfig, catalogManager, resourceManager, traitDefs, rootSchema);
         }
     }
 

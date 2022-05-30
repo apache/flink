@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ConfigUtils;
@@ -36,6 +35,9 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.ClassLoaderUtil;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -45,10 +47,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,14 +74,14 @@ public class SessionContext {
     // SafetyNetWrapperClassLoader doesn't override the getURL therefore we need to maintain the
     // dependencies by ourselves.
     private Set<URL> dependencies;
-    private URLClassLoader classLoader;
+    private FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader;
     private ExecutionContext executionContext;
 
     private SessionContext(
             DefaultContext defaultContext,
             String sessionId,
             Configuration sessionConfiguration,
-            URLClassLoader classLoader,
+            FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader,
             SessionState sessionState,
             ExecutionContext executionContext) {
         this.defaultContext = defaultContext;
@@ -186,11 +186,8 @@ public class SessionContext {
                 sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
             }
         }
-        try {
-            classLoader.close();
-        } catch (IOException e) {
-            LOG.debug("Error while closing class loader.", e);
-        }
+
+        classLoader.close();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -207,11 +204,9 @@ public class SessionContext {
         // --------------------------------------------------------------------------------------------------------------
         // Init classloader
         // --------------------------------------------------------------------------------------------------------------
-
-        URLClassLoader classLoader =
-                ClientUtils.buildUserCodeClassLoader(
-                        defaultContext.getDependencies(),
-                        Collections.emptyList(),
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader userClassLoader =
+                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+                        defaultContext.getDependencies().toArray(new URL[0]),
                         SessionContext.class.getClassLoader(),
                         configuration);
 
@@ -226,7 +221,7 @@ public class SessionContext {
 
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(classLoader)
+                        .classLoader(userClassLoader)
                         .config(configuration)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -235,23 +230,25 @@ public class SessionContext {
                                         settings.getBuiltInDatabaseName()))
                         .build();
 
+        final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
+
         FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, catalogManager, moduleManager, classLoader);
+                new FunctionCatalog(configuration, catalogManager, moduleManager, resourceManager);
         SessionState sessionState =
-                new SessionState(catalogManager, moduleManager, functionCatalog);
+                new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
 
         // --------------------------------------------------------------------------------------------------------------
         // Init ExecutionContext
         // --------------------------------------------------------------------------------------------------------------
 
         ExecutionContext executionContext =
-                new ExecutionContext(configuration, classLoader, sessionState);
+                new ExecutionContext(configuration, userClassLoader, sessionState);
 
         return new SessionContext(
                 defaultContext,
                 sessionId,
                 configuration,
-                classLoader,
+                userClassLoader,
                 sessionState,
                 executionContext);
     }
@@ -308,15 +305,18 @@ public class SessionContext {
     public static class SessionState {
 
         public final CatalogManager catalogManager;
-        public final FunctionCatalog functionCatalog;
         public final ModuleManager moduleManager;
+        public final ResourceManager resourceManager;
+        public final FunctionCatalog functionCatalog;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
+                ResourceManager resourceManager,
                 FunctionCatalog functionCatalog) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;
+            this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
         }
     }
@@ -342,9 +342,8 @@ public class SessionContext {
 
         // TODO: update the classloader in CatalogManager.
         classLoader =
-                ClientUtils.buildUserCodeClassLoader(
-                        new ArrayList<>(newDependencies),
-                        Collections.emptyList(),
+                ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
+                        new ArrayList<>(newDependencies).toArray(new URL[0]),
                         SessionContext.class.getClassLoader(),
                         sessionConfiguration);
         dependencies = new HashSet<>(newDependencies);

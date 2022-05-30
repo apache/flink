@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.ModifyOperation
-import org.apache.flink.table.utils.{CatalogManagerMocks, ExecutorMock, PlannerMock}
+import org.apache.flink.table.utils.{CatalogManagerMocks, ExecutorMock, PlannerMock, ResourceManagerMocks}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
@@ -70,20 +70,18 @@ class StreamTableEnvironmentImplTest {
     val tableConfig = TableConfig.getDefault
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = new ModuleManager
+    val resourceManager = ResourceManagerMocks.createEmptyResourceManager()
+
     new StreamTableEnvironmentImpl(
       catalogManager,
       moduleManager,
-      new FunctionCatalog(
-        tableConfig,
-        catalogManager,
-        moduleManager,
-        Thread.currentThread().getContextClassLoader),
+      resourceManager,
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager),
       tableConfig,
       env,
       new TestPlanner(elements.javaStream.getTransformation),
       new ExecutorMock,
-      true,
-      this.getClass.getClassLoader)
+      true)
   }
 
   private class TestPlanner(transformation: Transformation[_]) extends PlannerMock {

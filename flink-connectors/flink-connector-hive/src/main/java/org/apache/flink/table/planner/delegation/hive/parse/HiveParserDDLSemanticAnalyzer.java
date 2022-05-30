@@ -524,7 +524,8 @@ public class HiveParserDDLSemanticAnalyzer {
             FunctionDefinition funcDefinition =
                     funcDefFactory.createFunctionDefinition(
                             functionName,
-                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA));
+                            new CatalogFunctionImpl(className, FunctionLanguage.JAVA),
+                            catalogManager.getUserClassLoader());
             return new CreateTempSystemFunctionOperation(functionName, false, funcDefinition);
         } else {
             ObjectIdentifier identifier = parseObjectIdentifier(functionName);

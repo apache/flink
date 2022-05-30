@@ -34,10 +34,11 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
-import java.net.URLClassLoader;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
@@ -53,12 +54,14 @@ public class ExecutionContext {
     // Members that should be reused in the same session.
     private final Configuration flinkConfig;
     private final SessionState sessionState;
-    private final URLClassLoader classLoader;
+    private final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader;
 
     private final StreamTableEnvironment tableEnv;
 
     public ExecutionContext(
-            Configuration flinkConfig, URLClassLoader classLoader, SessionState sessionState) {
+            Configuration flinkConfig,
+            FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader classLoader,
+            SessionState sessionState) {
         this.flinkConfig = flinkConfig;
         this.sessionState = sessionState;
         this.classLoader = classLoader;
@@ -110,16 +113,16 @@ public class ExecutionContext {
 
         final Executor executor = lookupExecutor(streamExecEnv);
 
-        // Updates the classloader of FunctionCatalog by the new classloader to solve ClassNotFound
-        // exception when use an udf created by add jar syntax, temporary solution until FLINK-14055
-        // is fixed
-        sessionState.functionCatalog.updateClassLoader(classLoader);
+        // Updates the classloader of ResourceManager by the new classloader to solve
+        // ClassNotFound exception when call add jar syntax case
+        sessionState.resourceManager.updateClassLoader(classLoader);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
+                sessionState.resourceManager,
                 sessionState.functionCatalog,
                 classLoader);
     }
@@ -130,6 +133,7 @@ public class ExecutionContext {
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             ClassLoader userClassLoader) {
 
@@ -149,13 +153,13 @@ public class ExecutionContext {
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                userClassLoader);
+                settings.isStreamingMode());
     }
 
     private Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {

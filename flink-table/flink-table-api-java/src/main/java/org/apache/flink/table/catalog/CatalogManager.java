@@ -82,6 +82,8 @@ public final class CatalogManager {
     // The name of the built-in catalog
     private final String builtInCatalogName;
 
+    private final ClassLoader userClassLoader;
+
     private final DataTypeFactory typeFactory;
 
     private final ManagedTableListener managedTableListener;
@@ -89,6 +91,7 @@ public final class CatalogManager {
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
+            ClassLoader userClassLoader,
             DataTypeFactory typeFactory,
             ManagedTableListener managedTableListener) {
         checkArgument(
@@ -105,6 +108,7 @@ public final class CatalogManager {
         // right now the default catalog is always the built-in one
         builtInCatalogName = defaultCatalogName;
 
+        this.userClassLoader = userClassLoader;
         this.typeFactory = typeFactory;
         this.managedTableListener = managedTableListener;
     }
@@ -160,6 +164,7 @@ public final class CatalogManager {
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
+                    classLoader,
                     dataTypeFactory != null
                             ? dataTypeFactory
                             : new DataTypeFactoryImpl(classLoader, config, executionConfig),
@@ -948,5 +953,9 @@ public final class CatalogManager {
         }
         final ResolvedSchema resolvedSchema = view.getUnresolvedSchema().resolve(schemaResolver);
         return new ResolvedCatalogView(view, resolvedSchema);
+    }
+
+    public ClassLoader getUserClassLoader() {
+        return userClassLoader;
     }
 }
