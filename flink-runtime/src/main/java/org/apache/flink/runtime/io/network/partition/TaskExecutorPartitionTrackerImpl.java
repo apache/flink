@@ -27,7 +27,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,9 +91,7 @@ public class TaskExecutorPartitionTrackerImpl
                     clusterPartitions.computeIfAbsent(
                             dataSetMetaInfo.getIntermediateDataSetId(),
                             ignored -> new DataSetEntry(dataSetMetaInfo.getNumberOfPartitions()));
-            dataSetEntry.addPartition(partitionTrackerEntry.getResultPartitionId());
-            dataSetEntry.addShuffleDescriptor(
-                    partitionTrackerEntry.getMetaInfo().getShuffleDescriptor());
+            dataSetEntry.addPartition(partitionTrackerEntry.getMetaInfo().getShuffleDescriptor());
         }
     }
 
@@ -124,7 +121,6 @@ public class TaskExecutorPartitionTrackerImpl
                                 entry ->
                                         new ClusterPartitionReport.ClusterPartitionReportEntry(
                                                 entry.getKey(),
-                                                entry.getValue().getPartitionIds(),
                                                 entry.getValue().getTotalNumberOfPartitions(),
                                                 entry.getValue().getShuffleDescriptors()))
                         .collect(Collectors.toList());
@@ -134,31 +130,27 @@ public class TaskExecutorPartitionTrackerImpl
 
     private static class DataSetEntry {
 
-        private final Set<ResultPartitionID> partitionIds = new HashSet<>();
-        private final Set<ShuffleDescriptor> shuffleDescriptors = new HashSet<>();
+        private final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors =
+                new HashMap<>();
         private final int totalNumberOfPartitions;
 
         private DataSetEntry(int totalNumberOfPartitions) {
             this.totalNumberOfPartitions = totalNumberOfPartitions;
         }
 
-        void addPartition(ResultPartitionID resultPartitionId) {
-            partitionIds.add(resultPartitionId);
-        }
-
-        void addShuffleDescriptor(ShuffleDescriptor shuffleDescriptor) {
-            shuffleDescriptors.add(shuffleDescriptor);
+        void addPartition(ShuffleDescriptor shuffleDescriptor) {
+            shuffleDescriptors.put(shuffleDescriptor.getResultPartitionID(), shuffleDescriptor);
         }
 
         public Set<ResultPartitionID> getPartitionIds() {
-            return partitionIds;
+            return shuffleDescriptors.keySet();
         }
 
         public int getTotalNumberOfPartitions() {
             return totalNumberOfPartitions;
         }
 
-        public Set<ShuffleDescriptor> getShuffleDescriptors() {
+        public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
             return shuffleDescriptors;
         }
     }

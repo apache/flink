@@ -29,7 +29,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -230,17 +229,16 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
             IntermediateDataSetID dataSetId,
             int numTotalPartitions,
             ResultPartitionID... partitionId) {
-        final Set<ShuffleDescriptor> shuffleDescriptors =
+        final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors =
                 Arrays.stream(partitionId)
                         .map(TestShuffleDescriptor::new)
-                        .collect(Collectors.toSet());
+                        .collect(
+                                Collectors.toMap(
+                                        TestShuffleDescriptor::getResultPartitionID, d -> d));
         return new ClusterPartitionReport(
                 Collections.singletonList(
                         new ClusterPartitionReport.ClusterPartitionReportEntry(
-                                dataSetId,
-                                new HashSet<>(Arrays.asList(partitionId)),
-                                numTotalPartitions,
-                                shuffleDescriptors)));
+                                dataSetId, numTotalPartitions, shuffleDescriptors)));
     }
 
     private static class TestShuffleDescriptor implements ShuffleDescriptor {

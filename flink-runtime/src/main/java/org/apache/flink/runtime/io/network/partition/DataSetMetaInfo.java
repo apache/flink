@@ -21,9 +21,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.OptionalInt;
-import java.util.Set;
 
 /** Container for meta-data of a data set. */
 public final class DataSetMetaInfo {
@@ -31,7 +31,7 @@ public final class DataSetMetaInfo {
 
     private final int numRegisteredPartitions;
     private final int numTotalPartitions;
-    private final Set<ShuffleDescriptor> shuffleDescriptors = new HashSet<>();
+    private final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors = new HashMap<>();
 
     private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
         this.numRegisteredPartitions = numRegisteredPartitions;
@@ -48,11 +48,12 @@ public final class DataSetMetaInfo {
         return numTotalPartitions;
     }
 
-    public void addShuffleDescriptors(Set<ShuffleDescriptor> shuffleDescriptors) {
-        this.shuffleDescriptors.addAll(shuffleDescriptors);
+    public void addShuffleDescriptors(
+            Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors) {
+        this.shuffleDescriptors.putAll(shuffleDescriptors);
     }
 
-    public Set<ShuffleDescriptor> getShuffleDescriptors() {
+    public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
         return this.shuffleDescriptors;
     }
 

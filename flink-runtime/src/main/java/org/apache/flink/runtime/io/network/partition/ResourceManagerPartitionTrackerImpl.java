@@ -110,7 +110,7 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
         if (dataSetMetaInfo == null) {
             return Collections.emptyList();
         }
-        return new ArrayList<>(dataSetMetaInfo.getShuffleDescriptors());
+        return new ArrayList<>(dataSetMetaInfo.getShuffleDescriptors().values());
     }
 
     private void internalProcessClusterPartitionReport(

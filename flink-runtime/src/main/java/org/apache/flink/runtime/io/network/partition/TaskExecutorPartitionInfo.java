@@ -29,27 +29,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Encapsulates meta-information the TaskExecutor requires to be kept for each partition. */
 public final class TaskExecutorPartitionInfo {
 
-    private final ResultPartitionID resultPartitionId;
     private final IntermediateDataSetID intermediateDataSetId;
     private final ShuffleDescriptor shuffleDescriptor;
 
     private final int numberOfPartitions;
 
     public TaskExecutorPartitionInfo(
-            ResultPartitionID resultPartitionId,
+            ShuffleDescriptor shuffleDescriptor,
             IntermediateDataSetID intermediateDataSetId,
             int numberOfPartitions) {
-        this(resultPartitionId, intermediateDataSetId, numberOfPartitions, null);
-    }
-
-    public TaskExecutorPartitionInfo(
-            ResultPartitionID resultPartitionId,
-            IntermediateDataSetID intermediateDataSetId,
-            int numberOfPartitions,
-            ShuffleDescriptor shuffleDescriptor) {
-        this.resultPartitionId = checkNotNull(resultPartitionId);
         this.intermediateDataSetId = checkNotNull(intermediateDataSetId);
-        this.shuffleDescriptor = shuffleDescriptor;
+        this.shuffleDescriptor = checkNotNull(shuffleDescriptor);
         checkArgument(numberOfPartitions > 0);
         this.numberOfPartitions = numberOfPartitions;
     }
@@ -59,7 +49,7 @@ public final class TaskExecutorPartitionInfo {
     }
 
     public ResultPartitionID getResultPartitionId() {
-        return resultPartitionId;
+        return shuffleDescriptor.getResultPartitionID();
     }
 
     public int getNumberOfPartitions() {
@@ -88,10 +78,9 @@ public final class TaskExecutorPartitionInfo {
     public static TaskExecutorPartitionInfo from(
             ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
         return new TaskExecutorPartitionInfo(
-                resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID(),
+                resultPartitionDeploymentDescriptor.getShuffleDescriptor(),
                 resultPartitionDeploymentDescriptor.getResultId(),
-                resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions(),
-                resultPartitionDeploymentDescriptor.getShuffleDescriptor());
+                resultPartitionDeploymentDescriptor.getTotalNumberOfPartitions());
     }
 
     public ShuffleDescriptor getShuffleDescriptor() {
