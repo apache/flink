@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -75,11 +76,14 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public CompletableFuture<InMemoryChangelogStateHandle> persist(SequenceNumber from) {
+    public CompletableFuture<SnapshotResult<InMemoryChangelogStateHandle>> persist(
+            SequenceNumber from) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
-                new InMemoryChangelogStateHandle(collectChanges(from), from, sqn, keyGroupRange));
+                SnapshotResult.of(
+                        new InMemoryChangelogStateHandle(
+                                collectChanges(from), from, sqn, keyGroupRange)));
     }
 
     private List<StateChange> collectChanges(SequenceNumber after) {
@@ -113,8 +117,11 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public void confirm(SequenceNumber from, SequenceNumber to) {}
+    public void confirm(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 
     @Override
-    public void reset(SequenceNumber from, SequenceNumber to) {}
+    public void subsume(long checkpointId) {}
+
+    @Override
+    public void reset(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 }

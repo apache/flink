@@ -700,7 +700,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             try {
                 changelogStorage =
                         changelogStoragesManager.stateChangelogStorageForJob(
-                                jobId, taskManagerConfiguration.getConfiguration(), jobGroup);
+                                jobId,
+                                taskManagerConfiguration.getConfiguration(),
+                                jobGroup,
+                                localStateStore.getLocalRecoveryConfig());
             } catch (IOException e) {
                 throw new TaskSubmissionException(e);
             }

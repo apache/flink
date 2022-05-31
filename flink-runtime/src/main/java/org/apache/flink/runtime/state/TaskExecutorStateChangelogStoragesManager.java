@@ -89,7 +89,8 @@ public class TaskExecutorStateChangelogStoragesManager {
     public StateChangelogStorage<?> stateChangelogStorageForJob(
             @Nonnull JobID jobId,
             Configuration configuration,
-            TaskManagerJobMetricGroup metricGroup)
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         synchronized (lock) {
             if (closed) {
@@ -103,7 +104,8 @@ public class TaskExecutorStateChangelogStoragesManager {
 
             if (stateChangelogStorage == null) {
                 StateChangelogStorage<?> loaded =
-                        StateChangelogStorageLoader.load(jobId, configuration, metricGroup);
+                        StateChangelogStorageLoader.load(
+                                jobId, configuration, metricGroup, localRecoveryConfig);
                 stateChangelogStorage = Optional.ofNullable(loaded);
                 changelogStoragesByJobId.put(jobId, stateChangelogStorage);
 

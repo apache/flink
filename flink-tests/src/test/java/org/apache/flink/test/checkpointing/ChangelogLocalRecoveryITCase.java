@@ -150,11 +150,9 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
                 () ->
                         miniCluster
                                 .getExecutionGraph(firstJobGraph.getJobID())
-                                .get(10000, TimeUnit.SECONDS),
+                                .get(500, TimeUnit.SECONDS),
                 false);
-
-        waitForAllTaskRunning(miniCluster, firstJobGraph.getJobID(), false);
-        miniCluster.triggerCheckpoint(firstJobGraph.getJobID()).get();
+        miniCluster.triggerCheckpoint(firstJobGraph.getJobID());
     }
 
     private StreamExecutionEnvironment getEnv(
