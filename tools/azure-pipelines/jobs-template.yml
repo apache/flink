@@ -86,22 +86,8 @@ jobs:
     clean: all
   strategy:
     matrix:
-      core:
-        module: core
-      python:
-        module: python
-      table:
-        module: table
-      connect_1:
-        module: connect_1
-      connect_2:
-        module: connect_2
-      tests:
-        module: tests
       misc:
         module: misc
-      finegrained_resource_management:
-        module: finegrained_resource_management
   steps:
   # if on Azure, free up disk space
   - script: ./tools/azure-pipelines/free_disk_space.sh
@@ -176,18 +162,3 @@ jobs:
     displayName: Save docker images
     condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
     continueOnError: true
-
-- template: e2e-template.yml
-  parameters:
-    stage_name: ${{parameters.stage_name}}
-    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
-    environment: ${{parameters.environment}}
-    jdk: ${{parameters.jdk}}
-    group: 1
-- template: e2e-template.yml
-  parameters:
-    stage_name: ${{parameters.stage_name}}
-    e2e_pool_definition: ${{parameters.e2e_pool_definition}}
-    environment: ${{parameters.environment}}
-    jdk: ${{parameters.jdk}}
-    group: 2
