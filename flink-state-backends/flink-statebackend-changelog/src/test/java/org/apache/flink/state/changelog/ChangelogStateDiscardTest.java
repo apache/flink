@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.changelog.fs.StateChangeSet;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -128,7 +130,8 @@ public class ChangelogStateDiscardTest {
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
         singleBackendTest(
-                new FsStateChangelogStorage(scheduler, 0L, registry),
+                new FsStateChangelogStorage(
+                        scheduler, 0L, registry, TestLocalRecoveryConfig.disabled()),
                 (backend, writer) -> {
                     changeAndLogRandomState(backend, scheduler.uploads::size);
                     truncate(writer, backend);
@@ -185,7 +188,8 @@ public class ChangelogStateDiscardTest {
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
         final StateChangelogStorage<?> storage =
-                new FsStateChangelogStorage(scheduler, 0, registry);
+                new FsStateChangelogStorage(
+                        scheduler, 0, registry, TestLocalRecoveryConfig.disabled());
         final StateChangelogWriter<?>
                 w1 = storage.createWriter("test-operator-1", kgRange, new SyncMailboxExecutor()),
                 w2 = storage.createWriter("test-operator-2", kgRange, new SyncMailboxExecutor());
@@ -222,7 +226,10 @@ public class ChangelogStateDiscardTest {
         long preEmptivePersistThresholdInBytes = 0L; // flush ASAP
         singleBackendTest(
                 new FsStateChangelogStorage(
-                        directScheduler(uploader), preEmptivePersistThresholdInBytes, registry),
+                        directScheduler(uploader),
+                        preEmptivePersistThresholdInBytes,
+                        registry,
+                        TestLocalRecoveryConfig.disabled()),
                 (backend, writer) -> testCase.accept(backend, writer, uploader));
     }
 
@@ -367,14 +374,15 @@ public class ChangelogStateDiscardTest {
             results.add(handle);
             // todo: avoid making StateChangeSet and its internals public?
             // todo: make the contract more explicit or extract common code
-            Map<UploadTask, Map<StateChangeSet, Long>> taskOffsets =
+            Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> taskOffsets =
                     tasks.stream().collect(toMap(identity(), this::mapOffsets));
             tasks.forEach(task -> startTracking(registry, handle, task));
             return new UploadTasksResult(taskOffsets, handle);
         }
 
-        private Map<StateChangeSet, Long> mapOffsets(UploadTask task) {
-            return task.getChangeSets().stream().collect(Collectors.toMap(identity(), ign -> 0L));
+        private Map<StateChangeSet, Tuple2<Long, Long>> mapOffsets(UploadTask task) {
+            return task.getChangeSets().stream()
+                    .collect(Collectors.toMap(identity(), ign -> Tuple2.of(0L, 0L)));
         }
 
         @Override

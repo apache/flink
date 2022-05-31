@@ -19,6 +19,8 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -80,7 +82,9 @@ public class FsStateChangelogWriterSqnTest {
                                 new TestingStateChangeUploader()),
                         Long.MAX_VALUE,
                         new SyncMailboxExecutor(),
-                        TaskChangelogRegistry.NO_OP)) {
+                        TaskChangelogRegistry.NO_OP,
+                        TestLocalRecoveryConfig.disabled(),
+                        LocalChangelogRegistry.NO_OP)) {
             if (writerSqnTestSettings.withAppend) {
                 append(writer);
             }

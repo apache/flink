@@ -24,6 +24,8 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -55,7 +57,8 @@ public class StateChangelogStorageLoaderTest {
                 StateChangelogStorageLoader.load(
                         JobID.generate(),
                         new Configuration(),
-                        createUnregisteredTaskManagerJobMetricGroup()));
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled()));
     }
 
     @Test
@@ -66,7 +69,8 @@ public class StateChangelogStorageLoaderTest {
                         JobID.generate(),
                         new Configuration()
                                 .set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "not_exist"),
-                        createUnregisteredTaskManagerJobMetricGroup()));
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled()));
     }
 
     @Test
@@ -79,7 +83,8 @@ public class StateChangelogStorageLoaderTest {
                 StateChangelogStorageLoader.load(
                         JobID.generate(),
                         new Configuration(),
-                        createUnregisteredTaskManagerJobMetricGroup());
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
         assertTrue(loaded instanceof TestStateChangelogStorage);
     }
 
@@ -120,7 +125,10 @@ public class StateChangelogStorageLoaderTest {
 
         @Override
         public StateChangelogStorage<?> createStorage(
-                JobID jobID, Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+                JobID jobID,
+                Configuration configuration,
+                TaskManagerJobMetricGroup metricGroup,
+                LocalRecoveryConfig localRecoveryConfig) {
             return new TestStateChangelogStorage();
         }
 

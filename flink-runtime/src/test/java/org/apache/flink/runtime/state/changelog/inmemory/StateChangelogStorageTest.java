@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
@@ -97,10 +98,10 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
                 writer.nextSequenceNumber();
             }
 
-            T handle = writer.persist(prev).get();
+            SnapshotResult<T> res = writer.persist(prev).get();
+            T jmHandle = res.getJobManagerOwnedSnapshot();
             StateChangelogHandleReader<T> reader = client.createReader();
-
-            assertByteMapsEqual(appendsByKeyGroup, extract(handle, reader));
+            assertByteMapsEqual(appendsByKeyGroup, extract(jmHandle, reader));
         }
     }
 

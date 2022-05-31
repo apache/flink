@@ -417,22 +417,34 @@ public class ChangelogKeyedStateBackend<K>
 
     private SnapshotResult<ChangelogStateBackendHandle> buildSnapshotResult(
             long checkpointId,
-            ChangelogStateHandle delta,
+            SnapshotResult<? extends ChangelogStateHandle> delta,
             ChangelogSnapshotState changelogStateBackendStateCopy) {
 
         // collections don't change once started and handles are immutable
         List<ChangelogStateHandle> prevDeltaCopy =
                 new ArrayList<>(changelogStateBackendStateCopy.getRestoredNonMaterialized());
         long persistedSizeOfThisCheckpoint = 0L;
-        if (delta != null && delta.getStateSize() > 0) {
-            prevDeltaCopy.add(delta);
-            persistedSizeOfThisCheckpoint += delta.getCheckpointedSize();
+        if (delta != null
+                && delta.getJobManagerOwnedSnapshot() != null
+                && delta.getJobManagerOwnedSnapshot().getStateSize() > 0) {
+            prevDeltaCopy.add(delta.getJobManagerOwnedSnapshot());
+            persistedSizeOfThisCheckpoint +=
+                    delta.getJobManagerOwnedSnapshot().getCheckpointedSize();
         }
 
         if (prevDeltaCopy.isEmpty()
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
-        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()) {
+        } else if (!changelogStateBackendStateCopy.getLocalMaterializedSnapshot().isEmpty()
+                || delta.getTaskLocalSnapshot() != null) {
+            List<ChangelogStateHandle> localDeltaCopy =
+                    new ArrayList<>(
+                            changelogStateBackendStateCopy.getLocalRestoredNonMaterialized());
+            if (delta != null
+                    && delta.getTaskLocalSnapshot() != null
+                    && delta.getTaskLocalSnapshot().getStateSize() > 0) {
+                localDeltaCopy.add(delta.getTaskLocalSnapshot());
+            }
             ChangelogStateBackendHandleImpl jmHandle =
                     new ChangelogStateBackendHandleImpl(
                             changelogStateBackendStateCopy.getMaterializedSnapshot(),
@@ -445,7 +457,7 @@ public class ChangelogKeyedStateBackend<K>
                     jmHandle,
                     new ChangelogStateBackendLocalHandle(
                             changelogStateBackendStateCopy.getLocalMaterializedSnapshot(),
-                            prevDeltaCopy,
+                            localDeltaCopy,
                             jmHandle));
         } else {
             return SnapshotResult.of(
@@ -540,7 +552,7 @@ public class ChangelogKeyedStateBackend<K>
             // newer upload instead of the previous one. This newer upload could then be re-used
             // while in fact JM has discarded its results.
             // This might change if the log ownership changes (the method won't likely be needed).
-            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo);
+            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo, checkpointId);
         }
         Long materializationID = materializationIdByCheckpointId.remove(checkpointId);
         if (materializationID != null) {
@@ -559,7 +571,7 @@ public class ChangelogKeyedStateBackend<K>
             // change if it is not relevant anymore. Otherwise, it could DISCARD a newer upload
             // instead of the previous one. Rely on truncation for the cleanup in this case.
             // This might change if the log ownership changes (the method won't likely be needed).
-            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo);
+            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo, checkpointId);
         }
         // TODO: Consider notifying nested state backend about checkpoint abortion (FLINK-25850)
     }

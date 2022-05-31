@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -36,6 +37,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +46,7 @@ import java.util.concurrent.Executor;
 import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Changelog's implementation of a {@link TaskLocalStateStore}. */
@@ -97,6 +100,21 @@ public class ChangelogTaskLocalStateStore extends TaskLocalStateStoreImpl {
         }
     }
 
+    public static Path getLocalTaskOwnedDirectory(
+            LocalRecoveryDirectoryProvider provider, JobID jobID) {
+        File outDir =
+                provider.selectAllocationBaseDirectory(
+                        (jobID.hashCode() & Integer.MAX_VALUE)
+                                % provider.allocationBaseDirsCount());
+        if (!outDir.exists() && !outDir.mkdirs()) {
+            LOG.error(
+                    "Local state base directory does not exist and could not be created: "
+                            + outDir);
+        }
+        return new Path(
+                String.format("%s/jid_%s", outDir.toURI(), jobID), CHECKPOINT_TASK_OWNED_STATE_DIR);
+    }
+
     @Override
     public void storeLocalState(long checkpointId, @Nullable TaskStateSnapshot localState) {
         if (checkpointId < lastCheckpointId) {
@@ -137,13 +155,13 @@ public class ChangelogTaskLocalStateStore extends TaskLocalStateStoreImpl {
 
         discardExecutor.execute(
                 () ->
-                        syncDiscardDirectoryForCollection(
+                        syncDiscardFileForCollection(
                                 materializationToRemove.stream()
                                         .map(super::getCheckpointDirectory)
                                         .collect(Collectors.toList())));
     }
 
-    private void syncDiscardDirectoryForCollection(Collection<File> toDiscard) {
+    private void syncDiscardFileForCollection(Collection<File> toDiscard) {
         for (File directory : toDiscard) {
             if (directory.exists()) {
                 try {
@@ -181,6 +199,17 @@ public class ChangelogTaskLocalStateStore extends TaskLocalStateStoreImpl {
     @Override
     public CompletableFuture<Void> dispose() {
         deleteMaterialization(id -> true);
+        // delete all ChangelogStateHandle in taskowned directory.
+        discardExecutor.execute(
+                () ->
+                        syncDiscardFileForCollection(
+                                Collections.singleton(
+                                        new File(
+                                                getLocalTaskOwnedDirectory(
+                                                                getLocalRecoveryDirectoryProvider(),
+                                                                jobID)
+                                                        .toUri()))));
+
         synchronized (lock) {
             mapToMaterializationId.clear();
         }

@@ -131,6 +131,8 @@ public class ChangelogTaskLocalStateStoreTest extends TaskLocalStateStoreImplTes
         assertTrue(stateSnapshot2.isDiscarded());
         // the materialized part of checkpoint 2 retain, because it still used by checkpoint 3
         assertTrue(checkMaterializedDirExists(2));
+        // checkpoint 1 retain
+        assertEquals(stateSnapshot1, taskLocalStateStore.retrieveLocalState(1));
         assertTrue(checkMaterializedDirExists(1));
         assertEquals(stateSnapshot3, taskLocalStateStore.retrieveLocalState(3));
 

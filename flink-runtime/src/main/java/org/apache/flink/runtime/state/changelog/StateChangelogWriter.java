@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.SnapshotResult;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -41,13 +42,13 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
     /**
      * Durably persist previously {@link #append(int, byte[]) appended} data starting from the
      * provided {@link SequenceNumber} and up to the latest change added. After this call, one of
-     * {@link #confirm(SequenceNumber, SequenceNumber) confirm}, {@link #reset(SequenceNumber,
-     * SequenceNumber) reset}, or {@link #truncate(SequenceNumber) truncate} eventually must be
-     * called for the corresponding change set. with reset/truncate/confirm methods?
+     * {@link #confirm(SequenceNumber, SequenceNumber, long) confirm}, {@link #reset(SequenceNumber,
+     * SequenceNumber, long) reset}, or {@link #truncate(SequenceNumber) truncate} eventually must
+     * be called for the corresponding change set. with reset/truncate/confirm methods?
      *
      * @param from inclusive
      */
-    CompletableFuture<Handle> persist(SequenceNumber from) throws IOException;
+    CompletableFuture<SnapshotResult<Handle>> persist(SequenceNumber from) throws IOException;
 
     /**
      * Truncate this state changelog to free up the resources and collect any garbage. That means:
@@ -71,14 +72,22 @@ public interface StateChangelogWriter<Handle extends ChangelogStateHandle> exten
      *
      * @param from inclusive
      * @param to exclusive
+     * @param checkpointId to confirm
      */
-    void confirm(SequenceNumber from, SequenceNumber to);
+    void confirm(SequenceNumber from, SequenceNumber to, long checkpointId);
+
+    /**
+     * Mark the state changes of the given checkpoint as subsumed.
+     *
+     * @param checkpointId
+     */
+    void subsume(long checkpointId);
 
     /**
      * Reset the state the given state changes. Called upon abortion so that if requested later then
      * these changes will be re-uploaded.
      */
-    void reset(SequenceNumber from, SequenceNumber to);
+    void reset(SequenceNumber from, SequenceNumber to, long checkpointId);
 
     /**
      * Truncate the tail of log and close it. No new appends will be possible. Any appended but not

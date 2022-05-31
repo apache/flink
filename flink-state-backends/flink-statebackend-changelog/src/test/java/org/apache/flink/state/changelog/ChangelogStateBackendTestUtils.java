@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -190,7 +191,8 @@ public class ChangelogStateBackendTestUtils {
                                 new ChangelogStorageMetricGroup(
                                         UnregisteredMetricGroups
                                                 .createUnregisteredTaskManagerJobMetricGroup()),
-                                TaskChangelogRegistry.NO_OP))
+                                TaskChangelogRegistry.NO_OP,
+                                TestLocalRecoveryConfig.disabled()))
                 .build();
     }
 
