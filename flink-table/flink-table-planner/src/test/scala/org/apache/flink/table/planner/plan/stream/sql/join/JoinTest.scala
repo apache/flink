@@ -612,4 +612,48 @@ class JoinTest extends TableTestBase {
         |SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AND a1 = a2
         |""".stripMargin)
   }
+
+  @Test
+  def testJoinAccessSourcePkWithMiniBatchAssigner(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table left_table (
+                               | a varchar primary key not enforced,
+                               | b int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table right_table (
+                               | c varchar primary key not enforced,
+                               | d int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | e varchar primary key not enforced,
+                               | f int,
+                               | g int
+                               |) with (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean("table.exec.mini-batch.enabled", java.lang.Boolean.valueOf(true))
+    util.tableEnv.getConfig.getConfiguration.setString("table.exec.mini-batch.allow-latency", "10s")
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select left_table.a, left_table.b, right_table.d
+        | from left_table
+        | join right_table on left_table.a = right_table.c
+        |""".stripMargin
+    )
+  }
 }

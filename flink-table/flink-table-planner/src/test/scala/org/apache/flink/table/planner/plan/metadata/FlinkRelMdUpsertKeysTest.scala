@@ -107,6 +107,11 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUpsertKeysOnMiniBatchAssigner(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(streamMiniBatchAssigner).toSet)
+  }
+
+  @Test
   def testGetUpsertKeysOnCalc(): Unit = {
     relBuilder.push(studentLogicalScan)
     // id < 100
