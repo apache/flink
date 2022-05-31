@@ -58,6 +58,23 @@ class TableSinkTest extends TableTestBase {
       |""".stripMargin)
 
   @Test
+  def testInsertWithTargetColumnsAndSqlHint(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE appendSink (
+                     |  `a` BIGINT,
+                     |  `b` STRING
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */(a, b) SELECT a + b, c FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testInsertMismatchTypeForEmptyChar(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE my_sink (
