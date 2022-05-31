@@ -24,7 +24,7 @@
 HERE="`dirname \"$0\"`"             # relative
 HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
 if [ -z "$HERE" ] ; then
-	exit 1
+  exit 1
 fi
 
 source "${HERE}/stage.sh"
@@ -39,18 +39,18 @@ STAGE=$1
 
 # check preconditions
 if [ -z "${DEBUG_FILES_OUTPUT_DIR:-}" ] ; then
-	echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
-	exit 1
+  echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
+  exit 1
 fi
 
 if [ ! -d "$DEBUG_FILES_OUTPUT_DIR" ] ; then
-	echo "ERROR: Environment variable DEBUG_FILES_OUTPUT_DIR=$DEBUG_FILES_OUTPUT_DIR points to a directory that does not exist"
-	exit 1
+  echo "ERROR: Environment variable DEBUG_FILES_OUTPUT_DIR=$DEBUG_FILES_OUTPUT_DIR points to a directory that does not exist"
+  exit 1
 fi
 
 if [ -z "${STAGE:-}" ] ; then
-	echo "ERROR: Environment variable 'STAGE' is not set but expected by test_controller.sh. THe variable refers to the stage being executed."
-	exit 1
+  echo "ERROR: Environment variable 'STAGE' is not set but expected by test_controller.sh. THe variable refers to the stage being executed."
+  exit 1
 fi
 
 echo "Printing environment information"
@@ -89,10 +89,10 @@ run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MV
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
-	echo "=============================================================================="
-	echo "Compilation failure detected, skipping test execution."
-	echo "=============================================================================="
-	exit $EXIT_CODE
+  echo "=============================================================================="
+  echo "Compilation failure detected, skipping test execution."
+  echo "=============================================================================="
+  exit $EXIT_CODE
 fi
 
 
@@ -101,22 +101,19 @@ fi
 # =============================================================================
 
 if [ $STAGE == $STAGE_PYTHON ]; then
-	sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
-	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
-	EXIT_CODE=$?
+  sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
+  run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
+  EXIT_CODE=$?
 else
-	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
-	if [ $STAGE = $STAGE_FINEGRAINED_RESOURCE_MANAGEMENT ]; then
-		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
-			echo "Skipping fine grained resource management test stage in adaptive scheduler job"
-			exit 0
-		fi
-		MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dflink.tests.enable-fine-grained"
-	fi
-	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
+  MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
+  MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dtest='org.apache.flink.yarn.YARNSessionCapacitySchedulerITCase#testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots'"
+  MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
-	EXIT_CODE=$?
+  EXIT_CODE=0
+  while [ $EXIT_CODE -eq 0 ]; do
+    run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+    EXIT_CODE=$?
+  done 
 fi
 
 # =============================================================================
@@ -125,9 +122,9 @@ fi
 
 # only misc builds flink-yarn-tests
 case $STAGE in
-	(misc)
-		put_yarn_logs_to_artifacts
-	;;
+  (misc)
+    put_yarn_logs_to_artifacts
+  ;;
 esac
 
 collect_coredumps $(pwd) $DEBUG_FILES_OUTPUT_DIR

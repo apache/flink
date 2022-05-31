@@ -218,7 +218,7 @@ function get_test_modules_for_stage() {
     local negated_connectors_2=\!${MODULES_CONNECTORS_2//,/,\!}
     local negated_connectors_1=\!${MODULES_CONNECTORS_1//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
-    local modules_misc="$negated_core,$negated_table,$negated_connectors_1,$negated_connectors_2,$negated_tests"
+    local modules_misc="flink-yarn-tests"
     local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
 
     case ${stage} in
