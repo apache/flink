@@ -39,6 +39,8 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
 
     private final OneShotLatch initializationLatch;
 
+    private final Consumer<LeaderInformation> leaderInformationConsumer;
+
     @Nullable private LeaderElectionDriver initializedLeaderElectionDriver = null;
 
     private LeaderInformation confirmedLeaderInformation = LeaderInformation.empty();
@@ -48,6 +50,14 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
     public TestingLeaderElectionEventHandler(String leaderAddress) {
         this.leaderAddress = leaderAddress;
         this.initializationLatch = new OneShotLatch();
+        this.leaderInformationConsumer = (ignore) -> {};
+    }
+
+    public TestingLeaderElectionEventHandler(
+            String leaderAddress, Consumer<LeaderInformation> leaderInformationConsumer) {
+        this.leaderAddress = leaderAddress;
+        this.initializationLatch = new OneShotLatch();
+        this.leaderInformationConsumer = leaderInformationConsumer;
     }
 
     public void init(LeaderElectionDriver leaderElectionDriver) {
@@ -98,6 +108,7 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
                 () ->
                         waitForInitialization(
                                 leaderElectionDriver -> {
+                                    leaderInformationConsumer.accept(leaderInformation);
                                     if (confirmedLeaderInformation.getLeaderSessionID() != null
                                             && !this.confirmedLeaderInformation.equals(
                                                     leaderInformation)) {
