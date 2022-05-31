@@ -107,6 +107,7 @@ if [ $STAGE == $STAGE_PYTHON ]; then
 else
   MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free -Darchunit.freeze.store.default.allowStoreUpdate=false -Dakka.rpc.force-invocation-serialization"
   MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -Dtest='org.apache.flink.yarn.YARNSessionCapacitySchedulerITCase#testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots'"
+  MVN_TEST_OPTIONS="$MVN_TEST_OPTIONS -DfailIfNoTests=false"
   MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
   EXIT_CODE=0
