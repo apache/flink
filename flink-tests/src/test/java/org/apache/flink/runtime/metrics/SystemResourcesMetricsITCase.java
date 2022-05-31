@@ -85,6 +85,7 @@ public class SystemResourcesMetricsITCase extends TestLogger {
             "System.CPU.IOWait",
             "System.CPU.Irq",
             "System.CPU.SoftIrq",
+            "System.CPU.Steal",
             "System.CPU.Nice",
             "System.Memory.Available",
             "System.Memory.Total",

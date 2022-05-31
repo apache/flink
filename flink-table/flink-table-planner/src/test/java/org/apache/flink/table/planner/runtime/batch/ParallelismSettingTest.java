@@ -30,7 +30,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for parallelism setting when translating ExecNode to Transformation. */
 public class ParallelismSettingTest extends TableTestBase {
@@ -81,13 +81,13 @@ public class ParallelismSettingTest extends TableTestBase {
                 util.getPlanner()
                         .translate(
                                 Collections.singletonList((ModifyOperation) (operations.get(0))));
-        assertEquals(1, transformations.size());
+        assertThat(transformations).hasSize(1);
         Transformation<?> sink = transformations.get(0);
         Transformation<?> topAgg = sink.getInputs().get(0);
-        assertEquals(1, topAgg.getParallelism());
-        assertEquals(1, topAgg.getMaxParallelism());
+        assertThat(topAgg.getParallelism()).isEqualTo(1);
+        assertThat(topAgg.getMaxParallelism()).isEqualTo(1);
         Transformation<?> bottomAgg = topAgg.getInputs().get(0);
-        assertEquals(1, bottomAgg.getParallelism());
-        assertEquals(1, bottomAgg.getMaxParallelism());
+        assertThat(bottomAgg.getParallelism()).isEqualTo(1);
+        assertThat(bottomAgg.getMaxParallelism()).isEqualTo(1);
     }
 }

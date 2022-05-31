@@ -184,7 +184,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
     @Test
     public void testTriggerSavepointCustomFormatShortOption() throws Exception {
-        testTriggerSavepointCustomFormat("-t", SavepointFormatType.NATIVE);
+        testTriggerSavepointCustomFormat("-type", SavepointFormatType.NATIVE);
     }
 
     @Test

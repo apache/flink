@@ -20,11 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -36,9 +37,9 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
- * The window join requires the join condition contains window starts equality of
- * input tables and window ends equality of input tables.
- * The semantic of window join is the same to the DataStream window join.
+ * The window join requires the join condition contains window starts equality of input tables and
+ * window ends equality of input tables. The semantic of window join is the same to the DataStream
+ * window join.
  */
 class StreamPhysicalWindowJoin(
     cluster: RelOptCluster,
@@ -54,11 +55,14 @@ class StreamPhysicalWindowJoin(
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, remainingCondition, joinType)
   with StreamPhysicalRel {
 
-  if (joinSpec.getNonEquiCondition.isPresent
-    && containsPythonCall(joinSpec.getNonEquiCondition.get)) {
-    throw new TableException("Only inner join condition with equality predicates supports the " +
-      "Python UDF taking the inputs from the left table and the right table at the same time, " +
-      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+  if (
+    joinSpec.getNonEquiCondition.isPresent
+    && containsPythonCall(joinSpec.getNonEquiCondition.get)
+  ) {
+    throw new TableException(
+      "Only inner join condition with equality predicates supports the " +
+        "Python UDF taking the inputs from the left table and the right table at the same time, " +
+        "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
   isValid(Litmus.THROW, null)
@@ -87,7 +91,14 @@ class StreamPhysicalWindowJoin(
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
     new StreamPhysicalWindowJoin(
-      cluster, traitSet, left, right, joinType, remainingCondition, leftWindowing, rightWindowing)
+      cluster,
+      traitSet,
+      left,
+      right,
+      joinType,
+      remainingCondition,
+      leftWindowing,
+      rightWindowing)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -98,18 +109,21 @@ class StreamPhysicalWindowJoin(
       .item("leftWindow", leftWindowing.toSummaryString(leftInputFieldNames))
       .item("rightWindow", rightWindowing.toSummaryString(rightInputFieldNames))
       .item("joinType", joinSpec.getJoinType)
-      .item("where",
+      .item(
+        "where",
         getExpressionString(
           remainingCondition,
           inputRowType.getFieldNames.toList,
           None,
           preferExpressionFormat(pw),
-          convertToExpressionDetail(pw.getDetailLevel)))
+          convertToExpressionDetail(pw.getDetailLevel))
+      )
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWindowJoin(
+      unwrapTableConfig(this),
       joinSpec,
       leftWindowing,
       rightWindowing,

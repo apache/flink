@@ -21,14 +21,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.types.Row
 
+import org.junit.{After, Before, Test}
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.time.LocalDateTime
@@ -74,7 +74,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     createLookupTable("nullable_user_table", userDataWithNull)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
   }
-  
+
   @After
   override def after(): Unit = {
     if (legacyTableSource) {
@@ -86,61 +86,63 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   private def createLookupTable(tableName: String, data: List[Row]): Unit = {
     if (legacyTableSource) {
-      val userSchema = TableSchema.builder()
+      val userSchema = TableSchema
+        .builder()
         .field("age", Types.INT)
         .field("id", Types.LONG)
         .field("name", Types.STRING)
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv, isAsync = false, data, userSchema, tableName)
+        tEnv,
+        isAsync = false,
+        data,
+        userSchema,
+        tableName)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(
-        s"""
-           |CREATE TABLE $tableName (
-           |  `age` INT,
-           |  `id` BIGINT,
-           |  `name` STRING
-           |) WITH (
-           |  'connector' = 'values',
-           |  'data-id' = '$dataId'
-           |)
-           |""".stripMargin)
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING
+                         |) WITH (
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId'
+                         |)
+                         |""".stripMargin)
     }
   }
 
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(
-        s"""
-           |CREATE TABLE $tableName (
-           |  `age` INT,
-           |  `id` BIGINT,
-           |  `name` STRING,
-           |  `nominal_age` as age + 1
-           |) WITH (
-           |  'connector' = 'values',
-           |  'data-id' = '$dataId'
-           |)
-           |""".stripMargin)
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING,
+                         |  `nominal_age` as age + 1
+                         |) WITH (
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId'
+                         |)
+                         |""".stripMargin)
     }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE $tableName (
-         |  `id` BIGINT,
-         |  `len` INT,
-         |  `content` STRING,
-         |  `proctime` AS PROCTIME()
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId'
-         |)
-         |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `id` BIGINT,
+                       |  `len` INT,
+                       |  `content` STRING,
+                       |  `proctime` AS PROCTIME()
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -152,10 +154,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,Julian",
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -171,9 +170,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
     assertEquals(0, TestAddWithOpen.aliveCounter.get())
   }
@@ -208,8 +205,11 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,12,Julian,Julian", "2,15,Hello,Julian", "3,15,Fabian,Julian",
-      "8,11,Hello world,Julian", "9,12,Hello world!,Julian")
+      "1,12,Julian,Julian",
+      "2,15,Hello,Julian",
+      "3,15,Fabian,Julian",
+      "8,11,Hello world,Julian",
+      "9,12,Hello world!,Julian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -235,9 +235,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark",
-      "3,15,Fabian,Fabian")
+    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -250,9 +248,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark,22",
-      "3,15,Fabian,Fabian,33")
+    val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -265,9 +261,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -280,9 +274,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -298,9 +290,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian",
-      "3,15,Fabian")
+    val expected = Seq("1,12,Julian", "3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -358,12 +348,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,11",
-      "2,15,Jark,22",
-      "3,15,Fabian,33",
-      "8,11,null,null",
-      "9,12,null,null")
+    val expected =
+      Seq("1,12,Julian,11", "2,15,Jark,22", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -376,11 +362,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "null,15,null",
-      "3,15,Fabian",
-      "null,11,null",
-      "9,12,null")
+    val expected = Seq("null,15,null", "3,15,Fabian", "null,11,null", "9,12,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -393,12 +375,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,11",
-      "2,15,null,null",
-      "3,15,Fabian,33",
-      "8,11,null,null",
-      "9,12,null,null")
+    val expected =
+      Seq("1,12,Julian,11", "2,15,null,null", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -411,8 +389,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "3,15,Fabian")
+    val expected = Seq("3,15,Fabian")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -425,11 +402,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "null,15,null",
-      "3,15,Fabian",
-      "null,11,null",
-      "null,12,null")
+    val expected = Seq("null,15,null", "3,15,Fabian", "null,11,null", "null,12,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -467,15 +440,14 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "9,Hello world!,11,5")
+    val expected = Seq("9,Hello world!,11,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testJoinTemporalTableWithComputedColumn(): Unit = {
     if (legacyTableSource) {
-      //Computed column do not support in legacyTableSource.
+      // Computed column do not support in legacyTableSource.
       return
     }
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
@@ -486,17 +458,15 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,12,Julian,Julian,11,12",
-      "2,15,Hello,Jark,22,23",
-      "3,15,Fabian,Fabian,33,34")
+    val expected =
+      Seq("1,12,Julian,Julian,11,12", "2,15,Hello,Jark,22,23", "3,15,Fabian,Fabian,33,34")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
     if (legacyTableSource) {
-      //Computed column do not support in legacyTableSource.
+      // Computed column do not support in legacyTableSource.
       return
     }
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
@@ -507,17 +477,14 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "2,15,Hello,Jark,22,23",
-      "3,15,Fabian,Fabian,33,34")
+    val expected = Seq("2,15,Hello,Jark,22,23", "3,15,Fabian,Fabian,33,34")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testCurrentDateInJoinCondition(): Unit = {
-    val id1 = TestValuesTableFactory.registerData(
-      Seq(Row.of("abc", LocalDateTime.of(
-        2000, 1, 1, 0, 0))))
+    val id1 =
+      TestValuesTableFactory.registerData(Seq(Row.of("abc", LocalDateTime.of(2000, 1, 1, 0, 0))))
     val ddl1 =
       s"""
          |CREATE TABLE Ta (
@@ -532,9 +499,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
          |""".stripMargin
     tEnv.executeSql(ddl1)
 
-    val id2 = TestValuesTableFactory.registerData(
-      Seq(Row.of("abc", LocalDateTime.of(
-        2000, 1, 2, 0, 0))))
+    val id2 =
+      TestValuesTableFactory.registerData(Seq(Row.of("abc", LocalDateTime.of(2000, 1, 2, 0, 0))))
     val ddl2 =
       s"""
          |CREATE TABLE Tb (

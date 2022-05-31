@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -44,14 +43,15 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.junit.Assert.assertEquals;
 
 /** Tests of {@link SubtaskCurrentAttemptDetailsHandler}. */
@@ -90,13 +90,11 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                 new ArchivedExecution(
                         new StringifiedAccumulatorResult[0],
                         ioMetrics,
-                        new ExecutionAttemptID(),
-                        attempt,
+                        createExecutionAttemptId(jobVertexID, subtaskIndex, attempt),
                         expectedState,
                         null,
                         assignedResourceLocation,
                         allocationID,
-                        subtaskIndex,
                         timestamps);
 
         final ArchivedExecutionVertex executionVertex =
@@ -114,7 +112,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                 new MetricFetcherImpl<>(
                         () -> null,
                         address -> null,
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         Time.milliseconds(1000L),
                         MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
@@ -127,7 +125,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
                                 Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-                        TestingUtils.defaultExecutor(),
+                        Executors.directExecutor(),
                         metricFetcher);
 
         final HashMap<String, String> receivedPathParameters = new HashMap<>(2);

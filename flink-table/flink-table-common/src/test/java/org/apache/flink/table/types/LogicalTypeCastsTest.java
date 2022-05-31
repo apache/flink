@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Execution(ExecutionMode.CONCURRENT)
 class LogicalTypeCastsTest {
 
-    public static Stream<Arguments> testData() {
+    private static Stream<Arguments> testData() {
         return Stream.of(
                 Arguments.of(new SmallIntType(), new BigIntType(), true, true),
 

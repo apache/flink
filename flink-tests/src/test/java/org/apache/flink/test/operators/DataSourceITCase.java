@@ -29,6 +29,8 @@ import org.junit.Assert;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
+
 /** Tests for the DataSource. */
 public class DataSourceITCase extends JavaProgramTestBase {
 

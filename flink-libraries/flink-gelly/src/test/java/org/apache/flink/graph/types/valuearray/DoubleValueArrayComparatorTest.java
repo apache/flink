@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.DoubleValue;
 
 /** Tests for {@link DoubleValueArrayComparator}. */
-public class DoubleValueArrayComparatorTest extends ComparatorTestBase<DoubleValueArray> {
+class DoubleValueArrayComparatorTest extends ComparatorTestBase<DoubleValueArray> {
 
     @Override
     protected TypeComparator<DoubleValueArray> createComparator(boolean ascending) {

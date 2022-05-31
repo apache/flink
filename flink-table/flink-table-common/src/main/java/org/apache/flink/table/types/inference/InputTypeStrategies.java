@@ -48,8 +48,9 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Strategies for inferring and validating input arguments in a function call.
@@ -86,6 +87,15 @@ public final class InputTypeStrategies {
             String[] argumentNames, ArgumentTypeStrategy[] strategies) {
         return new SequenceInputTypeStrategy(
                 Arrays.asList(strategies), Arrays.asList(argumentNames));
+    }
+
+    /**
+     * Strategy for a named function signature like {@code f(s STRING, n NUMERIC)} using a sequence
+     * of {@link ArgumentTypeStrategy}s.
+     */
+    public static InputTypeStrategy sequence(
+            List<String> argumentNames, List<ArgumentTypeStrategy> strategies) {
+        return new SequenceInputTypeStrategy(strategies, argumentNames);
     }
 
     /**
@@ -268,7 +278,7 @@ public final class InputTypeStrategies {
 
     /** Strategy for an argument that must fulfill a given constraint. */
     public static ConstraintArgumentTypeStrategy constraint(
-            String constraintMessage, Function<List<DataType>, Boolean> evaluator) {
+            String constraintMessage, Predicate<List<DataType>> evaluator) {
         return new ConstraintArgumentTypeStrategy(constraintMessage, evaluator);
     }
 
@@ -304,10 +314,30 @@ public final class InputTypeStrategies {
         return new OrArgumentTypeStrategy(Arrays.asList(strategies));
     }
 
-    /** Strategy for a symbol argument of a specific {@link TableSymbol} enum. */
-    public static SymbolArgumentTypeStrategy symbol(
+    /**
+     * Strategy for a symbol argument of a specific {@link TableSymbol} enum.
+     *
+     * <p>A symbol is implied to be a literal argument.
+     */
+    public static SymbolArgumentTypeStrategy<?> symbol(
             Class<? extends Enum<? extends TableSymbol>> clazz) {
-        return new SymbolArgumentTypeStrategy(clazz);
+        return new SymbolArgumentTypeStrategy<>(clazz);
+    }
+
+    /**
+     * Strategy for a symbol argument of a specific {@link TableSymbol} enum, with value being one
+     * of the provided variants.
+     *
+     * <p>A symbol is implied to be a literal argument.
+     */
+    @SafeVarargs
+    @SuppressWarnings("unchecked")
+    public static <T extends Enum<? extends TableSymbol>> SymbolArgumentTypeStrategy<T> symbol(
+            T firstAllowedVariant, T... otherAllowedVariants) {
+        return new SymbolArgumentTypeStrategy<T>(
+                (Class<T>) firstAllowedVariant.getClass(),
+                Stream.concat(Stream.of(firstAllowedVariant), Arrays.stream(otherAllowedVariants))
+                        .collect(Collectors.toSet()));
     }
 
     /**

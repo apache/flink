@@ -25,7 +25,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
+import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -45,12 +45,16 @@ import org.apache.calcite.rel.core.TableScan;
  * </ul>
  */
 public class SourceAbilityContext implements FlinkContext {
+
     private final RowType sourceRowType;
     private final FlinkContext context;
+    private final FlinkTypeFactory typeFactory;
 
-    public SourceAbilityContext(FlinkContext context, RowType sourceRowType) {
+    public SourceAbilityContext(
+            FlinkContext context, FlinkTypeFactory typeFactory, RowType sourceRowType) {
         this.context = context;
         this.sourceRowType = sourceRowType;
+        this.typeFactory = typeFactory;
     }
 
     @Override
@@ -79,8 +83,12 @@ public class SourceAbilityContext implements FlinkContext {
     }
 
     @Override
-    public SqlExprToRexConverterFactory getSqlExprToRexConverterFactory() {
-        return context.getSqlExprToRexConverterFactory();
+    public RexFactory getRexFactory() {
+        return context.getRexFactory();
+    }
+
+    public FlinkTypeFactory getTypeFactory() {
+        return typeFactory;
     }
 
     @Override
@@ -99,6 +107,7 @@ public class SourceAbilityContext implements FlinkContext {
     public static SourceAbilityContext from(TableScan scan) {
         return new SourceAbilityContext(
                 ShortcutUtils.unwrapContext(scan),
+                ShortcutUtils.unwrapTypeFactory(scan),
                 FlinkTypeFactory.toLogicalRowType(scan.getRowType()));
     }
 }

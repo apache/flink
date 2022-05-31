@@ -782,7 +782,7 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
 </table>
 
 
-### Network 
+### Network
 
 {{< hint warning >}}
 Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
@@ -845,7 +845,7 @@ Deprecated: use [Default shuffle service metrics](#default-shuffle-service)
     </tr>
     <tr>
       <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -965,7 +965,7 @@ Metrics related to data exchange between task executors using netty network comm
     </tr>
     <tr>
       <td rowspan="4">Shuffle.Netty.&lt;Input|Output&gt;.&lt;gate|partition&gt;<br />
-        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+        <strong>(only available if <tt>taskmanager.network.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
       <td>Gauge</td>
@@ -1041,7 +1041,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="4"><strong>JobManager</strong></th>
+      <th rowspan="5"><strong>JobManager</strong></th>
       <td>numRegisteredTaskManagers</td>
       <td>The number of registered taskmanagers.</td>
       <td>Gauge</td>
@@ -1193,7 +1193,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
   </thead>
   <tbody>
     <tr>
-      <th rowspan="8"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="9"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint (in milliseconds).</td>
       <td>Gauge</td>
@@ -1270,7 +1270,7 @@ Note that the metrics are only available via reporters.
   </thead>
   <tbody>
     <tr>
-      <th rowspan="20"><strong>Job (only available on TaskManager)</strong></th>
+      <th rowspan="8"><strong>Job (only available on TaskManager)</strong></th>
       <td>numberOfUploadRequests</td>
       <td>Total number of upload requests made</td>
       <td>Counter</td>
@@ -1283,6 +1283,11 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>attemptsPerUpload</td>
       <td>The number of attempts per upload</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>totalAttemptsPerUpload</td>
+      <td>The total count distributions of attempts for per upload</td>
       <td>Histogram</td>
     </tr>
     <tr>
@@ -1303,7 +1308,43 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>uploadQueueSize</td>
       <td>Current size of upload queue. Queue items can be packed together and form a single upload.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="7"><strong>Task/Operator</strong></th>
+      <td>startedMaterialization</td>
+      <td>The number of started materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>completedMaterialization</td>
+      <td>The number of successfully completed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>failedMaterialization</td>
+      <td>The number of failed materializations.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfMaterialization</td>
+      <td>The full size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfMaterialization</td>
+      <td>The incremental size of the materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastFullSizeOfNonMaterialization</td>
+      <td>The full size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastIncSizeOfNonMaterialization</td>
+      <td>The incremental size of the non-materialization part of the last reported checkpoint (in bytes).</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -1326,7 +1367,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="20"><strong>Task</strong></th>
+      <th rowspan="23"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1424,6 +1465,21 @@ Note that the metrics are only available via reporters.
     <tr>
       <td>maxHardBackPressuredTimeMs</td>
       <td>Maximum recorded duration of a single consecutive period of the task being in the hard back pressure state in the last sampling period. Please check softBackPressuredTimeMsPerSecond and hardBackPressuredTimeMsPerSecond for more information.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>mailboxMailsPerSecond</td>
+      <td>The number of actions processed from the task's mailbox per second which includes all actions, e.g., checkpointing, timer, or cancellation actions.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>mailboxLatencyMs</td>
+      <td>The latency is the time that actions spend waiting in the task's mailbox before being processed. The metric is a statistic of the latency in milliseconds that is measured approximately once every second and includes the last 60 measurements.</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
+      <td>mailboxQueueSize</td>
+      <td>The number of actions in the task's mailbox that are waiting to be processed.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1616,7 +1672,15 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
-      <td>numRecordsOutErrors</td>
+      <td>numRecordsOutErrors (deprecated, please use numRecordsSendErrors)</td>
+      <td>Number of rejected record writes.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
       <td>Number of rejected record writes.</td>
       <td>Counter</td>
     </tr>
@@ -1663,12 +1727,12 @@ configured interval (`metrics.system-resource-probing-interval`).
 System resources reporting requires an optional dependency to be present on the
 classpath (for example placed in Flink's `lib` directory):
 
-  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+  - `com.github.oshi:oshi-core:6.1.5` (licensed under MIT license)
 
 Including it's transitive dependencies:
 
-  - `net.java.dev.jna:jna-platform:jar:4.2.2`
-  - `net.java.dev.jna:jna:jar:4.2.2`
+  - `net.java.dev.jna:jna-platform:jar:5.10.0`
+  - `net.java.dev.jna:jna:jar:5.10.0`
 
 Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
 logged by `SystemResourcesMetricsInitializer` during the startup.
@@ -1686,38 +1750,42 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </thead>
   <tbody>
     <tr>
-      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="12">System.CPU</td>
+      <th rowspan="13"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="13">System.CPU</td>
       <td>Usage</td>
       <td>Overall % of CPU usage on the machine.</td>
     </tr>
     <tr>
       <td>Idle</td>
-      <td>% of CPU Idle usage on the machine.</td>
+      <td>% of CPU Idle time on the machine.</td>
     </tr>
     <tr>
       <td>Sys</td>
-      <td>% of System CPU usage on the machine.</td>
+      <td>% of System CPU time on the machine.</td>
     </tr>
     <tr>
       <td>User</td>
-      <td>% of User CPU usage on the machine.</td>
+      <td>% of User CPU time on the machine.</td>
     </tr>
     <tr>
       <td>IOWait</td>
-      <td>% of IOWait CPU usage on the machine.</td>
+      <td>% of IOWait CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Irq</td>
-      <td>% of Irq CPU usage on the machine.</td>
+      <td>% of Irq CPU time on the machine.</td>
     </tr>
     <tr>
       <td>SoftIrq</td>
-      <td>% of SoftIrq CPU usage on the machine.</td>
+      <td>% of SoftIrq CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Nice</td>
-      <td>% of Nice Idle usage on the machine.</td>
+      <td>% of Nice CPU time on the machine.</td>
+    </tr>
+    <tr>
+      <td>Steal</td>
+      <td>% of Steal CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Load1min</td>

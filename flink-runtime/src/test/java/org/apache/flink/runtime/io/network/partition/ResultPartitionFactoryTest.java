@@ -133,8 +133,7 @@ public class ResultPartitionFactoryTest extends TestLogger {
                                 .setPartitionType(partitionType)
                                 .build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-                        1,
-                        true);
+                        1);
 
         // guard our test assumptions
         assertEquals(1, descriptor.getNumberOfSubpartitions());

@@ -473,9 +473,14 @@ public final class PulsarSourceBuilder<OUT> {
         if (!configBuilder.contains(PULSAR_CONSUMER_NAME)) {
             LOG.warn(
                     "We recommend set a readable consumer name through setConsumerName(String) in production mode.");
+        } else {
+            String consumerName = configBuilder.get(PULSAR_CONSUMER_NAME);
+            if (!consumerName.contains("%s")) {
+                configBuilder.override(PULSAR_CONSUMER_NAME, consumerName + " - %s");
+            }
         }
 
-        // Since these implementation could be a lambda, make sure they are serializable.
+        // Since these implementations could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
         checkState(isSerializable(rangeGenerator), "RangeGenerator isn't serializable");

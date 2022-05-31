@@ -166,6 +166,29 @@ public class CastRuleProvider {
     }
 
     /**
+     * Create a {@link CastExecutor} and execute the cast on the provided {@code value}. Fails with
+     * {@link IllegalArgumentException} if the rule cannot be resolved, or with an exception from
+     * the {@link CastExecutor} itself if the rule can fail.
+     */
+    @SuppressWarnings("unchecked")
+    public static @Nullable Object cast(
+            CastRule.Context context,
+            LogicalType inputLogicalType,
+            LogicalType targetLogicalType,
+            Object value) {
+        CastExecutor<Object, Object> castExecutor =
+                (CastExecutor<Object, Object>)
+                        CastRuleProvider.create(context, inputLogicalType, targetLogicalType);
+
+        if (castExecutor == null) {
+            throw new NullPointerException(
+                    "Unsupported casting from " + inputLogicalType + " to " + targetLogicalType);
+        }
+
+        return castExecutor.cast(value);
+    }
+
+    /**
      * This method wraps {@link #generateCodeBlock(CodeGeneratorCastRule.Context, String, String,
      * LogicalType, LogicalType)}, but adding the assumption that the inputTerm is always non-null.
      * Used by {@link CodeGeneratorCastRule}s which checks for nullability, rather than deferring

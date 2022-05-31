@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class BaseMaterializedResultTest {
 
@@ -47,8 +47,7 @@ class BaseMaterializedResultTest {
             List<Row> expected,
             List<RowData> actual,
             DataStructureConverter<RowData, Row> converter) {
-        assertEquals(
-                expected,
-                actual.stream().map(converter::toExternalOrNull).collect(Collectors.toList()));
+        assertThat(actual.stream().map(converter::toExternalOrNull).collect(Collectors.toList()))
+                .isEqualTo(expected);
     }
 }

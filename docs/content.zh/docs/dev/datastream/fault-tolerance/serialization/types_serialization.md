@@ -499,7 +499,7 @@ env.getConfig().enableForceKryo();
 
 If Kryo is not able to serialize your POJO, you can add a custom serializer to Kryo, using
 ```java
-env.getConfig().addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass)
+env.getConfig().addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass);
 ```
 
 There are different variants of these methods available.

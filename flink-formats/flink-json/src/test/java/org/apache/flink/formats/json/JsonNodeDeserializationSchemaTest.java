@@ -20,17 +20,17 @@ package org.apache.flink.formats.json;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JsonNodeDeserializationSchema}. */
-public class JsonNodeDeserializationSchemaTest {
+class JsonNodeDeserializationSchemaTest {
 
     @Test
-    public void testDeserialize() throws IOException {
+    void testDeserialize() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode initialValue = mapper.createObjectNode();
         initialValue.put("key", 4).put("value", "world");
@@ -39,7 +39,7 @@ public class JsonNodeDeserializationSchemaTest {
         JsonNodeDeserializationSchema schema = new JsonNodeDeserializationSchema();
         ObjectNode deserializedValue = schema.deserialize(serializedValue);
 
-        assertEquals(4, deserializedValue.get("key").asInt());
-        assertEquals("world", deserializedValue.get("value").asText());
+        assertThat(deserializedValue.get("key").asInt()).isEqualTo(4);
+        assertThat(deserializedValue.get("value").asText()).isEqualTo("world");
     }
 }

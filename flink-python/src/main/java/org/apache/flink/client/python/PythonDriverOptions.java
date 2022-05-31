@@ -29,11 +29,11 @@ import static java.util.Objects.requireNonNull;
 /** Options for the {@link PythonDriver}. */
 final class PythonDriverOptions {
 
-    @Nullable private String entryPointModule;
+    @Nullable private final String entryPointModule;
 
-    @Nullable private String entryPointScript;
+    @Nullable private final String entryPointScript;
 
-    @Nonnull private List<String> programArgs;
+    @Nonnull private final List<String> programArgs;
 
     @Nullable
     String getEntryPointModule() {

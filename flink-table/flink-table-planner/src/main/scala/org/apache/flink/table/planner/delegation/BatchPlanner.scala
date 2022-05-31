@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
@@ -50,7 +49,12 @@ class BatchPlanner(
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
+  extends PlannerBase(
+    executor,
+    tableConfig,
+    moduleManager,
+    functionCatalog,
+    catalogManager,
     isStreamingMode = false) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
@@ -67,8 +71,7 @@ class BatchPlanner(
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
-    if (getTableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+    if (getTableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)
@@ -82,7 +85,8 @@ class BatchPlanner(
     val transformations = execGraph.getRootNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
-        throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
+        throw new TableException(
+          "Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
     afterTranslation()
@@ -95,11 +99,12 @@ class BatchPlanner(
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
-    sinkRelNodes.foreach { sink =>
-      // use EXPPLAN_ATTRIBUTES to make the ast result more readable
-      // and to keep the previous behavior
-      sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
-      sb.append(System.lineSeparator)
+    sinkRelNodes.foreach {
+      sink =>
+        // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+        // and to keep the previous behavior
+        sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
+        sb.append(System.lineSeparator)
     }
 
     sb.append("== Optimized Physical Plan ==")
@@ -109,9 +114,10 @@ class BatchPlanner(
     } else {
       SqlExplainLevel.EXPPLAN_ATTRIBUTES
     }
-    optimizedRelNodes.foreach { rel =>
-      sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
-      sb.append(System.lineSeparator)
+    optimizedRelNodes.foreach {
+      rel =>
+        sb.append(FlinkRelOptUtil.toString(rel, explainLevel))
+        sb.append(System.lineSeparator)
     }
 
     sb.append("== Optimized Execution Plan ==")
@@ -139,8 +145,7 @@ class BatchPlanner(
       "The compiled plan feature is not supported in batch mode.")
   }
 
-  override def compilePlan(
-     modifyOperations: util.List[ModifyOperation]): InternalPlan =
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
@@ -154,7 +159,7 @@ class BatchPlanner(
 
   override def beforeTranslation(): Unit = {
     super.beforeTranslation()
-    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    val runtimeMode = getTableConfig.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +

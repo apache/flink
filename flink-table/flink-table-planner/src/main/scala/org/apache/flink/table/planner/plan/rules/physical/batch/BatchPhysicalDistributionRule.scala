@@ -15,31 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.calcite.plan.RelOptRule
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDistribution
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort
 
-/**
- * Rule that matches [[FlinkLogicalDistribution]].
- */
-class BatchPhysicalDistributionRule extends ConverterRule(
-  classOf[FlinkLogicalDistribution],
-  FlinkConventions.LOGICAL,
-  FlinkConventions.BATCH_PHYSICAL,
-  "BatchExecDistributionRule") {
+import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+
+/** Rule that matches [[FlinkLogicalDistribution]]. */
+class BatchPhysicalDistributionRule
+  extends ConverterRule(
+    classOf[FlinkLogicalDistribution],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.BATCH_PHYSICAL,
+    "BatchExecDistributionRule") {
 
   override def convert(rel: RelNode): RelNode = {
     val logicalDistribution = rel.asInstanceOf[FlinkLogicalDistribution]
-    val distribution = logicalDistribution.getTraitSet.getTrait(
-      FlinkRelDistributionTraitDef.INSTANCE)
+    val distribution =
+      logicalDistribution.getTraitSet.getTrait(FlinkRelDistributionTraitDef.INSTANCE)
 
     val input = logicalDistribution.getInput
     val requiredTraitSet = input.getTraitSet
@@ -49,8 +48,8 @@ class BatchPhysicalDistributionRule extends ConverterRule(
     if (logicalDistribution.collation.getFieldCollations.isEmpty) {
       newInput
     } else {
-      val providedTraitSet = logicalDistribution.getTraitSet.replace(
-        FlinkConventions.BATCH_PHYSICAL)
+      val providedTraitSet =
+        logicalDistribution.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       new BatchPhysicalSort(
         logicalDistribution.getCluster,
         providedTraitSet,

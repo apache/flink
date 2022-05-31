@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the AST parser. */
 public class HiveASTParserTest {
@@ -151,7 +151,7 @@ public class HiveASTParserTest {
     private void assertDDLType(int type, String... sqls) throws Exception {
         for (String sql : sqls) {
             HiveParserContext parserContext = new HiveParserContext(hiveConf);
-            assertEquals(type, HiveASTParseUtils.parse(sql, parserContext).getType());
+            assertThat(HiveASTParseUtils.parse(sql, parserContext).getType()).isEqualTo(type);
         }
     }
 }

@@ -24,12 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.User;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AvroTypeInfo}. */
-public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
+class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
 
     @Override
     protected AvroTypeInfo<?>[] getTestData() {
@@ -39,9 +39,9 @@ public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
     }
 
     @Test
-    public void testAvroByDefault() {
+    void testAvroByDefault() {
         final TypeSerializer<User> serializer =
                 new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
-        assertTrue(serializer instanceof AvroSerializer);
+        assertThat(serializer).isInstanceOf(AvroSerializer.class);
     }
 }

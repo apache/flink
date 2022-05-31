@@ -28,6 +28,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 /** A utility class to create {@link AdaptiveBatchScheduler} instances for testing. */
 public class AdaptiveBatchSchedulerTestUtils {
 
@@ -41,14 +43,15 @@ public class AdaptiveBatchSchedulerTestUtils {
                 JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
 
         public AdaptiveBatchSchedulerBuilder(
-                JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
-            super(jobGraph, mainThreadExecutor);
+                JobGraph jobGraph,
+                ComponentMainThreadExecutor mainThreadExecutor,
+                ScheduledExecutorService executorService) {
+            super(jobGraph, mainThreadExecutor, executorService);
             setSchedulingStrategyFactory(new VertexwiseSchedulingStrategy.Factory());
         }
 
-        public void setJobVertexParallelismDecider(
-                VertexParallelismDecider jobVertexParallelismDecider) {
-            this.vertexParallelismDecider = jobVertexParallelismDecider;
+        public void setVertexParallelismDecider(VertexParallelismDecider vertexParallelismDecider) {
+            this.vertexParallelismDecider = vertexParallelismDecider;
         }
 
         public void setDefaultMaxParallelism(int defaultMaxParallelism) {

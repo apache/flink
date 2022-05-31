@@ -30,34 +30,31 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CanalJsonFormatFactory}. */
-public class CanalJsonFormatFactoryTest extends TestLogger {
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class CanalJsonFormatFactoryTest {
 
     private static final InternalTypeInfo<RowData> ROW_TYPE_INFO =
             InternalTypeInfo.of(PHYSICAL_TYPE);
 
     @Test
-    public void testDefaultOptions() {
+    void testDefaultOptions() {
         Map<String, String> options = getAllOptions();
 
         // test Deser
@@ -68,7 +65,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         .setTimestampFormat(TimestampFormat.SQL)
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test Ser
         CanalJsonSerializationSchema expectedSer =
@@ -79,11 +76,11 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         "null",
                         false);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
-    public void testUserDefinedOptions() {
+    void testUserDefinedOptions() {
         Map<String, String> options = getAllOptions();
         options.put("canal-json.ignore-parse-errors", "true");
         options.put("canal-json.timestamp-format.standard", "ISO-8601");
@@ -103,7 +100,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         .setTable("mytable")
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test Ser
         CanalJsonSerializationSchema expectedSer =
@@ -114,47 +111,49 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         "nullKey",
                         true);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
-    public void testInvalidIgnoreParseError() {
-        thrown.expect(
-                containsCause(
-                        new IllegalArgumentException(
-                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
-
+    void testInvalidIgnoreParseError() {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("canal-json.ignore-parse-errors", "abc"));
 
-        createDeserializationSchema(options);
+        assertThatThrownBy(() -> createDeserializationSchema(options))
+                .satisfies(
+                        anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "Unrecognized option for boolean: abc. Expected either true"
+                                        + " or false(case insensitive)"));
     }
 
     @Test
-    public void testInvalidOptionForTimestampFormat() {
+    void testInvalidOptionForTimestampFormat() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
                         opts -> opts.put("canal-json.timestamp-format.standard", "test"));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601].")));
-        createDeserializationSchema(tableOptions);
+        assertThatThrownBy(() -> createDeserializationSchema(tableOptions))
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'test' for timestamp-format.standard. "
+                                        + "Supported values are [SQL, ISO-8601]."));
     }
 
     @Test
-    public void testInvalidOptionForMapNullKeyMode() {
+    void testInvalidOptionForMapNullKeyMode() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(opts -> opts.put("canal-json.map-null-key.mode", "invalid"));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
-        createSerializationSchema(tableOptions);
+        assertThatThrownBy(() -> createSerializationSchema(tableOptions))
+                .isInstanceOf(ValidationException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported value 'invalid' for option map-null-key.mode. "
+                                        + "Supported values are [LITERAL, FAIL, DROP]."));
     }
 
     // ------------------------------------------------------------------------

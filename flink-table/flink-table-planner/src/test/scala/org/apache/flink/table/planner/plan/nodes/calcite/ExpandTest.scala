@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.planner.JBigDecimal
 
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.util.TimestampString
 import org.junit.Test
 
 import java.util
@@ -55,7 +54,7 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster,  logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
   }
 
   @Test(expected = classOf[AssertionError])
@@ -80,7 +79,7 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster,  logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
   }
 
   @Test(expected = classOf[AssertionError])
@@ -101,6 +100,6 @@ class ExpandTest extends RelNodeTestBase {
     project2.add(rexBuilder.makeBigintLiteral(new JBigDecimal(1)))
     expandProjects.add(project2)
 
-    new LogicalExpand(cluster,  logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
+    new LogicalExpand(cluster, logicalTableScan.getTraitSet, logicalTableScan, expandProjects, 2)
   }
 }

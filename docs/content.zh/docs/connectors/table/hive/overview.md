@@ -69,18 +69,21 @@ Flink 支持一下的 Hive 版本。
     - 2.3.4
     - 2.3.5
     - 2.3.6
+    - 2.3.7
+    - 2.3.8
+    - 2.3.9
 - 3.1
     - 3.1.0
     - 3.1.1
     - 3.1.2
+    - 3.1.3
 
 请注意，某些功能是否可用取决于您使用的 Hive 版本，这些限制不是由 Flink 所引起的：
 
-- Hive 内置函数在使用 Hive-1.2.0 及更高版本时支持。
+- Hive 内置函数在使用 Hive-2.3.0 及更高版本时支持。
 - 列约束，也就是 PRIMARY KEY 和 NOT NULL，在使用 Hive-3.1.0 及更高版本时支持。
-- 更改表的统计信息，在使用 Hive-1.2.0 及更高版本时支持。
-- `DATE`列统计信息，在使用 Hive-1.2.0 及更高版时支持。
-- 使用 Hive-2.0.x 版本时不支持写入 ORC 表。
+- 更改表的统计信息，在使用 Hive-2.3.0 及更高版本时支持。
+- `DATE`列统计信息，在使用 Hive-2.3.0 及更高版时支持。
 
 ### 依赖项
 
@@ -102,11 +105,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 下表列出了所有可用的 Hive jar。您可以选择一个并放在 Flink 发行版的`/lib/` 目录中。
 
-| Metastore version | Maven dependency             | SQL Client JAR         |
-| :---------------- | :--------------------------- | :----------------------|
-| 1.0.0 - 1.2.2     | `flink-sql-connector-hive-1.2.2` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-1.2.2{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-1.2.2{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
-| 2.0.0 - 2.2.0     | `flink-sql-connector-hive-2.2.0` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.2.0{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.2.0{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
-| 2.3.0 - 2.3.6     | `flink-sql-connector-hive-2.3.6` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.6{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
+| Metastore version | Maven dependency                 | SQL Client JAR                                                                                                                                                                                                                                                                                                   |
+|:------------------|:---------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.3.0 - 2.3.9     | `flink-sql-connector-hive-2.3.9` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.9{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.9{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 | 3.0.0 - 3.1.2     | `flink-sql-connector-hive-3.1.2` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.2{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
 
 #### 用户定义的依赖项

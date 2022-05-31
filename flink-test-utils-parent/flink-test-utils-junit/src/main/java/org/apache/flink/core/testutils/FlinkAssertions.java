@@ -57,33 +57,14 @@ public final class FlinkAssertions {
             Class<? extends Throwable> clazz, String containsMessage) {
         return t ->
                 assertThatChainOfCauses(t)
+                        .as(
+                                "Any cause is instance of class '%s' and contains message '%s'",
+                                clazz, containsMessage)
                         .anySatisfy(
                                 cause ->
                                         assertThat(cause)
                                                 .isInstanceOf(clazz)
                                                 .hasMessageContaining(containsMessage));
-    }
-
-    /**
-     * Shorthand to assert the chain of causes includes a specific {@link Throwable}. Same as:
-     *
-     * <pre>{@code
-     * assertThatChainOfCauses(t)
-     *     .anySatisfy(
-     *          cause ->
-     *              assertThat(cause)
-     *                  .isInstanceOf(throwable.getClass())
-     *                  .hasMessage(throwable.getMessage()));
-     * }</pre>
-     */
-    public static ThrowingConsumer<? super Throwable> containsCause(Throwable throwable) {
-        return t ->
-                assertThatChainOfCauses(t)
-                        .anySatisfy(
-                                cause ->
-                                        assertThat(cause)
-                                                .isInstanceOf(throwable.getClass())
-                                                .hasMessage(throwable.getMessage()));
     }
 
     /**
@@ -102,6 +83,7 @@ public final class FlinkAssertions {
             Class<? extends Throwable> clazz) {
         return t ->
                 assertThatChainOfCauses(t)
+                        .as("Any cause is instance of class '%s'", clazz)
                         .anySatisfy(cause -> assertThat(cause).isInstanceOf(clazz));
     }
 
@@ -120,6 +102,7 @@ public final class FlinkAssertions {
     public static ThrowingConsumer<? super Throwable> anyCauseMatches(String containsMessage) {
         return t ->
                 assertThatChainOfCauses(t)
+                        .as("Any cause contains message '%s'", containsMessage)
                         .anySatisfy(t1 -> assertThat(t1).hasMessageContaining(containsMessage));
     }
 

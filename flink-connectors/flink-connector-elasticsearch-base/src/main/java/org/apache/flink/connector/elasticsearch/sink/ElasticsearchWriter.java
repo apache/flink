@@ -103,7 +103,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
                                 RestClient.builder(hosts.toArray(new HttpHost[0])),
                                 networkClientConfig));
         this.bulkProcessor = createBulkProcessor(bulkProcessorBuilderFactory, bulkProcessorConfig);
-        this.requestIndexer = new DefaultRequestIndexer();
+        this.requestIndexer = new DefaultRequestIndexer(metricGroup.getNumRecordsSendCounter());
         checkNotNull(metricGroup);
         metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
@@ -294,9 +294,16 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
 
     private class DefaultRequestIndexer implements RequestIndexer {
 
+        private final Counter numRecordsSendCounter;
+
+        public DefaultRequestIndexer(Counter numRecordsSendCounter) {
+            this.numRecordsSendCounter = checkNotNull(numRecordsSendCounter);
+        }
+
         @Override
         public void add(DeleteRequest... deleteRequests) {
             for (final DeleteRequest deleteRequest : deleteRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(deleteRequest);
             }
@@ -305,6 +312,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         @Override
         public void add(IndexRequest... indexRequests) {
             for (final IndexRequest indexRequest : indexRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(indexRequest);
             }
@@ -313,6 +321,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         @Override
         public void add(UpdateRequest... updateRequests) {
             for (final UpdateRequest updateRequest : updateRequests) {
+                numRecordsSendCounter.inc();
                 pendingActions++;
                 bulkProcessor.add(updateRequest);
             }

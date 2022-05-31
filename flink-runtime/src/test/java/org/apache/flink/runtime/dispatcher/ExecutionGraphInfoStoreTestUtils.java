@@ -31,7 +31,6 @@ import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerCo
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -41,9 +40,10 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
 
@@ -175,15 +175,21 @@ public class ExecutionGraphInfoStoreTestUtils {
     /** MiniCluster with specified {@link ExecutionGraphInfoStore}. */
     static class PersistingMiniCluster extends MiniCluster {
         @Nullable private final File rootDir;
+        private final ScheduledExecutor scheduledExecutor;
 
-        PersistingMiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
-            this(miniClusterConfiguration, null);
+        PersistingMiniCluster(
+                MiniClusterConfiguration miniClusterConfiguration,
+                ScheduledExecutor scheduledExecutor) {
+            this(miniClusterConfiguration, null, scheduledExecutor);
         }
 
         PersistingMiniCluster(
-                MiniClusterConfiguration miniClusterConfiguration, @Nullable File rootDir) {
+                MiniClusterConfiguration miniClusterConfiguration,
+                @Nullable File rootDir,
+                ScheduledExecutor scheduledExecutor) {
             super(miniClusterConfiguration);
             this.rootDir = rootDir;
+            this.scheduledExecutor = scheduledExecutor;
         }
 
         @Override
@@ -191,9 +197,9 @@ public class ExecutionGraphInfoStoreTestUtils {
                 createDispatcherResourceManagerComponents(
                         Configuration configuration,
                         RpcServiceFactory rpcServiceFactory,
-                        HighAvailabilityServices haServices,
                         BlobServer blobServer,
                         HeartbeatServices heartbeatServices,
+                        DelegationTokenManager delegationTokenManager,
                         MetricRegistry metricRegistry,
                         MetricQueryServiceRetriever metricQueryServiceRetriever,
                         FatalErrorHandler fatalErrorHandler)
@@ -210,7 +216,8 @@ public class ExecutionGraphInfoStoreTestUtils {
             switch (jobStoreType) {
                 case File:
                     {
-                        executionGraphInfoStore = createDefaultExecutionGraphInfoStore(rootDir);
+                        executionGraphInfoStore =
+                                createDefaultExecutionGraphInfoStore(rootDir, scheduledExecutor);
                         break;
                     }
                 case Memory:
@@ -231,9 +238,10 @@ public class ExecutionGraphInfoStoreTestUtils {
                             ResourceID.generate(),
                             getIOExecutor(),
                             rpcServiceFactory.createRpcService(),
-                            haServices,
+                            getHaServices(),
                             blobServer,
                             heartbeatServices,
+                            delegationTokenManager,
                             metricRegistry,
                             executionGraphInfoStore,
                             metricQueryServiceRetriever,
@@ -241,14 +249,14 @@ public class ExecutionGraphInfoStoreTestUtils {
         }
     }
 
-    static FileExecutionGraphInfoStore createDefaultExecutionGraphInfoStore(File storageDirectory)
-            throws IOException {
+    static FileExecutionGraphInfoStore createDefaultExecutionGraphInfoStore(
+            File storageDirectory, ScheduledExecutor scheduledExecutor) throws IOException {
         return new FileExecutionGraphInfoStore(
                 storageDirectory,
                 Time.hours(1L),
                 Integer.MAX_VALUE,
                 10000L,
-                TestingUtils.defaultScheduledExecutor(),
+                scheduledExecutor,
                 Ticker.systemTicker());
     }
 }

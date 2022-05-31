@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.CalciteConfig
@@ -31,10 +30,7 @@ import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-
-/**
-  * Test for [[EnforceLocalSortAggRule]].
-  */
+/** Test for [[EnforceLocalSortAggRule]]. */
 class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 
   @Before
@@ -42,23 +38,28 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     super.setup()
     util.addFunction("weightedAvg", new WeightedAvg)
 
-    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
-    program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.remove(RuleSets.ofList(BatchPhysicalSortAggRule.INSTANCE))
-    program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.add(RuleSets.ofList(BatchExecSortAggRuleForOnePhase.INSTANCE))
+    program
+      .getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
+      .get
+      .remove(RuleSets.ofList(BatchPhysicalSortAggRule.INSTANCE))
+    program
+      .getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
+      .get
+      .add(RuleSets.ofList(BatchExecSortAggRuleForOnePhase.INSTANCE))
 
     var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
-    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
-      .replaceBatchProgram(program).build()
+    calciteConfig = CalciteConfig
+      .createBuilder(calciteConfig)
+      .replaceBatchProgram(program)
+      .build()
     util.tableEnv.getConfig.setPlannerConfig(calciteConfig)
     // only enabled SortAgg
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    util.tableEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
   }
 
   @Test
@@ -78,16 +79,18 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 }
 
 /**
-  * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]]
-  * value, and only enable one phase aggregate.
-  * This rule only used for test.
-  */
+ * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] value,
+ * and only enable one phase aggregate. This rule only used for test.
+ */
 class BatchExecSortAggRuleForOnePhase extends BatchPhysicalSortAggRule {
   override protected def isTwoPhaseAggWorkable(
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
+      aggFunctions: Array[UserDefinedFunction],
+      tableConfig: ReadableConfig): Boolean = false
 
-  override protected def isOnePhaseAggWorkable(agg: Aggregate,
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = true
+  override protected def isOnePhaseAggWorkable(
+      agg: Aggregate,
+      aggFunctions: Array[UserDefinedFunction],
+      tableConfig: ReadableConfig): Boolean = true
 }
 
 object BatchExecSortAggRuleForOnePhase {

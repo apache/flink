@@ -26,9 +26,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Tests for [[SimplifyJoinConditionRule]].
-  */
+/** Tests for [[SimplifyJoinConditionRule]]. */
 class SimplifyJoinConditionRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()

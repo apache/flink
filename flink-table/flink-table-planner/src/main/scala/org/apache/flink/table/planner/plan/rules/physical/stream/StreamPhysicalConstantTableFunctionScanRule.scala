@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -23,27 +22,26 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFuncti
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCorrelate, StreamPhysicalValues}
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexLiteral, RexUtil}
 
 /**
-  * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
-  * {{{
-  *                    [[StreamPhysicalCorrelate]]
-  *                          /          \
-  * empty [[StreamPhysicalValues]]  [[FlinkLogicalTableFunctionScan]]
-  * }}}
-  *
-  * Add the rule to support select from a UDF directly, such as the following SQL:
-  * SELECT * FROM LATERAL TABLE(func()) as T(c)
-  *
-  * Note: [[StreamPhysicalCorrelateRule]] is responsible for converting a reasonable physical plan
- * for the normal correlate query, such as the following SQL:
-  * example1: SELECT * FROM T, LATERAL TABLE(func()) as T(c)
-  * example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)
-  */
+ * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
+ * {{{
+ *                    [[StreamPhysicalCorrelate]]
+ *                          /          \
+ * empty [[StreamPhysicalValues]]  [[FlinkLogicalTableFunctionScan]]
+ * }}}
+ *
+ * Add the rule to support select from a UDF directly, such as the following SQL: SELECT * FROM
+ * LATERAL TABLE(func()) as T(c)
+ *
+ * Note: [[StreamPhysicalCorrelateRule]] is responsible for converting a reasonable physical plan
+ * for the normal correlate query, such as the following SQL: example1: SELECT * FROM T, LATERAL
+ * TABLE(func()) as T(c) example2: SELECT a, c FROM T, LATERAL TABLE(func(a)) as T(c)
+ */
 class StreamPhysicalConstantTableFunctionScanRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalTableFunctionScan], any),

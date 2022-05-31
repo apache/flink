@@ -15,25 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 
 import scala.collection.JavaConversions._
 
-/**
- * Stream physical RelNode for [[Values]].
- */
+/** Stream physical RelNode for [[Values]]. */
 class StreamPhysicalValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -52,9 +50,9 @@ class StreamPhysicalValues(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecValues(
+      unwrapTableConfig(this),
       tuples.asList().map(_.asList()),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

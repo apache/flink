@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 
-import org.junit.rules.TemporaryFolder
 import org.junit.{After, Before, Rule, Test}
+import org.junit.rules.TemporaryFolder
 
 class StreamingOperatorsITCase extends AbstractTestBase {
 
@@ -73,10 +72,9 @@ class StreamingOperatorsITCase extends AbstractTestBase {
     inp
       .keyBy("a")
       .sum("i.c")
-        .writeAsText(resultPath3, FileSystem.WriteMode.OVERWRITE)
+      .writeAsText(resultPath3, FileSystem.WriteMode.OVERWRITE)
 
-    expected3 =
-      "Outer(1,Inner(3,alma),true)\n" +
+    expected3 = "Outer(1,Inner(3,alma),true)\n" +
       "Outer(1,Inner(9,alma),true)\n" +
       "Outer(2,Inner(15,alma),true)\n" +
       "Outer(2,Inner(7,alma),true)"
@@ -89,4 +87,3 @@ object StreamingOperatorsITCase {
   case class Inner(c: Short, d: String)
   case class Outer(a: Int, i: StreamingOperatorsITCase.Inner, b: Boolean)
 }
-

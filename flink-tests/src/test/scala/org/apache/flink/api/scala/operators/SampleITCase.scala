@@ -17,17 +17,18 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.util.{List => JavaList, Random}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.utils._
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+
+import org.junit.{After, Before, Test}
 import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Test}
+
+import java.util.{List => JavaList, Random}
 
 import scala.collection.JavaConverters._
 

@@ -21,54 +21,41 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 
 import org.apache.avro.reflect.Nullable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.fail;
-
 /** Tests for the {@link AvroSerializer}. */
-public class AvroSerializerEmptyArrayTest {
+class AvroSerializerEmptyArrayTest {
 
     @Test
-    public void testBookSerialization() {
-        try {
-            Book b = new Book(123, "This is a test book", 26382648);
-            AvroSerializer<Book> serializer = new AvroSerializer<Book>(Book.class);
-            SerializerTestInstance<Book> test =
-                    new SerializerTestInstance<Book>(serializer, Book.class, -1, b);
-            test.testAll();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+    void testBookSerialization() {
+        Book b = new Book(123, "This is a test book", 26382648);
+        AvroSerializer<Book> serializer = new AvroSerializer<Book>(Book.class);
+        SerializerTestInstance<Book> test =
+                new SerializerTestInstance<Book>(serializer, Book.class, -1, b) {};
+        test.testAll();
     }
 
     @Test
-    public void testSerialization() {
-        try {
-            List<String> titles = new ArrayList<String>();
+    void testSerialization() {
+        List<String> titles = new ArrayList<String>();
 
-            List<Book> books = new ArrayList<Book>();
-            books.add(new Book(123, "This is a test book", 1));
-            books.add(new Book(24234234, "This is a test book", 1));
-            books.add(new Book(1234324, "This is a test book", 3));
+        List<Book> books = new ArrayList<Book>();
+        books.add(new Book(123, "This is a test book", 1));
+        books.add(new Book(24234234, "This is a test book", 1));
+        books.add(new Book(1234324, "This is a test book", 3));
 
-            BookAuthor a = new BookAuthor(1, titles, "Test Author");
-            a.books = books;
-            a.bookType = BookAuthor.BookType.journal;
+        BookAuthor a = new BookAuthor(1, titles, "Test Author");
+        a.books = books;
+        a.bookType = BookAuthor.BookType.journal;
 
-            AvroSerializer<BookAuthor> serializer =
-                    new AvroSerializer<BookAuthor>(BookAuthor.class);
+        AvroSerializer<BookAuthor> serializer = new AvroSerializer<BookAuthor>(BookAuthor.class);
 
-            SerializerTestInstance<BookAuthor> test =
-                    new SerializerTestInstance<BookAuthor>(serializer, BookAuthor.class, -1, a);
-            test.testAll();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        SerializerTestInstance<BookAuthor> test =
+                new SerializerTestInstance<BookAuthor>(serializer, BookAuthor.class, -1, a) {};
+        test.testAll();
     }
 
     /** Avro POJO for testing. */

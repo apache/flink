@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
 import org.junit.Test;
@@ -92,7 +94,7 @@ public class StateChangelogStorageLoaderTest {
             implements StateChangelogStorage<ChangelogStateHandle> {
         @Override
         public StateChangelogWriter<ChangelogStateHandle> createWriter(
-                String operatorID, KeyGroupRange keyGroupRange) {
+                String operatorID, KeyGroupRange keyGroupRange, MailboxExecutor mailboxExecutor) {
             return null;
         }
 
@@ -107,12 +109,17 @@ public class StateChangelogStorageLoaderTest {
         @Override
         public String getIdentifier() {
             // same identifier for overlapping test.
-            return InMemoryStateChangelogStorageFactory.identifier;
+            return InMemoryStateChangelogStorageFactory.IDENTIFIER;
         }
 
         @Override
         public StateChangelogStorage<?> createStorage(
                 Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+            return new TestStateChangelogStorage();
+        }
+
+        @Override
+        public StateChangelogStorageView<?> createStorageView() throws IOException {
             return new TestStateChangelogStorage();
         }
     }

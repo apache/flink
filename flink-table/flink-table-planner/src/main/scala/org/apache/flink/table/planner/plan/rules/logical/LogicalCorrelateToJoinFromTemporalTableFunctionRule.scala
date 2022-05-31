@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.ValidationException
@@ -25,41 +24,42 @@ import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.optimize.program.FlinkOptimizeContext
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.utils.ShortcutUtils
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{isProctimeAttribute}
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute
 import org.apache.flink.util.Preconditions.checkState
 
-import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinRelType, TableFunctionScan}
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
 
 /**
-  * The initial temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) is
-  * a correlate. Rewrite it into a Join with a special temporal join condition wraps time
-  * attribute and primary key information. The join will be translated into
-  * [[StreamExecTemporalJoin]] in physical.
-  */
+ * The initial temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) is a
+ * correlate. Rewrite it into a Join with a special temporal join condition wraps time attribute and
+ * primary key information. The join will be translated into [[StreamExecTemporalJoin]] in physical.
+ */
 class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   extends RelOptRule(
-    operand(classOf[LogicalCorrelate],
-      some(operand(classOf[RelNode], any()),
-        operand(classOf[TableFunctionScan], none()))),
+    operand(
+      classOf[LogicalCorrelate],
+      some(operand(classOf[RelNode], any()), operand(classOf[TableFunctionScan], none()))),
     "LogicalCorrelateToJoinFromTemporalTableFunctionRule") {
 
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
-      case f : FieldReferenceExpression
-        if f.getOutputDataType.getLogicalType.isAnyOf(
-          TIMESTAMP_WITHOUT_TIME_ZONE,
-          TIMESTAMP_WITH_LOCAL_TIME_ZONE) => f.getName
-      case _ => throw new ValidationException(
-        s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
+      case f: FieldReferenceExpression
+          if f.getOutputDataType.getLogicalType.isAnyOf(
+            TIMESTAMP_WITHOUT_TIME_ZONE,
+            TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+        f.getName
+      case _ =>
+        throw new ValidationException(
+          s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }
   }
 
@@ -72,9 +72,10 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
     expression match {
       case f: FieldReferenceExpression =>
         f.getName
-      case _ => throw new ValidationException(
-        s"Unsupported expression [$expression] as primary key. " +
-          s"Only top-level (not nested) field references are supported.")
+      case _ =>
+        throw new ValidationException(
+          s"Unsupported expression [$expression] as primary key. " +
+            s"Only top-level (not nested) field references are supported.")
     }
   }
 
@@ -89,15 +90,17 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
       .visit(rightTableFunctionScan.getCall) match {
       case None =>
       // Do nothing and handle standard TableFunction
-      case Some(TemporalTableFunctionCall(
-      rightTemporalTableFunction: TemporalTableFunctionImpl, leftTimeAttribute)) =>
-
+      case Some(
+            TemporalTableFunctionCall(
+              rightTemporalTableFunction: TemporalTableFunctionImpl,
+              leftTimeAttribute)) =>
         // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-        val underlyingHistoryTable: QueryOperation = rightTemporalTableFunction
-          .getUnderlyingHistoryTable
+        val underlyingHistoryTable: QueryOperation =
+          rightTemporalTableFunction.getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val flinkContext = ShortcutUtils.unwrapContext(call.getPlanner)
+        val flinkContext = ShortcutUtils
+          .unwrapContext(call.getPlanner)
           .asInstanceOf[FlinkOptimizeContext]
         val relBuilder = flinkContext.getFlinkRelBuilder
 
@@ -141,14 +144,15 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   }
 
   private def createRightExpression(
-    rexBuilder: RexBuilder,
-    leftNode: RelNode,
-    rightNode: RelNode,
-    field: String): RexNode = {
+      rexBuilder: RexBuilder,
+      leftNode: RelNode,
+      rightNode: RelNode,
+      field: String): RexNode = {
     val rightReferencesOffset = leftNode.getRowType.getFieldCount
     val rightDataTypeField = rightNode.getRowType.getField(field, false, false)
     rexBuilder.makeInputRef(
-      rightDataTypeField.getType, rightReferencesOffset + rightDataTypeField.getIndex)
+      rightDataTypeField.getType,
+      rightReferencesOffset + rightDataTypeField.getIndex)
   }
 
 }
@@ -158,20 +162,15 @@ object LogicalCorrelateToJoinFromTemporalTableFunctionRule {
 }
 
 /**
-  * Simple pojo class for extracted [[TemporalTableFunction]] with time attribute
-  * extracted from RexNode with [[TemporalTableFunction]] call.
-  */
+ * Simple pojo class for extracted [[TemporalTableFunction]] with time attribute extracted from
+ * RexNode with [[TemporalTableFunction]] call.
+ */
 case class TemporalTableFunctionCall(
-  var temporalTableFunction: TemporalTableFunction,
-  var timeAttribute: RexNode) {
-}
+    var temporalTableFunction: TemporalTableFunction,
+    var timeAttribute: RexNode) {}
 
-/**
-  * Find [[TemporalTableFunction]] call and run [[CorrelatedFieldAccessRemoval]] on it's operand.
-  */
-class GetTemporalTableFunctionCall(
-  var rexBuilder: RexBuilder,
-  var leftSide: RelNode)
+/** Find [[TemporalTableFunction]] call and run [[CorrelatedFieldAccessRemoval]] on it's operand. */
+class GetTemporalTableFunctionCall(var rexBuilder: RexBuilder, var leftSide: RelNode)
   extends RexVisitorImpl[TemporalTableFunctionCall](false) {
 
   def visit(node: RexNode): Option[TemporalTableFunctionCall] = {
@@ -208,13 +207,14 @@ class GetTemporalTableFunctionCall(
 }
 
 /**
-  * This converts field accesses like `$cor0.o_rowtime` to valid input references
-  * for join condition context without `$cor` reference.
-  */
+ * This converts field accesses like `$cor0.o_rowtime` to valid input references for join condition
+ * context without `$cor` reference.
+ */
 class CorrelatedFieldAccessRemoval(
-  var temporalTableFunction: TemporalTableFunctionImpl,
-  var rexBuilder: RexBuilder,
-  var leftSide: RelNode) extends RexDefaultVisitor[RexNode] {
+    var temporalTableFunction: TemporalTableFunctionImpl,
+    var rexBuilder: RexBuilder,
+    var leftSide: RelNode)
+  extends RexDefaultVisitor[RexNode] {
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): RexNode = {
     val leftIndex = leftSide.getRowType.getFieldList.indexOf(fieldAccess.getField)

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.async
 
 import org.apache.flink.api.common.functions.RuntimeContext
@@ -23,14 +22,14 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.{ResultFuture => JResultFuture, RichAsyncFunction => JRichAsyncFunction}
 
 /**
-  * A wrapper function that exposes a Scala RichAsyncFunction as a Java Rich Async Function.
-  *
-  * The Scala and Java RichAsyncFunctions differ in their type of "ResultFuture"
-  *   - Scala RichAsyncFunction: [[org.apache.flink.streaming.api.scala.async.ResultFuture]]
-  *   - Java RichAsyncFunction: [[org.apache.flink.streaming.api.functions.async.ResultFuture]]
-  */
+ * A wrapper function that exposes a Scala RichAsyncFunction as a Java Rich Async Function.
+ *
+ * The Scala and Java RichAsyncFunctions differ in their type of "ResultFuture"
+ *   - Scala RichAsyncFunction: [[org.apache.flink.streaming.api.scala.async.ResultFuture]]
+ *   - Java RichAsyncFunction: [[org.apache.flink.streaming.api.functions.async.ResultFuture]]
+ */
 final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, OUT])
-  extends JRichAsyncFunction[IN, OUT]{
+  extends JRichAsyncFunction[IN, OUT] {
 
   override def asyncInvoke(input: IN, resultFuture: JResultFuture[OUT]): Unit = {
     func.asyncInvoke(input, new JavaResultFutureWrapper[OUT](resultFuture))

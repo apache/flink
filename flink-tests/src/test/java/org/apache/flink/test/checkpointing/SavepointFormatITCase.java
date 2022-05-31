@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
+import org.apache.flink.util.TestLogger;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -53,6 +54,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import java.nio.file.Path;
@@ -69,7 +72,9 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for taking savepoint in different {@link SavepointFormatType format types}. */
-public class SavepointFormatITCase {
+public class SavepointFormatITCase extends TestLogger {
+    private static final Logger LOG = LoggerFactory.getLogger(SavepointFormatITCase.class);
+
     @TempDir Path checkpointsDir;
     @TempDir Path originalSavepointDir;
     @TempDir Path renamedSavepointDir;
@@ -258,6 +263,9 @@ public class SavepointFormatITCase {
                     .flatMap(subtaskState -> subtaskState.getManagedKeyedState().stream())
                     .forEach(handle -> validateState(handle, formatType, stateBackendConfig));
             relocateAndVerify(miniClusterResource, savepointPath, renamedSavepointDir, config);
+        } catch (Throwable t) {
+            LOG.info("Throwable caught, cluster will be shut down", t); // debug FLINK-26154
+            throw t;
         } finally {
             miniClusterResource.after();
         }

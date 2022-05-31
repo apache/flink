@@ -27,6 +27,7 @@ import org.apache.flink.util.CloseableIterator;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Writes channel state during checkpoint/savepoint. */
@@ -129,6 +130,22 @@ public interface ChannelStateWriter extends Closeable {
             throws IllegalArgumentException;
 
     /**
+     * Add in-flight bufferFuture from the {@link
+     * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}. Must be
+     * called after {@link #start} and before {@link #finishOutput(long)}. Buffers are recycled
+     * after they are written or exception occurs.
+     *
+     * <p>The method will be called when the unaligned checkpoint is enabled and received an aligned
+     * barrier.
+     */
+    void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> data)
+            throws IllegalArgumentException;
+
+    /**
      * Finalize write of channel state data for the given checkpoint id. Must be called after {@link
      * #start(long, CheckpointOptions)} and all of the input data of the given checkpoint added.
      * When both {@link #finishInput} and {@link #finishOutput} were called the results can be
@@ -177,6 +194,13 @@ public interface ChannelStateWriter extends Closeable {
         @Override
         public void addOutputData(
                 long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {}
+
+        @Override
+        public void addOutputDataFuture(
+                long checkpointId,
+                ResultSubpartitionInfo info,
+                int startSeqNum,
+                CompletableFuture<List<Buffer>> data) {}
 
         @Override
         public void finishInput(long checkpointId) {}

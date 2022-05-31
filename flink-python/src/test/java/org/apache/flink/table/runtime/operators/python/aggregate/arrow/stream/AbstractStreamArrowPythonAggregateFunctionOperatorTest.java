@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
 /** Base class for Stream Arrow Python aggregate function operator tests. */
-public abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
+abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
         extends ArrowPythonAggregateFunctionOperatorTestBase {
 
     public OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(Configuration config)

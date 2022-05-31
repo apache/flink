@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -89,7 +88,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner);
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorage);
 
     @Nullable
     CheckpointCoordinator getCheckpointCoordinator();
@@ -191,15 +191,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      *     not found.
      */
     boolean updateState(TaskExecutionStateTransition state);
-
-    /**
-     * Mark the data of a result partition to be available. Note that only PIPELINED partitions are
-     * accepted because it is for the case that a TM side PIPELINED result partition has data
-     * produced and notifies JM.
-     *
-     * @param partitionId specifying the result partition whose data have become available
-     */
-    void notifyPartitionDataAvailable(ResultPartitionID partitionId);
 
     Map<ExecutionAttemptID, Execution> getRegisteredExecutions();
 

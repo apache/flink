@@ -36,7 +36,6 @@ import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -220,6 +219,7 @@ public class AkkaRpcService implements RpcService {
                             actorRef,
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
+                            configuration.isForceRpcInvocationSerialization(),
                             null,
                             captureAskCallstacks,
                             flinkClassLoader);
@@ -242,6 +242,7 @@ public class AkkaRpcService implements RpcService {
                             actorRef,
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
+                            configuration.isForceRpcInvocationSerialization(),
                             null,
                             () -> fencingToken,
                             captureAskCallstacks,
@@ -290,6 +291,7 @@ public class AkkaRpcService implements RpcService {
                             actorRef,
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
+                            configuration.isForceRpcInvocationSerialization(),
                             actorTerminationFuture,
                             ((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
                             captureAskCallstacks,
@@ -304,6 +306,7 @@ public class AkkaRpcService implements RpcService {
                             actorRef,
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
+                            configuration.isForceRpcInvocationSerialization(),
                             actorTerminationFuture,
                             captureAskCallstacks,
                             flinkClassLoader);
@@ -379,6 +382,7 @@ public class AkkaRpcService implements RpcService {
                             ((AkkaBasedEndpoint) rpcServer).getActorRef(),
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
+                            configuration.isForceRpcInvocationSerialization(),
                             null,
                             () -> fencingToken,
                             captureAskCallstacks,
@@ -554,7 +558,7 @@ public class AkkaRpcService implements RpcService {
                                                         actorRef,
                                                         new RemoteHandshakeMessage(
                                                                 clazz, getVersion()),
-                                                        configuration.getTimeout().toMilliseconds())
+                                                        configuration.getTimeout().toMillis())
                                                 .<HandshakeSuccessMessage>mapTo(
                                                         ClassTag$.MODULE$
                                                                 .<HandshakeSuccessMessage>apply(
@@ -593,7 +597,7 @@ public class AkkaRpcService implements RpcService {
     private CompletableFuture<ActorRef> resolveActorAddress(String address) {
         final ActorSelection actorSel = actorSystem.actorSelection(address);
 
-        return actorSel.resolveOne(TimeUtils.toDuration(configuration.getTimeout()))
+        return actorSel.resolveOne(configuration.getTimeout())
                 .toCompletableFuture()
                 .exceptionally(
                         error -> {

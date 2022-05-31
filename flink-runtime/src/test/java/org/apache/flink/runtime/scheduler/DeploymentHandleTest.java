@@ -47,10 +47,6 @@ public class DeploymentHandleTest {
     private static final ExecutionVertexVersion TEST_EXECUTION_VERTEX_VERSION =
             new ExecutionVertexVersion(TEST_EXECUTION_VERTEX_ID, 0);
 
-    private static final ExecutionVertexDeploymentOption TEST_DEPLOYMENT_OPTION =
-            new ExecutionVertexDeploymentOption(
-                    TEST_EXECUTION_VERTEX_ID, new DeploymentOption(true));
-
     private CompletableFuture<LogicalSlot> logicalSlotFuture;
 
     private DeploymentHandle deploymentHandle;
@@ -61,10 +57,7 @@ public class DeploymentHandleTest {
         final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
                 new SlotExecutionVertexAssignment(TEST_EXECUTION_VERTEX_ID, logicalSlotFuture);
         deploymentHandle =
-                new DeploymentHandle(
-                        TEST_EXECUTION_VERTEX_VERSION,
-                        TEST_DEPLOYMENT_OPTION,
-                        slotExecutionVertexAssignment);
+                new DeploymentHandle(TEST_EXECUTION_VERTEX_VERSION, slotExecutionVertexAssignment);
     }
 
     @Test

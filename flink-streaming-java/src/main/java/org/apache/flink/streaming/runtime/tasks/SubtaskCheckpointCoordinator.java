@@ -100,4 +100,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
 
     /** Waits for all the pending checkpoints to finish their asynchronous step. */
     void waitForPendingCheckpoints() throws Exception;
+
+    /** Cancel all resources. */
+    void cancel() throws IOException;
 }

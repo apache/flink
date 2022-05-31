@@ -31,17 +31,16 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 
-public class RowSerializerTest {
+class RowSerializerTest {
 
     @Test
-    public void testRowSerializer() {
+    void testRowSerializer() {
         final TypeInformation<Row> rowTypeInfo =
                 Types.ROW_NAMED(
                         new String[] {"a", "b", "c", "d"},
@@ -89,7 +88,7 @@ public class RowSerializerTest {
     }
 
     @Test
-    public void testLargeRowSerializer() {
+    void testLargeRowSerializer() {
         TypeInformation<Row> typeInfo =
                 new RowTypeInfo(
                         BasicTypeInfo.INT_TYPE_INFO,
@@ -126,7 +125,7 @@ public class RowSerializerTest {
     }
 
     @Test
-    public void testRowSerializerWithComplexTypes() {
+    void testRowSerializerWithComplexTypes() {
         TypeInformation<Row> typeInfo =
                 new RowTypeInfo(
                         BasicTypeInfo.INT_TYPE_INFO,
@@ -223,7 +222,6 @@ public class RowSerializerTest {
         return row;
     }
 
-    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
         RowSerializerTestInstance(TypeSerializer<Row> serializer, Row... testData) {

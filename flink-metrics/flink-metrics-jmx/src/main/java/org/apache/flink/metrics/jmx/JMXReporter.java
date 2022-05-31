@@ -29,7 +29,6 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 
 import org.slf4j.Logger;
@@ -55,7 +54,6 @@ import java.util.Optional;
  * <p>Largely based on the JmxReporter class of the dropwizard metrics library
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
-@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.jmx.JMXReporterFactory")
 public class JMXReporter implements MetricReporter {
 
     static final String JMX_DOMAIN_PREFIX = "org.apache.flink.";
@@ -124,20 +122,25 @@ public class JMXReporter implements MetricReporter {
             return;
         }
 
-        if (metric instanceof Gauge) {
-            jmxMetric = new JmxGauge((Gauge<?>) metric);
-        } else if (metric instanceof Counter) {
-            jmxMetric = new JmxCounter((Counter) metric);
-        } else if (metric instanceof Histogram) {
-            jmxMetric = new JmxHistogram((Histogram) metric);
-        } else if (metric instanceof Meter) {
-            jmxMetric = new JmxMeter((Meter) metric);
-        } else {
-            LOG.error(
-                    "Cannot add unknown metric type: {}. This indicates that the metric type "
-                            + "is not supported by this reporter.",
-                    metric.getClass().getName());
-            return;
+        switch (metric.getMetricType()) {
+            case GAUGE:
+                jmxMetric = new JmxGauge((Gauge<?>) metric);
+                break;
+            case COUNTER:
+                jmxMetric = new JmxCounter((Counter) metric);
+                break;
+            case HISTOGRAM:
+                jmxMetric = new JmxHistogram((Histogram) metric);
+                break;
+            case METER:
+                jmxMetric = new JmxMeter((Meter) metric);
+                break;
+            default:
+                LOG.error(
+                        "Cannot add unknown metric type: {}. This indicates that the metric type "
+                                + "is not supported by this reporter.",
+                        metric.getClass().getName());
+                return;
         }
 
         try {

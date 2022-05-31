@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
@@ -24,18 +23,17 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
 
+import org.junit.{Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
-class WindowRankITCase(mode: StateBackendMode)
-  extends StreamingWithStateTestBase(mode) {
+class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Before
   override def before(): Unit = {
@@ -47,24 +45,23 @@ class WindowRankITCase(mode: StateBackendMode)
     FailingCollectionSource.reset()
 
     val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
-    tEnv.executeSql(
-      s"""
-        |CREATE TABLE T1 (
-        | `ts` STRING,
-        | `int` INT,
-        | `double` DOUBLE,
-        | `float` FLOAT,
-        | `bigdec` DECIMAL(10, 2),
-        | `string` STRING,
-        | `name` STRING,
-        | `rowtime` AS TO_TIMESTAMP(`ts`),
-        | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
-        |) WITH (
-        | 'connector' = 'values',
-        | 'data-id' = '$dataId',
-        | 'failing-source' = 'true'
-        |)
-        |""".stripMargin)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T1 (
+                       | `ts` STRING,
+                       | `int` INT,
+                       | `double` DOUBLE,
+                       | `float` FLOAT,
+                       | `bigdec` DECIMAL(10, 2),
+                       | `string` STRING,
+                       | `name` STRING,
+                       | `rowtime` AS TO_TIMESTAMP(`ts`),
+                       | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+                       |) WITH (
+                       | 'connector' = 'values',
+                       | 'data-id' = '$dataId',
+                       | 'failing-source' = 'true'
+                       |)
+                       |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
   }
 
@@ -106,7 +103,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi,1",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi,1",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -235,7 +233,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999")
+          "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -286,7 +285,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
           "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999")
+          "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -339,7 +339,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "2020-10-10T00:00:32,7,7.0,7.0,7.77,null,null,2020-10-10 00:00:32.000," +
           "2020-10-10T00:00:29,2020-10-10T00:00:34,2020-10-10T00:00:33.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999")
+          "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -377,7 +378,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "3,Hello,b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999",
         "4,Hi,b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-10T00:00:19.999",
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
-        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999")
+        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -425,7 +427,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2",
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null,1")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null,1"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -466,7 +469,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1,Comment#2,2",
       "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi,2",
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
-      "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2")
+      "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -507,7 +511,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1,Comment#2",
       "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi",
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
-      "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3")
+      "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -572,7 +577,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:25,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999")
+          "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -617,7 +623,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "7,null,null,2020-10-10T00:00:25,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999",
         "1,Comment#3,b,2020-10-10T00:00:25,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
-        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999")
+        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -671,7 +678,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3,2",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null,1",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null,1")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null,1"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -716,7 +724,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2",
-      "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3,2")
+      "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3,2"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -762,7 +771,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
-      "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3")
+      "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -798,7 +808,8 @@ class WindowRankITCase(mode: StateBackendMode)
       "a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,1",
       "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,1",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,1",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,1")
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,1"
+    )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -875,7 +886,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999",
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
-          "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999")
+          "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -928,7 +940,8 @@ class WindowRankITCase(mode: StateBackendMode)
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999",
-        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999")
+        "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
+      )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 }

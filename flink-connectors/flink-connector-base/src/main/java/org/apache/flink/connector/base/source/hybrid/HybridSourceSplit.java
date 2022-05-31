@@ -75,7 +75,7 @@ public class HybridSourceSplit implements SourceSplit {
 
     @Override
     public int hashCode() {
-        return Objects.hash(wrappedSplitBytes, sourceIndex);
+        return Objects.hash(Arrays.hashCode(wrappedSplitBytes), sourceIndex);
     }
 
     @Override

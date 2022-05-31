@@ -86,6 +86,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -843,7 +844,13 @@ public class StreamGraphGeneratorTest extends TestLogger {
         partitionStream.map(value -> value).print();
 
         final StreamGraph streamGraph = env.getStreamGraph();
-        Assertions.assertThat(streamGraph.getStreamEdges(1, 3))
+
+        final List<Integer> nodeIds =
+                streamGraph.getStreamNodes().stream()
+                        .map(StreamNode::getId)
+                        .sorted(Integer::compare)
+                        .collect(Collectors.toList());
+        Assertions.assertThat(streamGraph.getStreamEdges(nodeIds.get(0), nodeIds.get(1)))
                 .hasSize(1)
                 .satisfies(
                         e ->

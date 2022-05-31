@@ -52,7 +52,7 @@ DataStream<User> usersDS = env.createInput(users);
 注意，`User` 是一个通过 Avro schema生成的 POJO 类。Flink 还允许选择 POJO 中字符串类型的键。例如：
 
 ```java
-usersDS.keyBy("name")
+usersDS.keyBy("name");
 ```
 
 

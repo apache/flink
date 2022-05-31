@@ -19,7 +19,7 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 
-import { JobListComponent } from 'share/customize/job-list/job-list.component';
+import { JobListComponent } from '@flink-runtime-web/share/customize/job-list/job-list.component';
 
 import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component';
 import { JobConfigurationComponent } from './configuration/job-configuration.component';

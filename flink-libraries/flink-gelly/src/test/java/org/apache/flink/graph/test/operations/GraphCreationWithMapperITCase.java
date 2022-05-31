@@ -34,6 +34,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Test graph creation with a mapper. */
 @RunWith(Parameterized.class)
 public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {

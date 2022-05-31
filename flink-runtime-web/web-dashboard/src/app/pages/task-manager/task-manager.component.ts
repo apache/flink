@@ -21,7 +21,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
-import { StatusService, TaskManagerService } from 'services';
+import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
+
+import { TaskManagerLocalService } from './task-manager-local.service';
 
 @Component({
   selector: 'flink-task-manager',
@@ -38,18 +40,19 @@ export class TaskManagerComponent implements OnInit, OnDestroy {
     private readonly cdr: ChangeDetectorRef,
     private readonly activatedRoute: ActivatedRoute,
     private readonly taskManagerService: TaskManagerService,
+    private readonly taskManagerLocalService: TaskManagerLocalService,
     private readonly statusService: StatusService
   ) {}
 
   public ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId))
+        mergeMap(() => this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId)),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {
-          this.taskManagerService.taskManagerDetail$.next(data);
+          this.taskManagerLocalService.setTaskManagerDetail(data);
           this.isLoading = false;
           this.cdr.markForCheck();
         },

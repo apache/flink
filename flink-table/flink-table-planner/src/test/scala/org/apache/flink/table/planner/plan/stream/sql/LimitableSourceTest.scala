@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.planner.plan.rules.logical.PushLimitIntoTableSourceScanRule
 
 import org.junit.Before
 
-/**
- * Test for [[PushLimitIntoTableSourceScanRule]].
- */
+/** Test for [[PushLimitIntoTableSourceScanRule]]. */
 class LimitableSourceTest extends LimitTest {
 
   @Before

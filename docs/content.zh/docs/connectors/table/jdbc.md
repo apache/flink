@@ -44,6 +44,8 @@ JDBC 连接器允许使用 JDBC 驱动向任意类型的关系型数据库读取
 
 {{< sql_download_table "jdbc" >}}
 
+JDBC 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 JDBC 连接器。
+
 在连接到具体数据库时，也需要对应的驱动依赖，目前支持的驱动如下：
 
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |
@@ -53,7 +55,7 @@ JDBC 连接器允许使用 JDBC 驱动向任意类型的关系型数据库读取
 | PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [下载](https://jdbc.postgresql.org/download.html) |
 | Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) | |
 
-当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/datastream/project-configuration" >}})了解在集群上执行时何连接它们。
+当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/configuration" >}})了解在集群上执行时何连接它们。
 
 
 <a name="how-to-create-a-jdbc-table"></a>

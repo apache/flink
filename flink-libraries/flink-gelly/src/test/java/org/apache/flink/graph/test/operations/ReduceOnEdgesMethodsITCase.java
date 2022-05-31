@@ -39,6 +39,8 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareResultAsTuples;
+
 /** Tests for {@link Graph#groupReduceOnEdges} and {@link Graph#reduceOnEdges}. */
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {

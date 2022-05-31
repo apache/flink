@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /** Test for {@link EitherTypeInfo}. */
-public class EitherTypeInfoTest extends TypeInformationTestBase<EitherTypeInfo<?, ?>> {
+class EitherTypeInfoTest extends TypeInformationTestBase<EitherTypeInfo<?, ?>> {
 
     @Override
     protected EitherTypeInfo<?, ?>[] getTestData() {

@@ -54,7 +54,6 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -211,7 +210,7 @@ public class Task
      */
     private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-    private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
+    private final ResultPartitionWriter[] partitionWriters;
 
     private final IndexedInputGate[] inputGates;
 
@@ -300,8 +299,6 @@ public class Task
             TaskInformation taskInformation,
             ExecutionAttemptID executionAttemptID,
             AllocationID slotAllocationId,
-            int subtaskIndex,
-            int attemptNumber,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
             MemoryManager memManager,
@@ -321,23 +318,19 @@ public class Task
             FileCache fileCache,
             TaskManagerRuntimeInfo taskManagerConfig,
             @Nonnull TaskMetricGroup metricGroup,
-            ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
             PartitionProducerStateChecker partitionProducerStateChecker,
             Executor executor) {
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
 
-        Preconditions.checkArgument(0 <= subtaskIndex, "The subtask index must be positive.");
-        Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
-
         this.taskInfo =
                 new TaskInfo(
                         taskInformation.getTaskName(),
                         taskInformation.getMaxNumberOfSubtasks(),
-                        subtaskIndex,
+                        executionAttemptID.getSubtaskIndex(),
                         taskInformation.getNumberOfSubtasks(),
-                        attemptNumber,
+                        executionAttemptID.getAttemptNumber(),
                         String.valueOf(slotAllocationId));
 
         this.jobId = jobInformation.getJobId();
@@ -399,13 +392,7 @@ public class Task
                                 taskShuffleContext, resultPartitionDeploymentDescriptors)
                         .toArray(new ResultPartitionWriter[] {});
 
-        this.consumableNotifyingPartitionWriters =
-                ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-                        resultPartitionDeploymentDescriptors,
-                        resultPartitionWriters,
-                        this,
-                        jobId,
-                        resultPartitionConsumableNotifier);
+        this.partitionWriters = resultPartitionWriters;
 
         // consumed intermediate result partitions
         final IndexedInputGate[] gates =
@@ -504,13 +491,13 @@ public class Task
 
     public boolean isBackPressured() {
         if (invokable == null
-                || consumableNotifyingPartitionWriters.length == 0
+                || partitionWriters.length == 0
                 || (executionState != ExecutionState.INITIALIZING
                         && executionState != ExecutionState.RUNNING)) {
             return false;
         }
-        for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
-            if (!consumableNotifyingPartitionWriters[i].isAvailable()) {
+        for (int i = 0; i < partitionWriters.length; ++i) {
+            if (!partitionWriters[i].isAvailable()) {
                 return true;
             }
         }
@@ -649,9 +636,9 @@ public class Task
 
             LOG.debug("Registering task at network: {}.", this);
 
-            setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
+            setupPartitionsAndGates(partitionWriters, inputGates);
 
-            for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+            for (ResultPartitionWriter partitionWriter : partitionWriters) {
                 taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
             }
 
@@ -703,7 +690,7 @@ public class Task
                             kvStateRegistry,
                             inputSplitProvider,
                             distributedCacheEntries,
-                            consumableNotifyingPartitionWriters,
+                            partitionWriters,
                             inputGates,
                             taskEventDispatcher,
                             checkpointResponder,
@@ -751,7 +738,7 @@ public class Task
             // ----------------------------------------------------------------
 
             // finish the produced partitions. if this fails, we consider the execution failed.
-            for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+            for (ResultPartitionWriter partitionWriter : partitionWriters) {
                 if (partitionWriter != null) {
                     partitionWriter.finish();
                 }
@@ -976,7 +963,7 @@ public class Task
                 taskNameWithSubtask,
                 getExecutionState());
 
-        for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+        for (ResultPartitionWriter partitionWriter : partitionWriters) {
             taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
         }
 
@@ -995,13 +982,13 @@ public class Task
     }
 
     private void failAllResultPartitions() {
-        for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+        for (ResultPartitionWriter partitionWriter : partitionWriters) {
             partitionWriter.fail(getFailureCause());
         }
     }
 
     private void closeAllResultPartitions() {
-        for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+        for (ResultPartitionWriter partitionWriter : partitionWriters) {
             try {
                 partitionWriter.close();
             } catch (Throwable t) {

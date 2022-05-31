@@ -22,11 +22,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.RETRY_MAX_ATTEMPTS;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.UPLOAD_TIMEOUT;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 
 /** {@link FsStateChangelogStorage} factory. */
@@ -46,8 +50,19 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
         return new FsStateChangelogStorage(configuration, metricGroup);
     }
 
-    public static void configure(Configuration configuration, File newFolder) {
+    @Override
+    public StateChangelogStorageView<?> createStorageView() {
+        return new FsStateChangelogStorageForRecovery();
+    }
+
+    public static void configure(
+            Configuration configuration,
+            File newFolder,
+            Duration uploadTimeout,
+            int maxUploadAttempts) {
         configuration.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
         configuration.setString(BASE_PATH, newFolder.getAbsolutePath());
+        configuration.set(UPLOAD_TIMEOUT, uploadTimeout);
+        configuration.set(RETRY_MAX_ATTEMPTS, maxUploadAttempts);
     }
 }

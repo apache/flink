@@ -174,7 +174,7 @@ public class PulsarRuntimeOperator implements Closeable {
      *
      * @param topic The name of the topic.
      * @param numberOfPartitions The number of partitions. We would create a non-partitioned topic
-     *     if this number if zero.
+     *     if this number is zero.
      */
     public void createTopic(String topic, int numberOfPartitions) {
         checkArgument(numberOfPartitions >= 0);

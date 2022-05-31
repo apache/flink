@@ -17,9 +17,8 @@
 ################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Union, Any, Generic, TypeVar, Iterable
-
 from py4j.java_gateway import JavaObject
+from typing import Union, Any, Generic, TypeVar, Iterable
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
@@ -48,7 +47,9 @@ __all__ = [
     'KeyedCoProcessFunction',
     'TimerService',
     'WindowFunction',
-    'ProcessWindowFunction']
+    'AllWindowFunction',
+    'ProcessWindowFunction',
+    'ProcessAllWindowFunction']
 
 
 W = TypeVar('W')
@@ -465,6 +466,16 @@ class KeySelector(Function):
         :return: The extracted key.
         """
         pass
+
+
+class NullByteKeySelector(KeySelector):
+    """
+    Used as a dummy KeySelector to allow using keyed operators for non-keyed use cases. Essentially,
+    it gives all incoming records the same key, which is a (byte) 0 value.
+    """
+
+    def get_key(self, value):
+        return 0
 
 
 class FilterFunction(Function):
@@ -901,6 +912,22 @@ class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
         pass
 
 
+class AllWindowFunction(Function, Generic[IN, OUT, W]):
+    """
+    Base interface for functions that are evaluated over non-keyed windows.
+    """
+
+    @abstractmethod
+    def apply(self, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param window: The window that is being evaluated.
+        :param inputs: The elements in the window being evaluated.
+        """
+        pass
+
+
 class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
     """
     Base interface for functions that are evaluated over keyed (grouped) windows using a context
@@ -956,19 +983,18 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
     @abstractmethod
     def process(self,
                 key: KEY,
-                content: 'ProcessWindowFunction.Context',
+                context: 'ProcessWindowFunction.Context',
                 elements: Iterable[IN]) -> Iterable[OUT]:
         """
         Evaluates the window and outputs none or several elements.
 
         :param key: The key for which this window is evaluated.
-        :param content: The context in which the window is being evaluated.
+        :param context: The context in which the window is being evaluated.
         :param elements: The elements in the window being evaluated.
         :return: The iterable object which produces the elements to emit.
         """
         pass
 
-    @abstractmethod
     def clear(self, context: 'ProcessWindowFunction.Context') -> None:
         """
         Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
@@ -979,7 +1005,74 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         pass
 
 
-class InternalWindowFunction(Function, Generic[IN, KEY, W]):
+class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
+    """
+    Base interface for functions that are evaluated over non-keyed windows using a context
+    for retrieving extra information.
+    """
+
+    class Context(ABC, Generic[W2]):
+        """
+        The context holding window metadata.
+        """
+
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessAllWindowFunction.clear`.
+
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
+
+    @abstractmethod
+    def process(self,
+                context: 'ProcessAllWindowFunction.Context',
+                elements: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param context: The context in which the window is being evaluated.
+        :param elements: The elements in the window being evaluated.
+        :return: The iterable object which produces the elements to emit.
+        """
+        pass
+
+    def clear(self, context: 'ProcessAllWindowFunction.Context') -> None:
+        """
+        Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
+        max_timestamp + allowed_lateness).
+
+        :param context: The context to which the window is being evaluated.
+        """
+        pass
+
+
+class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
+
+    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
+        yield from inputs
+
+
+class InternalWindowFunction(Function, Generic[IN, OUT, KEY, W]):
 
     class InternalWindowContext(ABC):
 
@@ -1004,7 +1097,7 @@ class InternalWindowFunction(Function, Generic[IN, KEY, W]):
                 key: KEY,
                 window: W,
                 context: InternalWindowContext,
-                input_data: Iterable[IN]) -> Iterable[OUT]:
+                input_data: IN) -> Iterable[OUT]:
         pass
 
     @abstractmethod
@@ -1012,7 +1105,29 @@ class InternalWindowFunction(Function, Generic[IN, KEY, W]):
         pass
 
 
-class InternalIterableWindowFunction(InternalWindowFunction[IN, KEY, W]):
+class InternalSingleValueWindowFunction(InternalWindowFunction[IN, OUT, KEY, W]):
+
+    def __init__(self, wrapped_function: WindowFunction):
+        self._wrapped_function = wrapped_function
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: IN) -> Iterable[OUT]:
+        return self._wrapped_function.apply(key, window, [input_data])
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        pass
+
+
+class InternalIterableWindowFunction(InternalWindowFunction[Iterable[IN], OUT, KEY, W]):
 
     def __init__(self, wrapped_function: WindowFunction):
         self._wrapped_function = wrapped_function
@@ -1029,6 +1144,30 @@ class InternalIterableWindowFunction(InternalWindowFunction[IN, KEY, W]):
                 context: InternalWindowFunction.InternalWindowContext,
                 input_data: Iterable[IN]) -> Iterable[OUT]:
         return self._wrapped_function.apply(key, window, input_data)
+
+    def clear(self,
+              window: W,
+              context: InternalWindowFunction.InternalWindowContext):
+        pass
+
+
+class InternalIterableAllWindowFunction(InternalWindowFunction[Iterable[IN], OUT, int, W]):
+
+    def __init__(self, wrapped_function: AllWindowFunction):
+        self._wrapped_function = wrapped_function
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: int,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        return self._wrapped_function.apply(window, input_data)
 
     def clear(self,
               window: W,
@@ -1058,7 +1197,51 @@ class InternalProcessWindowContext(ProcessWindowFunction.Context[W]):
         return self._underlying.global_state()
 
 
-class InternalIterableProcessWindowFunction(InternalWindowFunction[IN, KEY, W]):
+class InternalProcessAllWindowContext(ProcessAllWindowFunction.Context[W]):
+
+    def __init__(self):
+        self._underlying = None
+        self._window = None
+
+    def window(self) -> W:
+        return self._window
+
+    def window_state(self) -> KeyedStateStore:
+        return self._underlying.window_state()
+
+    def global_state(self) -> KeyedStateStore:
+        return self._underlying.global_state()
+
+
+class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, KEY, W]):
+
+    def __init__(self, wrapped_function: ProcessWindowFunction):
+        self._wrapped_function = wrapped_function
+        self._internal_context = \
+            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: IN) -> Iterable[OUT]:
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        return self._wrapped_function.process(key, self._internal_context, [input_data])
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        self._wrapped_function.clear(self._internal_context)
+
+
+class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN], OUT, KEY, W]):
 
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
@@ -1079,6 +1262,34 @@ class InternalIterableProcessWindowFunction(InternalWindowFunction[IN, KEY, W]):
         self._internal_context._window = window
         self._internal_context._underlying = context
         return self._wrapped_function.process(key, self._internal_context, input_data)
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        self._wrapped_function.clear(self._internal_context)
+
+
+class InternalIterableProcessAllWindowFunction(InternalWindowFunction[Iterable[IN], OUT, int, W]):
+
+    def __init__(self, wrapped_function: ProcessAllWindowFunction):
+        self._wrapped_function = wrapped_function
+        self._internal_context = \
+            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: int,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        return self._wrapped_function.process(self._internal_context, input_data)
 
     def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
         self._internal_context._window = window

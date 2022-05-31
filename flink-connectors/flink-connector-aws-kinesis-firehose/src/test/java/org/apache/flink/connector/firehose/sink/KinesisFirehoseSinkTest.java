@@ -25,7 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.util.Properties;
@@ -36,7 +36,7 @@ import static org.apache.flink.connector.aws.config.AWSConfigConstants.TRUST_ALL
 import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createConfig;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSink}. */
-public class KinesisFirehoseSinkTest {
+class KinesisFirehoseSinkTest {
 
     private static final ElementConverter<String, Record> elementConverter =
             KinesisFirehoseSinkElementConverter.<String>builder()
@@ -44,7 +44,7 @@ public class KinesisFirehoseSinkTest {
                     .build();
 
     @Test
-    public void deliveryStreamNameMustNotBeNull() {
+    void deliveryStreamNameMustNotBeNull() {
         Assertions.assertThatExceptionOfType(NullPointerException.class)
                 .isThrownBy(
                         () ->
@@ -64,7 +64,7 @@ public class KinesisFirehoseSinkTest {
     }
 
     @Test
-    public void deliveryStreamNameMustNotBeEmpty() {
+    void deliveryStreamNameMustNotBeEmpty() {
         Assertions.assertThatExceptionOfType(IllegalArgumentException.class)
                 .isThrownBy(
                         () ->
@@ -84,7 +84,7 @@ public class KinesisFirehoseSinkTest {
     }
 
     @Test
-    public void firehoseSinkFailsWhenAccessKeyIdIsNotProvided() {
+    void firehoseSinkFailsWhenAccessKeyIdIsNotProvided() {
         Properties properties = createConfig("https://non-exisitent-location");
         properties.setProperty(
                 AWS_CREDENTIALS_PROVIDER, AWSConfigConstants.CredentialProvider.BASIC.toString());
@@ -94,7 +94,7 @@ public class KinesisFirehoseSinkTest {
     }
 
     @Test
-    public void firehoseSinkFailsWhenRegionIsNotProvided() {
+    void firehoseSinkFailsWhenRegionIsNotProvided() {
         Properties properties = createConfig("https://non-exisitent-location");
         properties.remove(AWS_REGION);
         firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(
@@ -102,7 +102,7 @@ public class KinesisFirehoseSinkTest {
     }
 
     @Test
-    public void firehoseSinkFailsWhenUnableToConnectToRemoteService() {
+    void firehoseSinkFailsWhenUnableToConnectToRemoteService() {
         Properties properties = createConfig("https://non-exisitent-location");
         properties.remove(TRUST_ALL_CERTIFICATES);
         firehoseSinkFailsWithAppropriateMessageWhenInitialConditionsAreMisconfigured(

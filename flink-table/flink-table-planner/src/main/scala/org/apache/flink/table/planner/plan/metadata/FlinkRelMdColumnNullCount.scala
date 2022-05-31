@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.{JDouble, JList}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
-import org.apache.flink.table.planner.{JDouble, JList}
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
@@ -36,21 +36,25 @@ import org.apache.calcite.util.Util
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdColumnNullCount supplies a default implementation of
-  * [[FlinkRelMetadataQuery.getColumnNullCount]] for the standard logical algebra.
-  */
+ * FlinkRelMdColumnNullCount supplies a default implementation of
+ * [[FlinkRelMetadataQuery.getColumnNullCount]] for the standard logical algebra.
+ */
 class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount] {
 
   override def getDef: MetadataDef[ColumnNullCount] = FlinkMetadata.ColumnNullCount.DEF
 
   /**
-    * Gets the null count of the given column in TableScan.
-    *
-    * @param ts    TableScan RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return the null count of the given column in TableScan
-    */
+   * Gets the null count of the given column in TableScan.
+   *
+   * @param ts
+   *   TableScan RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column in TableScan
+   */
   def getColumnNullCount(ts: TableScan, mq: RelMetadataQuery, index: Int): JDouble = {
     Preconditions.checkArgument(mq.isInstanceOf[FlinkRelMetadataQuery])
     val relOptTable = ts.getTable.asInstanceOf[FlinkPreparingTableBase]
@@ -67,37 +71,49 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
   }
 
   /**
-    * Gets the null count of the given column on Snapshot.
-    *
-    * @param snapshot    Snapshot RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return the null count of the given column on Snapshot.
-    */
+   * Gets the null count of the given column on Snapshot.
+   *
+   * @param snapshot
+   *   Snapshot RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column on Snapshot.
+   */
   def getColumnNullCount(snapshot: Snapshot, mq: RelMetadataQuery, index: Int): JDouble = null
 
   /**
-    * Gets the null count of the given column in Project.
-    *
-    * @param project Project RelNode
-    * @param mq      RelMetadataQuery instance
-    * @param index   the index of the given column
-    * @return the null count of the given column in Project
-    */
+   * Gets the null count of the given column in Project.
+   *
+   * @param project
+   *   Project RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column in Project
+   */
   def getColumnNullCount(project: Project, mq: RelMetadataQuery, index: Int): JDouble = {
-    val (nullCountOfInput, _) = getColumnNullAfterProjects(
-      project.getInput, project.getProjects, mq, index)
+    val (nullCountOfInput, _) =
+      getColumnNullAfterProjects(project.getInput, project.getProjects, mq, index)
     nullCountOfInput
   }
 
   /**
-    * Gets the null count of the given column in Filter.
-    *
-    * @param filter  Filter RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return the null count of the given column in Filter
-    */
+   * Gets the null count of the given column in Filter.
+   *
+   * @param filter
+   *   Filter RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column in Filter
+   */
   def getColumnNullCount(filter: Filter, mq: RelMetadataQuery, index: Int): JDouble = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val nullCountOfInput = fmq.getColumnNullCount(filter.getInput, index)
@@ -106,18 +122,22 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
   }
 
   /**
-    * Gets the null count of the given column in Calc.
-    *
-    * @param calc  Calc RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return the null count of the given column in Calc
-    */
+   * Gets the null count of the given column in Calc.
+   *
+   * @param calc
+   *   Calc RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column in Calc
+   */
   def getColumnNullCount(calc: Calc, mq: RelMetadataQuery, index: Int): JDouble = {
     val program = calc.getProgram
     val projects = program.getProjectList.map(program.expandLocalRef)
-    val (nullCountOfInput, mappingFieldInInput) = getColumnNullAfterProjects(
-      calc.getInput, projects, mq, index)
+    val (nullCountOfInput, mappingFieldInInput) =
+      getColumnNullAfterProjects(calc.getInput, projects, mq, index)
     if (program.getCondition == null) {
       nullCountOfInput
     } else {
@@ -133,10 +153,9 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
       index: Int): (JDouble, Int) = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     projects.get(index) match {
-      case inputRef: RexInputRef => (
-        fmq.getColumnNullCount(input, inputRef.getIndex),
-        inputRef.getIndex)
-      case literal: RexLiteral => if (literal.isNull) (1D, -1) else (0D, -1)
+      case inputRef: RexInputRef =>
+        (fmq.getColumnNullCount(input, inputRef.getIndex), inputRef.getIndex)
+      case literal: RexLiteral => if (literal.isNull) (1d, -1) else (0d, -1)
       case _ => (null, -1)
     }
   }
@@ -151,15 +170,14 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
     } else {
       // if null count of input is already 0, then null count must be 0 after predicate.
       if (nullCountOfInput != null && Math.abs(nullCountOfInput) < RelOptUtil.EPSILON) {
-        0D
+        0d
       } else if (mappingFieldInInput == -1) {
         null
       } else {
         // If predicate has $index is not null, null count of index is must be 0 after predicate.
         val rexBuilder = rel.getCluster.getRexBuilder
-        val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-        val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
-          FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+        val tableConfig = unwrapTableConfig(rel)
+        val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
         val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
         val conjunctions = RelOptUtil.conjunctions(cnf)
         val notNullPredicatesAtIndexField = conjunctions.exists {
@@ -170,7 +188,7 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
             }
           case _ => false
         }
-        if (notNullPredicatesAtIndexField) 0D else null
+        if (notNullPredicatesAtIndexField) 0d else null
       }
     }
   }
@@ -186,13 +204,17 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
   }
 
   /**
-    * Gets the null count of the given column in Join.
-    *
-    * @param rel   Join RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return the null count of the given column in Join.
-    */
+   * Gets the null count of the given column in Join.
+   *
+   * @param rel
+   *   Join RelNode
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   the null count of the given column in Join.
+   */
   def getColumnNullCount(rel: Join, mq: RelMetadataQuery, index: Int): JDouble = {
 
     def isUniqueOnJoinKeys: Boolean = {
@@ -222,8 +244,12 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
 
     def calRowCountOfNewInnerJoin(): JDouble = {
       val newInnerJoin = rel.copy(
-        rel.getTraitSet, rel.getCondition, rel.getLeft, rel.getRight,
-        JoinRelType.INNER, rel.isSemiJoinDone)
+        rel.getTraitSet,
+        rel.getCondition,
+        rel.getLeft,
+        rel.getRight,
+        JoinRelType.INNER,
+        rel.isSemiJoinDone)
       mq.getRowCount(newInnerJoin)
     }
 
@@ -244,7 +270,7 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
           if (totalRowCount == null || rowCntOfInnerJoin == null || oldNullCnt == null) {
             null
           } else {
-            Math.max(totalRowCount - rowCntOfInnerJoin, 0D) + oldNullCnt
+            Math.max(totalRowCount - rowCntOfInnerJoin, 0d) + oldNullCnt
           }
         }
       case JoinRelType.RIGHT =>
@@ -261,7 +287,7 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
           if (totalRowCount == null || rowCntOfInnerJoin == null || oldNullCnt == null) {
             null
           } else {
-            Math.max(totalRowCount - rowCntOfInnerJoin, 0D) + oldNullCnt
+            Math.max(totalRowCount - rowCntOfInnerJoin, 0d) + oldNullCnt
           }
         }
     }
@@ -274,13 +300,17 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
   }
 
   /**
-    * Catches-all rule when none of the others apply.
-    *
-    * @param rel   RelNode to analyze
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return Always returns null
-    */
+   * Catches-all rule when none of the others apply.
+   *
+   * @param rel
+   *   RelNode to analyze
+   * @param mq
+   *   RelMetadataQuery instance
+   * @param index
+   *   the index of the given column
+   * @return
+   *   Always returns null
+   */
   def getColumnNullCount(rel: RelNode, mq: RelMetadataQuery, index: Int): JDouble = null
 
 }
@@ -289,7 +319,7 @@ object FlinkRelMdColumnNullCount {
 
   private val INSTANCE = new FlinkRelMdColumnNullCount
 
-  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    FlinkMetadata.ColumnNullCount.METHOD, INSTANCE)
+  val SOURCE: RelMetadataProvider =
+    ReflectiveRelMetadataProvider.reflectiveSource(FlinkMetadata.ColumnNullCount.METHOD, INSTANCE)
 
 }

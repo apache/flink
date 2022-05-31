@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 /** Describes a generated {@link RecordComparator}. */
 public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
@@ -40,7 +41,7 @@ public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> 
      * @param conf configuration when generating the generated class.
      */
     public GeneratedRecordComparator(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig conf) {
         super(className, code, references, conf);
     }
 }

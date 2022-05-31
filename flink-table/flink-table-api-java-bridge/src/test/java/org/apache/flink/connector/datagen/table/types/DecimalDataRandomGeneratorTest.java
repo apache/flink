@@ -20,20 +20,17 @@ package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.table.data.DecimalData;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the data generator is valid for every combination of precision and scale. */
-public class DecimalDataRandomGeneratorTest {
+class DecimalDataRandomGeneratorTest {
 
     @Test
-    public void testGenerateDecimalValues() {
+    void testGenerateDecimalValues() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 DecimalDataRandomGenerator gen =
@@ -41,8 +38,9 @@ public class DecimalDataRandomGeneratorTest {
                                 precision, scale, Double.MIN_VALUE, Double.MAX_VALUE);
 
                 DecimalData value = gen.next();
-                Assert.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", value);
+                assertThat(value)
+                        .as("Null value for DECIMAL(" + precision + "," + scale + ")")
+                        .isNotNull();
 
                 String strRepr = String.valueOf(value);
                 if (strRepr.charAt(0) == '-') {
@@ -52,45 +50,45 @@ public class DecimalDataRandomGeneratorTest {
 
                 if (scale != precision) {
                     // need to account for decimal . and potential leading zeros
-                    Assert.assertThat(
-                            "Wrong length for DECIMAL("
-                                    + precision
-                                    + ","
-                                    + scale
-                                    + ") = "
-                                    + strRepr,
-                            strRepr.length(),
-                            lessThanOrEqualTo(precision + 1));
+                    assertThat(strRepr.length())
+                            .as(
+                                    "Wrong length for DECIMAL("
+                                            + precision
+                                            + ","
+                                            + scale
+                                            + ") = "
+                                            + strRepr)
+                            .isLessThanOrEqualTo(precision + 1);
                 } else {
                     // need to account for decimal . and potential leading zeros
-                    Assert.assertThat(
-                            "Wrong length for DECIMAL("
-                                    + precision
-                                    + ","
-                                    + scale
-                                    + ") = "
-                                    + strRepr,
-                            strRepr.length(),
-                            lessThanOrEqualTo(precision + 2));
+                    assertThat(strRepr.length())
+                            .as(
+                                    "Wrong length for DECIMAL("
+                                            + precision
+                                            + ","
+                                            + scale
+                                            + ") = "
+                                            + strRepr)
+                            .isLessThanOrEqualTo(precision + 2);
                 }
                 if (scale != 0) {
                     String decimalPart = strRepr.split("\\.")[1];
-                    Assert.assertThat(
-                            "Wrong length for DECIMAL("
-                                    + precision
-                                    + ","
-                                    + scale
-                                    + ") = "
-                                    + strRepr,
-                            decimalPart.length(),
-                            equalTo(scale));
+                    assertThat(decimalPart.length())
+                            .as(
+                                    "Wrong length for DECIMAL("
+                                            + precision
+                                            + ","
+                                            + scale
+                                            + ") = "
+                                            + strRepr)
+                            .isEqualTo(scale);
                 }
             }
         }
     }
 
     @Test
-    public void testMinMax() {
+    void testMinMax() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 BigDecimal min = BigDecimal.valueOf(-10.0);
@@ -101,16 +99,15 @@ public class DecimalDataRandomGeneratorTest {
                                 precision, scale, min.doubleValue(), max.doubleValue());
                 DecimalData result = gen.next();
 
-                Assert.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", result);
-                Assert.assertThat(
-                        "value must be greater than or equal to min",
-                        result.toBigDecimal(),
-                        greaterThanOrEqualTo(min));
-                Assert.assertThat(
-                        "value must be less than or equal to max",
-                        result.toBigDecimal(),
-                        lessThanOrEqualTo(max));
+                assertThat(result)
+                        .as("Null value for DECIMAL(" + precision + "," + scale + ")")
+                        .isNotNull();
+                assertThat(result.toBigDecimal())
+                        .as("value must be greater than or equal to min")
+                        .isGreaterThanOrEqualTo(min);
+                assertThat(result.toBigDecimal())
+                        .as("value must be less than or equal to max")
+                        .isLessThanOrEqualTo(max);
             }
         }
     }

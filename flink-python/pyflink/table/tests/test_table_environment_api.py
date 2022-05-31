@@ -23,7 +23,7 @@ import unittest
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
-from pyflink.common import RowKind, WatermarkStrategy
+from pyflink.common import RowKind, WatermarkStrategy, Configuration
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner
@@ -237,13 +237,13 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         from pyflink.datastream import StreamExecutionEnvironment
 
         super(DataStreamConversionTestCases, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+        config = Configuration()
+        config.set_string("akka.ask.timeout", "20 s")
+        self.env = StreamExecutionEnvironment.get_execution_environment(config)
         self.t_env = StreamTableEnvironment.create(self.env)
 
         self.env.set_parallelism(2)
-        config = get_j_env_configuration(self.env._j_stream_execution_environment)
-        config.setString("akka.ask.timeout", "20 s")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
         self.test_sink = DataStreamTestSinkFunction()
 
@@ -433,7 +433,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             self.env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
-        new_table = table.select("a + 1, b + 'flink', c")
+        new_table = table.select(table.a + 1, table.b + 'flink', table.c)
         ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
                                                                           Types.STRING(),
                                                                           Types.STRING()]))
@@ -450,7 +450,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             self.env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
-        new_table = table.group_by("c").select("a.sum, c as b")
+        new_table = table.group_by(table.c).select(table.a.sum, table.c.alias("b"))
         ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
                                                                            Types.STRING()]))
         test_sink = DataStreamTestSinkFunction()
@@ -555,7 +555,7 @@ class VectorUDT(UserDefinedType):
             values = [float(v) for v in obj._values]
             return 1, None, None, values
         else:
-            raise TypeError("Cannot serialize %r of type %r".format(obj, type(obj)))
+            raise TypeError("Cannot serialize {!r} of type {!r}".format(obj, type(obj)))
 
     def deserialize(self, datum):
         pass

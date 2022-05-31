@@ -37,7 +37,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkExpectedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -255,6 +255,7 @@ public class FineGrainedSlotManager implements SlotManager {
     @Override
     public void clearResourceRequirements(JobID jobId) {
         jobMasterTargetAddresses.remove(jobId);
+        taskManagerTracker.clearPendingAllocationsOfJob(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
     }
 
@@ -263,22 +264,23 @@ public class FineGrainedSlotManager implements SlotManager {
         checkInit();
         if (resourceRequirements.getResourceRequirements().isEmpty()
                 && resourceTracker.isRequirementEmpty(resourceRequirements.getJobId())) {
+            // Skip duplicate empty resource requirements.
             return;
-        } else if (resourceRequirements.getResourceRequirements().isEmpty()) {
+        }
+
+        if (resourceRequirements.getResourceRequirements().isEmpty()) {
             LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
+            jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
+            taskManagerTracker.clearPendingAllocationsOfJob(resourceRequirements.getJobId());
         } else {
             LOG.info(
                     "Received resource requirements from job {}: {}",
                     resourceRequirements.getJobId(),
                     resourceRequirements.getResourceRequirements());
-        }
-
-        if (resourceRequirements.getResourceRequirements().isEmpty()) {
-            jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
-        } else {
             jobMasterTargetAddresses.put(
                     resourceRequirements.getJobId(), resourceRequirements.getTargetAddress());
         }
+
         resourceTracker.notifyResourceRequirements(
                 resourceRequirements.getJobId(), resourceRequirements.getResourceRequirements());
         checkResourceRequirementsWithDelay();
@@ -332,7 +334,8 @@ public class FineGrainedSlotManager implements SlotManager {
                         maxTotalMem.toHumanReadableString());
                 resourceActions.releaseResource(
                         taskExecutorConnection.getInstanceID(),
-                        new FlinkException("The max total resource limitation is reached."));
+                        new FlinkExpectedException(
+                                "The max total resource limitation is reached."));
                 return false;
             }
 
@@ -707,7 +710,8 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
-        final FlinkException cause = new FlinkException("TaskManager exceeded the idle timeout.");
+        final FlinkExpectedException cause =
+                new FlinkExpectedException("TaskManager exceeded the idle timeout.");
         resourceActions.releaseResource(timedOutTaskManagerId, cause);
     }
 

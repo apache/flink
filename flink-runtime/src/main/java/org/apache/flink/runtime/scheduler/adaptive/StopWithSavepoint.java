@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -146,7 +147,16 @@ class StopWithSavepoint extends StateWithExecutionGraph {
     @Override
     void onFailure(Throwable cause) {
         operationFailureCause = cause;
-        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
+        if (savepoint == null) {
+            FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
+        } else {
+            // savepoint has been create successfully, but the job failed while committing side
+            // effects
+            final StopWithSavepointStoppingException ex =
+                    new StopWithSavepointStoppingException(savepoint, this.getJobId(), cause);
+            this.operationFuture.completeExceptionally(ex);
+            FailureResultUtil.restartOrFail(context.howToHandleFailure(ex), context, this);
+        }
     }
 
     @Override

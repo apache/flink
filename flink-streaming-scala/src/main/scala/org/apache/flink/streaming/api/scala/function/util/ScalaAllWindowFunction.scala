@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.function.util
 
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction => JAllWindowFunction}
@@ -24,13 +23,11 @@ import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 
-/**
- * A wrapper function that exposes a Scala Function3 as a Java AllWindowFunction.
- */
+/** A wrapper function that exposes a Scala Function3 as a Java AllWindowFunction. */
 final class ScalaAllWindowFunction[IN, OUT, W <: Window](
-        private[this] val function: (W, Iterable[IN], Collector[OUT]) => Unit)
-    extends JAllWindowFunction[IN, OUT, W] {
-  
+    private[this] val function: (W, Iterable[IN], Collector[OUT]) => Unit)
+  extends JAllWindowFunction[IN, OUT, W] {
+
   @throws(classOf[Exception])
   override def apply(window: W, input: java.lang.Iterable[IN], out: Collector[OUT]) {
     function.apply(window, input.asScala, out)

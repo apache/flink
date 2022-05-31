@@ -158,6 +158,7 @@ public class ArchivedExecutionGraphBuilder {
                 null,
                 null,
                 "stateBackendName",
-                "checkpointStorageName");
+                "checkpointStorageName",
+                "changelogStorageName");
     }
 }

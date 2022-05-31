@@ -22,13 +22,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InputPriorityGraphGenerator}. */
 public class InputPriorityGraphGeneratorTest {
@@ -65,9 +66,9 @@ public class InputPriorityGraphGeneratorTest {
                         Collections.emptySet(),
                         InputProperty.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-        Assert.assertEquals(2, ancestors.size());
-        Assert.assertTrue(ancestors.contains(nodes[0]));
-        Assert.assertTrue(ancestors.contains(nodes[5]));
+        assertThat(ancestors).hasSize(2);
+        assertThat(ancestors).contains(nodes[0]);
+        assertThat(ancestors).contains(nodes[5]);
     }
 
     @Test
@@ -93,8 +94,8 @@ public class InputPriorityGraphGeneratorTest {
                         new HashSet<>(Collections.singleton(nodes[1])),
                         InputProperty.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-        Assert.assertEquals(1, ancestors.size());
-        Assert.assertTrue(ancestors.contains(nodes[1]));
+        assertThat(ancestors).hasSize(1);
+        assertThat(ancestors).contains(nodes[1]);
     }
 
     private static class TestingInputPriorityConflictResolver extends InputPriorityGraphGenerator {

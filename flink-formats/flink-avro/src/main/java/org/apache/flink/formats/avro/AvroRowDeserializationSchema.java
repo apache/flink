@@ -349,6 +349,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
                 long seconds = micros / MICROS_PER_SECOND - offsetMillis / 1000;
                 int nanos =
                         ((int) (micros % MICROS_PER_SECOND)) * 1000 - offsetMillis % 1000 * 1000;
+                if (nanos < 0) {
+                    // can't set negative nanos on timestamp
+                    seconds--;
+                    nanos = (int) (MICROS_PER_SECOND * 1000 + nanos);
+                }
                 Timestamp timestamp = new Timestamp(seconds * 1000L);
                 timestamp.setNanos(nanos);
                 return timestamp;

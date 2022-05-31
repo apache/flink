@@ -121,6 +121,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     // --------------------------------------------------------------------------------------------
 
+    /**
+     * The unique id of an execution graph. It is different from JobID, because there can be
+     * multiple execution graphs created from one job graph, in cases like job re-submission, job
+     * master failover and job rescaling.
+     */
+    private final ExecutionGraphID executionGraphId;
+
     /** Job specific information like the job id, job name, job configuration, etc. */
     private final JobInformation jobInformation;
 
@@ -260,6 +267,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Nullable private String checkpointStorageName;
 
+    @Nullable private String changelogStorageName;
+
     private String jsonPlan;
 
     /** Shuffle master to register partitions for task deployment. */
@@ -299,6 +308,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             VertexParallelismStore vertexParallelismStore,
             boolean isDynamic)
             throws IOException {
+
+        this.executionGraphId = new ExecutionGraphID();
 
         this.jobInformation = checkNotNull(jobInformation);
 
@@ -362,6 +373,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.resultPartitionsById = new HashMap<>();
 
         this.isDynamic = isDynamic;
+
+        LOG.info(
+                "Created execution graph {} for job {}.",
+                executionGraphId,
+                jobInformation.getJobId());
     }
 
     @Override
@@ -401,6 +417,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
+    public Optional<String> getChangelogStorageName() {
+        return Optional.ofNullable(changelogStorageName);
+    }
+
+    @Override
     public void enableCheckpointing(
             CheckpointCoordinatorConfiguration chkConfig,
             List<MasterTriggerRestoreHook<?>> masterHooks,
@@ -409,7 +430,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
-            CheckpointsCleaner checkpointsCleaner) {
+            CheckpointsCleaner checkpointsCleaner,
+            String changelogStorageName) {
 
         checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
         checkState(checkpointCoordinator == null, "checkpointing already enabled");
@@ -483,6 +505,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
+        this.changelogStorageName = changelogStorageName;
     }
 
     private CheckpointPlanCalculator createCheckpointPlanCalculator(
@@ -1413,19 +1436,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void notifyPartitionDataAvailable(ResultPartitionID partitionId) {
-        assertRunningInJobMasterMainThread();
-
-        final Execution execution = currentExecutions.get(partitionId.getProducerId());
-
-        checkState(
-                execution != null,
-                "Cannot find execution for execution Id " + partitionId.getPartitionId() + ".");
-
-        execution.getVertex().notifyPartitionDataAvailable(partitionId);
-    }
-
-    @Override
     public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
         return Collections.unmodifiableMap(currentExecutions);
     }
@@ -1586,5 +1596,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
         return Optional.ofNullable(currentExecutions.get(attemptId));
+    }
+
+    @Override
+    public ExecutionGraphID getExecutionGraphID() {
+        return executionGraphId;
     }
 }

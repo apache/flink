@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DECIMAL_UTIL
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isNumeric
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 
@@ -62,6 +61,6 @@ class DivCallGen extends CallGenerator {
         throw new AssertionError(s"Unexpected types ($type1, $type2)")
     }
 
-    generateCallIfArgsNotNull(ctx, returnType, operands) { _ => code }
+    generateCallIfArgsNotNull(ctx, returnType, operands)(_ => code)
   }
 }

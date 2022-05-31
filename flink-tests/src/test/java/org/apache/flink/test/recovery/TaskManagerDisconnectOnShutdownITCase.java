@@ -44,6 +44,7 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
@@ -175,6 +176,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                 RpcService rpcService,
                 UUID leaderSessionId,
                 HeartbeatServices heartbeatServices,
+                DelegationTokenManager delegationTokenManager,
                 FatalErrorHandler fatalErrorHandler,
                 ClusterInformation clusterInformation,
                 @Nullable String webInterfaceUrl,
@@ -190,6 +192,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     leaderSessionId,
                     resourceId,
                     heartbeatServices,
+                    delegationTokenManager,
                     resourceManagerRuntimeServices.getSlotManager(),
                     ResourceManagerPartitionTrackerImpl::new,
                     resourceManagerRuntimeServices.getJobLeaderIdService(),

@@ -19,23 +19,20 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingLeaderCallbackHandler;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.UUID;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesStateHandleStore}. We expect only the leader could update the
@@ -44,20 +41,20 @@ import static org.hamcrest.Matchers.notNullValue;
  * org.apache.flink.runtime.jobmanager.JobGraphStore} and {@link
  * org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} implementation for Kubernetes.
  */
-public class KubernetesStateHandleStoreITCase extends TestLogger {
+class KubernetesStateHandleStoreITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
-    @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
+
+    @RegisterExtension
+    private static final KubernetesExtension kubernetesExtension = new KubernetesExtension();
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
-
-    private static final long TIMEOUT = 120L * 1000L;
 
     private static final String KEY = "state-handle-test";
 
     @Test
-    public void testMultipleKubernetesStateHandleStores() throws Exception {
-        final Configuration configuration = kubernetesResource.getConfiguration();
+    void testMultipleKubernetesStateHandleStores() throws Exception {
+        final Configuration configuration = kubernetesExtension.getConfiguration();
 
         final String leaderConfigMapName = LEADER_CONFIGMAP_NAME + System.currentTimeMillis();
         final int leaderNum = 3;
@@ -94,8 +91,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
             }
 
             // Wait for the leader
-            final String lockIdentity =
-                    TestingLeaderCallbackHandler.waitUntilNewLeaderAppears(TIMEOUT);
+            final String lockIdentity = TestingLeaderCallbackHandler.waitUntilNewLeaderAppears();
             Long expectedState = null;
 
             for (int i = 0; i < leaderNum; i++) {
@@ -108,12 +104,11 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
             }
 
             // Only the leader could add successfully
-            assertThat(expectedState, is(notNullValue()));
-            assertThat(stateHandleStores[0].getAllAndLock().size(), is(1));
-            assertThat(
-                    stateHandleStores[0].getAllAndLock().get(0).f0.retrieveState().getValue(),
-                    is(expectedState));
-            assertThat(stateHandleStores[0].getAllAndLock().get(0).f1, is(KEY));
+            assertThat(expectedState).isNotNull();
+            assertThat(stateHandleStores[0].getAllAndLock()).hasSize(1);
+            assertThat(stateHandleStores[0].getAllAndLock().get(0).f0.retrieveState().getValue())
+                    .isEqualTo(expectedState);
+            assertThat(stateHandleStores[0].getAllAndLock().get(0).f1).isEqualTo(KEY);
         } finally {
             TestingLongStateHandleHelper.clearGlobalState();
             // Cleanup the resources
@@ -125,7 +120,7 @@ public class KubernetesStateHandleStoreITCase extends TestLogger {
                     kubeClients[i].close();
                 }
             }
-            kubernetesResource.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
+            kubernetesExtension.getFlinkKubeClient().deleteConfigMap(leaderConfigMapName).get();
         }
     }
 }

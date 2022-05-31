@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -33,22 +32,23 @@ import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 
-/** Tests for the {@link YarnClusterDescriptor}. */
-public class AbstractYarnClusterTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+/** Tests for the {@link YarnClusterDescriptor}. */
+class AbstractYarnClusterTest {
 
     /** Tests that the cluster retrieval of a finished YARN application fails. */
-    @Test(expected = ClusterRetrieveException.class)
-    public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
+    @Test
+    void testClusterClientRetrievalOfFinishedYarnApplication(@TempDir Path tempDir) {
+
         final ApplicationId applicationId =
                 ApplicationId.newInstance(System.currentTimeMillis(), 42);
         final ApplicationReport applicationReport =
@@ -63,18 +63,15 @@ public class AbstractYarnClusterTest extends TestLogger {
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
 
-        final YarnClusterDescriptor clusterDescriptor =
+        try (YarnClusterDescriptor clusterDescriptor =
                 YarnTestUtils.createClusterDescriptorWithLogging(
-                        temporaryFolder.newFolder().getAbsolutePath(),
+                        tempDir.toFile().getAbsolutePath(),
                         new Configuration(),
                         yarnConfiguration,
                         yarnClient,
-                        false);
-
-        try {
-            clusterDescriptor.retrieve(applicationId);
-        } finally {
-            clusterDescriptor.close();
+                        false)) {
+            assertThatThrownBy(() -> clusterDescriptor.retrieve(applicationId))
+                    .isInstanceOf(ClusterRetrieveException.class);
         }
     }
 

@@ -108,7 +108,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
 
-    private final ReadableConfig flinkConf;
+    private final boolean fallbackMappedReader;
+    private final boolean fallbackMappedWriter;
     private final JobConf jobConf;
     private final CatalogTable catalogTable;
     private final ObjectIdentifier identifier;
@@ -128,7 +129,24 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
             ObjectIdentifier identifier,
             CatalogTable table,
             @Nullable Integer configuredParallelism) {
-        this.flinkConf = flinkConf;
+        this(
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER),
+                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
+                jobConf,
+                identifier,
+                table,
+                configuredParallelism);
+    }
+
+    private HiveTableSink(
+            boolean fallbackMappedReader,
+            boolean fallbackMappedWriter,
+            JobConf jobConf,
+            ObjectIdentifier identifier,
+            CatalogTable table,
+            @Nullable Integer configuredParallelism) {
+        this.fallbackMappedReader = fallbackMappedReader;
+        this.fallbackMappedWriter = fallbackMappedWriter;
         this.jobConf = jobConf;
         this.identifier = identifier;
         this.catalogTable = table;
@@ -298,7 +316,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(sd.getLocation());
 
         BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder;
-        if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER)) {
+        if (fallbackMappedWriter) {
             builder =
                     bucketsBuilderForMRWriter(
                             recordWriterFactory, sd, assigner, rollingPolicy, outputFileConfig);
@@ -377,7 +395,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 catalogTable,
                 hiveVersion,
                 (RowType) tableSchema.toRowDataType().getLogicalType(),
-                flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
+                fallbackMappedReader);
     }
 
     private HiveTableMetaStoreFactory msFactory() {
@@ -487,7 +505,12 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     public DynamicTableSink copy() {
         HiveTableSink sink =
                 new HiveTableSink(
-                        flinkConf, jobConf, identifier, catalogTable, configuredParallelism);
+                        fallbackMappedReader,
+                        fallbackMappedWriter,
+                        jobConf,
+                        identifier,
+                        catalogTable,
+                        configuredParallelism);
         sink.staticPartitionSpec = staticPartitionSpec;
         sink.overwrite = overwrite;
         sink.dynamicGrouping = dynamicGrouping;

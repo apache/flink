@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -29,12 +28,11 @@ import java.lang.{Float => JFloat, Integer => JInt, Long => JLong}
 import java.util
 
 /**
-  * User-defined aggregation function to compute the top 10 most visited Int IDs
-  * with the highest Float values. We use an Array[Tuple2[Int, Float]] as accumulator to
-  * store the top 10 entries.
-  *
-  * The result is emitted as Array as well.
-  */
+ * User-defined aggregation function to compute the top 10 most visited Int IDs with the highest
+ * Float values. We use an Array[Tuple2[Int, Float]] as accumulator to store the top 10 entries.
+ *
+ * The result is emitted as Array as well.
+ */
 class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple2[JInt, JFloat]]] {
 
   @Override
@@ -43,12 +41,15 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   }
 
   /**
-    * Adds a new entry and count to the top 10 entries if necessary.
-    *
-    * @param acc   The current top 10
-    * @param id    The ID
-    * @param value The value for the ID
-    */
+   * Adds a new entry and count to the top 10 entries if necessary.
+   *
+   * @param acc
+   *   The current top 10
+   * @param id
+   *   The ID
+   * @param value
+   *   The value for the ID
+   */
   def accumulate(acc: Array[JTuple2[JInt, JFloat]], id: Int, value: Float) {
 
     var i = 9
@@ -129,6 +130,10 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
     if (null != value) {
       acc.count = acc.count + 1
     }
+  }
+
+  def accumulate(acc: NonMergableCountAcc): Unit = {
+    acc.count = acc.count + 1
   }
 
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)

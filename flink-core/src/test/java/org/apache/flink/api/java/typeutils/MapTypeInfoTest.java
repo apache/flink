@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link MapTypeInfo}. */
-public class MapTypeInfoTest extends TypeInformationTestBase<MapTypeInfo<?, ?>> {
+class MapTypeInfoTest extends TypeInformationTestBase<MapTypeInfo<?, ?>> {
 
     @Override
     protected MapTypeInfo<?, ?>[] getTestData() {

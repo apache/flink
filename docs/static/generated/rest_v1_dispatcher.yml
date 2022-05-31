@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.15-SNAPSHOT
+  version: v1/1.16-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -405,12 +405,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: jobs
         in: query
         description: Comma-separated list of 32-character hexadecimal strings to select
@@ -469,10 +464,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - CANCEL
-          - STOP
+          $ref: '#/components/schemas/TerminationMode'
       responses:
         "202":
           description: The request was successful.
@@ -795,6 +787,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/status:
+    get:
+      description: Returns the current status of a job execution.
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusInfo'
   /jobs/{jobid}/stop:
     post:
       description: "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK\
@@ -915,11 +924,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - FULL
-          - ON_CPU
-          - OFF_CPU
+          $ref: '#/components/schemas/Type'
       responses:
         "200":
           description: The request was successful.
@@ -1010,12 +1015,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: subtasks
         in: query
         description: "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to\
@@ -1316,12 +1316,7 @@ paths:
         required: false
         style: form
         schema:
-          type: string
-          enum:
-          - MIN
-          - MAX
-          - SUM
-          - AVG
+          $ref: '#/components/schemas/AggregationMode'
       - name: taskmanagers
         in: query
         description: Comma-separated list of 32-character hexadecimal strings to select
@@ -1442,6 +1437,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Node'
+    AggregationMode:
+      type: string
+      enum:
+      - MIN
+      - MAX
+      - SUM
+      - AVG
     CheckpointAlignment:
       type: object
       properties:
@@ -1564,19 +1566,7 @@ components:
         isStoppable:
           type: boolean
         state:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
+          $ref: '#/components/schemas/JobStatus'
         start-time:
           type: integer
           format: int64
@@ -1631,6 +1621,11 @@ components:
           format: int64
         write-records-complete:
           type: boolean
+    SavepointFormatType:
+      type: string
+      enum:
+      - CANONICAL
+      - NATIVE
     SerializedThrowable:
       type: object
       properties:
@@ -1644,6 +1639,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskManagerInfo'
+    RestoreMode:
+      type: string
+      enum:
+      - CLAIM
+      - NO_CLAIM
+      - LEGACY
     SubtaskExecutionAttemptDetailsInfo:
       type: object
       properties:
@@ -1651,18 +1652,7 @@ components:
           type: integer
           format: int32
         status:
-          type: string
-          enum:
-          - CREATED
-          - SCHEDULED
-          - DEPLOYING
-          - RUNNING
-          - FINISHED
-          - CANCELING
-          - CANCELED
-          - FAILED
-          - RECONCILING
-          - INITIALIZING
+          $ref: '#/components/schemas/ExecutionState'
         attempt:
           type: integer
           format: int32
@@ -1687,12 +1677,7 @@ components:
         jobId:
           $ref: '#/components/schemas/JobID'
         applicationStatus:
-          type: string
-          enum:
-          - SUCCEEDED
-          - FAILED
-          - CANCELED
-          - UNKNOWN
+          $ref: '#/components/schemas/ApplicationStatus'
         accumulatorResults:
           type: object
           additionalProperties:
@@ -1751,6 +1736,8 @@ components:
           type: string
         cancel-job:
           type: boolean
+        formatType:
+          $ref: '#/components/schemas/SavepointFormatType'
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     ThreadDumpInfo:
@@ -1804,12 +1791,11 @@ components:
           type: integer
           format: int64
         status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
+          $ref: '#/components/schemas/CheckpointStatsStatus'
         latest_ack_timestamp:
+          type: integer
+          format: int64
+        checkpointed_size:
           type: integer
           format: int64
         state_size:
@@ -1833,8 +1819,18 @@ components:
         num_acknowledged_subtasks:
           type: integer
           format: int32
+    JobStatusInfo:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatus'
     JobAccumulator:
       type: object
+    Id:
+      type: string
+      enum:
+      - IN_PROGRESS
+      - COMPLETED
     JobID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -1847,17 +1843,16 @@ components:
           type: integer
           format: int64
         status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
+          $ref: '#/components/schemas/CheckpointStatsStatus'
         is_savepoint:
           type: boolean
         trigger_timestamp:
           type: integer
           format: int64
         latest_ack_timestamp:
+          type: integer
+          format: int64
+        checkpointed_size:
           type: integer
           format: int64
         state_size:
@@ -1882,11 +1877,7 @@ components:
           type: integer
           format: int32
         checkpoint_type:
-          type: string
-          enum:
-          - CHECKPOINT
-          - SAVEPOINT
-          - SYNC_SAVEPOINT
+          $ref: '#/components/schemas/RestAPICheckpointType'
         tasks:
           type: object
           additionalProperties:
@@ -1941,6 +1932,20 @@ components:
           type: string
     AggregatedMetricsResponseBody:
       type: object
+    JobStatus:
+      type: string
+      enum:
+      - INITIALIZING
+      - CREATED
+      - RUNNING
+      - FAILING
+      - FAILED
+      - CANCELLING
+      - CANCELED
+      - FINISHED
+      - RESTARTING
+      - SUSPENDED
+      - RECONCILING
     SubtasksAllAccumulatorsInfo:
       type: object
       properties:
@@ -1963,6 +1968,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClusterDataSetEntry'
+    UploadStatus:
+      type: string
+      enum:
+      - success
     SavepointDisposalRequest:
       type: object
       properties:
@@ -2014,11 +2023,7 @@ components:
         savepointPath:
           type: string
         restoreMode:
-          type: string
-          enum:
-          - CLAIM
-          - NO_CLAIM
-          - LEGACY
+          $ref: '#/components/schemas/RestoreMode'
     SubtaskAccumulatorsInfo:
       type: object
       properties:
@@ -2092,6 +2097,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserAccumulator'
+    Type:
+      type: string
+      enum:
+      - FULL
+      - ON_CPU
+      - OFF_CPU
     ClusterConfigurationInfo:
       type: array
       properties:
@@ -2108,6 +2119,12 @@ components:
           type: string
         value:
           type: string
+    VertexBackPressureLevel:
+      type: string
+      enum:
+      - ok
+      - low
+      - high
     CheckpointDuration:
       type: object
       properties:
@@ -2145,6 +2162,11 @@ components:
           type: string
       discriminator:
         propertyName: className
+    TerminationMode:
+      type: string
+      enum:
+      - CANCEL
+      - STOP
     CompletedSubtaskCheckpointStatistics:
       type: object
       allOf:
@@ -2155,6 +2177,9 @@ components:
             type: integer
             format: int64
           end_to_end_duration:
+            type: integer
+            format: int64
+          checkpointed_size:
             type: integer
             format: int64
           state_size:
@@ -2175,6 +2200,24 @@ components:
       type: object
       allOf:
       - $ref: '#/components/schemas/CheckpointStatistics'
+    ExecutionState:
+      type: string
+      enum:
+      - CREATED
+      - SCHEDULED
+      - DEPLOYING
+      - RUNNING
+      - FINISHED
+      - CANCELING
+      - CANCELED
+      - FAILED
+      - RECONCILING
+      - INITIALIZING
+    ProcessingMode:
+      type: string
+      enum:
+      - AT_LEAST_ONCE
+      - EXACTLY_ONCE
     JobSubmitResponseBody:
       type: object
       properties:
@@ -2214,6 +2257,23 @@ components:
           additionalProperties:
             type: integer
             format: int64
+    CheckpointStatsStatus:
+      type: string
+      enum:
+      - IN_PROGRESS
+      - COMPLETED
+      - FAILED
+    RestAPICheckpointType:
+      type: string
+      enum:
+      - CHECKPOINT
+      - SAVEPOINT
+      - SYNC_SAVEPOINT
+    VertexBackPressureStatus:
+      type: string
+      enum:
+      - deprecated
+      - ok
     ExternalizedCheckpointInfo:
       type: object
       properties:
@@ -2255,16 +2315,9 @@ components:
       type: object
       properties:
         status:
-          type: string
-          enum:
-          - deprecated
-          - ok
+          $ref: '#/components/schemas/VertexBackPressureStatus'
         backpressure-level:
-          type: string
-          enum:
-          - ok
-          - low
-          - high
+          $ref: '#/components/schemas/VertexBackPressureLevel'
         end-timestamp:
           type: integer
           format: int64
@@ -2278,19 +2331,7 @@ components:
         id:
           $ref: '#/components/schemas/JobID'
         status:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
+          $ref: '#/components/schemas/JobStatus'
     ClusterConfigurationInfoEntry:
       type: object
       properties:
@@ -2304,10 +2345,7 @@ components:
       type: object
       properties:
         id:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
+          $ref: '#/components/schemas/Id'
     LatestCheckpoints:
       type: object
       properties:
@@ -2368,6 +2406,8 @@ components:
           type: string
         drain:
           type: boolean
+        formatType:
+          $ref: '#/components/schemas/SavepointFormatType'
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     DashboardConfiguration:
@@ -2551,19 +2591,7 @@ components:
           type: integer
           format: int64
         status:
-          type: string
-          enum:
-          - INITIALIZING
-          - CREATED
-          - RUNNING
-          - FAILING
-          - FAILED
-          - CANCELLING
-          - CANCELED
-          - FINISHED
-          - RESTARTING
-          - SUSPENDED
-          - RECONCILING
+          $ref: '#/components/schemas/JobStatus'
         lastUpdateTime:
           type: integer
           format: int64
@@ -2596,12 +2624,11 @@ components:
           type: integer
           format: int64
         status:
-          type: string
-          enum:
-          - IN_PROGRESS
-          - COMPLETED
-          - FAILED
+          $ref: '#/components/schemas/CheckpointStatsStatus'
         latest_ack_timestamp:
+          type: integer
+          format: int64
+        checkpointed_size:
           type: integer
           format: int64
         state_size:
@@ -2656,10 +2683,7 @@ components:
       type: object
       properties:
         mode:
-          type: string
-          enum:
-          - AT_LEAST_ONCE
-          - EXACTLY_ONCE
+          $ref: '#/components/schemas/ProcessingMode'
         interval:
           type: integer
           format: int64
@@ -2688,6 +2712,11 @@ components:
           format: int64
         checkpoints_after_tasks_finish:
           type: boolean
+        changelog_periodic_materialization_interval:
+          type: integer
+          format: int64
+        changelog_storage:
+          type: string
     JobExceptionsInfoWithHistory:
       type: object
       properties:
@@ -2745,9 +2774,7 @@ components:
         filename:
           type: string
         status:
-          type: string
-          enum:
-          - success
+          $ref: '#/components/schemas/UploadStatus'
     RawJson:
       type: object
     SerializedValueOptionalFailureObject:
@@ -2815,9 +2842,18 @@ components:
           $ref: '#/components/schemas/HardwareDescription'
         memoryConfiguration:
           $ref: '#/components/schemas/TaskExecutorMemoryConfiguration'
+    ApplicationStatus:
+      type: string
+      enum:
+      - SUCCEEDED
+      - FAILED
+      - CANCELED
+      - UNKNOWN
     Summary:
       type: object
       properties:
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
         state_size:
           $ref: '#/components/schemas/StatsSummaryDto'
         end_to_end_duration:
@@ -2859,11 +2895,7 @@ components:
           type: integer
           format: int32
         backpressure-level:
-          type: string
-          enum:
-          - ok
-          - low
-          - high
+          $ref: '#/components/schemas/VertexBackPressureLevel'
         ratio:
           type: number
           format: double

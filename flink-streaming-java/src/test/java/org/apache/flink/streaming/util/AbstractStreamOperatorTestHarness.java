@@ -305,6 +305,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         this.taskMailbox = new TaskMailboxImpl();
 
+        // TODO remove this once we introduce AbstractStreamOperatorTestHarnessBuilder.
+        try {
+            this.checkpointStorageAccess = environment.getCheckpointStorageAccess();
+        } catch (NullPointerException | UnsupportedOperationException e) {
+            // cannot get checkpoint storage from environment, use default one.
+        }
+
         mockTask =
                 new MockStreamTaskBuilder(env)
                         .setCheckpointLock(checkpointLock)

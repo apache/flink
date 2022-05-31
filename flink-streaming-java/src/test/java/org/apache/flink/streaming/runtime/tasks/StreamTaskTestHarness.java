@@ -31,7 +31,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -81,6 +80,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -556,7 +556,7 @@ public class StreamTaskTestHarness<OUT> {
         return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
                 .addJob(new JobID(), "jobName")
-                .addTask(new JobVertexID(0, 0), new ExecutionAttemptID(), "test", 0, 0);
+                .addTask(createExecutionAttemptId(), "test");
     }
 
     /** The metric registry for storing the registered metrics to verify in tests. */

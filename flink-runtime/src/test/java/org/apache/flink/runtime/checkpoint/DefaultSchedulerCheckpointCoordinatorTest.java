@@ -35,12 +35,16 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -50,6 +54,10 @@ import static org.junit.Assert.assertThat;
  * {@link CheckpointCoordinator}.
  */
 public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     /** Tests that the checkpoint coordinator is shut down if the execution graph is failed. */
     @Test
@@ -200,8 +208,10 @@ public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
                         .setJobCheckpointingSettings(checkpointingSettings)
                         .build();
 
-        return SchedulerTestingUtils.newSchedulerBuilder(
-                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor())
                 .setCheckpointRecoveryFactory(new TestingCheckpointRecoveryFactory(store, counter))
                 .setRpcTimeout(timeout)
                 .build();

@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
@@ -37,13 +38,13 @@ import org.apache.flink.table.types.DataType;
  * in parallel. See {@link StatefulSequenceSource}.
  */
 @Internal
-public class DataGenTableSource implements ScanTableSource {
+public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDown {
 
     private final DataGenerator<?>[] fieldGenerators;
     private final String tableName;
     private final DataType rowDataType;
     private final long rowsPerSecond;
-    private final Long numberOfRows;
+    private Long numberOfRows;
 
     public DataGenTableSource(
             DataGenerator<?>[] fieldGenerators,
@@ -86,5 +87,10 @@ public class DataGenTableSource implements ScanTableSource {
     @Override
     public ChangelogMode getChangelogMode() {
         return ChangelogMode.insertOnly();
+    }
+
+    @Override
+    public void applyLimit(long limit) {
+        this.numberOfRows = limit;
     }
 }

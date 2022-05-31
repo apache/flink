@@ -25,11 +25,10 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-python_${scala.binary.version}</artifactId>
+	<artifactId>flink-python</artifactId>
 	<name>Flink : Python</name>
 
 	<packaging>jar</packaging>
@@ -74,12 +73,6 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -107,7 +100,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.1.2</version>
+			<version>0.1.4</version>
 		</dependency>
 
 		<!-- Protobuf dependencies -->
@@ -453,9 +446,11 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
-					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
-					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
+					<systemPropertyVariables>
+						<!-- Arrow requires the property io.netty.tryReflectionSetAccessible to
+						be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
+						<io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -466,24 +461,6 @@ under the License.
 						<id>test-jar</id>
 						<goals>
 							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<!-- This is only a temporary solution until FLINK-22872 is fixed. -->
-			<!-- It compiles `org.apache.flink.table.legacyutils` containing code from the old planner. -->
-			<!-- We should not start adding more Scala code. Please remove this as soon as possible. -->
-			<plugin>
-				<groupId>net.alchim31.maven</groupId>
-				<artifactId>scala-maven-plugin</artifactId>
-				<executions>
-					<!-- Run Scala compiler in the process-test-resources phase, so that dependencies on
-						 Scala classes can be resolved later in the (Java) test-compile phase -->
-					<execution>
-						<id>scala-test-compile</id>
-						<phase>process-test-resources</phase>
-						<goals>
-							<goal>testCompile</goal>
 						</goals>
 					</execution>
 				</executions>

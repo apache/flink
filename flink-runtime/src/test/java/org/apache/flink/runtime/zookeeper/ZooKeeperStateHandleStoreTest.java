@@ -224,6 +224,18 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     @Test
+    public void testCleanupOfNonExistingState() throws Exception {
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> testInstance =
+                new ZooKeeperStateHandleStore<>(
+                        ZOOKEEPER.getClient(), new TestingLongStateHandleHelper());
+
+        final String pathInZooKeeper = "/testCleanupOfNonExistingState";
+
+        assertTrue(testInstance.releaseAndTryRemove(pathInZooKeeper));
+        assertFalse(testInstance.exists(pathInZooKeeper).isExisting());
+    }
+
+    @Test
     public void testRepeatableCleanupWithLockOnNode() throws Exception {
         final CuratorFramework client =
                 ZooKeeperUtils.useNamespaceAndEnsurePath(
@@ -848,6 +860,46 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
                                     return childNodes;
                                 });
+
+        assertEquals(
+                "Only the StateHandle that was expected to be kept should be returned.",
+                stateToKeep,
+                Iterables.getOnlyElement(actuallyLockedHandles).f0.retrieveState().getValue());
+    }
+
+    @Test
+    public void testGetAllAndLockWhileEntryIsMarkedForDeletion() throws Exception {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testGetAllAndLockWhileEntryIsMarkedForDeletion");
+
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                stateHandleStore = new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
+
+        final String pathInZooKeeperPrefix = "/node";
+
+        final long stateForDeletion = 42L;
+        final String handlePathForDeletion = pathInZooKeeperPrefix + "-for-deletion";
+        stateHandleStore.addAndLock(
+                handlePathForDeletion,
+                new TestingLongStateHandleHelper.LongStateHandle(stateForDeletion));
+        // marks the entry for deletion but doesn't delete it, yet
+        client.delete()
+                .deletingChildrenIfNeeded()
+                .forPath(ZooKeeperStateHandleStore.getRootLockPath(handlePathForDeletion));
+
+        final long stateToKeep = stateForDeletion + 2;
+        stateHandleStore.addAndLock(
+                pathInZooKeeperPrefix + "-keep",
+                new TestingLongStateHandleHelper.LongStateHandle(stateToKeep));
+
+        final List<
+                        Tuple2<
+                                RetrievableStateHandle<
+                                        TestingLongStateHandleHelper.LongStateHandle>,
+                                String>>
+                actuallyLockedHandles = stateHandleStore.getAllAndLock();
 
         assertEquals(
                 "Only the StateHandle that was expected to be kept should be returned.",

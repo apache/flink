@@ -28,7 +28,6 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -43,7 +42,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -69,6 +67,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertEquals;
@@ -166,7 +165,7 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
                         .build();
         shuffleEnvironment.createInputGates(
                 shuffleEnvironment.createShuffleIOOwnerContext(
-                        "test", new ExecutionAttemptID(), taskMetricGroup),
+                        "test", createExecutionAttemptId(), taskMetricGroup),
                 (dsid, id, consumer) -> {},
                 Arrays.asList(
                         new InputGateDeploymentDescriptor(
@@ -347,7 +346,7 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
         return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
                 .addJob(new JobID(), "jobName")
-                .addTask(new JobVertexID(0, 0), new ExecutionAttemptID(), "test", 0, 0);
+                .addTask(createExecutionAttemptId(), "test");
     }
 
     /** The metric registry for storing the registered metrics to verify in tests. */

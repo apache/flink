@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -28,7 +29,7 @@ public class InMemoryStateChangelogStorage
 
     @Override
     public InMemoryStateChangelogWriter createWriter(
-            String operatorID, KeyGroupRange keyGroupRange) {
+            String operatorID, KeyGroupRange keyGroupRange, MailboxExecutor mailboxExecutor) {
         return new InMemoryStateChangelogWriter(keyGroupRange);
     }
 

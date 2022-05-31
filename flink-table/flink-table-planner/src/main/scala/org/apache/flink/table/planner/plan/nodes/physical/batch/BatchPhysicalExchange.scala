@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode
@@ -29,9 +28,7 @@ import org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStre
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
 
-/**
- * This RelNode represents a change of partitioning of the input elements for batch.
- */
+/** This RelNode represents a change of partitioning of the input elements for batch. */
 class BatchPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -49,6 +46,7 @@ class BatchPhysicalExchange(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecExchange(
+      unwrapTableConfig(this),
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
@@ -59,9 +57,8 @@ class BatchPhysicalExchange(
       throw new UnsupportedOperationException("Range sort is not supported.")
     }
 
-    val exchangeMode = getBatchStreamExchangeMode(
-      unwrapTableConfig(this),
-      StreamExchangeMode.UNDEFINED)
+    val exchangeMode =
+      getBatchStreamExchangeMode(unwrapTableConfig(this), StreamExchangeMode.UNDEFINED)
 
     val damBehavior = if (exchangeMode eq StreamExchangeMode.BATCH) {
       InputProperty.DamBehavior.BLOCKING
@@ -69,8 +66,8 @@ class BatchPhysicalExchange(
       InputProperty.DamBehavior.PIPELINED
     }
 
-    InputProperty.builder.
-      requiredDistribution(getRequiredDistribution)
+    InputProperty.builder
+      .requiredDistribution(getRequiredDistribution)
       .damBehavior(damBehavior)
       .build
   }

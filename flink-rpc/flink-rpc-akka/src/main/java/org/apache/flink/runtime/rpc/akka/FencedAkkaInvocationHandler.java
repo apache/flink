@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -38,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -60,8 +60,9 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
             String address,
             String hostname,
             ActorRef rpcEndpoint,
-            Time timeout,
+            Duration timeout,
             long maximumFramesize,
+            boolean forceRpcInvocationSerialization,
             @Nullable CompletableFuture<Void> terminationFuture,
             Supplier<F> fencingTokenSupplier,
             boolean captureAskCallStacks,
@@ -72,6 +73,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
                 rpcEndpoint,
                 timeout,
                 maximumFramesize,
+                forceRpcInvocationSerialization,
                 terminationFuture,
                 captureAskCallStacks,
                 flinkClassLoader);
@@ -107,7 +109,8 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
     }
 
     @Override
-    public <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout) {
+    public <V> CompletableFuture<V> callAsyncWithoutFencing(
+            Callable<V> callable, Duration timeout) {
         checkNotNull(callable, "callable");
         checkNotNull(timeout, "timeout");
 
@@ -119,7 +122,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
                                     Patterns.ask(
                                             getActorRef(),
                                             new UnfencedMessage<>(new CallAsync(callable)),
-                                            timeout.toMilliseconds()));
+                                            timeout.toMillis()));
 
             return resultFuture;
         } else {
@@ -136,7 +139,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
     }
 
     @Override
-    public CompletableFuture<?> ask(Object message, Time timeout) {
+    public CompletableFuture<?> ask(Object message, Duration timeout) {
         return super.ask(fenceMessage(message), timeout);
     }
 

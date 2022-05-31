@@ -47,4 +47,9 @@ public interface Meter extends Metric {
      * @return number of events marked on the meter
      */
     long getCount();
+
+    @Override
+    default MetricType getMetricType() {
+        return MetricType.METER;
+    }
 }

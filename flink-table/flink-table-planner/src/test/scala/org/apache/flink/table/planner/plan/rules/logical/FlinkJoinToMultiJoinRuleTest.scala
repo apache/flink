@@ -27,9 +27,7 @@ import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
-/**
-  * Tests for [[org.apache.calcite.rel.rules.JoinToMultiJoinRule]].
-  */
+/** Tests for [[org.apache.calcite.rel.rules.JoinToMultiJoinRule]]. */
 class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -42,9 +40,7 @@ class FlinkJoinToMultiJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(
-          CoreRules.JOIN_TO_MULTI_JOIN,
-          CoreRules.PROJECT_MULTI_JOIN_MERGE))
+        .add(RuleSets.ofList(CoreRules.JOIN_TO_MULTI_JOIN, CoreRules.PROJECT_MULTI_JOIN_MERGE))
         .build()
     )
 

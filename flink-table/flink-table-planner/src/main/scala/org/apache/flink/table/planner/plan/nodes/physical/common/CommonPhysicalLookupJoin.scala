@@ -23,21 +23,21 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, User
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
-import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
-import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.util.mapping.IntPair
 
 import java.util.Collections
@@ -46,44 +46,33 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
-  * Common abstract RelNode for temporal table join which shares most methods.
-  *
-  * For a lookup join query:
-  *
-  * <pre>
-  * SELECT T.id, T.content, D.age
-  * FROM T JOIN userTable FOR SYSTEM_TIME AS OF T.proctime AS D
-  * ON T.content = concat(D.name, '!') AND D.age = 11 AND T.id = D.id
-  * WHERE D.name LIKE 'Jack%'
-  * </pre>
-  *
-  * The LookupJoin physical node encapsulates the following RelNode tree:
-  *
-  * <pre>
-  *      Join (l.name = r.name)
-  *    /     \
-  * RelNode  Calc (concat(name, "!") as name, name LIKE 'Jack%')
-  *           |
-  *        DimTable (lookup-keys: age=11, id=l.id)
-  *     (age, id, name)
-  * </pre>
-  *
-  * The important member fields in LookupJoin:
-  * <ul>
-  *  <li>allLookupKeys: [$0=11, $1=l.id] ($0 and $1 is the indexes of age and id in dim table)</li>
-  *  <li>remainingCondition: l.name=r.name</li>
-  * <ul>
-  *
-  * The workflow of lookup join:
-  *
-  * 1) lookup records dimension table using the lookup-keys <br>
-  * 2) project & filter on the lookup-ed records <br>
-  * 3) join left input record and lookup-ed records <br>
-  * 4) only outputs the rows which match to the remainingCondition <br>
-  *
-  * @param input  input rel node
-  * @param calcOnTemporalTable  the calc (projection&filter) after table scan before joining
-  */
+ * Common abstract RelNode for temporal table join which shares most methods.
+ *
+ * For a lookup join query:
+ *
+ * <pre> SELECT T.id, T.content, D.age FROM T JOIN userTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ * ON T.content = concat(D.name, '!') AND D.age = 11 AND T.id = D.id WHERE D.name LIKE 'Jack%'
+ * </pre>
+ *
+ * The LookupJoin physical node encapsulates the following RelNode tree:
+ *
+ * <pre> Join (l.name = r.name) / \ RelNode Calc (concat(name, "!") as name, name LIKE 'Jack%') \|
+ * DimTable (lookup-keys: age=11, id=l.id) (age, id, name) </pre>
+ *
+ * The important member fields in LookupJoin: <ul> <li>allLookupKeys: [$0=11, $1=l.id] ($0 and $1 is
+ * the indexes of age and id in dim table)</li> <li>remainingCondition: l.name=r.name</li> <ul>
+ *
+ * The workflow of lookup join:
+ *
+ * 1) lookup records dimension table using the lookup-keys <br> 2) project & filter on the lookup-ed
+ * records <br> 3) join left input record and lookup-ed records <br> 4) only outputs the rows which
+ * match to the remainingCondition <br>
+ *
+ * @param input
+ *   input rel node
+ * @param calcOnTemporalTable
+ *   the calc (projection&filter) after table scan before joining
+ */
 abstract class CommonPhysicalLookupJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -100,10 +89,7 @@ abstract class CommonPhysicalLookupJoin(
     // join key pairs from left input field index to temporal table field index
     val joinKeyPairs: Array[IntPair] = getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
     // all potential index keys, mapping from field index in table source to LookupKey
-    analyzeLookupKeys(
-      cluster.getRexBuilder,
-      joinKeyPairs,
-      calcOnTemporalTable)
+    analyzeLookupKeys(cluster.getRexBuilder, joinKeyPairs, calcOnTemporalTable)
   }
   // remaining condition used to filter the joined records (left input record X lookup-ed records)
   val remainingCondition: Option[RexNode] = getRemainingJoinCondition(
@@ -114,9 +100,10 @@ abstract class CommonPhysicalLookupJoin(
     joinInfo)
 
   if (containsPythonCall(joinInfo.getRemaining(cluster.getRexBuilder))) {
-    throw new TableException("Only inner join condition with equality predicates supports the " +
-      "Python UDF taking the inputs from the left table and the right table at the same time, " +
-      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+    throw new TableException(
+      "Only inner join condition with equality predicates supports the " +
+        "Python UDF taking the inputs from the left table and the right table at the same time, " +
+        "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
   override def deriveRowType(): RelDataType = {
@@ -148,12 +135,14 @@ abstract class CommonPhysicalLookupJoin(
           convertToExpressionDetail(pw.getDetailLevel))
       case None => ""
     }
-    val lookupKeys = allLookupKeys.map {
-      case (tableField, fieldKey: FieldRefLookupKey) =>
-        s"${tableFieldNames.get(tableField)}=${inputFieldNames(fieldKey.index)}"
-      case (tableField, constantKey: ConstantLookupKey) =>
-        s"${tableFieldNames.get(tableField)}=${RelExplainUtil.literalToString(constantKey.literal)}"
-    }.mkString(", ")
+    val lookupKeys = allLookupKeys
+      .map {
+        case (tableField, fieldKey: FieldRefLookupKey) =>
+          s"${tableFieldNames.get(tableField)}=${inputFieldNames(fieldKey.index)}"
+        case (tableField, constantKey: ConstantLookupKey) =>
+          s"${tableFieldNames.get(tableField)}=${RelExplainUtil.literalToString(constantKey.literal)}"
+      }
+      .mkString(", ")
     val selection = calcOnTemporalTable match {
       case Some(calc) =>
         val rightSelect = RelExplainUtil.selectionToString(
@@ -177,23 +166,25 @@ abstract class CommonPhysicalLookupJoin(
       case _: AsyncTableFunction[_] => true
     }
 
-
-    super.explainTerms(pw)
-        .item("table", tableIdentifier.asSummaryString())
-        .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
-        .item("async", isAsyncEnabled)
-        .item("lookup", lookupKeys)
-        .itemIf("where", whereString, whereString.nonEmpty)
-        .itemIf("joinCondition",
-          joinConditionToString(
-            resultFieldNames, remainingCondition, preferExpressionFormat(pw), pw.getDetailLevel),
-          remainingCondition.isDefined)
-        .item("select", selection)
+    super
+      .explainTerms(pw)
+      .item("table", tableIdentifier.asSummaryString())
+      .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
+      .item("async", isAsyncEnabled)
+      .item("lookup", lookupKeys)
+      .itemIf("where", whereString, whereString.nonEmpty)
+      .itemIf(
+        "joinCondition",
+        joinConditionToString(
+          resultFieldNames,
+          remainingCondition,
+          preferExpressionFormat(pw),
+          pw.getDetailLevel),
+        remainingCondition.isDefined)
+      .item("select", selection)
   }
 
-  /**
-    * Gets the remaining join condition which is used
-    */
+  /** Gets the remaining join condition which is used */
   private def getRemainingJoinCondition(
       rexBuilder: RexBuilder,
       leftRelDataType: RelDataType,
@@ -211,19 +202,18 @@ abstract class CommonPhysicalLookupJoin(
     val remainingPairs = joinPairs.filter(p => !leftKeyIndexes.contains(p.source))
     val joinRowType = getRowType
     // convert remaining pairs to RexInputRef tuple for building SqlStdOperatorTable.EQUALS calls
-    val remainingEquals = remainingPairs.map { p =>
-      val leftFieldType = leftRelDataType.getFieldList.get(p.source).getType
-      val leftInputRef = new RexInputRef(p.source, leftFieldType)
-      val rightIndex = leftRelDataType.getFieldCount + p.target
-      val rightFieldType = joinRowType.getFieldList.get(rightIndex).getType
-      val rightInputRef = new RexInputRef(rightIndex, rightFieldType)
-      rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftInputRef, rightInputRef)
+    val remainingEquals = remainingPairs.map {
+      p =>
+        val leftFieldType = leftRelDataType.getFieldList.get(p.source).getType
+        val leftInputRef = new RexInputRef(p.source, leftFieldType)
+        val rightIndex = leftRelDataType.getFieldCount + p.target
+        val rightFieldType = joinRowType.getFieldList.get(rightIndex).getType
+        val rightInputRef = new RexInputRef(rightIndex, rightFieldType)
+        rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftInputRef, rightInputRef)
     }
     val remainingAnds = remainingEquals ++ joinInfo.nonEquiConditions.asScala
     // build a new condition
-    val condition = RexUtil.composeConjunction(
-      rexBuilder,
-      remainingAnds.toList.asJava)
+    val condition = RexUtil.composeConjunction(rexBuilder, remainingAnds.toList.asJava)
     if (condition.isAlwaysTrue) {
       None
     } else {
@@ -231,12 +221,13 @@ abstract class CommonPhysicalLookupJoin(
     }
   }
 
-
   /**
-    * Gets the join key pairs from left input field index to temporal table field index
-    * @param joinInfo the join information of temporal table join
-    * @param calcOnTemporalTable the calc programs on temporal table
-    */
+   * Gets the join key pairs from left input field index to temporal table field index
+   * @param joinInfo
+   *   the join information of temporal table join
+   * @param calcOnTemporalTable
+   *   the calc programs on temporal table
+   */
   private def getTemporalTableJoinKeyPairs(
       joinInfo: JoinInfo,
       calcOnTemporalTable: Option[RexProgram]): Array[IntPair] = {
@@ -258,14 +249,18 @@ abstract class CommonPhysicalLookupJoin(
   }
 
   /**
-    * Analyze potential lookup keys (including [[ConstantLookupKey]] and [[FieldRefLookupKey]])
-    * of the temporal table from the join condition and calc program on the temporal table.
-    *
-    * @param rexBuilder the RexBuilder
-    * @param joinKeyPairs join key pairs from left input field index to temporal table field index
-    * @param calcOnTemporalTable  the calc program on temporal table
-    * @return all the potential lookup keys
-    */
+   * Analyze potential lookup keys (including [[ConstantLookupKey]] and [[FieldRefLookupKey]]) of
+   * the temporal table from the join condition and calc program on the temporal table.
+   *
+   * @param rexBuilder
+   *   the RexBuilder
+   * @param joinKeyPairs
+   *   join key pairs from left input field index to temporal table field index
+   * @param calcOnTemporalTable
+   *   the calc program on temporal table
+   * @return
+   *   all the potential lookup keys
+   */
   private def analyzeLookupKeys(
       rexBuilder: RexBuilder,
       joinKeyPairs: Array[IntPair],
@@ -275,9 +270,8 @@ abstract class CommonPhysicalLookupJoin(
     // analyze constant lookup keys
     if (calcOnTemporalTable.isDefined && null != calcOnTemporalTable.get.getCondition) {
       val program = calcOnTemporalTable.get
-      val condition = RexUtil.toCnf(
-        cluster.getRexBuilder,
-        program.expandLocalRef(program.getCondition))
+      val condition =
+        RexUtil.toCnf(cluster.getRexBuilder, program.expandLocalRef(program.getCondition))
       // presume 'A = 1 AND A = 2' will be reduced to ALWAYS_FALSE
       extractConstantFieldsFromEquiCondition(condition, constantLookupKeys)
     }
@@ -305,7 +299,8 @@ abstract class CommonPhysicalLookupJoin(
           val outputType = call.getType
           val inputType = call.getOperands.get(0).getType
           val isCompatible = PlannerTypeUtils.isInteroperable(
-              FlinkTypeFactory.toLogicalType(outputType), FlinkTypeFactory.toLogicalType(inputType))
+            FlinkTypeFactory.toLogicalType(outputType),
+            FlinkTypeFactory.toLogicalType(inputType))
           expr = if (isCompatible) call.getOperands.get(0) else expr
         case _ =>
       }
@@ -354,7 +349,11 @@ abstract class CommonPhysicalLookupJoin(
       sqlExplainLevel: SqlExplainLevel): String = joinCondition match {
     case Some(condition) =>
       getExpressionString(
-        condition, resultFieldNames.toList, None, expressionFormat, sqlExplainLevel)
+        condition,
+        resultFieldNames.toList,
+        None,
+        expressionFormat,
+        sqlExplainLevel)
     case None => "N/A"
   }
 }

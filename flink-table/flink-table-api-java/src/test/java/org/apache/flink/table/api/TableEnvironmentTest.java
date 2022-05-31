@@ -44,10 +44,10 @@ import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Tests for {@link TableEnvironment}. */
-public class TableEnvironmentTest {
+class TableEnvironmentTest {
 
     @Test
-    public void testCreateTemporaryTableFromDescriptor() {
+    void testCreateTemporaryTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
@@ -75,7 +75,7 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testCreateTableFromDescriptor() throws Exception {
+    void testCreateTableFromDescriptor() throws Exception {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
@@ -101,7 +101,7 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testTableFromDescriptor() {
+    void testTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
 
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
@@ -128,22 +128,22 @@ public class TableEnvironmentTest {
     }
 
     @Test
-    public void testManagedTable() {
+    void testManagedTable() {
         innerTestManagedTableFromDescriptor(false, false);
     }
 
     @Test
-    public void testManagedTableWithIgnoreExists() {
+    void testManagedTableWithIgnoreExists() {
         innerTestManagedTableFromDescriptor(true, false);
     }
 
     @Test
-    public void testTemporaryManagedTableWithIgnoreExists() {
+    void testTemporaryManagedTableWithIgnoreExists() {
         innerTestManagedTableFromDescriptor(true, true);
     }
 
     @Test
-    public void testTemporaryManagedTable() {
+    void testTemporaryManagedTable() {
         innerTestManagedTableFromDescriptor(true, true);
     }
 

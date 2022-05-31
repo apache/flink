@@ -19,10 +19,11 @@ package org.apache.flink.python.util;
 
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -32,11 +33,12 @@ import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOpe
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.util.OutputTag;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
@@ -47,10 +49,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 
-/**
- * A Util class to get the {@link StreamExecutionEnvironment} configuration and merged configuration
- * with environment settings.
- */
+/** A Util class to handle the configurations of Python jobs. */
 public class PythonConfigUtil {
 
     public static final String KEYED_STREAM_VALUE_OPERATOR_NAME = "_keyed_stream_values_operator";
@@ -59,19 +58,9 @@ public class PythonConfigUtil {
             "_partition_custom_map_operator";
 
     /**
-     * A static method to get the {@link StreamExecutionEnvironment} configuration merged with
-     * python dependency management configurations.
-     */
-    public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
-        return PythonDependencyUtils.configurePythonDependencies(
-                env.getCachedFiles(), (Configuration) env.getConfiguration());
-    }
-
-    /**
-     * Get the private field {@code StreamExecutionEnvironment#configuration} by reflection
-     * recursively. Then access the field to get the configuration of the given
-     * StreamExecutionEnvironment.
+     * Get the private field {@link StreamExecutionEnvironment#configuration} by reflection
+     * recursively. It allows modification to the configuration compared with {@link
+     * StreamExecutionEnvironment#getConfiguration()}.
      */
     public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env)
             throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
@@ -93,61 +82,82 @@ public class PythonConfigUtil {
         return (Configuration) configurationField.get(env);
     }
 
-    @SuppressWarnings("unchecked")
     public static void configPythonOperator(StreamExecutionEnvironment env)
-            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
-        Configuration mergedConfig = getEnvConfigWithDependencies(env);
+            throws IllegalAccessException, NoSuchFieldException {
+        final Configuration config =
+                extractPythonConfiguration(env.getCachedFiles(), env.getConfiguration());
 
-        Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        List<Transformation<?>> transformations =
-                (List<Transformation<?>>) transformationsField.get(env);
-        for (Transformation<?> transformation : transformations) {
+        for (Transformation<?> transformation : env.getTransformations()) {
             alignTransformation(transformation);
 
             if (isPythonOperator(transformation)) {
-                // declare it is a Python operator
+                // declare the use case of managed memory
                 transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
 
                 AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                         getPythonOperator(transformation);
                 if (pythonFunctionOperator != null) {
-                    Configuration oldConfig = pythonFunctionOperator.getConfiguration();
-                    // update dependency related configurations for Python operators
-                    pythonFunctionOperator.setConfiguration(
-                            generateNewPythonConfig(oldConfig, mergedConfig));
+                    pythonFunctionOperator.getConfiguration().addAll(config);
+                }
+            }
+        }
+
+        processSideOutput(env.getTransformations());
+    }
+
+    /** Extract the configurations which is used in the Python operators. */
+    public static Configuration extractPythonConfiguration(
+            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
+            ReadableConfig config) {
+        final Configuration pythonDependencyConfig =
+                PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+        final PythonConfig pythonConfig = new PythonConfig(config, pythonDependencyConfig);
+        return pythonConfig.toConfiguration();
+    }
+
+    /**
+     * Process {@link SideOutputTransformation}s, set the {@link OutputTag}s into the Python
+     * corresponding operator to make it aware of the {@link OutputTag}s.
+     */
+    private static void processSideOutput(List<Transformation<?>> transformations) {
+        final Set<Transformation<?>> visitedTransforms = Sets.newIdentityHashSet();
+        final Queue<Transformation<?>> queue = Queues.newArrayDeque(transformations);
+
+        while (!queue.isEmpty()) {
+            Transformation<?> transform = queue.poll();
+            visitedTransforms.add(transform);
+
+            if (transform instanceof SideOutputTransformation) {
+                final SideOutputTransformation<?> sideTransform =
+                        (SideOutputTransformation<?>) transform;
+                final Transformation<?> upTransform =
+                        Iterables.getOnlyElement(sideTransform.getInputs());
+                if (PythonConfigUtil.isPythonDataStreamOperator(upTransform)) {
+                    final AbstractDataStreamPythonFunctionOperator<?> upOperator =
+                            (AbstractDataStreamPythonFunctionOperator<?>)
+                                    ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform))
+                                            .getOperator();
+                    upOperator.addSideOutputTag(sideTransform.getOutputTag());
+                }
+            }
+
+            for (Transformation<?> upTransform : transform.getInputs()) {
+                if (!visitedTransforms.contains(upTransform)) {
+                    queue.add(upTransform);
                 }
             }
         }
     }
 
-    public static Configuration getMergedConfig(
-            StreamExecutionEnvironment env, TableConfig tableConfig) {
-        Configuration config = new Configuration((Configuration) env.getConfiguration());
-        PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
-        Configuration mergedConfig =
-                PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
-        mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-        return mergedConfig;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Configuration getMergedConfig(ExecutionEnvironment env, TableConfig tableConfig) {
-        try {
-            Field field = ExecutionEnvironment.class.getDeclaredField("cacheFile");
-            field.setAccessible(true);
-            Configuration config = new Configuration(env.getConfiguration());
-            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
-            Configuration mergedConfig =
-                    PythonDependencyUtils.configurePythonDependencies(
-                            (List<Tuple2<String, DistributedCache.DistributedCacheEntry>>)
-                                    field.get(env),
-                            config);
-            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return mergedConfig;
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new TableException("Method getMergedConfig failed.", e);
+    public static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
+        } else if (transform instanceof TwoInputTransformation) {
+            return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
+        } else if (transform instanceof AbstractMultipleInputTransformation) {
+            return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
+        } else {
+            return null;
         }
     }
 
@@ -220,7 +230,7 @@ public class PythonConfigUtil {
         return null;
     }
 
-    public static boolean isPythonOperator(Transformation<?> transform) {
+    private static boolean isPythonOperator(Transformation<?> transform) {
         if (transform instanceof OneInputTransformation) {
             return isPythonOperator(
                     ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
@@ -264,17 +274,6 @@ public class PythonConfigUtil {
         } else {
             return false;
         }
-    }
-
-    /**
-     * Generator a new {@link Configuration} with the combined config which is derived from
-     * oldConfig.
-     */
-    private static Configuration generateNewPythonConfig(
-            Configuration oldConfig, Configuration newConfig) {
-        Configuration mergedConfig = newConfig.clone();
-        mergedConfig.addAll(oldConfig);
-        return mergedConfig;
     }
 
     public static void setPartitionCustomOperatorNumPartitions(

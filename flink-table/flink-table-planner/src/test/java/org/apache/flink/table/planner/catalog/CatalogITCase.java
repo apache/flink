@@ -43,8 +43,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** IT Case for catalog ddl. */
 public class CatalogITCase {
@@ -62,8 +60,8 @@ public class CatalogITCase {
 
         tableEnv.executeSql(ddl);
 
-        assertTrue(tableEnv.getCatalog(name).isPresent());
-        assertTrue(tableEnv.getCatalog(name).get() instanceof GenericInMemoryCatalog);
+        assertThat(tableEnv.getCatalog(name)).isPresent();
+        assertThat(tableEnv.getCatalog(name)).containsInstanceOf(GenericInMemoryCatalog.class);
     }
 
     @Test
@@ -76,11 +74,11 @@ public class CatalogITCase {
                         "create catalog %s with('type'='%s')",
                         name, GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
         tableEnv.executeSql(ddl);
-        assertTrue(tableEnv.getCatalog(name).isPresent());
+        assertThat(tableEnv.getCatalog(name)).isPresent();
 
         ddl = String.format("drop catalog %s", name);
         tableEnv.executeSql(ddl);
-        assertFalse(tableEnv.getCatalog(name).isPresent());
+        assertThat(tableEnv.getCatalog(name)).isNotPresent();
     }
 
     @Test
@@ -126,7 +124,7 @@ public class CatalogITCase {
             TableEnvironment tableEnvironment = getTableEnvironment();
             tableEnvironment.executeSql("CREATE CATALOG cat WITH ('type'='userCatalog')");
 
-            assertTrue(tableEnvironment.getCatalog("cat").isPresent());
+            assertThat(tableEnvironment.getCatalog("cat")).isPresent();
         }
     }
 
@@ -175,7 +173,7 @@ public class CatalogITCase {
             TableEnvironment tableEnvironment = getTableEnvironment();
             tableEnvironment.executeSql("CREATE CATALOG cat WITH ('type'='userCatalog')");
 
-            assertTrue(tableEnvironment.getCatalog("cat").isPresent());
+            assertThat(tableEnvironment.getCatalog("cat")).isPresent();
         }
     }
 

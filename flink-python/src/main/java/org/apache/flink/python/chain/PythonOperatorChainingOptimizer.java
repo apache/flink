@@ -67,6 +67,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import static org.apache.flink.python.util.PythonConfigUtil.getOperatorFactory;
+
 /**
  * A util class which attempts to chain all available Python functions.
  *
@@ -282,6 +284,7 @@ public class PythonOperatorChainingOptimizer {
 
         final AbstractDataStreamPythonFunctionOperator<?> chainedOperator =
                 upOperator.copy(downPythonFunctionInfo, downOperator.getProducedType());
+        chainedOperator.addSideOutputTags(downOperator.getSideOutputTags());
 
         // set partition custom flag
         chainedOperator.setContainsPartitionCustom(
@@ -453,18 +456,6 @@ public class PythonOperatorChainingOptimizer {
     }
 
     // ----------------------- Utility Methods -----------------------
-
-    private static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
-        if (transform instanceof OneInputTransformation) {
-            return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof TwoInputTransformation) {
-            return ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory();
-        } else if (transform instanceof AbstractMultipleInputTransformation) {
-            return ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory();
-        } else {
-            return null;
-        }
-    }
 
     private static void replaceInput(
             Transformation<?> transformation,

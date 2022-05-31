@@ -20,8 +20,8 @@ package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverable;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverableSerializer;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -35,12 +35,14 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Tests for the {@link HadoopPathBasedPendingFileRecoverableSerializer} that verify we can still
  * read the recoverable serialized by the previous versions.
  */
 @RunWith(Parameterized.class)
-public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest {
+public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extends TestLogger {
 
     private static final int CURRENT_VERSION = 1;
 
@@ -85,8 +87,8 @@ public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest {
         HadoopPathBasedPendingFileRecoverable recoverable =
                 serializer.deserialize(previousVersion, Files.readAllBytes(versionPath));
 
-        Assert.assertEquals(TARGET_PATH, recoverable.getTargetFilePath());
-        Assert.assertEquals(TEMP_PATH, recoverable.getTempFilePath());
+        assertThat(recoverable.getTargetFilePath()).isEqualTo(TARGET_PATH);
+        assertThat(recoverable.getTempFilePath()).isEqualTo(TEMP_PATH);
     }
 
     private java.nio.file.Path resolveVersionPath(long version, String scenario) {

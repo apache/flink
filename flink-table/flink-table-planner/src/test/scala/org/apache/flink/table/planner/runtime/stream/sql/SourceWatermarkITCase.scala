@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
 import org.junit.{Rule, Test}
+import org.junit.Assert.assertEquals
 
 import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
@@ -69,9 +68,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     tEnv.executeSql(ddl)
 
-    val expectedWatermarkOutput = Seq(
-      "2020-11-21T19:00:05.230",
-      "2020-11-21T21:00:05.230")
+    val expectedWatermarkOutput = Seq("2020-11-21T19:00:05.230", "2020-11-21T21:00:05.230")
     val expectedData = Seq(
       "1,2,2020-11-21T19:00:05.230",
       "2,3,2020-11-21T21:00:05.230"
@@ -83,7 +80,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("VirtualTable")
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("VirtualTable")
       .asScala
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
@@ -122,12 +120,10 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     tEnv.executeSql(ddl)
 
-    val expectedWatermarkOutput = Seq(
-      "2020-11-21T19:00:05.230",
-      "2020-11-21T21:00:05.230")
+    val expectedWatermarkOutput = Seq("2020-11-21T19:00:05.230", "2020-11-21T21:00:05.230")
     val expectedData = Seq(
-      "1,2,2020-11-21T11:00:05.230Z", //the utc timestamp of local ts 2020-11-21T19:00:05.230
-      "2,3,2020-11-21T13:00:05.230Z"  //the utc timestamp of local ts 2020-11-21T21:00:05.230
+      "1,2,2020-11-21T11:00:05.230Z", // the utc timestamp of local ts 2020-11-21T19:00:05.230
+      "2,3,2020-11-21T13:00:05.230Z" // the utc timestamp of local ts 2020-11-21T21:00:05.230
     )
 
     val query = "SELECT a, b, c FROM VirtualTable1"
@@ -136,10 +132,10 @@ class SourceWatermarkITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("VirtualTable1")
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("VirtualTable1")
       .asScala
-      .map(x =>
-        LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTimestamp), zoneId).toString)
+      .map(x => LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTimestamp), zoneId).toString)
       .toList
 
     assertEquals(expectedWatermarkOutput, actualWatermark)
@@ -194,7 +190,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("NestedTable")
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("NestedTable")
       .asScala
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
@@ -235,7 +232,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
     tEnv.executeSql(ddl)
 
     val expectedWatermarkOutput = Seq(
-      "2020-11-21T19:00:02.230", "2020-11-21T20:59:59.230"
+      "2020-11-21T19:00:02.230",
+      "2020-11-21T20:59:59.230"
     )
     val expectedData = Seq(
       "2000,3,2020-11-21T21:00:03.230"
@@ -247,7 +245,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("UdfTable")
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("UdfTable")
       .asScala
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
@@ -267,21 +266,21 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     val ddl =
       s"""
-        | CREATE TABLE MetadataTable(
-        |   a INT,
-        |   b BIGINT,
-        |   originTime BIGINT METADATA,
-        |   rowtime AS TO_TIMESTAMP(FROM_UNIXTIME(originTime/1000), 'yyyy-MM-dd HH:mm:ss'),
-        |   WATERMARK FOR rowtime AS rowtime
-        | ) WITH (
-        |   'connector' = 'values',
-        |   'enable-watermark-push-down' = 'true',
-        |   'bounded' = 'false',
-        |   'disable-lookup' = 'true',
-        |   'readable-metadata' = 'originTime:BIGINT',
-        |   'data-id' = '$dataId'
-        | )
-        |""".stripMargin
+         | CREATE TABLE MetadataTable(
+         |   a INT,
+         |   b BIGINT,
+         |   originTime BIGINT METADATA,
+         |   rowtime AS TO_TIMESTAMP(FROM_UNIXTIME(originTime/1000), 'yyyy-MM-dd HH:mm:ss'),
+         |   WATERMARK FOR rowtime AS rowtime
+         | ) WITH (
+         |   'connector' = 'values',
+         |   'enable-watermark-push-down' = 'true',
+         |   'bounded' = 'false',
+         |   'disable-lookup' = 'true',
+         |   'readable-metadata' = 'originTime:BIGINT',
+         |   'data-id' = '$dataId'
+         | )
+         |""".stripMargin
 
     tEnv.executeSql(ddl)
 
@@ -297,9 +296,11 @@ class SourceWatermarkITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("MetadataTable")
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("MetadataTable")
       .asScala
-      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString).toList
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
 
     assertEquals(expectedWatermarkOutput, actualWatermark)
     assertEquals(expectedData.sorted, sink.getAppendResults.sorted)

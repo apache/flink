@@ -371,6 +371,14 @@ message UserDefinedDataStreamFunction {
   bool metric_enabled = 4;
   TypeInfo key_type_info = 5;
   bool profile_enabled = 6;
+  bool has_side_output = 7;
+
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
 }
 
 // A representation of State

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -43,9 +42,11 @@ import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
@@ -62,6 +64,10 @@ import static org.junit.Assert.assertTrue;
 
 @ExtendWith({TestLoggerExtension.class})
 public class TaskCancelAsyncProducerConsumerITCase {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     // The Exceptions thrown by the producer/consumer Threads
     private static volatile Exception ASYNC_PRODUCER_EXCEPTION;
@@ -120,10 +126,10 @@ public class TaskCancelAsyncProducerConsumerITCase {
 
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.RUNNING,
-                        TestingUtils.defaultScheduledExecutor())
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         boolean producerBlocked = false;
@@ -174,10 +180,10 @@ public class TaskCancelAsyncProducerConsumerITCase {
         // wait until the job is canceled
         FutureUtils.retrySuccessfulWithDelay(
                         () -> flink.getJobStatus(jobGraph.getJobID()),
-                        Time.milliseconds(10),
+                        Duration.ofMillis(10),
                         deadline,
                         status -> status == JobStatus.CANCELED,
-                        TestingUtils.defaultScheduledExecutor())
+                        new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()))
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         // Verify the expected Exceptions

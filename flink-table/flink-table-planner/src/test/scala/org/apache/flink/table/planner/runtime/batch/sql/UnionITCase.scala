@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
@@ -32,8 +31,7 @@ import scala.collection.Seq
 
 class UnionITCase extends BatchTestBase {
 
-  val type6 = InternalTypeInfo.ofFields(
-    new IntType(), new BigIntType(), VarCharType.STRING_TYPE)
+  val type6 = InternalTypeInfo.ofFields(new IntType(), new BigIntType(), VarCharType.STRING_TYPE)
 
   val data6 = Seq(
     binaryRow(type6.toRowFieldTypes, 1, 1L, fromString("Hi")),
@@ -55,61 +53,44 @@ class UnionITCase extends BatchTestBase {
   def testUnionWithDifferentRowtype(): Unit = {
     checkResult(
       "SELECT a FROM (SELECT * FROM Table3 t1 UNION ALL (SELECT * FROM Table6 t2))",
-      Seq(
-        row("1"),
-        row("1"),
-        row("2"),
-        row("2"),
-        row("3"),
-        row("3"),
-        row("4")))
+      Seq(row("1"), row("1"), row("2"), row("2"), row("3"), row("3"), row("4")))
   }
 
   @Test
   def testUnionAll(): Unit = {
     checkResult(
       "SELECT t1.c FROM Table3 t1 UNION ALL (SELECT t2.c FROM Table3 t2)",
-      Seq(
-        row("Hi"),
-        row("Hi"),
-        row("Hello"),
-        row("Hello"),
-        row("Hello world"),
-        row("Hello world")))
+      Seq(row("Hi"), row("Hi"), row("Hello"), row("Hello"), row("Hello world"), row("Hello world"))
+    )
   }
 
   @Test
   def testUnion(): Unit = {
     checkResult(
       "SELECT t1.c FROM Table3 t1 UNION (SELECT t2.c FROM Table3 t2)",
-      Seq(
-        row("Hi"),
-        row("Hello"),
-        row("Hello world")))
+      Seq(row("Hi"), row("Hello"), row("Hello world")))
   }
 
   @Test
   def testUnionWithFilter(): Unit = {
     checkResult(
       "SELECT c FROM (" +
-          "SELECT * FROM Table3 UNION ALL (SELECT d, e, g FROM Table5))" +
-          "WHERE b < 2",
-      Seq(
-        row("Hi"),
-        row("Hallo")))
+        "SELECT * FROM Table3 UNION ALL (SELECT d, e, g FROM Table5))" +
+        "WHERE b < 2",
+      Seq(row("Hi"), row("Hallo")))
   }
 
   @Test
   def testUnionWithAggregation(): Unit = {
     checkResult(
       "SELECT count(c) FROM (" +
-          "SELECT * FROM Table3 UNION ALL (SELECT d, e, g FROM Table5))",
+        "SELECT * FROM Table3 UNION ALL (SELECT d, e, g FROM Table5))",
       Seq(row(18)))
   }
 
   /**
-    * Test different types of two union inputs(One is GenericRowData, the other is BinaryRowData).
-    */
+   * Test different types of two union inputs(One is GenericRowData, the other is BinaryRowData).
+   */
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {
     tEnv.getConfig
@@ -117,7 +98,7 @@ class UnionITCase extends BatchTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkResult(
       "SELECT a, c, g FROM (SELECT t1.a, t1.b, t1.c FROM Table3 t1 UNION ALL" +
-          "(SELECT a, b, c FROM Table3 ORDER BY a, b, c)), Table5 WHERE b = e",
+        "(SELECT a, b, c FROM Table3 ORDER BY a, b, c)), Table5 WHERE b = e",
       Seq(
         row(1, "Hi", "Hallo"),
         row(1, "Hi", "Hallo"),
@@ -125,7 +106,8 @@ class UnionITCase extends BatchTestBase {
         row(2, "Hello", "Hallo Welt"),
         row(3, "Hello world", "Hallo Welt"),
         row(3, "Hello world", "Hallo Welt")
-      ))
+      )
+    )
   }
 
   @Test

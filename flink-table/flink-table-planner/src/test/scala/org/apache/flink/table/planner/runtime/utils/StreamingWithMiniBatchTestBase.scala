@@ -28,9 +28,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-abstract class StreamingWithMiniBatchTestBase(
-    miniBatch: MiniBatchMode,
-    state: StateBackendMode)
+abstract class StreamingWithMiniBatchTestBase(miniBatch: MiniBatchMode, state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
   override def before(): Unit = {
@@ -39,9 +37,9 @@ abstract class StreamingWithMiniBatchTestBase(
     val tableConfig = tEnv.getConfig
     miniBatch match {
       case MiniBatchOn =>
-        tableConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
-        tableConfig.getConfiguration.set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-        tableConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
+        tableConfig.set(TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+        tableConfig.set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+        tableConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(3))
       case MiniBatchOff =>
         tableConfig.getConfiguration.removeConfig(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
     }

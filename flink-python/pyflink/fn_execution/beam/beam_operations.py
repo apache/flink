@@ -185,9 +185,9 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             factory.state_handler,
             key_row_coder,
             None,
-            1000,
-            1000,
-            1000)
+            serialized_fn.state_cache_size,
+            serialized_fn.map_state_read_cache_size,
+            serialized_fn.map_state_write_cache_size)
         return beam_operation_cls(
             transform_proto.unique_name,
             spec,

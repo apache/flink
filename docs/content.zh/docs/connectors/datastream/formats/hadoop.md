@@ -57,7 +57,7 @@ under the License.
 
 在 Flink 中使用 Hadoop `InputFormats`，必须首先使用 `HadoopInputs` 工具类的 `readHadoopFile` 或 `createHadoopInput` 包装 Input Format。
 前者用于从 `FileInputFormat` 派生的 Input Format，而后者必须用于通用的 Input Format。
-生成的 `InputFormat` 可通过使用 `ExecutionEnvironmen#createInput` 创建数据源。
+生成的 `InputFormat` 可通过使用 `ExecutionEnvironment#createInput` 创建数据源。
 
 生成的 `DataStream` 包含 2 元组，其中第一个字段是键，第二个字段是从 Hadoop `InputFormat` 接收的值。
 
@@ -106,7 +106,7 @@ Flink 为 Hadoop `OutputFormats` 提供了一个兼容性包装器。支持任�
 
 ```java
 // 获取我们希望发送的结果
-DataStream<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataStream<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // 设置 the Hadoop TextOutputFormat。
 HadoopOutputFormat<Text, IntWritable> hadoopOF =

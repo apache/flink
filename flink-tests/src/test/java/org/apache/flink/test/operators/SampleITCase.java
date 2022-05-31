@@ -37,6 +37,7 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.test.util.TestBaseUtils.containsResultAsText;
 import static org.junit.Assert.assertEquals;
 
 /** Integration tests for {@link DataSetUtils#sample}. */

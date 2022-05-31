@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.CharValue;
 
 /** Tests for {@link CharValueArrayComparator}. */
-public class CharValueArrayComparatorTest extends ComparatorTestBase<CharValueArray> {
+class CharValueArrayComparatorTest extends ComparatorTestBase<CharValueArray> {
 
     @Override
     protected TypeComparator<CharValueArray> createComparator(boolean ascending) {

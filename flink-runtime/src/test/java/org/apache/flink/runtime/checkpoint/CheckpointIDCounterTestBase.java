@@ -58,7 +58,7 @@ abstract class CheckpointIDCounterTestBase {
             counter.start();
             assertThat(counter.get()).isGreaterThanOrEqualTo(0L);
         } finally {
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
         }
     }
 
@@ -78,7 +78,7 @@ abstract class CheckpointIDCounterTestBase {
             assertThat(counter.get()).isEqualTo(4);
             assertThat(counter.getAndIncrement()).isEqualTo(4);
         } finally {
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
         }
     }
 
@@ -136,7 +136,7 @@ abstract class CheckpointIDCounterTestBase {
                 executor.shutdown();
             }
 
-            counter.shutdown(JobStatus.FINISHED);
+            counter.shutdown(JobStatus.FINISHED).join();
         }
     }
 
@@ -161,7 +161,7 @@ abstract class CheckpointIDCounterTestBase {
         assertThat(counter.get()).isEqualTo(1338);
         assertThat(counter.getAndIncrement()).isEqualTo(1338);
 
-        counter.shutdown(JobStatus.FINISHED);
+        counter.shutdown(JobStatus.FINISHED).join();
     }
 
     /** Task repeatedly incrementing the {@link CheckpointIDCounter}. */

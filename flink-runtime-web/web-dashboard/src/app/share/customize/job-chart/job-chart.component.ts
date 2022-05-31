@@ -34,7 +34,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { Chart } from '@antv/g2';
 import * as G2 from '@antv/g2';
-import { JobChartService } from 'share/customize/job-chart/job-chart.service';
+import { JobChartService } from '@flink-runtime-web/share/customize/job-chart/job-chart.service';
 
 @Component({
   selector: 'flink-job-chart',

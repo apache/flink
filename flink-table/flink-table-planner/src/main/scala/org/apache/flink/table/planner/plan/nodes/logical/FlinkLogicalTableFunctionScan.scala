@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.functions.TemporalTableFunction
@@ -24,8 +23,8 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelOptRuleCall, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
@@ -38,9 +37,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[TableFunctionScan]] that is a relational expression
-  * which calls a table-valued function in Flink.
-  */
+ * Sub-class of [[TableFunctionScan]] that is a relational expression which calls a table-valued
+ * function in Flink.
+ */
 class FlinkLogicalTableFunctionScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

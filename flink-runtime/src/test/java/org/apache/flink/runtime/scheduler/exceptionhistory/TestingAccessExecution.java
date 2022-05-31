@@ -31,6 +31,8 @@ import javax.annotation.Nullable;
 
 import java.util.Optional;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 /** Mock of an {@link AccessExecution}. */
 public class TestingAccessExecution implements AccessExecution {
 
@@ -109,7 +111,7 @@ public class TestingAccessExecution implements AccessExecution {
     public static class Builder {
 
         private ExecutionState state = ExecutionState.CREATED;
-        private ExecutionAttemptID attemptId = new ExecutionAttemptID();
+        private ExecutionAttemptID attemptId = createExecutionAttemptId();
         @Nullable private ErrorInfo failureInfo = null;
         @Nullable private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 

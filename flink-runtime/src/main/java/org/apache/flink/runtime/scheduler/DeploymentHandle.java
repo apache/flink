@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
  *
  * <ul>
  *   <li>{@link ExecutionVertexVersion}
- *   <li>{@link ExecutionVertexDeploymentOption}
  *   <li>{@link SlotExecutionVertexAssignment}
  * </ul>
  */
@@ -42,18 +41,13 @@ class DeploymentHandle {
 
     private final ExecutionVertexVersion requiredVertexVersion;
 
-    private final ExecutionVertexDeploymentOption executionVertexDeploymentOption;
-
     private final SlotExecutionVertexAssignment slotExecutionVertexAssignment;
 
     public DeploymentHandle(
             final ExecutionVertexVersion requiredVertexVersion,
-            final ExecutionVertexDeploymentOption executionVertexDeploymentOption,
             final SlotExecutionVertexAssignment slotExecutionVertexAssignment) {
 
         this.requiredVertexVersion = Preconditions.checkNotNull(requiredVertexVersion);
-        this.executionVertexDeploymentOption =
-                Preconditions.checkNotNull(executionVertexDeploymentOption);
         this.slotExecutionVertexAssignment =
                 Preconditions.checkNotNull(slotExecutionVertexAssignment);
     }
@@ -64,10 +58,6 @@ class DeploymentHandle {
 
     public ExecutionVertexVersion getRequiredVertexVersion() {
         return requiredVertexVersion;
-    }
-
-    public DeploymentOption getDeploymentOption() {
-        return executionVertexDeploymentOption.getDeploymentOption();
     }
 
     public SlotExecutionVertexAssignment getSlotExecutionVertexAssignment() {

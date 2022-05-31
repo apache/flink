@@ -25,11 +25,13 @@ import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.TimeUtils;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -38,28 +40,30 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class FencedRpcEndpointTest extends TestLogger {
+/** Tests for the FencedRpcEndpoint. */
+@ExtendWith(TestLoggerExtension.class)
+public class FencedRpcEndpointTest {
 
     private static final Time timeout = Time.seconds(10L);
     private static RpcService rpcService;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         rpcService = new TestingRpcService();
     }
 
-    @AfterClass
+    @AfterAll
     public static void teardown()
             throws ExecutionException, InterruptedException, TimeoutException {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, timeout);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
@@ -92,8 +96,8 @@ public class FencedRpcEndpointTest extends TestLogger {
             }
 
             assertFalse(
-                    "Setting fencing token from outside the main thread did not fail as expected.",
-                    failed);
+                    failed,
+                    "Setting fencing token from outside the main thread did not fail as expected.");
             assertNull(fencedTestingEndpoint.getFencingToken());
 
             CompletableFuture<Acknowledge> setFencingFuture =
@@ -106,7 +110,8 @@ public class FencedRpcEndpointTest extends TestLogger {
             assertEquals(newFencingToken, fencedGateway.getFencingToken());
             assertEquals(newFencingToken, fencedTestingEndpoint.getFencingToken());
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -174,7 +179,8 @@ public class FencedRpcEndpointTest extends TestLogger {
             }
 
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -241,7 +247,8 @@ public class FencedRpcEndpointTest extends TestLogger {
                         ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
             }
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -290,7 +297,8 @@ public class FencedRpcEndpointTest extends TestLogger {
             }
 
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -331,7 +339,8 @@ public class FencedRpcEndpointTest extends TestLogger {
                 // we should not be able to call getFencingToken on an unfenced gateway
             }
         } finally {
-            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -401,7 +410,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 
                         return Acknowledge.get();
                     },
-                    timeout);
+                    TimeUtils.toDuration(timeout));
         }
     }
 }

@@ -23,9 +23,9 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
 
 import java.sql.Timestamp
 import java.util
@@ -39,22 +39,21 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
     util.addFunction("countFun", new CountAggFunction)
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable2", 'a, 'b, 'c, 'd, 'ts)
-    util.tableEnv.executeSql(
-      s"""
-         |create table MyTable3 (
-         |  a int,
-         |  b bigint,
-         |  c as proctime()
-         |) with (
-         |  'connector' = 'COLLECTION'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |create table MyTable3 (
+                                |  a int,
+                                |  b bigint,
+                                |  c as proctime()
+                                |) with (
+                                |  'connector' = 'COLLECTION'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test
@@ -93,8 +92,9 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
     val sql = "SELECT weightedAvg(c, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("SQL validation failed. "
-      + "Given parameters of function 'weightedAvg' do not match any signature.")
+    expectedException.expectMessage(
+      "SQL validation failed. "
+        + "Given parameters of function 'weightedAvg' do not match any signature.")
     util.verifyExecPlan(sql)
   }
 
@@ -104,8 +104,7 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
       "SELECT TUMBLE_PROCTIME(ts, INTERVAL '4' MINUTE) FROM MyTable2 " +
         "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "PROCTIME window property is not supported in batch queries.")
+    expectedException.expectMessage("PROCTIME window property is not supported in batch queries.")
     util.verifyExecPlan(sqlQuery)
   }
 
@@ -114,11 +113,11 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
     // TODO supports group sets
     // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
     val sql =
-    """
-      |SELECT COUNT(*),
-      |    TUMBLE_END(ts, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
-      |FROM MyTable1
-      |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
+      """
+        |SELECT COUNT(*),
+        |    TUMBLE_END(ts, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE
+        |FROM MyTable1
+        |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
     """.stripMargin
     util.verifyRelPlanNotExpected(sql, "TUMBLE(ts")
   }
@@ -287,8 +286,7 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
   def testNonPartitionedSessionWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(*) AS cnt FROM MyTable2 GROUP BY SESSION(ts, INTERVAL '30' MINUTE)"
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Cannot generate a valid execution plan for the given query")
+    expectedException.expectMessage("Cannot generate a valid execution plan for the given query")
     util.verifyExecPlan(sqlQuery)
   }
 
@@ -307,8 +305,7 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
         |    GROUP BY SESSION(ts, INTERVAL '12' HOUR), c, d
       """.stripMargin
     expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Cannot generate a valid execution plan for the given query")
+    expectedException.expectMessage("Cannot generate a valid execution plan for the given query")
     util.verifyExecPlan(sqlQuery)
   }
 

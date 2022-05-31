@@ -54,7 +54,7 @@ def sliding_window_demo():
               .column("f2", DataTypes.FLOAT())
               .watermark("ts", "ts - INTERVAL '3' SECOND")
               .build()
-    ).alias("ts, name, price")
+    ).alias("ts", "name", "price")
 
     # define the sink
     t_env.create_temporary_table(
@@ -70,8 +70,8 @@ def sliding_window_demo():
 
     # define the sliding window operation
     table = table.window(Slide.over(lit(5).seconds).every(lit(2).seconds).on(col("ts")).alias("w"))\
-                 .group_by(table.name, col('w')) \
-                 .select(table.name, table.price.sum, col("w").start, col("w").end)
+                 .group_by(col('name'), col('w')) \
+                 .select(col('name'), col('price').sum, col("w").start, col("w").end)
 
     # submit for execution
     table.execute_insert('sink') \

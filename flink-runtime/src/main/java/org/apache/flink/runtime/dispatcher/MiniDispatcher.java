@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -71,6 +70,31 @@ public class MiniDispatcher extends Dispatcher {
                 CollectionUtil.ofNullable(recoveredDirtyJob),
                 dispatcherBootstrapFactory,
                 dispatcherServices);
+
+        this.executionMode = checkNotNull(executionMode);
+    }
+
+    @VisibleForTesting
+    public MiniDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            DispatcherServices dispatcherServices,
+            @Nullable JobGraph jobGraph,
+            @Nullable JobResult recoveredDirtyJob,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            JobManagerRunnerRegistry jobManagerRunnerRegistry,
+            ResourceCleanerFactory resourceCleanerFactory,
+            JobClusterEntrypoint.ExecutionMode executionMode)
+            throws Exception {
+        super(
+                rpcService,
+                fencingToken,
+                CollectionUtil.ofNullable(jobGraph),
+                CollectionUtil.ofNullable(recoveredDirtyJob),
+                dispatcherBootstrapFactory,
+                dispatcherServices,
+                jobManagerRunnerRegistry,
+                resourceCleanerFactory);
 
         this.executionMode = checkNotNull(executionMode);
     }
@@ -129,26 +153,18 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
-        final ArchivedExecutionGraph archivedExecutionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
-        final CleanupJobState cleanupHAState = super.jobReachedTerminalState(executionGraphInfo);
+    protected void runPostJobGloballyTerminated(JobID jobId, JobStatus jobStatus) {
+        super.runPostJobGloballyTerminated(jobId, jobStatus);
 
-        JobStatus jobStatus =
-                Objects.requireNonNull(
-                        archivedExecutionGraph.getState(), "JobStatus should not be null here.");
-        if (jobStatus.isGloballyTerminalState()
-                && (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED)) {
-            // shut down if job is cancelled or we don't have to wait for the execution result
-            // retrieval
+        if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
+            // shut down if job is cancelled or we don't have to wait for the execution
+            // result retrieval
             log.info(
-                    "Shutting down cluster with state {}, jobCancelled: {}, executionMode: {}",
+                    "Shutting down cluster after job with state {}, jobCancelled: {}, executionMode: {}",
                     jobStatus,
                     jobCancelled,
                     executionMode);
             shutDownFuture.complete(ApplicationStatus.fromJobStatus(jobStatus));
         }
-
-        return cleanupHAState;
     }
 }

@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalSort
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalSort
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -31,11 +31,13 @@ import org.apache.calcite.rex.RexNode
 import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for time-ascending-order [[Sort]] without `limit`.
-  *
-  * @see [[StreamPhysicalRank]] which must be with `limit` order by.
-  * @see [[StreamPhysicalSort]] which can be used for testing now, its sort key can be any type.
-  */
+ * Stream physical RelNode for time-ascending-order [[Sort]] without `limit`.
+ *
+ * @see
+ *   [[StreamPhysicalRank]] which must be with `limit` order by.
+ * @see
+ *   [[StreamPhysicalSort]] which can be used for testing now, its sort key can be any type.
+ */
 class StreamPhysicalTemporalSort(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -62,10 +64,10 @@ class StreamPhysicalTemporalSort(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecTemporalSort(
+      unwrapTableConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

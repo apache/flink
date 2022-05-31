@@ -126,7 +126,11 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 在往下游 subtask 发送数据部分时，缓冲区通过汇集 record 来优化网络开销。下游 subtask 应该在接收到完整的 record 后才开始处理它。
 
-如果缓冲区太小（比如小于一条 record），会因为开销比较大而导致吞吐低。
+If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout` configuration parameter), this can lead to decreased throughput
+since the per-buffer overhead are significantly higher then per-record overheads in the Flink's runtime.
+
+As a rule of thumb, we don't recommend thinking about increasing the buffer size, or the buffer timeout unless you can observe a network bottleneck in your real life workload
+(downstream operator idling, upstream backpressured, output buffer queue is full, downstream input queue is empty).
 
 如果缓冲区太大，会导致：
 - 内存使用高

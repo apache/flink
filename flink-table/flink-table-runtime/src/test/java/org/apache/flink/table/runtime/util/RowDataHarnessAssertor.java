@@ -25,8 +25,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,7 +32,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utils for working with the various window test harnesses. */
 public class RowDataHarnessAssertor {
@@ -77,7 +75,7 @@ public class RowDataHarnessAssertor {
         if (needSort) {
             Preconditions.checkArgument(comparator != null, "Comparator should not be null!");
         }
-        assertEquals(expected.size(), actual.size());
+        assertThat(actual).hasSize(expected.size());
 
         // first, compare only watermarks, their position should be deterministic
         Iterator<Object> exIt = expected.iterator();
@@ -86,7 +84,7 @@ public class RowDataHarnessAssertor {
             Object nextEx = exIt.next();
             Object nextAct = actIt.next();
             if (nextEx instanceof Watermark) {
-                assertEquals(nextEx, nextAct);
+                assertThat(nextAct).isEqualTo(nextEx);
             }
         }
 
@@ -124,7 +122,7 @@ public class RowDataHarnessAssertor {
             Arrays.sort(sortedActual, comparator);
         }
 
-        Assert.assertArrayEquals(message, sortedExpected, sortedActual);
+        assertThat(sortedActual).as(message).isEqualTo(sortedExpected);
     }
 
     private static class StringComparator implements Comparator<GenericRowData> {

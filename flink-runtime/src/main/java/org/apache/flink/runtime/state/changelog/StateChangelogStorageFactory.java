@@ -36,4 +36,7 @@ public interface StateChangelogStorageFactory {
     /** Create the storage based on a configuration. */
     StateChangelogStorage<?> createStorage(
             Configuration configuration, TaskManagerJobMetricGroup metricGroup) throws IOException;
+
+    /** Create the storage for recovery. */
+    StateChangelogStorageView<?> createStorageView() throws IOException;
 }

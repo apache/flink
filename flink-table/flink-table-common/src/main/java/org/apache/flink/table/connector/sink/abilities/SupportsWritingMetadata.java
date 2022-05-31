@@ -68,13 +68,17 @@ import java.util.Map;
  * casting from INT will be performed by the planner in a preceding operation:
  *
  * <pre>{@code
- * // for t1 and t2
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
+ * // physical input
+ * ROW < i INT, s STRING, d DOUBLE >
  *
- * // for t3
- * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE >                                              // final input
+ * // final input (i.e. consumed type) for t1
+ * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final input (i.e. consumed type) for t2
+ * ROW < i INT, s STRING, d DOUBLE, myTimestamp TIMESTAMP(3) WITH LOCAL TIME ZONE >
+ *
+ * // final input (i.e. consumed type) for t3
+ * ROW < i INT, s STRING, d DOUBLE >
  * }</pre>
  */
 @PublicEvolving
@@ -115,7 +119,8 @@ public interface SupportsWritingMetadata {
      *
      * @param metadataKeys a subset of the keys returned by {@link #listWritableMetadata()}, ordered
      *     by the iteration order of returned map
-     * @param consumedDataType the final input type of the sink
+     * @param consumedDataType the final input type of the sink, it is intended to be only forwarded
+     *     and the planner will decide on the field names to avoid collisions
      * @see EncodingFormat#applyWritableMetadata(List)
      */
     void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType);

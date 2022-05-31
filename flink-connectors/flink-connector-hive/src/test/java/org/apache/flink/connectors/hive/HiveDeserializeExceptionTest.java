@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized;
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -108,11 +108,7 @@ public class HiveDeserializeExceptionTest {
         ClassLoader parentLoader = object.getClass().getClassLoader().getParent();
         assumeTrue(parentLoader != null);
         byte[] bytes = InstantiationUtil.serializeObject(object);
-        try {
-            InstantiationUtil.deserializeObject(bytes, parentLoader);
-            fail("Exception not thrown");
-        } catch (ClassNotFoundException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> InstantiationUtil.deserializeObject(bytes, parentLoader))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 }

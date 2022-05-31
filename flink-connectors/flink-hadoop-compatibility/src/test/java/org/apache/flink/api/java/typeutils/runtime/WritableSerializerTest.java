@@ -51,7 +51,7 @@ public class WritableSerializerTest {
 
         SerializerTestInstance<StringArrayWritable> testInstance =
                 new SerializerTestInstance<StringArrayWritable>(
-                        writableSerializer, writableTypeInfo.getTypeClass(), -1, data);
+                        writableSerializer, writableTypeInfo.getTypeClass(), -1, data) {};
 
         testInstance.testAll();
     }

@@ -348,7 +348,7 @@ SET 'table.exec.spill-compression.block-size' = '128kb';
 This configuration:
 
 - connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
-- defines a table `MyTableSource` that can read data from a CSV file,
+- defines a table `MyTable` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
 - uses streaming mode for running statements and a parallelism of 1,
@@ -368,16 +368,17 @@ When execute queries or insert statements, please enter the interactive mode or 
 
 ### Dependencies
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the
-dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR
-file separately (using `--jar`) or define entire library directories (using `--library`). For
+The SQL Client does not require setting up a Java project using Maven, Gradle, or sbt. Instead, you
+can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify
+each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For
 connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON),
 Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from
 the Maven central repository.
 
-The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+The full list of offered SQL JARs can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
 
-{{< top >}}
+You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
+information on how to configure connector and format dependencies.
 
 Use SQL Client to submit job
 ----------------------------

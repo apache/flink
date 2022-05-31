@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.sql.Timestamp;
 
 /** A test for the {@link SqlTimestampSerializer}. */
-public class SqlTimestampSerializerTest extends SerializerTestBase<Timestamp> {
+class SqlTimestampSerializerTest extends SerializerTestBase<Timestamp> {
 
     @Override
     protected TypeSerializer<Timestamp> createSerializer() {

@@ -17,8 +17,12 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.Preconditions;
@@ -46,10 +50,12 @@ public class ChangelogPeriodicMaterializationITCase
     @Test
     public void testNonMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
         StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, Long.MAX_VALUE, 0);
+                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, -1, 0);
         waitAndAssert(
                 buildJobGraph(
                         env,
@@ -64,13 +70,14 @@ public class ChangelogPeriodicMaterializationITCase
                                             .get()
                                             .compareAndSet(
                                                     true,
-                                                    !getAllStateHandleId(checkpointFolder)
+                                                    !getAllStateHandleId(
+                                                                    jobID.get(), miniCluster.get())
                                                             .isEmpty());
                                     throwArtificialFailure();
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
         Preconditions.checkState(!hasMaterialization.get().get());
     }
 
@@ -78,6 +85,8 @@ public class ChangelogPeriodicMaterializationITCase
     @Test
     public void testMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicInteger> currentCheckpointNum =
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
@@ -101,7 +110,8 @@ public class ChangelogPeriodicMaterializationITCase
                                                     return true;
                                                 }
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 if (!allMaterializationId.isEmpty()) {
                                                     currentMaterializationId
                                                             .get()
@@ -126,7 +136,8 @@ public class ChangelogPeriodicMaterializationITCase
                                                     return true;
                                                 }
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 return allMaterializationId.isEmpty()
                                                         || currentMaterializationId
                                                                 .get()
@@ -136,29 +147,31 @@ public class ChangelogPeriodicMaterializationITCase
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
     }
 
     @Test
     public void testFailedMaterialization() throws Exception {
         File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+        SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
+        SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
         StreamExecutionEnvironment env =
                 getEnv(
-                        new DelegatedStateBackendWrapper(
+                        StateBackendTestUtils.wrapStateBackendWithSnapshotFunction(
                                 delegatedStateBackend,
                                 snapshotResultFuture -> {
                                     if (hasFailed.get().compareAndSet(false, true)) {
-                                        throw new RuntimeException();
+                                        return ExceptionallyDoneFuture.of(new RuntimeException());
                                     } else {
                                         return snapshotResultFuture;
                                     }
                                 }),
                         checkpointFolder,
                         100,
-                        1,
+                        0,
                         10,
                         1);
         env.setParallelism(1);
@@ -175,7 +188,8 @@ public class ChangelogPeriodicMaterializationITCase
                                     waitWhile(
                                             () -> {
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 if (!allMaterializationId.isEmpty()) {
                                                     currentMaterializationId
                                                             .get()
@@ -188,7 +202,8 @@ public class ChangelogPeriodicMaterializationITCase
                                     waitWhile(
                                             () -> {
                                                 Set<StateHandleID> allMaterializationId =
-                                                        getAllStateHandleId(checkpointFolder);
+                                                        getAllStateHandleId(
+                                                                jobID.get(), miniCluster.get());
                                                 return allMaterializationId.isEmpty()
                                                         || currentMaterializationId
                                                                 .get()
@@ -197,6 +212,6 @@ public class ChangelogPeriodicMaterializationITCase
                                 }
                             }
                         },
-                        generateJobID()));
+                        jobID.get()));
     }
 }

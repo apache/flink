@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
@@ -41,6 +41,8 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 
@@ -157,8 +159,8 @@ public class PythonTableFunctionOperator
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(tableFunction));
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         return builder.build();
     }
 
@@ -184,7 +186,7 @@ public class PythonTableFunctionOperator
 
     @Override
     @SuppressWarnings("ConstantConditions")
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+    public void emitResult(Tuple3<String, byte[], Integer> resultTuple) throws Exception {
         byte[] rawUdtfResult;
         int length;
         if (isFinishResult) {
@@ -192,8 +194,8 @@ public class PythonTableFunctionOperator
             hasJoined = false;
         }
         do {
-            rawUdtfResult = resultTuple.f0;
-            length = resultTuple.f1;
+            rawUdtfResult = resultTuple.f1;
+            length = resultTuple.f2;
             isFinishResult = isFinishResult(rawUdtfResult, length);
             if (!isFinishResult) {
                 reuseJoinedRow.setRowKind(input.getRowKind());

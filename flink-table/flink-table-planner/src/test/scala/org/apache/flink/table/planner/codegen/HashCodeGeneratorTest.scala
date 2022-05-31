@@ -15,37 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
 
 import org.junit.{Assert, Test}
 
-/**
-  * Test for [[HashCodeGenerator]].
-  */
+/** Test for [[HashCodeGenerator]]. */
 class HashCodeGeneratorTest {
 
   private val classLoader = Thread.currentThread().getContextClassLoader
 
   @Test
   def testHash(): Unit = {
-    val hashFunc1 = HashCodeGenerator.generateRowHash(
-      new CodeGeneratorContext(new TableConfig),
-      RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
-      "name",
-      Array(1, 0)
-    ).newInstance(classLoader)
+    val hashFunc1 = HashCodeGenerator
+      .generateRowHash(
+        new CodeGeneratorContext(new Configuration),
+        RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
+        "name",
+        Array(1, 0)
+      )
+      .newInstance(classLoader)
 
-    val hashFunc2 = HashCodeGenerator.generateRowHash(
-      new CodeGeneratorContext(new TableConfig),
-      RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
-      "name",
-      Array(1, 2, 0)
-    ).newInstance(classLoader)
+    val hashFunc2 = HashCodeGenerator
+      .generateRowHash(
+        new CodeGeneratorContext(new Configuration),
+        RowType.of(new IntType(), new BigIntType(), new VarBinaryType(VarBinaryType.MAX_LENGTH)),
+        "name",
+        Array(1, 2, 0)
+      )
+      .newInstance(classLoader)
 
     val row = GenericRowData.of(ji(5), jl(8), Array[Byte](1, 5, 6))
     Assert.assertEquals(637, hashFunc1.hashCode(row))

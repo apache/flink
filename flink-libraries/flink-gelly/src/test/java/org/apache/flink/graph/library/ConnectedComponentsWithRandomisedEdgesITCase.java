@@ -31,6 +31,8 @@ import org.apache.flink.types.NullValue;
 
 import java.io.BufferedReader;
 
+import static org.apache.flink.test.util.TestBaseUtils.getResultReader;
+
 /** Test {@link ConnectedComponents} with a randomly generated graph. */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTestBase {

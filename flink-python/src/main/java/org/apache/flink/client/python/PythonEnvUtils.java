@@ -484,9 +484,9 @@ final class PythonEnvUtils {
     /** The shutdown hook used to destroy the Python process. */
     public static class PythonProcessShutdownHook extends Thread {
 
-        private Process process;
-        private GatewayServer gatewayServer;
-        private String tmpDir;
+        private final Process process;
+        private final GatewayServer gatewayServer;
+        private final String tmpDir;
 
         public PythonProcessShutdownHook(
                 Process process, GatewayServer gatewayServer, String tmpDir) {

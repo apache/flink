@@ -35,7 +35,7 @@ function download() {
         DOWNLOAD_STATUS="$?"
     fi
     if [ $DOWNLOAD_STATUS -ne 0 ]; then
-        echo "Dowload failed.You can try again"
+        echo "Download failed.You can try again"
         exit $DOWNLOAD_STATUS
     fi
 }
@@ -182,13 +182,13 @@ function install_wget() {
 
 # The script choose miniconda as our package management tool.
 # The script use miniconda to create all kinds of python versions and
-# some pakcages including checks such as tox and flake8.
+# some packages including checks such as tox and flake8.
 
 function install_miniconda() {
     OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" \
         "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh")
-    print_function "STEP" "download miniconda..."
     if [ ! -f "$CONDA_INSTALL" ]; then
+        print_function "STEP" "download miniconda..."
         download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH
         chmod +x $CONDA_INSTALL_SH
         if [ $? -ne 0 ]; then
@@ -203,18 +203,18 @@ function install_miniconda() {
                 exit 1
             fi
         fi
+        print_function "STEP" "download miniconda... [SUCCESS]"
     fi
-    print_function "STEP" "download miniconda... [SUCCESS]"
 
-    print_function "STEP" "installing conda..."
     if [ ! -d "$CURRENT_DIR/.conda" ]; then
+        print_function "STEP" "installing conda..."
         $CONDA_INSTALL_SH -b -p $CURRENT_DIR/.conda 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "install miniconda failed"
             exit $CONDA_INSTALL_STATUS
         fi
+        print_function "STEP" "install conda ... [SUCCESS]"
     fi
-    print_function "STEP" "install conda ... [SUCCESS]"
 }
 
 # Install some kinds of py env.
@@ -322,7 +322,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 "Jinja2<3.1.0" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
@@ -378,23 +378,23 @@ function install_environment() {
     # step-1 install wget
     # the file size of the miniconda.sh is too big to use "wget" tool to download instead
     # of the "curl" in the weak network environment.
-    print_function "STEP" "installing wget..."
     if [ $STEP -lt 1 ]; then
+        print_function "STEP" "installing wget..."
         install_wget ${SUPPORT_OS[$os_index]}
         STEP=1
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install wget... [SUCCESS]"
     fi
-    print_function "STEP" "install wget... [SUCCESS]"
 
     # step-2 install miniconda
-    print_function "STEP" "installing miniconda..."
     if [ $STEP -lt 2 ]; then
+        print_function "STEP" "installing miniconda..."
         create_dir $CURRENT_DIR/download
         install_miniconda $os_index
         STEP=2
         checkpoint_stage $STAGE $STEP
+        print_function "STEP" "install miniconda... [SUCCESS]"
     fi
-    print_function "STEP" "install miniconda... [SUCCESS]"
 
     # step-3 install python environment which includes
     # 3.6 3.7 3.8

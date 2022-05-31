@@ -32,7 +32,7 @@ import {
 import { fromEvent, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { isNil } from 'utils';
+import { isNil } from '@flink-runtime-web/utils';
 
 export enum ResizeModeEnums {
   Vertical = 'vertical',

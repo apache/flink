@@ -65,10 +65,10 @@ You can start building a File Source via one of the following API calls:
 {{< tab "Java" >}}
 ```java
 // reads the contents of a file from a file stream. 
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
 // reads batches of records from a file at a time
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -367,7 +367,7 @@ specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink
 The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
 is finalized for further encoding purposes.
 
-Flink comes with four built-in BulkWriter factories:
+Flink comes with five built-in BulkWriter factories:
 
 * ParquetWriterFactory
 * AvroWriterFactory
@@ -1026,7 +1026,9 @@ the give list of `Path` and write the result file. It could be classified into t
   An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} that reads records from the source files and then writes them with the `CompactingFileWriter`. Users need to specify how to read records from the source files.
 
 {{< hint info >}}
-**Important** Once the compaction is enabled, the written files need to wait for longer time before they get visible.
+**Important Note 1** Once the compaction is enabled, you must explicitly call `disableCompact` when building the `FileSink` if you want to disable compaction.
+
+**Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
 {{< /hint >}}
 
 ### Important Considerations
@@ -1048,8 +1050,8 @@ Given this, when trying to restore from an old checkpoint/savepoint which assume
 by subsequent successful checkpoints, the `FileSink` will refuse to resume and will throw an exception as it cannot locate the 
 in-progress file.
 
-<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports three filesystems: 
-HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
+<span class="label label-danger">Important Note 4</span>: Currently, the `FileSink` only supports four filesystems: 
+HDFS, S3, OSS, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 #### BATCH-specific
 
@@ -1083,6 +1085,12 @@ that don't complete within a specified number of days after being initiated. Thi
 aggressively and take a savepoint with some part-files being not fully uploaded, their associated MPUs may time-out
 before the job is restarted. This will result in your job not being able to restore from that savepoint as the
 pending part-files are no longer there and Flink will fail with an exception as it tries to fetch them and fails.
+
+#### OSS-specific
+
+<span class="label label-danger">Important Note</span>: To guarantee exactly-once semantics while
+being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.aliyun.com/document_detail/155825.html)
+feature of OSS(similar with S3).
 
 {{< top >}}
 

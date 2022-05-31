@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.15-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.16-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -183,12 +182,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<!-- For legacy string expressions in Table API -->
-			<groupId>org.scala-lang.modules</groupId>
-			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>
@@ -216,15 +209,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<!-- SuccessException used in TestValuesTableFactory -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -280,6 +264,22 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<scala>
+						<scalafmt>
+							<version>${spotless.scalafmt.version}</version>
+							<file>${project.basedir}/../../.scalafmt.conf</file>
+						</scalafmt>
+						<licenseHeader>
+							<content>${spotless.license.header}</content>
+							<delimiter>${spotless.delimiter}</delimiter>
+						</licenseHeader>
+					</scala>
+				</configuration>
+			</plugin>
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
@@ -351,9 +351,6 @@ under the License.
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
 							<include>org.apache.flink:flink-sql-parser-hive</include>
-
-							<!-- For legacy string expressions in Table API -->
-							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
 						</includes>
 					</artifactSet>
 					<relocations>
@@ -395,15 +392,6 @@ under the License.
 							<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
 						</relocation>
 					</relocations>
-				</configuration>
-			</plugin>
-
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
 

@@ -40,16 +40,12 @@ import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import pemja.core.PythonInterpreterConfig;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 
 /** The Python {@link ScalarFunction} operator in embedded Python environment. */
 @Internal
@@ -156,46 +152,21 @@ public class EmbeddedPythonScalarFunctionOperator
     }
 
     @Override
-    public void openPythonInterpreter(
-            String pythonExecutable,
-            Map<String, String> env,
-            PythonInterpreterConfig.ExecType execType)
-            throws Exception {
-        if (execType.equals(PythonInterpreterConfig.ExecType.SUB_INTERPRETER)) {
-            LOG.info("Create Operation in sub-interpreters.");
-            String[] commands =
-                    new String[] {
-                        pythonExecutable,
-                        "-c",
-                        String.format(
-                                "from pyflink.fn_execution.utils.operation_utils import create_serialized_scalar_operation_from_proto;"
-                                        + "print(create_serialized_scalar_operation_from_proto(%s, %s, %s))",
-                                Arrays.toString(getUserDefinedFunctionsProto().toByteArray()),
-                                isOneArg ? "True" : "False",
-                                isOneFieldResult ? "True" : "False")
-                    };
-            interpreter.exec(
-                    "from pyflink.fn_execution.utils.operation_utils import deserialized_operation_from_serialized_bytes");
-            interpreter.exec(
-                    String.format(
-                            "scalar_operation = deserialized_operation_from_serialized_bytes(%s)",
-                            executeScript(commands, env)));
-        } else {
-            LOG.info("Create Operation in multi-threads.");
+    public void openPythonInterpreter(String pythonExecutable, Map<String, String> env) {
+        LOG.info("Create Operation in multi-threads.");
 
-            // The CPython extension included in proto does not support initialization
-            // multiple times, so we choose the only interpreter process to be responsible for
-            // initialization and proto parsing. The only interpreter parses the proto and
-            // serializes function operations with cloudpickle.
-            interpreter.exec(
-                    "from pyflink.fn_execution.utils.operation_utils import create_scalar_operation_from_proto");
-            interpreter.set("proto", getUserDefinedFunctionsProto().toByteArray());
+        // The CPython extension included in proto does not support initialization
+        // multiple times, so we choose the only interpreter process to be responsible for
+        // initialization and proto parsing. The only interpreter parses the proto and
+        // serializes function operations with cloudpickle.
+        interpreter.exec(
+                "from pyflink.fn_execution.utils.operation_utils import create_scalar_operation_from_proto");
+        interpreter.set("proto", getUserDefinedFunctionsProto().toByteArray());
 
-            interpreter.exec(
-                    String.format(
-                            "scalar_operation = create_scalar_operation_from_proto(proto, %s, %s)",
-                            isOneArg ? "True" : "False", isOneFieldResult ? "True" : "False"));
-        }
+        interpreter.exec(
+                String.format(
+                        "scalar_operation = create_scalar_operation_from_proto(proto, %s, %s)",
+                        isOneArg ? "True" : "False", isOneFieldResult ? "True" : "False"));
 
         // invoke `open` method of ScalarOperation.
         interpreter.invokeMethod("scalar_operation", "open");
@@ -268,36 +239,8 @@ public class EmbeddedPythonScalarFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
             builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
-        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
+        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
+        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         return builder.build();
-    }
-
-    private String executeScript(final String[] commands, Map<String, String> env)
-            throws IOException {
-        ProcessBuilder pb = new ProcessBuilder(commands);
-        pb.environment().putAll(env);
-        pb.redirectErrorStream(true);
-        Process p = pb.start();
-        InputStream in = new BufferedInputStream(p.getInputStream());
-        StringBuilder out = new StringBuilder();
-        String s;
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
-            while ((s = br.readLine()) != null) {
-                out.append(s).append("\n");
-            }
-        }
-        try {
-            if (p.waitFor() != 0) {
-                throw new IOException(
-                        String.format(
-                                "Failed to execute the command: %s\noutput: %s",
-                                String.join(" ", commands), out));
-            }
-        } catch (InterruptedException e) {
-            // Ignored. The subprocess is dead after "br.readLine()" returns null, so the call of
-            // "waitFor" should return intermediately.
-        }
-        return out.toString();
     }
 }

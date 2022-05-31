@@ -33,14 +33,13 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link EqualiserCodeGenerator}. */
 public class EqualiserCodeGeneratorTest {
@@ -101,10 +100,11 @@ public class EqualiserCodeGeneratorTest {
                 IntStream.range(0, 499)
                         .mapToObj(i -> StringData.fromString("Entry " + i))
                         .toArray(StringData[]::new);
-        assertTrue(
-                equaliser.equals(
-                        GenericRowData.of((Object[]) fields),
-                        GenericRowData.of((Object[]) fields)));
+        assertThat(
+                        equaliser.equals(
+                                GenericRowData.of((Object[]) fields),
+                                GenericRowData.of((Object[]) fields)))
+                .isTrue();
     }
 
     private static <T> void assertBoolean(
@@ -113,9 +113,9 @@ public class EqualiserCodeGeneratorTest {
             T o1,
             T o2,
             boolean bool) {
-        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), GenericRowData.of(o2)));
-        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), GenericRowData.of(o2)));
-        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), toBinaryRow.apply(o2)));
-        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), toBinaryRow.apply(o2)));
+        assertThat(equaliser.equals(GenericRowData.of(o1), GenericRowData.of(o2))).isEqualTo(bool);
+        assertThat(equaliser.equals(toBinaryRow.apply(o1), GenericRowData.of(o2))).isEqualTo(bool);
+        assertThat(equaliser.equals(GenericRowData.of(o1), toBinaryRow.apply(o2))).isEqualTo(bool);
+        assertThat(equaliser.equals(toBinaryRow.apply(o1), toBinaryRow.apply(o2))).isEqualTo(bool);
     }
 }

@@ -15,22 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.{JArrayList, JDouble}
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, FlinkRexUtil, RankUtil}
-import org.apache.flink.table.planner.{JArrayList, JDouble}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRexUtil, RankUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -39,9 +39,9 @@ import org.apache.calcite.util._
 import scala.collection.JavaConversions._
 
 /**
-  * FlinkRelMdDistinctRowCount supplies a implementation of
-  * [[RelMetadataQuery#getDistinctRowCount]] for the standard logical algebra.
-  */
+ * FlinkRelMdDistinctRowCount supplies a implementation of [[RelMetadataQuery#getDistinctRowCount]]
+ * for the standard logical algebra.
+ */
 class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata.DistinctRowCount] {
 
   def getDef: MetadataDef[BuiltInMetadata.DistinctRowCount] = BuiltInMetadata.DistinctRowCount.DEF
@@ -53,7 +53,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val statistic = rel.getTable.asInstanceOf[FlinkPreparingTableBase].getStatistic
@@ -61,7 +61,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     val isKey = mq.areColumnsUnique(rel, groupKey)
     val isUnique = isKey != null && isKey
     val selectivity: JDouble = if (predicate == null) {
-      1D
+      1d
     } else {
       mq.getSelectivity(rel, predicate)
     }
@@ -69,13 +69,13 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       val rowCount = mq.getRowCount(rel)
       NumberUtil.multiply(rowCount, selectivity)
     } else {
-      val distinctCount = groupKey.asList().foldLeft(1D) {
+      val distinctCount = groupKey.asList().foldLeft(1d) {
         (ndv, g) =>
           val fieldName = fields.get(g).getName
           val colStats = statistic.getColumnStats(fieldName)
           if (colStats != null && colStats.getNdv != null) {
             // Never let ndv of a column go below 1, as it will result in incorrect calculations.
-            ndv * Math.max(colStats.getNdv.toDouble, 1D)
+            ndv * Math.max(colStats.getNdv.toDouble, 1d)
           } else {
             return null
           }
@@ -92,7 +92,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val selectivity = RelMdUtil.guessSelectivity(predicate)
@@ -124,7 +124,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val unionPreds = RelMdUtil.unionPreds(rel.getCluster.getRexBuilder, predicate, rel.getCondition)
@@ -138,7 +138,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val program = rel.getProgram
@@ -176,19 +176,20 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       val preds = RexUtil.composeConjunction(rexBuilder, notPushable, true)
       val rowCount = mq.getRowCount(rel)
       val selectivity = RelMdUtil.guessSelectivity(preds)
-      distinctRowCount = FlinkRelMdUtil.adaptNdvBasedOnSelectivity(
-        rowCount, distinctRowCount, selectivity)
+      distinctRowCount =
+        FlinkRelMdUtil.adaptNdvBasedOnSelectivity(rowCount, distinctRowCount, selectivity)
     }
     // No further computation required if the projection expressions are all column references
     if (projCols.cardinality() == 0) {
       return distinctRowCount
     }
-    projCols.build() foreach { bit =>
-      val subRowCount = FlinkRelMdUtil.cardOfCalcExpr(mq, rel, projects.get(bit))
-      if (subRowCount == null) {
-        return null
-      }
-      distinctRowCount *= subRowCount
+    projCols.build().foreach {
+      bit =>
+        val subRowCount = FlinkRelMdUtil.cardOfCalcExpr(mq, rel, projects.get(bit))
+        if (subRowCount == null) {
+          return null
+        }
+        distinctRowCount *= subRowCount
     }
     val rowCount = mq.getRowCount(rel)
     FlinkRelMdUtil.numDistinctVals(distinctRowCount, rowCount)
@@ -203,14 +204,14 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       null
     } else {
       val rexBuilder = rel.getCluster.getRexBuilder
-      val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-      val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
-        FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+      val tableConfig = unwrapTableConfig(rel)
+      val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
       val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
       val conjunctions = RelOptUtil.conjunctions(cnf)
-      val conjunctionsWithoutExpandId = conjunctions.filterNot { c =>
-        val inputRefs = RelOptUtil.InputFinder.bits(c)
-        inputRefs.toList.contains(rel.expandIdIndex)
+      val conjunctionsWithoutExpandId = conjunctions.filterNot {
+        c =>
+          val inputRefs = RelOptUtil.InputFinder.bits(c)
+          inputRefs.toList.contains(rel.expandIdIndex)
       }
       // ignore expand_id condition if it exists in predicate
       RexUtil.composeConjunction(rexBuilder, conjunctionsWithoutExpandId, false)
@@ -218,24 +219,26 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     // ndv of expand = ndv of project1 + ndv of project2 + ... + ndv of projectN-1
     if (groupKey.toList.contains(rel.expandIdIndex)) {
       val groupKeySkipExpandId = groupKey.filter(_ != rel.expandIdIndex)
-      var ndv = 0D
-      rel.projects.foreach { project =>
-        val groupKeyOfCurrentProject = new JArrayList[Int]()
-        groupKeySkipExpandId.foreach { key =>
-          project.get(key) match {
-            case literal: RexLiteral if literal.isNull => // do nothing
-            case inputRef: RexInputRef => groupKeyOfCurrentProject.add(inputRef.getIndex)
-            case e => throw new TableException(s"Unknown expression ${e.toString}!")
+      var ndv = 0d
+      rel.projects.foreach {
+        project =>
+          val groupKeyOfCurrentProject = new JArrayList[Int]()
+          groupKeySkipExpandId.foreach {
+            key =>
+              project.get(key) match {
+                case literal: RexLiteral if literal.isNull => // do nothing
+                case inputRef: RexInputRef => groupKeyOfCurrentProject.add(inputRef.getIndex)
+                case e => throw new TableException(s"Unknown expression ${e.toString}!")
+              }
           }
-        }
-        val ndvOfCurrentProject = mq.getDistinctRowCount(
-          rel.getInput,
-          ImmutableBitSet.of(groupKeyOfCurrentProject: _*),
-          newPredicate)
-        if (ndvOfCurrentProject == null) {
-          return null
-        }
-        ndv += ndvOfCurrentProject
+          val ndvOfCurrentProject = mq.getDistinctRowCount(
+            rel.getInput,
+            ImmutableBitSet.of(groupKeyOfCurrentProject: _*),
+            newPredicate)
+          if (ndvOfCurrentProject == null) {
+            return null
+          }
+          ndv += ndvOfCurrentProject
       }
       ndv
     } else {
@@ -260,17 +263,17 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     val inputNdv: JDouble = if (newGroupKey.nonEmpty) {
       mq.getDistinctRowCount(rank.getInput, newGroupKey, nonRankPred.orNull)
     } else {
-      1D
+      1d
     }
     val rankSelectivity: JDouble = rankPred match {
       case Some(p) => mq.getSelectivity(rank, p)
-      case _ => 1D
+      case _ => 1d
     }
 
     val rankFunNdv: JDouble = if (rankFunColumnIndex > 0 && groupKey.get(rankFunColumnIndex)) {
       FlinkRelMdUtil.getRankRangeNdv(rank.rankRange)
     } else {
-      1D // return 1D instead of null for computing directly
+      1d // return 1D instead of null for computing directly
     }
 
     if (inputNdv == null) {
@@ -302,7 +305,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     getDistinctRowCountOfAggregate(rel, mq, groupKey, predicate)
@@ -315,7 +318,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
 
@@ -341,7 +344,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     }
     val inputRowCount = mq.getRowCount(input)
     val factorOfKeyInAggCall = 0.1
-    val ndvOfColsInAggCalls = aggCalls.foldLeft(1D) {
+    val ndvOfColsInAggCalls = aggCalls.foldLeft(1d) {
       (ndv, aggCall) =>
         val ndvOfAggCall = aggCall.getAggregation.getKind match {
           case SqlKind.COUNT =>
@@ -351,7 +354,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
             // 0 + 1 + ... + (N - 1) <= rowCount => N ~= Sqrt(2 * rowCnt)
             // Max ndv of count(col) is Sqrt(2 * rowCnt)
             if (inputRowCnt != null) {
-              Math.sqrt(2D * inputRowCnt)
+              Math.sqrt(2d * inputRowCnt)
             } else {
               return null
             }
@@ -360,32 +363,28 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
             if (argList.isEmpty) {
               return null
             }
-            val approximateNdv = mq.getDistinctRowCount(
-              input,
-              ImmutableBitSet.of(argList),
-              childPred.orNull)
+            val approximateNdv =
+              mq.getDistinctRowCount(input, ImmutableBitSet.of(argList), childPred.orNull)
             if (approximateNdv != null) {
               approximateNdv * factorOfKeyInAggCall
             } else {
               return null
             }
         }
-        ndv * Math.max(ndvOfAggCall, 1D)
+        ndv * Math.max(ndvOfAggCall, 1d)
     }
     val distinctRowCount = ndvOfColsInGroupKeys * ndvOfColsInAggCalls
     notPushablePred match {
       case Some(p) =>
-        val aggCallEstimator = new AggCallSelectivityEstimator(
-          agg, FlinkRelMetadataQuery.reuseOrCreate(mq))
+        val aggCallEstimator =
+          new AggCallSelectivityEstimator(agg, FlinkRelMetadataQuery.reuseOrCreate(mq))
         val restSelectivity = aggCallEstimator.evaluate(p) match {
           case Some(s) => s
           case _ => RelMdUtil.guessSelectivity(p)
         }
         val rowCount = mq.getRowCount(agg)
-        val newNdv = FlinkRelMdUtil.adaptNdvBasedOnSelectivity(
-          rowCount,
-          distinctRowCount,
-          restSelectivity)
+        val newNdv =
+          FlinkRelMdUtil.adaptNdvBasedOnSelectivity(rowCount, distinctRowCount, restSelectivity)
         NumberUtil.min(newNdv, inputRowCount)
       case _ =>
         NumberUtil.min(distinctRowCount, inputRowCount)
@@ -411,7 +410,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     val newPredicate = FlinkRelMdUtil.makeNamePropertiesSelectivityRexNode(rel, predicate)
     if (newPredicate == null || newPredicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val fieldCnt = rel.getRowType.getFieldCount
@@ -433,7 +432,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
 
@@ -484,7 +483,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     val input = overAgg.getInput
@@ -511,7 +510,9 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       } else {
         val preds = RexUtil.composeConjunction(rexBuilder, notPushable, true)
         val rowCount = mq.getRowCount(overAgg)
-        FlinkRelMdUtil.adaptNdvBasedOnSelectivity(rowCount, distinctRowCount,
+        FlinkRelMdUtil.adaptNdvBasedOnSelectivity(
+          rowCount,
+          distinctRowCount,
           RelMdUtil.guessSelectivity(preds))
       }
     }
@@ -524,7 +525,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     if (predicate == null || predicate.isAlwaysTrue) {
       if (groupKey.isEmpty) {
-        return 1D
+        return 1d
       }
     }
     rel.getJoinType match {
@@ -549,13 +550,16 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): JDouble = {
     val adjustments = new Array[Int](rel.getRowType.getFieldCount)
     val rexBuilder = rel.getCluster.getRexBuilder
-    val distinctRowCounts: Seq[JDouble] = rel.getInputs map {
+    val distinctRowCounts: Seq[JDouble] = rel.getInputs.map {
       input =>
         // convert the predicate to reference the types of the union child
         val modifiedPred = if (predicate != null) {
           predicate.accept(
             new RelOptUtil.RexInputConverter(
-              rexBuilder, null, input.getRowType.getFieldList, adjustments))
+              rexBuilder,
+              null,
+              input.getRowType.getFieldList,
+              adjustments))
         } else {
           null
         }
@@ -566,7 +570,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       null
     } else {
       // assume the rows from each input has no same row
-      distinctRowCounts.foldLeft(0D)(_ + _)
+      distinctRowCounts.foldLeft(0d)(_ + _)
     }
   }
 
@@ -593,13 +597,14 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
   }
 
   /**
-    * Catch-all implementation for
-    * [[BuiltInMetadata.DistinctRowCount#getDistinctRowCount(ImmutableBitSet, RexNode)]],
-    * invoked using reflection.
-    *
-    * @see org.apache.calcite.rel.metadata.RelMetadataQuery#getDistinctRowCount(
-    *      RelNode, ImmutableBitSet, RexNode)
-    */
+   * Catch-all implementation for
+   * [[BuiltInMetadata.DistinctRowCount#getDistinctRowCount(ImmutableBitSet, RexNode)]], invoked
+   * using reflection.
+   *
+   * @see
+   *   org.apache.calcite.rel.metadata.RelMetadataQuery#getDistinctRowCount( RelNode,
+   *   ImmutableBitSet, RexNode)
+   */
   def getDistinctRowCount(
       rel: RelNode,
       mq: RelMetadataQuery,
@@ -621,6 +626,7 @@ object FlinkRelMdDistinctRowCount {
   private val INSTANCE = new FlinkRelMdDistinctRowCount
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-    BuiltInMethod.DISTINCT_ROW_COUNT.method, INSTANCE)
+    BuiltInMethod.DISTINCT_ROW_COUNT.method,
+    INSTANCE)
 
 }

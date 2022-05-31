@@ -24,13 +24,14 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for {@link ListTypeInfo}. */
-public class ValueTypeInfoTest extends TypeInformationTestBase<ValueTypeInfo<?>> {
+class ValueTypeInfoTest extends TypeInformationTestBase<ValueTypeInfo<?>> {
 
     @Override
     protected ValueTypeInfo<?>[] getTestData() {
@@ -42,10 +43,10 @@ public class ValueTypeInfoTest extends TypeInformationTestBase<ValueTypeInfo<?>>
     }
 
     @Test
-    public void testValueTypeEqualsWithNull() throws Exception {
+    void testValueTypeEqualsWithNull() {
         ValueTypeInfo<Record> tpeInfo = new ValueTypeInfo<>(Record.class);
 
-        Assert.assertFalse(tpeInfo.equals(null));
+        assertThat(tpeInfo).isNotNull();
     }
 
     public static class TestClass implements Value {

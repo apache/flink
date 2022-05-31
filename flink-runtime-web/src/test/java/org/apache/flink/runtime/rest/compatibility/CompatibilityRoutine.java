@@ -21,8 +21,6 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -64,7 +62,7 @@ final class CompatibilityRoutine<C> {
 
     C getContainer(final MessageHeaders<?, ?, ?> header) {
         final C container = extractor.apply(header);
-        Assert.assertNotNull("Implementation error: Extractor returned null.", container);
+        Preconditions.checkNotNull(container, "Implementation error: Extractor returned null.");
         return container;
     }
 

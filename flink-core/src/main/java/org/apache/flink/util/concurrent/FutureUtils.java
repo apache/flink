@@ -19,7 +19,6 @@
 package org.apache.flink.util.concurrent;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
@@ -211,31 +210,6 @@ public class FutureUtils {
      * Retry the given operation with the given delay in between failures.
      *
      * @param operation to retry
-     * @param retries number of retries
-     * @param retryDelay delay between retries
-     * @param retryPredicate Predicate to test whether an exception is retryable
-     * @param scheduledExecutor executor to be used for the retry operation
-     * @param <T> type of the result
-     * @return Future which retries the given operation a given amount of times and delays the retry
-     *     in case of failures
-     */
-    public static <T> CompletableFuture<T> retryWithDelay(
-            final Supplier<CompletableFuture<T>> operation,
-            final int retries,
-            final Time retryDelay,
-            final Predicate<Throwable> retryPredicate,
-            final ScheduledExecutor scheduledExecutor) {
-        return retryWithDelay(
-                operation,
-                new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
-                retryPredicate,
-                scheduledExecutor);
-    }
-
-    /**
-     * Retry the given operation with the given delay in between failures.
-     *
-     * @param operation to retry
      * @param retryStrategy the RetryStrategy
      * @param retryPredicate Predicate to test whether an exception is retryable
      * @param scheduledExecutor executor to be used for the retry operation
@@ -261,28 +235,6 @@ public class FutureUtils {
      * Retry the given operation with the given delay in between failures.
      *
      * @param operation to retry
-     * @param retries number of retries
-     * @param retryDelay delay between retries
-     * @param scheduledExecutor executor to be used for the retry operation
-     * @param <T> type of the result
-     * @return Future which retries the given operation a given amount of times and delays the retry
-     *     in case of failures
-     */
-    public static <T> CompletableFuture<T> retryWithDelay(
-            final Supplier<CompletableFuture<T>> operation,
-            final int retries,
-            final Time retryDelay,
-            final ScheduledExecutor scheduledExecutor) {
-        return retryWithDelay(
-                operation,
-                new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
-                scheduledExecutor);
-    }
-
-    /**
-     * Retry the given operation with the given delay in between failures.
-     *
-     * @param operation to retry
      * @param retryStrategy the RetryStrategy
      * @param scheduledExecutor executor to be used for the retry operation
      * @param <T> type of the result
@@ -294,60 +246,6 @@ public class FutureUtils {
             final RetryStrategy retryStrategy,
             final ScheduledExecutor scheduledExecutor) {
         return retryWithDelay(operation, retryStrategy, (throwable) -> true, scheduledExecutor);
-    }
-
-    /**
-     * Schedule the operation with the given delay.
-     *
-     * @param operation to schedule
-     * @param delay delay to schedule
-     * @param scheduledExecutor executor to be used for the operation
-     * @return Future which schedules the given operation with given delay.
-     */
-    public static CompletableFuture<Void> scheduleWithDelay(
-            final Runnable operation, final Time delay, final ScheduledExecutor scheduledExecutor) {
-        Supplier<Void> operationSupplier =
-                () -> {
-                    operation.run();
-                    return null;
-                };
-        return scheduleWithDelay(operationSupplier, delay, scheduledExecutor);
-    }
-
-    /**
-     * Schedule the operation with the given delay.
-     *
-     * @param operation to schedule
-     * @param delay delay to schedule
-     * @param scheduledExecutor executor to be used for the operation
-     * @param <T> type of the result
-     * @return Future which schedules the given operation with given delay.
-     */
-    public static <T> CompletableFuture<T> scheduleWithDelay(
-            final Supplier<T> operation,
-            final Time delay,
-            final ScheduledExecutor scheduledExecutor) {
-        final CompletableFuture<T> resultFuture = new CompletableFuture<>();
-
-        ScheduledFuture<?> scheduledFuture =
-                scheduledExecutor.schedule(
-                        () -> {
-                            try {
-                                resultFuture.complete(operation.get());
-                            } catch (Throwable t) {
-                                resultFuture.completeExceptionally(t);
-                            }
-                        },
-                        delay.getSize(),
-                        delay.getUnit());
-
-        resultFuture.whenComplete(
-                (t, throwable) -> {
-                    if (!scheduledFuture.isDone()) {
-                        scheduledFuture.cancel(false);
-                    }
-                });
-        return resultFuture;
     }
 
     private static <T> void retryOperationWithDelay(
@@ -423,7 +321,7 @@ public class FutureUtils {
      */
     public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
             final Supplier<CompletableFuture<T>> operation,
-            final Time retryDelay,
+            final Duration retryDelay,
             final Deadline deadline,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -444,7 +342,7 @@ public class FutureUtils {
     private static <T> void retrySuccessfulOperationWithDelay(
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
-            final Time retryDelay,
+            final Duration retryDelay,
             final Deadline deadline,
             final Predicate<T> acceptancePredicate,
             final ScheduledExecutor scheduledExecutor) {
@@ -477,7 +375,7 @@ public class FutureUtils {
                                                                         deadline,
                                                                         acceptancePredicate,
                                                                         scheduledExecutor),
-                                                retryDelay.toMilliseconds(),
+                                                retryDelay.toMillis(),
                                                 TimeUnit.MILLISECONDS);
 
                                 resultFuture.whenComplete(
@@ -1053,16 +951,6 @@ public class FutureUtils {
                     }
                 },
                 executor);
-    }
-
-    /**
-     * Converts Flink time into a {@link Duration}.
-     *
-     * @param time to convert into a Duration
-     * @return Duration with the length of the given time
-     */
-    public static Duration toDuration(Time time) {
-        return Duration.ofMillis(time.toMilliseconds());
     }
 
     // ------------------------------------------------------------------------

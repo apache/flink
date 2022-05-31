@@ -15,20 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api
 
 import org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.types.Row
 
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
-/**
- * Tests for conversion between objects and [[Expression]]s used in Expression DSL.
- */
+/** Tests for conversion between objects and [[Expression]]s used in Expression DSL. */
 class ImplicitConversionsTest extends ImplicitExpressionConversions {
   @Test
   def testSeqConversion(): Unit = {
@@ -57,10 +53,12 @@ class ImplicitConversionsTest extends ImplicitExpressionConversions {
 
     assertThatEquals(
       expr,
-        map(
-          "key1", array(2),
-          "key2", array(1, 2)
-        )
+      map(
+        "key1",
+        array(2),
+        "key2",
+        array(1, 2)
+      )
     )
   }
 
@@ -86,6 +84,6 @@ class ImplicitConversionsTest extends ImplicitExpressionConversions {
   }
 
   private def assertThatEquals(actual: Expression, expected: Expression): Unit = {
-    assertThat(unwrapFromApi(actual), equalTo(unwrapFromApi(expected)))
+    assertThat(unwrapFromApi(actual)).isEqualTo(unwrapFromApi(expected))
   }
 }

@@ -43,6 +43,12 @@ import java.util.concurrent.Executor;
  */
 public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory {
 
+    private static final String JOB_MANAGER_RUNNER_REGISTRY_LABEL = "JobManagerRunnerRegistry";
+    private static final String JOB_GRAPH_STORE_LABEL = "JobGraphStore";
+    private static final String BLOB_SERVER_LABEL = "BlobServer";
+    private static final String HA_SERVICES_LABEL = "HighAvailabilityServices";
+    private static final String JOB_MANAGER_METRIC_GROUP_LABEL = "JobManagerMetricGroup";
+
     private final Executor cleanupExecutor;
     private final RetryStrategy retryStrategy;
 
@@ -89,10 +95,10 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
             ComponentMainThreadExecutor mainThreadExecutor) {
         return DefaultResourceCleaner.forLocallyCleanableResources(
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
-                .withPrioritizedCleanup(jobManagerRunnerRegistry)
-                .withRegularCleanup(jobGraphWriter)
-                .withRegularCleanup(blobServer)
-                .withRegularCleanup(jobManagerMetricGroup)
+                .withPrioritizedCleanup(JOB_MANAGER_RUNNER_REGISTRY_LABEL, jobManagerRunnerRegistry)
+                .withRegularCleanup(JOB_GRAPH_STORE_LABEL, jobGraphWriter)
+                .withRegularCleanup(BLOB_SERVER_LABEL, blobServer)
+                .withRegularCleanup(JOB_MANAGER_METRIC_GROUP_LABEL, jobManagerMetricGroup)
                 .build();
     }
 
@@ -101,11 +107,14 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
             ComponentMainThreadExecutor mainThreadExecutor) {
         return DefaultResourceCleaner.forGloballyCleanableResources(
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
-                .withPrioritizedCleanup(ofLocalResource(jobManagerRunnerRegistry))
-                .withRegularCleanup(jobGraphWriter)
-                .withRegularCleanup(blobServer)
-                .withRegularCleanup(highAvailabilityServices)
-                .withRegularCleanup(ofLocalResource(jobManagerMetricGroup))
+                .withPrioritizedCleanup(
+                        JOB_MANAGER_RUNNER_REGISTRY_LABEL,
+                        ofLocalResource(jobManagerRunnerRegistry))
+                .withRegularCleanup(JOB_GRAPH_STORE_LABEL, jobGraphWriter)
+                .withRegularCleanup(BLOB_SERVER_LABEL, blobServer)
+                .withRegularCleanup(HA_SERVICES_LABEL, highAvailabilityServices)
+                .withRegularCleanup(
+                        JOB_MANAGER_METRIC_GROUP_LABEL, ofLocalResource(jobManagerMetricGroup))
                 .build();
     }
 

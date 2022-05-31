@@ -27,7 +27,7 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
                                                     "org.apache.flink.table.legacyutils.TableFunc1")
         source = t_env.from_elements([("1", "1#3#5#7"), ("2", "2#4#6#8")], ["id", "words"])
 
-        result = source.join_lateral("split(words) as (word)")
+        result = source.join_lateral(expr.call('split', source.words).alias('word'))
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('INNER', query_operation.getJoinType().toString())

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.NoOpJobGraphStoreWatcher;
@@ -60,6 +61,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -296,6 +298,7 @@ public class KubernetesUtils {
      * @param lockIdentity lock identity to check the leadership
      * @param maxNumberOfCheckpointsToRetain max number of checkpoints to retain on state store
      *     handle
+     * @param restoreMode the mode in which the job is restoring
      * @return a {@link DefaultCompletedCheckpointStore} with {@link KubernetesStateHandleStore}.
      * @throws Exception when create the storage helper failed
      */
@@ -307,7 +310,8 @@ public class KubernetesUtils {
             @Nullable String lockIdentity,
             int maxNumberOfCheckpointsToRetain,
             SharedStateRegistryFactory sharedStateRegistryFactory,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            RestoreMode restoreMode)
             throws Exception {
 
         final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage =
@@ -331,7 +335,7 @@ public class KubernetesUtils {
                 stateHandleStore,
                 KubernetesCheckpointStoreUtil.INSTANCE,
                 checkpoints,
-                sharedStateRegistryFactory.create(ioExecutor, checkpoints),
+                sharedStateRegistryFactory.create(ioExecutor, checkpoints, restoreMode),
                 executor);
     }
 
@@ -611,6 +615,11 @@ public class KubernetesUtils {
 
     public static String extractLeaderName(String key) {
         return key.substring(LEADER_PREFIX.length());
+    }
+
+    /** Generate namespaced name of the service. */
+    public static String getNamespacedServiceName(Service service) {
+        return service.getMetadata().getName() + "." + service.getMetadata().getNamespace();
     }
 
     private KubernetesUtils() {}

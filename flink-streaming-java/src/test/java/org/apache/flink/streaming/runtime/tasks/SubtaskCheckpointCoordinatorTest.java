@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -62,7 +61,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskITCase.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
@@ -72,6 +71,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -79,11 +79,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -511,6 +513,61 @@ public class SubtaskCheckpointCoordinatorTest {
         }
     }
 
+    @Test
+    public void testTimeoutableAlignedBarrierNotPriorityAndChannelStateResult() throws Exception {
+        long checkpointId = 66;
+        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+
+        try (SubtaskCheckpointCoordinator coordinator =
+                new MockSubtaskCheckpointCoordinatorBuilder()
+                        .setUnalignedCheckpointEnabled(true)
+                        .setEnvironment(mockEnvironment)
+                        .build()) {
+            AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
+            AtomicReference<ChannelStateWriter.ChannelStateWriteResult> channelStateResult =
+                    new AtomicReference<>(null);
+            final OperatorChain<?, ?> operatorChain =
+                    new RegularOperatorChain(
+                            new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()) {
+                        @Override
+                        public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
+                                throws IOException {
+                            super.broadcastEvent(event, isPriorityEvent);
+                            broadcastedPriorityEvent.set(isPriorityEvent);
+                        }
+
+                        @Override
+                        public void snapshotState(
+                                Map operatorSnapshotsInProgress,
+                                CheckpointMetaData checkpointMetaData,
+                                CheckpointOptions checkpointOptions,
+                                Supplier isRunning,
+                                ChannelStateWriter.ChannelStateWriteResult channelStateWriteResult,
+                                CheckpointStreamFactory storage) {
+                            channelStateResult.set(channelStateWriteResult);
+                        }
+                    };
+
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(
+                            CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault(),
+                            CheckpointOptions.AlignmentType.ALIGNED,
+                            200);
+            coordinator.initInputsCheckpoint(checkpointId, checkpointOptions);
+            coordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    checkpointOptions,
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+
+            assertEquals(false, broadcastedPriorityEvent.get());
+            assertNotNull(channelStateResult.get());
+        }
+    }
+
     private OperatorChain<?, ?> getOperatorChain(MockEnvironment mockEnvironment) throws Exception {
         return new RegularOperatorChain<>(
                 new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>());
@@ -679,13 +736,13 @@ public class SubtaskCheckpointCoordinatorTest {
                 new TestCheckpointStorageWorkerView(100),
                 "test",
                 StreamTaskActionExecutor.IMMEDIATE,
-                new CloseableRegistry(),
                 newDirectExecutorService(),
                 new DummyEnvironment(),
                 (message, unused) -> fail(message),
                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                 0,
                 channelStateWriter,
-                true);
+                true,
+                (callable, duration) -> () -> {});
     }
 }

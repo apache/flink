@@ -28,11 +28,15 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.is;
@@ -40,6 +44,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for {@link ExecutionJobVertex} */
 public class ExecutionJobVertexTest {
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
+
     @Test
     public void testParallelismGreaterThanMaxParallelism() {
         JobVertex jobVertex = new JobVertex("testVertex");
@@ -209,7 +217,9 @@ public class ExecutionJobVertexTest {
             jobVertex.setParallelism(parallelism);
         }
 
-        final DefaultExecutionGraph eg = TestingDefaultExecutionGraphBuilder.newBuilder().build();
+        final DefaultExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .build(EXECUTOR_RESOURCE.getExecutor());
         final VertexParallelismStore vertexParallelismStore =
                 AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
                         Collections.singletonList(jobVertex), defaultMaxParallelism);

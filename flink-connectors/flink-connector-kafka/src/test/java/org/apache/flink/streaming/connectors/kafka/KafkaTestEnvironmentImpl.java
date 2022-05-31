@@ -78,6 +78,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     private final Map<Integer, KafkaContainer> brokers = new HashMap<>();
     private final Set<Integer> pausedBroker = new HashSet<>();
     private @Nullable GenericContainer<?> zookeeper;
+    private @Nullable Network network;
     private String brokerConnectionString = "";
     private Properties standardProps;
     private FlinkKafkaProducer.Semantic producerSemantic = FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
@@ -356,6 +357,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         if (zookeeper != null) {
             zookeeper.stop();
         }
+
+        if (network != null) {
+            network.close();
+        }
     }
 
     private class KafkaOffsetHandlerImpl implements KafkaOffsetHandler {
@@ -397,14 +402,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     }
 
     private void startKafkaContainerCluster(int numBrokers) {
-        Network network = Network.newNetwork();
         if (numBrokers > 1) {
+            network = Network.newNetwork();
             zookeeper = createZookeeperContainer(network);
             zookeeper.start();
             LOG.info("Zookeeper container started");
         }
         for (int brokerID = 0; brokerID < numBrokers; brokerID++) {
-            KafkaContainer broker = createKafkaContainer(network, brokerID, zookeeper);
+            KafkaContainer broker = createKafkaContainer(brokerID, zookeeper);
             brokers.put(brokerID, broker);
         }
         new ArrayList<>(brokers.values()).parallelStream().forEach(GenericContainer::start);
@@ -426,11 +431,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     }
 
     private KafkaContainer createKafkaContainer(
-            Network network, int brokerID, @Nullable GenericContainer<?> zookeeper) {
+            int brokerID, @Nullable GenericContainer<?> zookeeper) {
         String brokerName = String.format("Kafka-%d", brokerID);
         KafkaContainer broker =
                 KafkaUtil.createKafkaContainer(DockerImageVersions.KAFKA, LOG, brokerName)
-                        .withNetwork(network)
                         .withNetworkAliases(brokerName)
                         .withEnv("KAFKA_BROKER_ID", String.valueOf(brokerID))
                         .withEnv("KAFKA_MESSAGE_MAX_BYTES", String.valueOf(50 * 1024 * 1024))
@@ -447,6 +451,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
         if (zookeeper != null) {
             broker.dependsOn(zookeeper)
+                    .withNetwork(zookeeper.getNetwork())
                     .withExternalZookeeper(
                             String.format("%s:%d", ZOOKEEPER_HOSTNAME, ZOOKEEPER_PORT));
         } else {

@@ -261,7 +261,7 @@ class ClickCounter implements AggregateFunction<Click, Integer, Integer> {
 	}
 }
 
-DataStream<Click> clicks = . . . 
+DataStream<Click> clicks = ...;
 
 clicks
     .keyBy(click -> click.userId)
@@ -483,7 +483,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 SavepointWriter
-    .fromExistingSavepoint(env, new HashMapStateBackend(), oldPath)
+    .fromExistingSavepoint(oldPath, new HashMapStateBackend())
     .withOperator("uid", transformation)
     .write(newPath);
 ```

@@ -46,7 +46,6 @@ import org.elasticsearch.common.unit.TimeValue;
  *              .source(element.f1)
  *          );
  *      })
- *     .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
  *     .build();
  * }</pre>
  *

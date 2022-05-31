@@ -790,18 +790,47 @@ class StreamExecutionEnvironment(object):
         j_stream_graph = self._generate_stream_graph(False)
         return j_stream_graph.getStreamingPlanAsJSON()
 
+    def register_cached_file(self, file_path: str, name: str, executable: bool = False):
+        """
+        Registers a file at the distributed cache under the given name. The file will be accessible
+        from any user-defined function in the (distributed) runtime under a local path. Files may be
+        local files (which will be distributed via BlobServer), or files in a distributed file
+        system. The runtime will copy the files temporarily to a local cache, if needed.
+
+        :param file_path: The path of the file, as a URI (e.g. "file:///some/path" or
+                         hdfs://host:port/and/path").
+        :param name: The name under which the file is registered.
+        :param executable: Flag indicating whether the file should be executable.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_stream_execution_environment.registerCachedFile(file_path, name, executable)
+
     @staticmethod
-    def get_execution_environment() -> 'StreamExecutionEnvironment':
+    def get_execution_environment(configuration: Configuration = None) \
+            -> 'StreamExecutionEnvironment':
         """
         Creates an execution environment that represents the context in which the
         program is currently executed. If the program is invoked standalone, this
         method returns a local execution environment.
 
+        When executed from the command line the given configuration is stacked on top of the
+        global configuration which comes from the flink-conf.yaml, potentially overriding
+        duplicated options.
+
+        :param configuration: The configuration to instantiate the environment with.
         :return: The execution environment of the context in which the program is executed.
         """
         gateway = get_gateway()
-        j_stream_exection_environment = gateway.jvm.org.apache.flink.streaming.api.environment\
-            .StreamExecutionEnvironment.getExecutionEnvironment()
+        JStreamExecutionEnvironment = gateway.jvm.org.apache.flink.streaming.api.environment \
+            .StreamExecutionEnvironment
+
+        if configuration:
+            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment(
+                configuration._j_configuration)
+        else:
+            j_stream_exection_environment = JStreamExecutionEnvironment.getExecutionEnvironment()
+
         return StreamExecutionEnvironment(j_stream_exection_environment)
 
     def add_source(self, source_func: SourceFunction, source_name: str = 'Custom Source',
@@ -964,7 +993,7 @@ class StreamExecutionEnvironment(object):
                 BeamFnLoopbackWorkerPoolServicer
             config = Configuration(j_configuration=j_configuration)
             config.set_string(
-                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
+                "python.loopback-server.address", BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 

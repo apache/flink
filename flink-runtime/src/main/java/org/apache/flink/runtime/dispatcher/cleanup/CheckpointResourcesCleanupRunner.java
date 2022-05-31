@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -129,7 +130,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
         }
 
         try {
-            checkpointIDCounter.shutdown(getJobStatus());
+            checkpointIDCounter.shutdown(getJobStatus()).get();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }
@@ -145,7 +146,11 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
                 DefaultCompletedCheckpointStoreUtils.getMaximumNumberOfRetainedCheckpoints(
                         jobManagerConfiguration, LOG),
                 sharedStateRegistryFactory,
-                cleanupExecutor);
+                cleanupExecutor,
+                // Using RestoreMode.CLAIM to be able to discard shared state, if any.
+                // Note that it also means that the original shared state might be discarded as well
+                // because the initial checkpoint might be subsumed.
+                RestoreMode.CLAIM);
     }
 
     private CheckpointIDCounter createCheckpointIDCounter() throws Exception {

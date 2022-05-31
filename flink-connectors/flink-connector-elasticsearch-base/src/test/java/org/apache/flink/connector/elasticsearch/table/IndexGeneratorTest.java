@@ -26,7 +26,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Date;
@@ -35,10 +34,14 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumingThat;
 
 /** Suite tests for {@link IndexGenerator}. */
 public class IndexGeneratorTest {
@@ -54,6 +57,7 @@ public class IndexGeneratorTest {
                     "local_datetime",
                     "local_date",
                     "local_time",
+                    "local_timestamp",
                     "note",
                     "status");
 
@@ -68,6 +72,7 @@ public class IndexGeneratorTest {
                     DataTypes.TIMESTAMP().bridgedTo(LocalDateTime.class),
                     DataTypes.DATE().bridgedTo(LocalDate.class),
                     DataTypes.TIME().bridgedTo(LocalTime.class),
+                    DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
                     DataTypes.STRING(),
                     DataTypes.BOOLEAN());
 
@@ -86,6 +91,10 @@ public class IndexGeneratorTest {
                                     LocalDateTime.of(2020, 3, 18, 12, 12, 14, 1000)),
                             (int) LocalDate.of(2020, 3, 18).toEpochDay(),
                             (int) (LocalTime.of(12, 13, 14, 2000).toNanoOfDay() / 1_000_000L),
+                            TimestampData.fromInstant(
+                                    LocalDateTime.of(2020, 3, 18, 3, 12, 14, 1000)
+                                            .atZone(ZoneId.of("Asia/Shanghai"))
+                                            .toInstant()),
                             "test1",
                             true),
                     GenericRowData.of(
@@ -101,8 +110,43 @@ public class IndexGeneratorTest {
                                     LocalDateTime.of(2020, 3, 19, 12, 22, 14, 1000)),
                             (int) LocalDate.of(2020, 3, 19).toEpochDay(),
                             (int) (LocalTime.of(12, 13, 14, 2000).toNanoOfDay() / 1_000_000L),
+                            TimestampData.fromInstant(
+                                    LocalDateTime.of(2020, 3, 19, 20, 22, 14, 1000)
+                                            .atZone(ZoneId.of("America/Los_Angeles"))
+                                            .toInstant()),
                             "test2",
                             false));
+
+    @Test
+    public void testDynamicIndexFromTimestampTzUTC() {
+        assumingThat(
+                ZoneId.systemDefault().equals(ZoneId.of("UTC")),
+                () -> {
+                    IndexGenerator indexGenerator =
+                            IndexGeneratorFactory.createIndexGenerator(
+                                    "{local_timestamp|yyyy_MM_dd_HH-ss}_index",
+                                    fieldNames,
+                                    dataTypes);
+                    indexGenerator.open();
+                    assertThat(indexGenerator.generate(rows.get(0)))
+                            .isEqualTo("2020_03_17_19-14_index");
+                    assertThat(indexGenerator.generate(rows.get(1)))
+                            .isEqualTo("2020_03_20_03-14_index");
+                });
+    }
+
+    @Test
+    public void testDynamicIndexFromTimestampTzWithSpecificTimezone() {
+        IndexGenerator indexGenerator =
+                IndexGeneratorFactory.createIndexGenerator(
+                        "{local_timestamp|yyyy_MM_dd_HH-ss}_index",
+                        fieldNames,
+                        dataTypes,
+                        ZoneId.of("Europe/Berlin"));
+        indexGenerator.open();
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("2020_03_17_20-14_index");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("2020_03_20_04-14_index");
+    }
 
     @Test
     public void testDynamicIndexFromTimestamp() {
@@ -110,12 +154,12 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "{order_timestamp|yyyy_MM_dd_HH-ss}_index", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("2020_03_18_12-14_index");
         IndexGenerator indexGenerator1 =
                 IndexGeneratorFactory.createIndexGenerator(
                         "{order_timestamp|yyyy_MM_dd_HH_mm}_index", fieldNames, dataTypes);
         indexGenerator1.open();
-        Assertions.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
+        assertThat(indexGenerator1.generate(rows.get(1))).isEqualTo("2020_03_19_12_22_index");
     }
 
     @Test
@@ -124,12 +168,12 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "{local_datetime|yyyy_MM_dd_HH-ss}_index", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("2020_03_18_12-14_index");
         IndexGenerator indexGenerator1 =
                 IndexGeneratorFactory.createIndexGenerator(
                         "{local_datetime|yyyy_MM_dd_HH_mm}_index", fieldNames, dataTypes);
         indexGenerator1.open();
-        Assertions.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
+        assertThat(indexGenerator1.generate(rows.get(1))).isEqualTo("2020_03_19_12_22_index");
     }
 
     @Test
@@ -138,8 +182,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{log_date|yyyy/MM/dd}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index-2020/03/18");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index-2020/03/19");
     }
 
     @Test
@@ -148,8 +192,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{local_date|yyyy/MM/dd}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index-2020/03/18");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index-2020/03/19");
     }
 
     @Test
@@ -158,8 +202,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{log_time|HH-mm}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index-12-12", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index-12-22", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index-12-12");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index-12-22");
     }
 
     @Test
@@ -168,8 +212,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{local_time|HH-mm}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index-12-13");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index-12-13");
     }
 
     @Test
@@ -178,8 +222,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{local_time|}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index-12_13_14");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index-12_13_14");
     }
 
     @Test
@@ -215,9 +259,10 @@ public class IndexGeneratorTest {
                             String actualIndex = indexGenerator.generate(rows.get(1));
                             String expectedIndex2 =
                                     "my-index-" + LocalDateTime.now().format(dateTimeFormatter);
-                            Assertions.assertTrue(
-                                    actualIndex.equals(expectedIndex1)
-                                            || actualIndex.equals(expectedIndex2));
+                            assertThat(
+                                            actualIndex.equals(expectedIndex1)
+                                                    || actualIndex.equals(expectedIndex2))
+                                    .isTrue();
                         });
 
         List<String> invalidUseCases =
@@ -245,7 +290,7 @@ public class IndexGeneratorTest {
                                                 dataTypes);
                                 indexGenerator.open();
                             } catch (TableException e) {
-                                Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
+                                assertThat(e).hasMessage(expectedExceptionMsg);
                             }
                         });
     }
@@ -255,8 +300,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("index_{item}", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("index_apple", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("index_peanut", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("index_apple");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("index_peanut");
     }
 
     @Test
@@ -264,8 +309,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("my-index", fieldNames, dataTypes);
         indexGenerator.open();
-        Assertions.assertEquals("my-index", indexGenerator.generate(rows.get(0)));
-        Assertions.assertEquals("my-index", indexGenerator.generate(rows.get(1)));
+        assertThat(indexGenerator.generate(rows.get(0))).isEqualTo("my-index");
+        assertThat(indexGenerator.generate(rows.get(1))).isEqualTo("my-index");
     }
 
     @Test
@@ -273,12 +318,12 @@ public class IndexGeneratorTest {
         String expectedExceptionMsg =
                 "Unknown field 'unknown_ts' in index pattern 'my-index-{unknown_ts|yyyy-MM-dd}',"
                         + " please check the field name.";
-        try {
-            IndexGeneratorFactory.createIndexGenerator(
-                    "my-index-{unknown_ts|yyyy-MM-dd}", fieldNames, dataTypes);
-        } catch (TableException e) {
-            Assertions.assertEquals(e.getMessage(), expectedExceptionMsg);
-        }
+        assertThatThrownBy(
+                        () ->
+                                IndexGeneratorFactory.createIndexGenerator(
+                                        "my-index-{unknown_ts|yyyy-MM-dd}", fieldNames, dataTypes))
+                .isInstanceOf(TableException.class)
+                .hasMessage(expectedExceptionMsg);
     }
 
     @Test
@@ -286,12 +331,12 @@ public class IndexGeneratorTest {
         String expectedExceptionMsg =
                 "Unsupported type 'INT' found in Elasticsearch dynamic index field, "
                         + "time-related pattern only support types are: DATE,TIME,TIMESTAMP.";
-        try {
-            IndexGeneratorFactory.createIndexGenerator(
-                    "my-index-{id|yyyy-MM-dd}", fieldNames, dataTypes);
-        } catch (TableException e) {
-            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                IndexGeneratorFactory.createIndexGenerator(
+                                        "my-index-{id|yyyy-MM-dd}", fieldNames, dataTypes))
+                .isInstanceOf(TableException.class)
+                .hasMessage(expectedExceptionMsg);
     }
 
     @Test
@@ -299,23 +344,14 @@ public class IndexGeneratorTest {
         String expectedExceptionMsg =
                 "Chaining dynamic index pattern my-index-{local_date}-{local_time} is not supported,"
                         + " only support single dynamic index pattern.";
-        try {
-            IndexGeneratorFactory.createIndexGenerator(
-                    "my-index-{local_date}-{local_time}", fieldNames, dataTypes);
-        } catch (TableException e) {
-            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
-        }
-    }
-
-    @Test
-    public void testDynamicIndexUnsupportedFormat() {
-        String expectedExceptionMsg = "Unsupported field: HourOfDay";
-        try {
-            IndexGeneratorFactory.createIndexGenerator(
-                    "my-index-{local_date|yyyy/MM/dd HH:mm}", fieldNames, dataTypes);
-        } catch (UnsupportedTemporalTypeException e) {
-            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                IndexGeneratorFactory.createIndexGenerator(
+                                        "my-index-{local_date}-{local_time}",
+                                        fieldNames,
+                                        dataTypes))
+                .isInstanceOf(TableException.class)
+                .hasMessage(expectedExceptionMsg);
     }
 
     @Test
@@ -324,10 +360,11 @@ public class IndexGeneratorTest {
                 "Unsupported type BOOLEAN of index field, Supported types are:"
                         + " [DATE, TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_TIME_ZONE,"
                         + " TIMESTAMP_WITH_LOCAL_TIME_ZONE, VARCHAR, CHAR, TINYINT, INTEGER, BIGINT]";
-        try {
-            IndexGeneratorFactory.createIndexGenerator("index_{status}", fieldNames, dataTypes);
-        } catch (IllegalArgumentException e) {
-            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                IndexGeneratorFactory.createIndexGenerator(
+                                        "index_{status}", fieldNames, dataTypes))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(expectedExceptionMsg);
     }
 }

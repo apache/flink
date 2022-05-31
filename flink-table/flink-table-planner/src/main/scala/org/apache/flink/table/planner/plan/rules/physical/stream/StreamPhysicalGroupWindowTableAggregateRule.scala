@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
@@ -33,9 +32,9 @@ import org.apache.calcite.rel.convert.ConverterRule
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[FlinkLogicalWindowTableAggregate]] into a
-  * [[StreamPhysicalGroupWindowTableAggregate]].
-  */
+ * Rule to convert a [[FlinkLogicalWindowTableAggregate]] into a
+ * [[StreamPhysicalGroupWindowTableAggregate]].
+ */
 class StreamPhysicalGroupWindowTableAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalWindowTableAggregate],
@@ -70,8 +69,8 @@ class StreamPhysicalGroupWindowTableAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = ShortcutUtils.unwrapTableConfig(rel)
-    val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
+    val tableConfig = ShortcutUtils.unwrapTableConfig(rel)
+    val emitStrategy = WindowEmitStrategy(tableConfig, agg.getWindow)
 
     new StreamPhysicalGroupWindowTableAggregate(
       cluster,

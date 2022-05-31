@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.catalog.CatalogTable
@@ -30,10 +29,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[LegacySink]] that is a relational expression
-  * which writes out data of input node into a [[TableSink]].
-  * This class corresponds to Calcite logical rel.
-  */
+ * Sub-class of [[LegacySink]] that is a relational expression which writes out data of input node
+ * into a [[TableSink]]. This class corresponds to Calcite logical rel.
+ */
 final class LogicalLegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -47,14 +45,22 @@ final class LogicalLegacySink(
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new LogicalLegacySink(
-      cluster, traitSet, inputs.head, hints, sink, sinkName, catalogTable, staticPartitions)
+      cluster,
+      traitSet,
+      inputs.head,
+      hints,
+      sink,
+      sinkName,
+      catalogTable,
+      staticPartitions)
   }
 
 }
 
 object LogicalLegacySink {
 
-  def create(input: RelNode,
+  def create(
+      input: RelNode,
       hints: util.List[RelHint],
       sink: TableSink[_],
       sinkName: String,
@@ -62,10 +68,18 @@ object LogicalLegacySink {
       staticPartitions: Map[String, String]): LogicalLegacySink = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalLegacySink(
-      input.getCluster, traits, input, hints, sink, sinkName, catalogTable, staticPartitions)
+      input.getCluster,
+      traits,
+      input,
+      hints,
+      sink,
+      sinkName,
+      catalogTable,
+      staticPartitions)
   }
 
-  def create(input: RelNode,
+  def create(
+      input: RelNode,
       sink: TableSink[_],
       sinkName: String,
       catalogTable: CatalogTable = null,

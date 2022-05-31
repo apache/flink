@@ -233,9 +233,6 @@ val windowedTable = tEnv
 
 事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
 
-Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
-If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
-
 Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。如果源数据中的时间戳数据表示为年-月-日-时-分-秒，则通常为不带时区信息的字符串值，例如 `2020-04-15 20:13:40.564`，建议将事件时间属性定义在 `TIMESTAMP` 列上:
 ```sql
 

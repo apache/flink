@@ -41,29 +41,21 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Objects;
 
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link RowDataSerializer}. */
-@RunWith(Parameterized.class)
-public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 
     private final RowDataSerializer serializer;
     private final RowData[] testData;
 
-    public RowDataSerializerTest(RowDataSerializer serializer, RowData[] testData) {
+    RowDataSerializerTest(RowDataSerializer serializer, RowData[] testData) {
         super(
                 new DeeplyEqualsChecker()
                         .withCustomCheck(
@@ -80,175 +72,6 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
                 testData);
         this.serializer = serializer;
         this.testData = testData;
-    }
-
-    @Parameterized.Parameters
-    public static Collection<Object[]> parameters() {
-        return Arrays.asList(
-                testRowDataSerializer(),
-                testLargeRowDataSerializer(),
-                testRowDataSerializerWithComplexTypes(),
-                testRowDataSerializerWithKryo(),
-                testRowDataSerializerWithNestedRow());
-    }
-
-    private static Object[] testRowDataSerializer() {
-        InternalTypeInfo<RowData> typeInfo =
-                InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
-        GenericRowData row1 = new GenericRowData(2);
-        row1.setField(0, 1);
-        row1.setField(1, fromString("a"));
-
-        GenericRowData row2 = new GenericRowData(2);
-        row2.setField(0, 2);
-        row2.setField(1, null);
-
-        RowDataSerializer serializer = typeInfo.toRowSerializer();
-        return new Object[] {serializer, new RowData[] {row1, row2}};
-    }
-
-    private static Object[] testLargeRowDataSerializer() {
-        InternalTypeInfo<RowData> typeInfo =
-                InternalTypeInfo.ofFields(
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        new IntType(),
-                        VarCharType.STRING_TYPE);
-
-        GenericRowData row = new GenericRowData(13);
-        row.setField(0, 2);
-        row.setField(1, null);
-        row.setField(3, null);
-        row.setField(4, null);
-        row.setField(5, null);
-        row.setField(6, null);
-        row.setField(7, null);
-        row.setField(8, null);
-        row.setField(9, null);
-        row.setField(10, null);
-        row.setField(11, null);
-        row.setField(12, fromString("Test"));
-
-        RowDataSerializer serializer = typeInfo.toRowSerializer();
-        return new Object[] {serializer, new RowData[] {row}};
-    }
-
-    private static Object[] testRowDataSerializerWithComplexTypes() {
-        InternalTypeInfo<RowData> typeInfo =
-                InternalTypeInfo.ofFields(
-                        new IntType(),
-                        new DoubleType(),
-                        VarCharType.STRING_TYPE,
-                        new ArrayType(new IntType()),
-                        new MapType(new IntType(), new IntType()));
-
-        GenericRowData[] data =
-                new GenericRowData[] {
-                    createRow(null, null, null, null, null),
-                    createRow(0, null, null, null, null),
-                    createRow(0, 0.0, null, null, null),
-                    createRow(0, 0.0, fromString("a"), null, null),
-                    createRow(1, 0.0, fromString("a"), null, null),
-                    createRow(1, 1.0, fromString("a"), null, null),
-                    createRow(1, 1.0, fromString("b"), null, null),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1),
-                            createMap(new int[] {1}, new int[] {1})),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1, 2),
-                            createMap(new int[] {1, 4}, new int[] {1, 2})),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1, 2, 3),
-                            createMap(new int[] {1, 5}, new int[] {1, 3})),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1, 2, 3, 4),
-                            createMap(new int[] {1, 6}, new int[] {1, 4})),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1, 2, 3, 4, 5),
-                            createMap(new int[] {1, 7}, new int[] {1, 5})),
-                    createRow(
-                            1,
-                            1.0,
-                            fromString("b"),
-                            createArray(1, 2, 3, 4, 5, 6),
-                            createMap(new int[] {1, 8}, new int[] {1, 6}))
-                };
-
-        RowDataSerializer serializer = typeInfo.toRowSerializer();
-        return new Object[] {serializer, data};
-    }
-
-    private static Object[] testRowDataSerializerWithKryo() {
-        RawValueDataSerializer<WrappedString> rawValueSerializer =
-                new RawValueDataSerializer<>(
-                        new KryoSerializer<>(WrappedString.class, new ExecutionConfig()));
-        RowDataSerializer serializer =
-                new RowDataSerializer(
-                        new LogicalType[] {new RawType(RawValueData.class, rawValueSerializer)},
-                        new TypeSerializer[] {rawValueSerializer});
-
-        GenericRowData row = new GenericRowData(1);
-        row.setField(0, RawValueData.fromObject(new WrappedString("a")));
-
-        return new Object[] {serializer, new GenericRowData[] {row}};
-    }
-
-    private static Object[] testRowDataSerializerWithNestedRow() {
-        final DataType nestedDataType =
-                DataTypes.ROW(
-                        DataTypes.FIELD("ri", DataTypes.INT()),
-                        DataTypes.FIELD("rs", DataTypes.STRING()),
-                        DataTypes.FIELD("rb", DataTypes.BIGINT()));
-
-        final DataType outerDataType =
-                DataTypes.ROW(
-                        DataTypes.FIELD("i", DataTypes.INT()),
-                        DataTypes.FIELD("r", nestedDataType),
-                        DataTypes.FIELD("s", DataTypes.STRING()));
-
-        final TypeSerializer<RowData> nestedSerializer =
-                InternalSerializers.create(nestedDataType.getLogicalType());
-        final RowDataSerializer outerSerializer =
-                (RowDataSerializer)
-                        InternalSerializers.<RowData>create(outerDataType.getLogicalType());
-
-        final GenericRowData outerRow1 =
-                GenericRowData.of(
-                        12,
-                        GenericRowData.of(34, StringData.fromString("56"), 78L),
-                        StringData.fromString("910"));
-        final RowData nestedRow1 = outerSerializer.toBinaryRow(outerRow1).getRow(1, 3);
-
-        final GenericRowData outerRow2 =
-                GenericRowData.of(
-                        12, GenericRowData.of(null, StringData.fromString("56"), 78L), null);
-        final RowData nestedRow2 = outerSerializer.toBinaryRow(outerRow2).getRow(1, 3);
-
-        return new Object[] {nestedSerializer, new RowData[] {nestedRow1, nestedRow2}};
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -312,11 +135,11 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
                         (RowDataSerializer) serializer.duplicate(),
                         (RowDataSerializer) serializer.duplicate(),
                         checkClass);
-        Assert.assertTrue(equals);
+        assertThat(equals).isTrue();
     }
 
     @Test
-    public void testCopy() {
+    protected void testCopy() {
         for (RowData row : testData) {
             checkDeepEquals(row, serializer.copy(row), true);
         }
@@ -346,17 +169,22 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
     }
 
     @Test
-    public void testWrongCopy() {
-        thrown.expect(IllegalArgumentException.class);
-        serializer.copy(new GenericRowData(serializer.getArity() + 1));
+    void testWrongCopy() {
+        assertThatThrownBy(() -> serializer.copy(new GenericRowData(serializer.getArity() + 1)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testWrongCopyReuse() {
-        thrown.expect(IllegalArgumentException.class);
+    void testWrongCopyReuse() {
         for (RowData row : testData) {
-            checkDeepEquals(
-                    row, serializer.copy(row, new GenericRowData(row.getArity() + 1)), false);
+            assertThatThrownBy(
+                            () ->
+                                    checkDeepEquals(
+                                            row,
+                                            serializer.copy(
+                                                    row, new GenericRowData(row.getArity() + 1)),
+                                            false))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -367,6 +195,207 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
 
         WrappedString(String content) {
             this.content = content;
+        }
+    }
+
+    static final class SimpleRowDataSerializerTest extends RowDataSerializerTest {
+        public SimpleRowDataSerializerTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            GenericRowData row1 = new GenericRowData(2);
+            row1.setField(0, 1);
+            row1.setField(1, fromString("a"));
+
+            GenericRowData row2 = new GenericRowData(2);
+            row2.setField(0, 2);
+            row2.setField(1, null);
+
+            return new RowData[] {row1, row2};
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            InternalTypeInfo<RowData> typeInfo =
+                    InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
+
+            return typeInfo.toRowSerializer();
+        }
+    }
+
+    static final class LargeRowDataSerializerTest extends RowDataSerializerTest {
+        public LargeRowDataSerializerTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            GenericRowData row = new GenericRowData(13);
+            row.setField(0, 2);
+            row.setField(1, null);
+            row.setField(3, null);
+            row.setField(4, null);
+            row.setField(5, null);
+            row.setField(6, null);
+            row.setField(7, null);
+            row.setField(8, null);
+            row.setField(9, null);
+            row.setField(10, null);
+            row.setField(11, null);
+            row.setField(12, fromString("Test"));
+
+            return new RowData[] {row};
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            InternalTypeInfo<RowData> typeInfo =
+                    InternalTypeInfo.ofFields(
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            new IntType(),
+                            VarCharType.STRING_TYPE);
+
+            return typeInfo.toRowSerializer();
+        }
+    }
+
+    static final class RowDataSerializerWithComplexTypesTest extends RowDataSerializerTest {
+        public RowDataSerializerWithComplexTypesTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            return new GenericRowData[] {
+                createRow(null, null, null, null, null),
+                createRow(0, null, null, null, null),
+                createRow(0, 0.0, null, null, null),
+                createRow(0, 0.0, fromString("a"), null, null),
+                createRow(1, 0.0, fromString("a"), null, null),
+                createRow(1, 1.0, fromString("a"), null, null),
+                createRow(1, 1.0, fromString("b"), null, null),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1),
+                        createMap(new int[] {1}, new int[] {1})),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1, 2),
+                        createMap(new int[] {1, 4}, new int[] {1, 2})),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1, 2, 3),
+                        createMap(new int[] {1, 5}, new int[] {1, 3})),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1, 2, 3, 4),
+                        createMap(new int[] {1, 6}, new int[] {1, 4})),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1, 2, 3, 4, 5),
+                        createMap(new int[] {1, 7}, new int[] {1, 5})),
+                createRow(
+                        1,
+                        1.0,
+                        fromString("b"),
+                        createArray(1, 2, 3, 4, 5, 6),
+                        createMap(new int[] {1, 8}, new int[] {1, 6}))
+            };
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            InternalTypeInfo<RowData> typeInfo =
+                    InternalTypeInfo.ofFields(
+                            new IntType(),
+                            new DoubleType(),
+                            VarCharType.STRING_TYPE,
+                            new ArrayType(new IntType()),
+                            new MapType(new IntType(), new IntType()));
+
+            return typeInfo.toRowSerializer();
+        }
+    }
+
+    static final class RowDataSerializerWithKryoTest extends RowDataSerializerTest {
+        public RowDataSerializerWithKryoTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            GenericRowData row = new GenericRowData(1);
+            row.setField(0, RawValueData.fromObject(new WrappedString("a")));
+
+            return new RowData[] {row};
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            RawValueDataSerializer<WrappedString> rawValueSerializer =
+                    new RawValueDataSerializer<>(
+                            new KryoSerializer<>(WrappedString.class, new ExecutionConfig()));
+            return new RowDataSerializer(
+                    new LogicalType[] {new RawType(RawValueData.class, rawValueSerializer)},
+                    new TypeSerializer[] {rawValueSerializer});
+        }
+    }
+
+    static final class RowDataSerializerWithNestedRowTest extends RowDataSerializerTest {
+
+        private static final DataType NESTED_DATA_TYPE =
+                DataTypes.ROW(
+                        DataTypes.FIELD("ri", DataTypes.INT()),
+                        DataTypes.FIELD("rs", DataTypes.STRING()),
+                        DataTypes.FIELD("rb", DataTypes.BIGINT()));
+
+        public RowDataSerializerWithNestedRowTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            final DataType outerDataType =
+                    DataTypes.ROW(
+                            DataTypes.FIELD("i", DataTypes.INT()),
+                            DataTypes.FIELD("r", NESTED_DATA_TYPE),
+                            DataTypes.FIELD("s", DataTypes.STRING()));
+
+            final RowDataSerializer outerSerializer =
+                    (RowDataSerializer)
+                            InternalSerializers.<RowData>create(outerDataType.getLogicalType());
+
+            final GenericRowData outerRow1 =
+                    GenericRowData.of(
+                            12,
+                            GenericRowData.of(34, StringData.fromString("56"), 78L),
+                            StringData.fromString("910"));
+            final RowData nestedRow1 = outerSerializer.toBinaryRow(outerRow1).getRow(1, 3);
+
+            final GenericRowData outerRow2 =
+                    GenericRowData.of(
+                            12, GenericRowData.of(null, StringData.fromString("56"), 78L), null);
+            final RowData nestedRow2 = outerSerializer.toBinaryRow(outerRow2).getRow(1, 3);
+
+            return new RowData[] {nestedRow1, nestedRow2};
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            return (RowDataSerializer)
+                    InternalSerializers.<RowData>create(NESTED_DATA_TYPE.getLogicalType());
         }
     }
 }

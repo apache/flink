@@ -394,7 +394,7 @@ SET 'table.exec.spill-compression.block-size' = '128kb';
 This configuration:
 
 - connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
-- defines a table `MyTableSource` that can read data from a CSV file,
+- defines a table `MyTable` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
 - uses streaming mode for running statements and a parallelism of 1,

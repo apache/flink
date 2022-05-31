@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 /**
  * Describes a generated {@link Function}.
@@ -45,7 +46,7 @@ public class GeneratedFunction<F extends Function> extends GeneratedClass<F> {
      * @param conf configuration when generating Function.
      */
     public GeneratedFunction(
-            String className, String code, Object[] references, Configuration conf) {
+            String className, String code, Object[] references, ReadableConfig conf) {
         super(className, code, references, conf);
     }
 }

@@ -21,10 +21,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { finalize, takeUntil } from 'rxjs/operators';
 
+import { JobManagerService } from '@flink-runtime-web/services';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
-
-import { JobManagerService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-log-detail',

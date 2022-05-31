@@ -28,8 +28,8 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.toList;
 
@@ -63,18 +63,15 @@ public abstract class BasePulsarSubscriber implements PulsarSubscriber {
                     .map(range -> new TopicPartition(metadata.getName(), -1, range))
                     .collect(toList());
         } else {
-            return IntStream.range(0, metadata.getPartitionSize())
-                    .boxed()
-                    .flatMap(
-                            partitionId ->
-                                    ranges.stream()
-                                            .map(
-                                                    range ->
-                                                            new TopicPartition(
-                                                                    metadata.getName(),
-                                                                    partitionId,
-                                                                    range)))
-                    .collect(toList());
+            List<TopicPartition> partitions = new ArrayList<>();
+            for (int i = 0; i < metadata.getPartitionSize(); i++) {
+                for (TopicRange range : ranges) {
+                    TopicPartition partition = new TopicPartition(metadata.getName(), i, range);
+                    partitions.add(partition);
+                }
+            }
+
+            return partitions;
         }
     }
 }

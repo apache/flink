@@ -38,6 +38,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -46,12 +47,14 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -73,6 +76,10 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
     private static final ResourceProfile DEFAULT_SLOT_PROFILE =
             ResourceProfile.fromResources(1.0, 1234);
+
+    @ClassRule
+    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorResource();
 
     private static TestingRpcService rpcService;
 
@@ -159,7 +166,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
     @AfterClass
     public static void teardownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
@@ -219,7 +226,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
                                         }
                                         return rpcGateway;
                                     },
-                                    TestingUtils.defaultExecutor()));
+                                    EXECUTOR_RESOURCE.getExecutor()));
 
             TaskExecutorRegistration taskExecutorRegistration =
                     new TaskExecutorRegistration(

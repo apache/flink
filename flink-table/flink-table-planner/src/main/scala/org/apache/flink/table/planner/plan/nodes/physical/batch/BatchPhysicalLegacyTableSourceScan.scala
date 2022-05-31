@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -23,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan._
@@ -33,9 +33,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import java.util
 
 /**
-  * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[StreamTableSource]].
-  */
+ * Batch physical RelNode to read data from an external source defined by a bounded
+ * [[StreamTableSource]].
+ */
 class BatchPhysicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -61,6 +61,7 @@ class BatchPhysicalLegacyTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecLegacyTableSourceScan(
+      unwrapTableConfig(this),
       tableSource,
       getTable.getQualifiedName,
       FlinkTypeFactory.toLogicalRowType(getRowType),

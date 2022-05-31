@@ -63,8 +63,8 @@ public class SystemResourcesMetricsInitializer {
     }
 
     private static void instantiateSwapMetrics(MetricGroup metrics, GlobalMemory memory) {
-        metrics.<Long, Gauge<Long>>gauge("Used", memory::getSwapUsed);
-        metrics.<Long, Gauge<Long>>gauge("Total", memory::getSwapTotal);
+        metrics.<Long, Gauge<Long>>gauge("Used", memory.getVirtualMemory()::getSwapUsed);
+        metrics.<Long, Gauge<Long>>gauge("Total", memory.getVirtualMemory()::getSwapTotal);
     }
 
     private static void instantiateCPUMetrics(
@@ -77,6 +77,7 @@ public class SystemResourcesMetricsInitializer {
         metrics.<Double, Gauge<Double>>gauge("Nice", usageCounter::getCpuNice);
         metrics.<Double, Gauge<Double>>gauge("Irq", usageCounter::getCpuIrq);
         metrics.<Double, Gauge<Double>>gauge("SoftIrq", usageCounter::getCpuSoftIrq);
+        metrics.<Double, Gauge<Double>>gauge("Steal", usageCounter::getCpuSteal);
 
         metrics.<Double, Gauge<Double>>gauge("Load1min", usageCounter::getCpuLoad1);
         metrics.<Double, Gauge<Double>>gauge("Load5min", usageCounter::getCpuLoad5);

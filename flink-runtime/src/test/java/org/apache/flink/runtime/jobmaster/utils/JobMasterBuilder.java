@@ -65,8 +65,7 @@ public class JobMasterBuilder {
 
     private HighAvailabilityServices highAvailabilityServices;
 
-    private JobManagerSharedServices jobManagerSharedServices =
-            new TestingJobManagerSharedServicesBuilder().build();
+    private JobManagerSharedServices jobManagerSharedServices = null;
 
     private HeartbeatServices heartbeatServices = DEFAULT_HEARTBEAT_SERVICES;
 
@@ -188,7 +187,9 @@ public class JobMasterBuilder {
                         ? slotPoolServiceSchedulerFactory
                         : DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
                                 configuration, jobGraph.getJobType()),
-                jobManagerSharedServices,
+                jobManagerSharedServices != null
+                        ? jobManagerSharedServices
+                        : new TestingJobManagerSharedServicesBuilder().build(),
                 heartbeatServices,
                 UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
                 onCompletionActions,

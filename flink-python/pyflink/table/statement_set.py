@@ -27,14 +27,10 @@ __all__ = ['StatementSet']
 
 class StatementSet(object):
     """
-    A StatementSet accepts DML statements or Tables,
-    the planner can optimize all added statements and Tables together
-    and then submit as one job.
+    A :class:`~StatementSet` accepts pipelines defined by DML statements or :class:`~Table` objects.
+    The planner can optimize all added statements together and then submit them as one job.
 
-    .. note::
-
-        The added statements and Tables will be cleared
-        when calling the `execute` method.
+    The added statements will be cleared when calling the :func:`~StatementSet.execute` method.
 
     .. versionadded:: 1.11.0
     """
@@ -93,9 +89,9 @@ class StatementSet(object):
 
                 >>> stmt_set = table_env.create_statement_set()
                 >>> source_table = table_env.from_path("SourceTable")
-                >>> sink_descriptor = TableDescriptor.for_connector("blackhole")
+                >>> sink_descriptor = TableDescriptor.for_connector("blackhole") \\
                 ...     .schema(Schema.new_builder()
-                ...         .build())
+                ...         .build()) \\
                 ...     .build()
                 >>> stmt_set.add_insert(sink_descriptor, source_table)
 

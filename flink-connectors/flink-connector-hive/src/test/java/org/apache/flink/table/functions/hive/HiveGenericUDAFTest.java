@@ -32,7 +32,7 @@ import org.junit.Test;
 import java.math.BigDecimal;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HiveGenericUDAF}. */
 public class HiveGenericUDAFTest {
@@ -52,7 +52,7 @@ public class HiveGenericUDAFTest {
 
         udf.merge(acc, Arrays.asList());
 
-        assertEquals(1L, udf.getValue(acc));
+        assertThat(udf.getValue(acc)).isEqualTo(1L);
     }
 
     @Test
@@ -71,7 +71,7 @@ public class HiveGenericUDAFTest {
 
         udf.merge(acc, Arrays.asList());
 
-        assertEquals(6.1d, udf.getValue(acc));
+        assertThat(udf.getValue(acc)).isEqualTo(6.1d);
 
         constantArgs = new Object[] {null};
 
@@ -87,7 +87,7 @@ public class HiveGenericUDAFTest {
 
         udf.merge(acc, Arrays.asList());
 
-        assertEquals(BigDecimal.valueOf(18.666), udf.getValue(acc));
+        assertThat(udf.getValue(acc)).isEqualTo(BigDecimal.valueOf(18.666));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class HiveGenericUDAFTest {
 
         udf.merge(acc, Arrays.asList());
 
-        assertEquals(3L, udf.getValue(acc));
+        assertThat(udf.getValue(acc)).isEqualTo(3L);
     }
 
     private static HiveGenericUDAF init(

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -80,7 +79,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
-import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_JOB_STATUS_CHANGE_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
@@ -152,10 +150,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                 .name("sinkInSinkTest");
         final JobClient jobClient = execEnv.executeAsync("DataStream Sink Test");
 
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.FINISHED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
 
         // Check test result
         checkResultWithSemantic(
@@ -281,8 +276,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                             getJobDetails(
                                     new RestClient(new Configuration(), executorService),
                                     testEnv.getRestEndpoint(),
-                                    jobClient.getJobID()),
-                    Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+                                    jobClient.getJobID()));
 
             waitExpectedSizeData(iterator, numBeforeSuccess);
 
@@ -291,10 +285,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                             .stopWithSavepoint(
                                     true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
                             .get(30, TimeUnit.SECONDS);
-            waitForJobStatus(
-                    jobClient,
-                    Collections.singletonList(JobStatus.FINISHED),
-                    Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+            waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         } catch (Exception e) {
             executorService.shutdown();
             killJob(jobClient);
@@ -392,8 +383,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                             getJobDetails(
                                     new RestClient(new Configuration(), executorService),
                                     testEnv.getRestEndpoint(),
-                                    jobClient.getJobID()),
-                    Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+                                    jobClient.getJobID()));
 
             waitUntilCondition(
                     () -> {
@@ -411,8 +401,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                             // skip failed assert try
                             return false;
                         }
-                    },
-                    Deadline.fromNow(DEFAULT_COLLECT_DATA_TIMEOUT));
+                    });
         } finally {
             // Clean up
             executorService.shutdown();
@@ -507,7 +496,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
      * @param testData the test data
      * @param semantic the supported semantic, see {@link CheckpointingMode}
      */
-    private void checkResultWithSemantic(
+    protected void checkResultWithSemantic(
             ExternalSystemDataReader<T> reader, List<T> testData, CheckpointingMode semantic)
             throws Exception {
         final ArrayList<T> result = new ArrayList<>();
@@ -521,8 +510,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                     } catch (Throwable t) {
                         return false;
                     }
-                },
-                Deadline.fromNow(DEFAULT_COLLECT_DATA_TIMEOUT));
+                });
     }
 
     /** Compare the metrics. */
@@ -562,10 +550,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
 
     private void killJob(JobClient jobClient) throws Exception {
         terminateJob(jobClient);
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.CANCELED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
     }
 
     private DataStreamSink<T> tryCreateSink(

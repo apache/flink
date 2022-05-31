@@ -1,0 +1,60 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.factory.class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The reporter factory class to use for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.interval</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The reporter interval to use for the reporter named &lt;name&gt;. Only applicable to push-based reporters.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.delimiter</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The delimiter used to assemble the metric identifier for the reporter named &lt;name&gt;.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.additional</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>Map</td>
+            <td>The map of additional variables that should be included for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.scope.variables.excludes</h5></td>
+            <td style="word-wrap: break-word;">"."</td>
+            <td>String</td>
+            <td>The set of variables that should be excluded for the reporter named &lt;name&gt;. Only applicable to tag-based reporters.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.includes</h5></td>
+            <td style="word-wrap: break-word;">"*:*:*"</td>
+            <td>List&lt;String&gt;</td>
+            <td>The metrics that should be included for the reporter named &lt;name&gt;. Filters are specified as a list, with each filter following this format:<br /><code class="highlighter-rouge">&lt;scope&gt;[:&lt;name&gt;[,&lt;name&gt;][:&lt;type&gt;[,&lt;type&gt;]]]</code><br />A metric matches a filter if the scope pattern and at least one of the name patterns and at least one of the types match.<br /><ul><li>scope: Filters based on the logical scope.<br />Specified as a pattern where <code class="highlighter-rouge">*</code> matches any sequence of characters and <code class="highlighter-rouge">.</code> separates scope components.<br /><br />For example:<br /> "<code class="highlighter-rouge">jobmanager.job</code>" matches any job-related metrics on the JobManager,<br /> "<code class="highlighter-rouge">*.job</code>" matches all job-related metrics and<br /> "<code class="highlighter-rouge">*.job.*</code>" matches all metrics below the job-level (i.e., task/operator metrics etc.).<br /><br /></li><li>name: Filters based on the metric name.<br />Specified as a comma-separate list of patterns where <code class="highlighter-rouge">*</code> matches any sequence of characters.<br /><br />For example, "<code class="highlighter-rouge">*Records*,*Bytes*</code>" matches any metrics where the name contains <code class="highlighter-rouge">"Records" or "Bytes"</code>.<br /><br /></li><li>type: Filters based on the metric type. Specified as a comma-separated list of metric types: <code class="highlighter-rouge">[counter, meter, gauge, histogram]</code></li></ul>Examples:<ul><li>"<code class="highlighter-rouge">*:numRecords*</code>" Matches metrics like <code class="highlighter-rouge">numRecordsIn</code>.</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*</code>" Matches metrics like <code class="highlighter-rouge">numRecordsIn</code> on the operator level.</li><li>"<code class="highlighter-rouge">*.job.task.operator:numRecords*:meter</code>" Matches meter metrics like <code class="highlighter-rouge">numRecordsInPerSecond</code> on the operator level.</li><li>"<code class="highlighter-rouge">*:numRecords*,numBytes*:counter,meter</code>" Matches all counter/meter metrics like or <code class="highlighter-rouge">numRecordsInPerSecond</code>.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.filter.excludes</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>The metrics that should be excluded for the reporter named &lt;name&gt;. The format is identical to <code class="highlighter-rouge">filter.includes</code><br /></td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.&lt;name&gt;.&lt;parameter&gt;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Configures the parameter &lt;parameter&gt; for the reporter named &lt;name&gt;.</td>
+        </tr>
+    </tbody>
+</table>

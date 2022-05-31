@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -341,7 +342,8 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         allFieldNames.toArray(new String[0]),
                         context.getFunctionCatalog(),
                         context.getCatalogManager(),
-                        TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                        TimeZone.getTimeZone(
+                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
         ArrayList<Expression> partitionFilters = new ArrayList<>();
         Option<ResolvedExpression> subExpr;
         for (RexNode node : JavaConversions.seqAsJavaList(partitionPredicate)) {

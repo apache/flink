@@ -15,23 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithRetractAndReset, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.utils.CountAggFunction
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
 import org.junit._
+import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -61,7 +60,8 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       (8L, 8, "Hello World"),
       (8L, 8, "Hello World"),
       (20L, 20, "Hello World"),
-      (20L, 20, null.asInstanceOf[String]))
+      (20L, 20, null.asInstanceOf[String])
+    )
 
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -69,13 +69,13 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     val weightAvgFun = new WeightedAvg
     val countDist = new CountDistinct
 
-    val windowedTable = table//.select('a, 'b, 'c, proctime() as 'proctime)
-      .window(
-      Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
-      .select('c,
-        countFun('b) over 'w as 'mycount,
-        call(weightAvgFun, 'a, 'b) over 'w as 'wAvg,
-        countDist('a) over 'w as 'countDist)
+    val windowedTable = table // .select('a, 'b, 'c, proctime() as 'proctime)
+      .window(Over.partitionBy('c).orderBy('proctime).preceding(UNBOUNDED_ROW).as('w))
+      .select(
+        'c,
+        countFun('b).over('w).as('mycount),
+        call(weightAvgFun, 'a, 'b).over('w).as('wAvg),
+        countDist('a).over('w).as('countDist))
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val sink = new TestingAppendSink
@@ -83,9 +83,18 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,7,1", "Hello World,2,7,2", "Hello World,3,7,2", "Hello World,4,13,3",
-      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6",
-      "null,1,20,1")
+      "Hello World,1,7,1",
+      "Hello World,2,7,2",
+      "Hello World,3,7,2",
+      "Hello World,4,13,3",
+      "Hello,1,1,1",
+      "Hello,2,1,2",
+      "Hello,3,2,3",
+      "Hello,4,3,4",
+      "Hello,5,3,5",
+      "Hello,6,4,6",
+      "null,1,20,1"
+    )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -102,24 +111,32 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       (7L, 7, "Hello World"),
       (8L, 8, "Hello World"),
       (8L, 8, "Hello World"),
-      (20L, 20, "Hello World"))
+      (20L, 20, "Hello World")
+    )
 
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val weightAvgFun = new WeightedAvg
 
     val windowedTable = table
-      .window(
-        Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
-      .select('c, weightAvgFun('a, 42, 'b, "2") over 'w as 'wAvg)
+      .window(Over.partitionBy('c).orderBy('proctime).preceding(UNBOUNDED_ROW).as('w))
+      .select('c, weightAvgFun('a, 42, 'b, "2").over('w).as('wAvg))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "Hello World,12", "Hello World,9", "Hello World,9", "Hello World,9", "Hello,3",
-      "Hello,3", "Hello,4", "Hello,4", "Hello,5", "Hello,5")
+      "Hello World,12",
+      "Hello World,9",
+      "Hello World,9",
+      "Hello World,9",
+      "Hello,3",
+      "Hello,3",
+      "Hello,4",
+      "Hello,4",
+      "Hello,5",
+      "Hello,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -144,7 +161,8 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     val countFun = new CountAggFunction
@@ -153,22 +171,30 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     val countDist = new CountDistinct
 
     val windowedTable = table
-      .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE following
-        CURRENT_RANGE as 'w)
+      .window(
+        Over
+          .partitionBy('a)
+          .orderBy('rowtime)
+          .preceding(UNBOUNDED_RANGE)
+          .following(CURRENT_RANGE)
+          .as('w))
       .select(
-        'a, 'b, 'c,
-        'b.sum over 'w,
-        "SUM:".toExpr + ('b.sum over 'w),
-        countFun('b) over 'w,
-        (countFun('b) over 'w) + 1,
-        plusOne(countFun('b) over 'w),
-        array('b.avg over 'w, 'b.max over 'w),
-        'b.avg over 'w,
-        'b.max over 'w,
-        'b.min over 'w,
-        ('b.min over 'w).abs(),
-        call(weightAvgFun, 'b, 'a) over 'w,
-        countDist('c) over 'w as 'countDist)
+        'a,
+        'b,
+        'c,
+        'b.sum.over('w),
+        "SUM:".toExpr + ('b.sum.over('w)),
+        countFun('b).over('w),
+        (countFun('b).over('w)) + 1,
+        plusOne(countFun('b).over('w)),
+        array('b.avg.over('w), 'b.max.over('w)),
+        'b.avg.over('w),
+        'b.max.over('w),
+        'b.min.over('w),
+        ('b.min.over('w)).abs(),
+        call(weightAvgFun, 'b, 'a).over('w),
+        countDist('c).over('w).as('countDist)
+      )
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -214,18 +240,24 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime
-        preceding 1.seconds following CURRENT_RANGE as 'w)
+      .window(
+        Over
+          .partitionBy('c)
+          .orderBy('rowtime)
+          .preceding(1.seconds)
+          .following(CURRENT_RANGE)
+          .as('w))
       .select(
         'c,
-        'b.count.distinct over 'w,
-        'b.sum.distinct over 'w,
-        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+        'b.count.distinct.over('w),
+        'b.sum.distinct.over('w),
+        ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -269,17 +301,18 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
+      .window(Over.partitionBy('c).orderBy('rowtime).preceding(UNBOUNDED_RANGE).as('w))
       .select(
         'c,
-        'b.count.distinct over 'w,
-        'b.sum.distinct over 'w,
-        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w
+        'b.count.distinct.over('w),
+        'b.sum.distinct.over('w),
+        ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w)
       )
 
     val sink = new TestingAppendSink
@@ -324,17 +357,19 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+      .window(
+        Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).following(CURRENT_ROW).as('w))
       .select(
         'c,
-        'b.count.distinct over 'w,
-        'b.sum.distinct over 'w,
-        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+        'b.count.distinct.over('w),
+        'b.sum.distinct.over('w),
+        ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -378,18 +413,24 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding UNBOUNDED_ROW following
-         CURRENT_ROW as 'w)
+      .window(
+        Over
+          .partitionBy('c)
+          .orderBy('rowtime)
+          .preceding(UNBOUNDED_ROW)
+          .following(CURRENT_ROW)
+          .as('w))
       .select(
         'c,
-        'b.count.distinct over 'w,
-        'b.sum.distinct over 'w,
-        ('b.cast(DataTypes.FLOAT) as 'b).avg.distinct over 'w)
+        'b.count.distinct.over('w),
+        'b.sum.distinct.over('w),
+        ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -412,7 +453,6 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-
   @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
 
@@ -431,15 +471,18 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       (5, 12L, 11, "HIJ", 3L),
       (5, 13L, 12, "IJK", 3L),
       (5, 14L, 13, "JKL", 2L),
-      (5, 15L, 14, "KLM", 2L))
+      (5, 15L, 14, "KLM", 2L)
+    )
 
     val countDist = new CountDistinctWithRetractAndReset
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
-    val windowedTable = table.select('a, 'b, 'c, 'd, 'e, 'proctime)
-      .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
-      .select('a, 'c.sum over 'w, 'c.min over 'w, countDist('e) over 'w)
+    val windowedTable = table
+      .select('a, 'b, 'c, 'd, 'e, 'proctime)
+      .window(
+        Over.partitionBy('a).orderBy('proctime).preceding(4.rows).following(CURRENT_ROW).as('w))
+      .select('a, 'c.sum.over('w), 'c.min.over('w), countDist('e).over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -460,7 +503,8 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "5,21,10,2",
       "5,33,10,2",
       "5,46,10,3",
-      "5,60,10,3")
+      "5,60,10,3"
+    )
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
@@ -483,20 +527,23 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       (5, 12L, 11, "HIJ", 3L),
       (5, 13L, 12, "IJK", 3L),
       (5, 14L, 13, "JKL", 2L),
-      (5, 15L, 14, "KLM", 2L))
+      (5, 15L, 14, "KLM", 2L)
+    )
 
     val countDist = new CountDistinctWithRetractAndReset
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
-    val windowedTable = table.select($"a", $"b", $"c", $"d", $"e", $"proctime")
-      .window(Over
-        .partitionBy($("a"))
-        .orderBy($("proctime"))
-        .preceding(Expressions.rowInterval(4L))
-        .following(Expressions.CURRENT_ROW)
-        .as("w"))
-      .select('a, 'c.sum over 'w, 'c.min over 'w, countDist('e) over 'w)
+    val windowedTable = table
+      .select($"a", $"b", $"c", $"d", $"e", $"proctime")
+      .window(
+        Over
+          .partitionBy($"a")
+          .orderBy($("proctime"))
+          .preceding(Expressions.rowInterval(4L))
+          .following(Expressions.CURRENT_ROW)
+          .as("w"))
+      .select('a, 'c.sum.over('w), 'c.min.over('w), countDist('e).over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
@@ -517,7 +564,8 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "5,21,10,2",
       "5,33,10,2",
       "5,46,10,3",
-      "5,60,10,3")
+      "5,60,10,3"
+    )
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
@@ -543,29 +591,43 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       Right(6L),
       Left((8L, (8L, 8, "Hello World"))),
       Left((7L, (7L, 7, "Hello World"))),
-      Right(20L))
+      Right(20L)
+    )
 
     val countDist = new CountDistinctWithRetractAndReset
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
-      .select('c, 'a, 'a.count over 'w, 'a.sum over 'w, countDist('a) over 'w)
+      .window(
+        Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).following(CURRENT_ROW).as('w))
+      .select('c, 'a, 'a.count.over('w), 'a.sum.over('w), countDist('a).over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello,1,1,1,1", "Hello,1,2,2,1", "Hello,1,3,3,1",
-      "Hello,2,3,4,2", "Hello,2,3,5,2", "Hello,2,3,6,1",
-      "Hello,3,3,7,2", "Hello,4,3,9,3", "Hello,5,3,12,3",
+      "Hello,1,1,1,1",
+      "Hello,1,2,2,1",
+      "Hello,1,3,3,1",
+      "Hello,2,3,4,2",
+      "Hello,2,3,5,2",
+      "Hello,2,3,6,1",
+      "Hello,3,3,7,2",
+      "Hello,4,3,9,3",
+      "Hello,5,3,12,3",
       "Hello,6,3,15,3",
-      "Hello World,7,1,7,1", "Hello World,7,2,14,1", "Hello World,7,3,21,1",
-      "Hello World,7,3,21,1", "Hello World,8,3,22,2", "Hello World,20,3,35,3")
+      "Hello World,7,1,7,1",
+      "Hello World,7,2,14,1",
+      "Hello World,7,3,21,1",
+      "Hello World,7,3,21,1",
+      "Hello World,8,3,22,2",
+      "Hello World,20,3,35,3"
+    )
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
@@ -602,35 +664,47 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       Left((15000L, (8L, 8, "Hello World"))),
       Right(17000L),
       Left((20000L, (20L, 20, "Hello World"))),
-      Right(19000L))
+      Right(19000L)
+    )
 
     val countDist = new CountDistinctWithRetractAndReset
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(
-        Over partitionBy 'c orderBy 'rowtime preceding 1.seconds following CURRENT_RANGE as 'w)
-      .select('c, 'b, 'a.count over 'w, 'a.sum over 'w, countDist('a) over 'w)
+        Over.partitionBy('c).orderBy('rowtime).preceding(1.seconds).following(CURRENT_RANGE).as('w))
+      .select('c, 'b, 'a.count.over('w), 'a.sum.over('w), countDist('a).over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello,1,1,1,1", "Hello,15,2,2,1", "Hello,16,3,3,1",
-      "Hello,2,6,9,2", "Hello,3,6,9,2", "Hello,2,6,9,2",
+      "Hello,1,1,1,1",
+      "Hello,15,2,2,1",
+      "Hello,16,3,3,1",
+      "Hello,2,6,9,2",
+      "Hello,3,6,9,2",
+      "Hello,2,6,9,2",
       "Hello,3,4,9,2",
       "Hello,4,2,7,2",
       "Hello,5,2,9,2",
-      "Hello,6,2,11,2", "Hello,65,2,12,1",
-      "Hello,9,2,12,1", "Hello,9,2,12,1", "Hello,18,3,18,1",
-      "Hello World,7,1,7,1", "Hello World,17,3,21,1",
-      "Hello World,77,3,21,1", "Hello World,18,1,7,1",
+      "Hello,6,2,11,2",
+      "Hello,65,2,12,1",
+      "Hello,9,2,12,1",
+      "Hello,9,2,12,1",
+      "Hello,18,3,18,1",
+      "Hello World,7,1,7,1",
+      "Hello World,17,3,21,1",
+      "Hello World,77,3,21,1",
+      "Hello World,18,1,7,1",
       "Hello World,8,2,15,2",
-      "Hello World,20,1,20,1")
+      "Hello World,20,1,20,1"
+    )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -643,24 +717,30 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       Right(2L),
       Left((6L, (6L, 6, "Hello"))),
       Left((20L, (20L, 20, "Hello World"))),
-      Right(6L))
+      Right(6L)
+    )
 
     val source = failingDataSource(data)
-    val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
+    val table = source
+      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
-      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
-      .select('c, 'a, 'a.count over 'w, ('a / 'a).sum over 'w)
+      .window(
+        Over.partitionBy('c).orderBy('rowtime).preceding(2.rows).following(CURRENT_ROW).as('w))
+      .select('c, 'a, 'a.count.over('w), ('a / 'a).sum.over('w))
 
     val sink = new TestingAppendSink
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello World,20,2,2", "Hello World,7,1,1", "Hello,1,1,1",
-      "Hello,2,2,2", "Hello,6,3,3")
+      "Hello World,20,2,2",
+      "Hello World,7,1,1",
+      "Hello,1,1,1",
+      "Hello,2,2,2",
+      "Hello,6,3,3")
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }

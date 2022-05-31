@@ -35,6 +35,8 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.util.UUID;
 
+import static org.apache.flink.test.util.TestBaseUtils.compareKeyValuePairsWithDelta;
+
 /** Test for {@link PageRank}. */
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {

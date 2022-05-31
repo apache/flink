@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.ByteValue;
 
 /** Tests for {@link ByteValueArrayComparator}. */
-public class ByteValueArrayComparatorTest extends ComparatorTestBase<ByteValueArray> {
+class ByteValueArrayComparatorTest extends ComparatorTestBase<ByteValueArray> {
 
     @Override
     protected TypeComparator<ByteValueArray> createComparator(boolean ascending) {

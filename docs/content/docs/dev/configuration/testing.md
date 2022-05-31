@@ -26,65 +26,27 @@ under the License.
 
 Flink provides utilities for testing your job that you can add as dependencies.
 
-## DataStream API Test Dependencies
+## DataStream API Testing
 
-You need to add the following dependencies if you want to develop tests for a job built with the 
+You need to add the following dependencies if you want to develop tests for a job built with the
 DataStream API:
 
-{{< tabs "datastream test" >}}
+{{< artifact_tabs flink-test-utils withTestScope >}}
 
-{{< tab "Maven" >}}
-Open the `pom.xml` file in your project directory and add these dependencies in between the dependencies tab.
-{{< artifact flink-test-utils withTestScope >}}
-{{< artifact flink-runtime withTestScope >}}
-{{< /tab >}}
-
-{{< tab "Gradle" >}}
-Open the `build.gradle` file in your project directory and add the following in the dependencies block.
-```gradle
-...
-dependencies {
-    ...  
-    testImplementation "org.apache.flink:flink-test-utils:${flinkVersion}"
-    testImplementation "org.apache.flink:flink-runtime:${flinkVersion}"
-    ...
-}
-...
-```
-**Note:** This assumes that you have created your project using our Gradle build script or quickstart script.
-{{< /tab >}}
-
-{{< /tabs >}}
+Among the various test utilities, this module provides `MiniCluster`, a lightweight configurable Flink cluster runnable in a JUnit test that can directly execute jobs.
 
 For more information on how to use these utilities, check out the section on [DataStream API testing]({{< ref "docs/dev/datastream/testing" >}})
 
-## Table Program Test Dependencies
+## Table API Testing
 
-If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
-dependency:
+If you want to test the Table API & SQL programs locally within your IDE, you can add the following
+dependency, in addition to the aforementioned `flink-test-utils`:
 
-{{< tabs "table test" >}}
+{{< artifact_tabs flink-table-test-utils withTestScope >}}
 
-{{< tab "Maven" >}}
-Open the `pom.xml` file in your project directory and add this dependency in between the dependencies tab.
-{{< artifact flink-table-test-utils withTestScope >}}
-{{< /tab >}}
-
-{{< tab "Gradle" >}}
-Open the `build.gradle` file in your project directory and add the following in the dependencies block.
-```gradle
-...
-dependencies {
-    ...  
-    testImplementation "org.apache.flink:flink-table-test-utils:${flinkVersion}"
-    ...
-}
-...
-```
-**Note:** This assumes that you have created your project using our Gradle build script or quickstart script.
-{{< /tab >}}
-
-{{< /tabs >}}
-
-This will automatically bring in the query planner and the runtime, required respectively to plan 
+This will automatically bring in the query planner and the runtime, required respectively to plan
 and execute the queries.
+
+{{< hint info >}}
+The module `flink-table-test-utils` has been introduced in Flink 1.15 and is considered experimental.
+{{< /hint >}}

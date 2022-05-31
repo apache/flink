@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.api.TableConfig
@@ -28,7 +27,7 @@ class FlinkContextImpl(
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
-    toRexFactory: SqlExprToRexConverterFactory)
+    rexFactory: RexFactory)
   extends FlinkContext {
 
   override def isBatchMode: Boolean = inBatchMode
@@ -41,5 +40,5 @@ class FlinkContextImpl(
 
   override def getCatalogManager: CatalogManager = catalogManager
 
-  override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory = toRexFactory
+  override def getRexFactory: RexFactory = rexFactory
 }

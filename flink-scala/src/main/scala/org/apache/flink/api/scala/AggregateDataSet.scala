@@ -24,14 +24,14 @@ import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import scala.reflect.ClassTag
 
 /**
- * The result of [[DataSet.aggregate]]. This can be used to chain more aggregations to the
- * one aggregate operator.
+ * The result of [[DataSet.aggregate]]. This can be used to chain more aggregations to the one
+ * aggregate operator.
  *
- * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
+ * @tparam T
+ *   The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
 @Public
-class AggregateDataSet[T: ClassTag](set: ScalaAggregateOperator[T])
-  extends DataSet[T](set) {
+class AggregateDataSet[T: ClassTag](set: ScalaAggregateOperator[T]) extends DataSet[T](set) {
 
   /**
    * Adds the given aggregation on the given field to the previous aggregation operation.
@@ -54,44 +54,32 @@ class AggregateDataSet[T: ClassTag](set: ScalaAggregateOperator[T])
     this
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `SUM`
-   */
+  /** Syntactic sugar for [[and]] with `SUM` */
   def andSum(field: Int) = {
     and(Aggregations.SUM, field)
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `MAX`
-   */
+  /** Syntactic sugar for [[and]] with `MAX` */
   def andMax(field: Int) = {
     and(Aggregations.MAX, field)
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `MIN`
-   */
+  /** Syntactic sugar for [[and]] with `MIN` */
   def andMin(field: Int) = {
     and(Aggregations.MIN, field)
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `SUM`
-   */
+  /** Syntactic sugar for [[and]] with `SUM` */
   def andSum(field: String) = {
     and(Aggregations.SUM, field)
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `MAX`
-   */
+  /** Syntactic sugar for [[and]] with `MAX` */
   def andMax(field: String) = {
     and(Aggregations.MAX, field)
   }
 
-  /**
-   * Syntactic sugar for [[and]] with `MIN`
-   */
+  /** Syntactic sugar for [[and]] with `MIN` */
   def andMin(field: String) = {
     and(Aggregations.MIN, field)
   }

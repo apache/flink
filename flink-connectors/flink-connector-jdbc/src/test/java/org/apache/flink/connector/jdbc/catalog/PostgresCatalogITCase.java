@@ -40,9 +40,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
     @Before
     public void setup() {
         this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig()
-                .getConfiguration()
-                .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+        tEnv.getConfig().set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
 
         // use PG catalog
         tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
@@ -114,7 +112,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
         tEnv.executeSql(
                         String.format(
                                 "insert into `%s` "
-                                        + "select `int`, cast('A' as bytes), `short`, max(`long`), max(`real`), "
+                                        + "select `int`, cast('41' as bytes), `short`, max(`long`), max(`real`), "
                                         + "max(`double_precision`), max(`numeric`), max(`decimal`), max(`boolean`), "
                                         + "max(`text`), 'B', 'C', max(`character_varying`), max(`timestamp`), "
                                         + "max(`date`), max(`time`), max(`default_numeric`) "
@@ -128,7 +126,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
                                 .execute()
                                 .collect());
         assertEquals(
-                "[+I[1, [65], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
+                "[+I[1, [52, 49], 3, 4, 5.5, 6.6, 7.70000, 8.8, true, a, B, C  , d, 2016-06-22T19:10:25, 2015-01-01, 00:51:03, 500.000000000000000000]]",
                 results.toString());
     }
 
@@ -156,7 +154,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
         assertEquals(
                 "[+I["
                         + "[1, 2, 3], "
-                        + "[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]], "
+                        + "[[50], [51], [52]], "
                         + "[3, 4, 5], "
                         + "[4, 5, 6], "
                         + "[5.5, 6.6, 7.7], "

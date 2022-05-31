@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,9 +30,9 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import java.util
 
 /**
- * Stream physical RelNode which deduplicate on keys and keeps only first row or last row.
- * This node is an optimization of [[StreamPhysicalRank]] for some special cases.
- * Compared to [[StreamPhysicalRank]], this node could use mini-batch and access less state.
+ * Stream physical RelNode which deduplicate on keys and keeps only first row or last row. This node
+ * is an optimization of [[StreamPhysicalRank]] for some special cases. Compared to
+ * [[StreamPhysicalRank]], this node could use mini-batch and access less state.
  */
 class StreamPhysicalDeduplicate(
     cluster: RelOptCluster,
@@ -64,7 +64,8 @@ class StreamPhysicalDeduplicate(
     val fieldNames = getRowType.getFieldNames
     val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
     val keep = if (keepLastRow) "LastRow" else "FirstRow"
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .item("keep", keep)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
       .item("order", orderString)
@@ -73,13 +74,13 @@ class StreamPhysicalDeduplicate(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     new StreamExecDeduplicate(
+      unwrapTableConfig(this),
       uniqueKeys,
       isRowtime,
       keepLastRow,
       generateUpdateBefore,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

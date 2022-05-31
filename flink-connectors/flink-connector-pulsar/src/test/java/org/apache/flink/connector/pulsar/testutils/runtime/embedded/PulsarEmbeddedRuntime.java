@@ -25,13 +25,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,15 +37,12 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeUtils.initializePulsarEnvironment;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.ServiceConfigurationUtils.brokerUrl;
 import static org.apache.pulsar.broker.ServiceConfigurationUtils.webServiceUrl;
-import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 
 /** Providing a embedded pulsar server. We use this runtime for transaction related tests. */
 public class PulsarEmbeddedRuntime implements PulsarRuntime {
@@ -84,7 +75,7 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
             startPulsarService();
 
             // Create the operator.
-            this.operator = new PulsarRuntimeOperator(getBrokerUrl(), getWebServiceUrl());
+            this.operator = new PulsarRuntimeOperator(serviceUrl(), adminUrl());
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -175,99 +166,20 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
         pulsarService.start();
 
         // Create sample data environment.
-        String webServiceUrl = getWebServiceUrl();
-        String brokerUrl = getBrokerUrl();
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrl).build()) {
-            ClusterData clusterData =
-                    ClusterData.builder()
-                            .serviceUrl(webServiceUrl)
-                            .brokerServiceUrl(brokerUrl)
-                            .build();
-            String cluster = config.getClusterName();
-            createSampleNameSpace(admin, clusterData, cluster);
-
-            // Create default namespace
-            createNameSpace(
-                    admin,
-                    cluster,
-                    TopicName.PUBLIC_TENANT,
-                    TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);
-
-            // Create Pulsar system namespace
-            createNameSpace(
-                    admin, cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE.toString());
-            // Enable transaction
-            if (config.isTransactionCoordinatorEnabled()
-                    && !admin.namespaces()
-                            .getTopics(SYSTEM_NAMESPACE.toString())
-                            .contains(TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString())) {
-                admin.topics().createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
-            }
-        }
+        initializePulsarEnvironment(config, serviceUrl(), adminUrl());
     }
 
     private int getZkPort() {
         return checkNotNull(bookkeeper).getZookeeperPort();
     }
 
-    private String getBrokerUrl() {
+    private String serviceUrl() {
         Integer port = pulsarService.getBrokerListenPort().orElseThrow(IllegalStateException::new);
         return brokerUrl("127.0.0.1", port);
     }
 
-    private String getWebServiceUrl() {
+    private String adminUrl() {
         Integer port = pulsarService.getListenPortHTTP().orElseThrow(IllegalArgumentException::new);
         return webServiceUrl("127.0.0.1", port);
-    }
-
-    private void createSampleNameSpace(PulsarAdmin admin, ClusterData clusterData, String cluster)
-            throws PulsarAdminException {
-        // Create a sample namespace
-        String tenant = "sample";
-        String globalCluster = "global";
-        String namespace = tenant + "/ns1";
-
-        List<String> clusters = admin.clusters().getClusters();
-        if (!clusters.contains(cluster)) {
-            admin.clusters().createCluster(cluster, clusterData);
-        } else {
-            admin.clusters().updateCluster(cluster, clusterData);
-        }
-        // Create marker for "global" cluster
-        if (!clusters.contains(globalCluster)) {
-            admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
-        }
-
-        if (!admin.tenants().getTenants().contains(tenant)) {
-            admin.tenants()
-                    .createTenant(
-                            tenant,
-                            new TenantInfoImpl(
-                                    Collections.emptySet(), Collections.singleton(cluster)));
-        }
-
-        if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
-            admin.namespaces().createNamespace(namespace);
-        }
-    }
-
-    private void createNameSpace(
-            PulsarAdmin admin, String cluster, String publicTenant, String defaultNamespace)
-            throws PulsarAdminException {
-        if (!admin.tenants().getTenants().contains(publicTenant)) {
-            admin.tenants()
-                    .createTenant(
-                            publicTenant,
-                            TenantInfo.builder()
-                                    .adminRoles(Collections.emptySet())
-                                    .allowedClusters(Collections.singleton(cluster))
-                                    .build());
-        }
-        if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
-            admin.namespaces().createNamespace(defaultNamespace);
-            admin.namespaces()
-                    .setNamespaceReplicationClusters(
-                            defaultNamespace, Collections.singleton(cluster));
-        }
     }
 }

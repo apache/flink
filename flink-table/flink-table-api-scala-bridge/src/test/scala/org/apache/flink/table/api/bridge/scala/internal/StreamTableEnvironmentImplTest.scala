@@ -15,10 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.api.bridge.scala.internal
-
-import java.util.{Collections, List => JList}
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
@@ -28,14 +25,14 @@ import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.ModifyOperation
 import org.apache.flink.table.utils.{CatalogManagerMocks, ExecutorMock, PlannerMock}
 import org.apache.flink.types.Row
-import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
-import org.junit.Test
-import java.time.Duration
 
-/**
- * Tests for [[StreamTableEnvironmentImpl]].
- */
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+
+import java.time.Duration
+import java.util.{Collections, List => JList}
+
+/** Tests for [[StreamTableEnvironmentImpl]]. */
 class StreamTableEnvironmentImplTest {
   @Test
   def testAppendStreamDoesNotOverwriteTableConfig(): Unit = {
@@ -48,12 +45,8 @@ class StreamTableEnvironmentImplTest {
     val table = tEnv.fromDataStream(elements)
     tEnv.toAppendStream[Row](table)
 
-    assertThat(
-      tEnv.getConfig.getMinIdleStateRetentionTime,
-      equalTo(retention.toMillis))
-    assertThat(
-      tEnv.getConfig.getMaxIdleStateRetentionTime,
-      equalTo(retention.toMillis * 3 / 2))
+    assertThat(tEnv.getConfig.getMinIdleStateRetentionTime).isEqualTo(retention.toMillis)
+    assertThat(tEnv.getConfig.getMaxIdleStateRetentionTime).isEqualTo(retention.toMillis * 3 / 2)
   }
 
   @Test
@@ -67,25 +60,21 @@ class StreamTableEnvironmentImplTest {
     val table = tEnv.fromDataStream(elements)
     tEnv.toRetractStream[Row](table)
 
-    assertThat(
-      tEnv.getConfig.getMinIdleStateRetentionTime,
-      equalTo(retention.toMillis))
-    assertThat(
-      tEnv.getConfig.getMaxIdleStateRetentionTime,
-      equalTo(retention.toMillis * 3 / 2))
+    assertThat(tEnv.getConfig.getMinIdleStateRetentionTime).isEqualTo(retention.toMillis)
+    assertThat(tEnv.getConfig.getMaxIdleStateRetentionTime).isEqualTo(retention.toMillis * 3 / 2)
   }
 
   private def getStreamTableEnvironment(
       env: StreamExecutionEnvironment,
       elements: DataStream[Int]) = {
-    val config = new TableConfig
+    val tableConfig = TableConfig.getDefault
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager = new ModuleManager
     new StreamTableEnvironmentImpl(
       catalogManager,
       moduleManager,
-      new FunctionCatalog(config, catalogManager, moduleManager),
-      config,
+      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+      tableConfig,
       env,
       new TestPlanner(elements.javaStream.getTransformation),
       new ExecutorMock,
@@ -94,8 +83,7 @@ class StreamTableEnvironmentImplTest {
   }
 
   private class TestPlanner(transformation: Transformation[_]) extends PlannerMock {
-    override def translate(modifyOperations: JList[ModifyOperation])
-      : JList[Transformation[_]] = {
+    override def translate(modifyOperations: JList[ModifyOperation]): JList[Transformation[_]] = {
       Collections.singletonList(transformation)
     }
   }

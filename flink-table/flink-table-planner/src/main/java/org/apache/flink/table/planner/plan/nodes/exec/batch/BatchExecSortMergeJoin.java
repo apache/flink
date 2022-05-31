@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -65,6 +66,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private final boolean leftIsSmaller;
 
     public BatchExecSortMergeJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             int[] leftKeys,
             int[] rightKeys,
@@ -78,6 +80,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSortMergeJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSortMergeJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -108,8 +111,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         RowType keyType = RowType.of(keyFieldTypes);
 
         GeneratedJoinCondition condFunc =
-                JoinUtil.generateConditionFunction(
-                        config.getTableConfig(), nonEquiCondition, leftType, rightType);
+                JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
 
         long externalBufferMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
@@ -134,13 +136,13 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftIsSmaller,
                         condFunc,
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 "SMJProjection",
                                 leftType,
                                 keyType,
                                 leftKeys),
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 "SMJProjection",
                                 rightType,
                                 keyType,
@@ -171,6 +173,6 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private SortCodeGenerator newSortGen(
             ExecNodeConfig config, int[] originalKeys, RowType inputType) {
         SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
-        return new SortCodeGenerator(config.getTableConfig(), inputType, sortSpec);
+        return new SortCodeGenerator(config, inputType, sortSpec);
     }
 }

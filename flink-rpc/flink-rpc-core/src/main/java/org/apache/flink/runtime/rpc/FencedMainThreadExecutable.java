@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
-
+import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,5 +43,5 @@ public interface FencedMainThreadExecutable extends MainThreadExecutable {
      * @param <V> type of the callable result
      * @return Future containing the callable result
      */
-    <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Time timeout);
+    <V> CompletableFuture<V> callAsyncWithoutFencing(Callable<V> callable, Duration timeout);
 }

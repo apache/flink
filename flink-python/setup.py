@@ -269,6 +269,7 @@ try:
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',
+                'pyflink.datastream.connectors',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
@@ -280,7 +281,8 @@ try:
                 'pyflink.conf',
                 'pyflink.log',
                 'pyflink.examples',
-                'pyflink.bin']
+                'pyflink.bin',
+                'pyflink.testing']
 
     PACKAGE_DIR = {
         'pyflink.conf': TEMP_PATH + '/conf',
@@ -313,7 +315,7 @@ try:
                           'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
                           'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
                           'requests>=2.26.0', 'protobuf<3.18',
-                          'pemja==0.1.2;python_full_version >= "3.7"',
+                          'pemja==0.1.4;python_full_version >= "3.7"',
                           apache_flink_libraries_dependency],
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],

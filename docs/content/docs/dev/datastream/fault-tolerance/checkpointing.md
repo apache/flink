@@ -67,9 +67,13 @@ Other parameters for checkpointing include:
 
     Note that this value also implies that the number of concurrent checkpoints is *one*.
 
-  - *tolerable checkpoint failure number*: This defines how many consecutive checkpoint failures will be tolerated,
-    before the whole job is failed over. The default value is `0`, which means no checkpoint failures will be tolerated,
-    and the job will fail on first reported checkpoint failure.
+  - *tolerable checkpoint failure number*: This defines how many consecutive checkpoint failures will
+    be tolerated, before the whole job is failed over. The default value is `0`, which means no
+    checkpoint failures will be tolerated, and the job will fail on first reported checkpoint failure.
+    This only applies to the following failure reasons: IOException on the Job Manager, failures in
+    the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures
+    originating from the sync phase on the Task Managers are always forcing failover of an affected
+    task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.
 
   - *number of concurrent checkpoints*: By default, the system will not trigger another checkpoint while one is still in progress.
     This ensures that the topology does not spend too much time on checkpoints and not make progress with processing the streams.
@@ -119,7 +123,7 @@ env.getCheckpointConfig().setExternalizedCheckpointCleanup(
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
+env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir");
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();

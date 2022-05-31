@@ -25,15 +25,13 @@ import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.util.{Collection => JCollection}
+import _root_.scala.collection.JavaConversions._
+import org.junit.{Assume, Before, Test}
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assume, Before, Test}
-
-import _root_.java.lang.{Boolean => JBoolean}
-import _root_.java.util.{Collection => JCollection}
-
-import _root_.scala.collection.JavaConversions._
 
 /**
  * The physical plans for legacy [[org.apache.flink.table.sources.LookupableTableSource]] and new
@@ -53,30 +51,28 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
     if (legacyTableSource) {
       TestTemporalTable.createTemporaryTable(testUtil.tableEnv, "LookupTable", isBounded = true)
     } else {
-      testUtil.addTable(
-        """
-          |CREATE TABLE LookupTable (
-          |  `id` INT,
-          |  `name` STRING,
-          |  `age` INT
-          |) WITH (
-          |  'connector' = 'values',
-          |  'bounded' = 'true'
-          |)
-          |""".stripMargin)
+      testUtil.addTable("""
+                          |CREATE TABLE LookupTable (
+                          |  `id` INT,
+                          |  `name` STRING,
+                          |  `age` INT
+                          |) WITH (
+                          |  'connector' = 'values',
+                          |  'bounded' = 'true'
+                          |)
+                          |""".stripMargin)
 
-      testUtil.addTable(
-        """
-          |CREATE TABLE LookupTableWithComputedColumn (
-          |  `id` INT,
-          |  `name` STRING,
-          |  `age` INT,
-          |  `nominal_age` as age + 1
-          |) WITH (
-          |  'connector' = 'values',
-          |  'bounded' = 'true'
-          |)
-          |""".stripMargin)
+      testUtil.addTable("""
+                          |CREATE TABLE LookupTableWithComputedColumn (
+                          |  `id` INT,
+                          |  `name` STRING,
+                          |  `age` INT,
+                          |  `nominal_age` as age + 1
+                          |) WITH (
+                          |  'connector' = 'values',
+                          |  'bounded' = 'true'
+                          |)
+                          |""".stripMargin)
     }
   }
 
@@ -152,9 +148,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   @Test
   def testPythonUDFInJoinCondition(): Unit = {
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Only inner join condition with equality predicates supports the " +
-      "Python UDF taking the inputs from the left table and the right table at the same time, " +
-      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+    thrown.expectMessage(
+      "Only inner join condition with equality predicates supports the " +
+        "Python UDF taking the inputs from the left table and the right table at the same time, " +
+        "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
     testUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
     val sql =
       """
@@ -188,7 +185,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
          |FROM ($sql2) AS T
          |GROUP BY b
       """.stripMargin
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig)
     programs.remove(FlinkBatchProgram.PHYSICAL)
     testUtil.replaceBatchProgram(programs)
     testUtil.verifyRelPlan(sql)
@@ -196,7 +193,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testLogicalPlanWithImplicitTypeCast(): Unit = {
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig)
     programs.remove(FlinkBatchProgram.PHYSICAL)
     testUtil.replaceBatchProgram(programs)
 
@@ -205,8 +202,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
       "implicit type conversion between VARCHAR(2147483647) and INTEGER " +
         "is not supported on join's condition now")
 
-    testUtil.verifyRelPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
-      + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
+    testUtil.verifyRelPlan(
+      "SELECT * FROM MyTable AS T JOIN LookupTable "
+        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
   }
 
   @Test
@@ -285,8 +283,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   @Test
   def testJoinTemporalTableWithTrueCondition(): Unit = {
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Temporal table join requires an equality condition on fields of " +
-      "table [default_catalog.default_database.LookupTable]")
+    thrown.expectMessage(
+      "Temporal table join requires an equality condition on fields of " +
+        "table [default_catalog.default_database.LookupTable]")
     val sql =
       """
         |SELECT * FROM MyTable AS T
@@ -299,7 +298,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testJoinTemporalTableWithComputedColumn(): Unit = {
-    //Computed column do not support in legacyTableSource.
+    // Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
     val sql =
       """
@@ -314,7 +313,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
-    //Computed column do not support in legacyTableSource.
+    // Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
     val sql =
       """
@@ -329,8 +328,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @Test
   def testReusing(): Unit = {
-    testUtil.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    testUtil.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, Boolean.box(true))
     val sql1 =
       """
         |SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
@@ -365,9 +364,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   // ==========================================================================================
 
   private def expectExceptionThrown(
-    sql: String,
-    keywords: String,
-    clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
+      sql: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
     try {
       testUtil.verifyExplain(sql)
       fail(s"Expected a $clazz, but no exception is thrown.")

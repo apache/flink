@@ -32,6 +32,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -59,11 +60,14 @@ public class ChannelStateWriteRequestDispatcherTest {
             new Object[] {empty(), asList(start(), completeIn(), completeOut())},
             new Object[] {empty(), asList(start(), writeIn(), completeIn())},
             new Object[] {empty(), asList(start(), writeOut(), completeOut())},
+            new Object[] {empty(), asList(start(), writeOutFuture(), completeOut())},
             new Object[] {empty(), asList(start(), completeIn(), writeOut())},
+            new Object[] {empty(), asList(start(), completeIn(), writeOutFuture())},
             new Object[] {empty(), asList(start(), completeOut(), writeIn())},
             // invalid without start
             new Object[] {of(IllegalArgumentException.class), singletonList(writeIn())},
             new Object[] {of(IllegalArgumentException.class), singletonList(writeOut())},
+            new Object[] {of(IllegalArgumentException.class), singletonList(writeOutFuture())},
             new Object[] {of(IllegalArgumentException.class), singletonList(completeIn())},
             new Object[] {of(IllegalArgumentException.class), singletonList(completeOut())},
             // invalid double complete
@@ -79,6 +83,9 @@ public class ChannelStateWriteRequestDispatcherTest {
             },
             new Object[] {
                 of(IllegalStateException.class), asList(start(), completeOut(), writeOut())
+            },
+            new Object[] {
+                of(IllegalStateException.class), asList(start(), completeOut(), writeOutFuture())
             },
             // invalid double start
             new Object[] {of(IllegalStateException.class), asList(start(), start())}
@@ -111,6 +118,18 @@ public class ChannelStateWriteRequestDispatcherTest {
                 new NetworkBuffer(
                         MemorySegmentFactory.allocateUnpooledSegment(1),
                         FreeingBufferRecycler.INSTANCE));
+    }
+
+    private static ChannelStateWriteRequest writeOutFuture() {
+        CompletableFuture<List<Buffer>> outFuture = new CompletableFuture<>();
+        ChannelStateWriteRequest writeRequest =
+                write(CHECKPOINT_ID, new ResultSubpartitionInfo(1, 1), outFuture);
+        outFuture.complete(
+                singletonList(
+                        new NetworkBuffer(
+                                MemorySegmentFactory.allocateUnpooledSegment(1),
+                                FreeingBufferRecycler.INSTANCE)));
+        return writeRequest;
     }
 
     private static CheckpointStartRequest start() {

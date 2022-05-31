@@ -48,16 +48,20 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     private final long incrementalSize;
     private final StateHandleID stateHandleID;
 
+    private final String storageIdentifier;
+
     public ChangelogStateHandleStreamImpl(
             List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
             KeyGroupRange keyGroupRange,
             long size,
-            long incrementalSize) {
+            long incrementalSize,
+            String storageIdentifier) {
         this(
                 handlesAndOffsets,
                 keyGroupRange,
                 size,
                 incrementalSize,
+                storageIdentifier,
                 new StateHandleID(UUID.randomUUID().toString()));
     }
 
@@ -66,11 +70,13 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
             KeyGroupRange keyGroupRange,
             long size,
             long incrementalSize,
+            String storageIdentifier,
             StateHandleID stateHandleId) {
         this.handlesAndOffsets = handlesAndOffsets;
         this.keyGroupRange = keyGroupRange;
         this.size = size;
         this.incrementalSize = incrementalSize;
+        this.storageIdentifier = storageIdentifier;
         this.stateHandleID = stateHandleId;
     }
 
@@ -79,9 +85,15 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
             KeyGroupRange keyGroupRange,
             long size,
             long incrementalSize,
+            String storageIdentifier,
             StateHandleID stateHandleID) {
         return new ChangelogStateHandleStreamImpl(
-                handlesAndOffsets, keyGroupRange, size, incrementalSize, stateHandleID);
+                handlesAndOffsets,
+                keyGroupRange,
+                size,
+                incrementalSize,
+                storageIdentifier,
+                stateHandleID);
     }
 
     @Override
@@ -100,11 +112,12 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     @Nullable
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-        KeyGroupRange offsets = keyGroupRange.getIntersection(keyGroupRange);
+        KeyGroupRange offsets = this.keyGroupRange.getIntersection(keyGroupRange);
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(
+                handlesAndOffsets, offsets, 0L, 0L /* unknown */, storageIdentifier);
     }
 
     @Override
@@ -131,6 +144,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     @Override
     public long getCheckpointedSize() {
         return incrementalSize;
+    }
+
+    @Override
+    public String getStorageIdentifier() {
+        return storageIdentifier;
     }
 
     private static SharedStateRegistryKey getKey(StreamStateHandle stateHandle) {

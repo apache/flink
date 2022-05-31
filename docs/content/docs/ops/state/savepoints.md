@@ -27,7 +27,7 @@ under the License.
 
 # Savepoints
 
-## What is a Savepoint? How is a Savepoint different from a Checkpoint?
+## What is a Savepoint?
 
 A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({{< ref "docs/learn-flink/fault_tolerance" >}}). You can use Savepoints to stop-and-resume, fork,
 or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
@@ -37,14 +37,7 @@ image. The meta data file of a Savepoint contains (primarily) pointers to all fi
 In order to allow upgrades between programs and Flink versions, it is important to check out the following section about [assigning IDs to your operators](#assigning-operator-ids).
 {{< /hint >}}
 
-Conceptually, Flink's Savepoints are different from Checkpoints in a similar way that backups are different from recovery logs in traditional database systems. The primary purpose of Checkpoints is to provide a recovery mechanism in case of
-unexpected job failures. A Checkpoint's lifecycle is managed by Flink, i.e. a Checkpoint is created, owned, and deleted by Flink - without user interaction. As a method of recovery and being periodically triggered, two main
-design goals for the Checkpoint implementation are i) being as lightweight to create and ii) being as fast to restore from as possible. Optimizations towards those goals can exploit certain properties, e.g. that the job code
-does not change between the execution attempts. Checkpoints are usually dropped after the job was terminated by the user unless the job is explicitly configured to retain checkpoints upon failure or cancellation.
-
-In contrast to all this, Savepoints are created, owned, and deleted by the user. Their use case  is planned, manual backup and resume. For example, this could be an update of your Flink version, changing your job graph,
-changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore from and focus
-more on portability and flexibility with respect to changes to the job.
+To make proper use of savepoints, it's important to understand the differences between [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) and savepoints which is described in [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
 
 ## Assigning Operator IDs
 
@@ -256,8 +249,8 @@ of checkpoints.
 
 {{< hint info >}}
 **Attention:**
-1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
-take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk-<x>`. Flink does not
+take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk-<x>`. The directory
 of the old job will not be deleted by Flink
 
 2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
@@ -270,7 +263,7 @@ Therefore, it is possible Flink leaves an empty savepoints directory if it was r
 
 **LEGACY**
 
-The legacy is mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
+The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
 is that Flink might immediately build an incremental checkpoint on top of the restored one. Therefore,
 subsequent checkpoints depend on the restored checkpoint. Overall, the ownership is not well-defined.

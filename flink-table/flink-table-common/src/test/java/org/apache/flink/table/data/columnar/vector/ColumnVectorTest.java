@@ -30,7 +30,7 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapShortVector;
 import org.apache.flink.table.data.columnar.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
@@ -42,18 +42,15 @@ import static org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVecto
 import static org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVector.INT_ARRAY_OFFSET;
 import static org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVector.LONG_ARRAY_OFFSET;
 import static org.apache.flink.table.data.columnar.vector.heap.AbstractHeapVector.UNSAFE;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link ColumnVector}. */
-public class ColumnVectorTest {
+class ColumnVectorTest {
 
     private static final int SIZE = 10;
 
     @Test
-    public void testNulls() {
+    void testNulls() {
         HeapBooleanVector vector = new HeapBooleanVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -63,117 +60,117 @@ public class ColumnVectorTest {
         }
         for (int i = 0; i < SIZE; i++) {
             if (i % 2 == 0) {
-                assertTrue(vector.isNullAt(i));
+                assertThat(vector.isNullAt(i)).isTrue();
             } else {
-                assertFalse(vector.isNullAt(i));
+                assertThat(vector.isNullAt(i)).isFalse();
             }
         }
 
         vector.fillWithNulls();
         for (int i = 0; i < SIZE; i++) {
-            assertTrue(vector.isNullAt(i));
+            assertThat(vector.isNullAt(i)).isTrue();
         }
 
         vector.reset();
         for (int i = 0; i < SIZE; i++) {
-            assertFalse(vector.isNullAt(i));
+            assertThat(vector.isNullAt(i)).isFalse();
         }
 
         vector.setNulls(0, SIZE / 2);
         for (int i = 0; i < SIZE / 2; i++) {
-            assertTrue(vector.isNullAt(i));
+            assertThat(vector.isNullAt(i)).isTrue();
         }
     }
 
     @Test
-    public void testBoolean() {
+    void testBoolean() {
         HeapBooleanVector vector = new HeapBooleanVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setBoolean(i, i % 2 == 0);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i % 2 == 0, vector.getBoolean(i));
+            assertThat(vector.getBoolean(i)).isEqualTo(i % 2 == 0);
         }
 
         vector.fill(true);
         for (int i = 0; i < SIZE; i++) {
-            assertTrue(vector.getBoolean(i));
+            assertThat(vector.getBoolean(i)).isTrue();
         }
     }
 
     @Test
-    public void testByte() {
+    void testByte() {
         HeapByteVector vector = new HeapByteVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setByte(i, (byte) i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getByte(i));
+            assertThat(vector.getByte(i)).isEqualTo((byte) i);
         }
 
         vector.fill((byte) 22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getByte(i));
+            assertThat(vector.getByte(i)).isEqualTo((byte) 22);
         }
 
         vector.setDictionary(new TestDictionary(IntStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getByte(i));
+            assertThat(vector.getByte(i)).isEqualTo((byte) i);
         }
     }
 
     @Test
-    public void testShort() {
+    void testShort() {
         HeapShortVector vector = new HeapShortVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setShort(i, (short) i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getShort(i));
+            assertThat(vector.getShort(i)).isEqualTo((short) i);
         }
 
         vector.fill((short) 22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getShort(i));
+            assertThat(vector.getShort(i)).isEqualTo((short) 22);
         }
 
         vector.setDictionary(new TestDictionary(IntStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getShort(i));
+            assertThat(vector.getShort(i)).isEqualTo((short) i);
         }
     }
 
     @Test
-    public void testInt() {
+    void testInt() {
         HeapIntVector vector = new HeapIntVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setInt(i, i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getInt(i));
+            assertThat(vector.getInt(i)).isEqualTo(i);
         }
 
         vector.fill(22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getInt(i));
+            assertThat(vector.getInt(i)).isEqualTo(22);
         }
 
         vector = new HeapIntVector(SIZE);
         vector.setInts(0, SIZE, 22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getInt(i));
+            assertThat(vector.getInt(i)).isEqualTo(22);
         }
 
         vector.setDictionary(new TestDictionary(IntStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getInt(i));
+            assertThat(vector.getInt(i)).isEqualTo(i);
         }
 
         int[] ints = IntStream.range(0, SIZE).toArray();
@@ -182,30 +179,30 @@ public class ColumnVectorTest {
         vector = new HeapIntVector(SIZE);
         vector.setIntsFromBinary(0, SIZE, binary, 0);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getInt(i));
+            assertThat(vector.getInt(i)).isEqualTo(i);
         }
     }
 
     @Test
-    public void testLong() {
+    void testLong() {
         HeapLongVector vector = new HeapLongVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setLong(i, i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getLong(i));
+            assertThat(vector.getLong(i)).isEqualTo(i);
         }
 
         vector.fill(22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getLong(i));
+            assertThat(vector.getLong(i)).isEqualTo(22);
         }
 
         vector.setDictionary(new TestDictionary(LongStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getLong(i));
+            assertThat(vector.getLong(i)).isEqualTo(i);
         }
 
         long[] longs = LongStream.range(0, SIZE).toArray();
@@ -214,24 +211,24 @@ public class ColumnVectorTest {
         vector = new HeapLongVector(SIZE);
         vector.setLongsFromBinary(0, SIZE, binary, 0);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getLong(i));
+            assertThat(vector.getLong(i)).isEqualTo(i);
         }
     }
 
     @Test
-    public void testFloat() {
+    void testFloat() {
         HeapFloatVector vector = new HeapFloatVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setFloat(i, i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getFloat(i), 0);
+            assertThat(vector.getFloat(i)).isEqualTo(i);
         }
 
         vector.fill(22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getFloat(i), 0);
+            assertThat(vector.getFloat(i)).isEqualTo(22);
         }
 
         vector.setDictionary(
@@ -239,7 +236,7 @@ public class ColumnVectorTest {
                         LongStream.range(0, SIZE).boxed().map(Number::floatValue).toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getFloat(i), 0);
+            assertThat(vector.getFloat(i)).isEqualTo(i);
         }
 
         float[] floats = new float[SIZE];
@@ -251,24 +248,24 @@ public class ColumnVectorTest {
         vector = new HeapFloatVector(SIZE);
         vector.setFloatsFromBinary(0, SIZE, binary, 0);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getFloat(i), 0);
+            assertThat(vector.getFloat(i)).isEqualTo(i);
         }
     }
 
     @Test
-    public void testDouble() {
+    void testDouble() {
         HeapDoubleVector vector = new HeapDoubleVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setDouble(i, i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getDouble(i), 0);
+            assertThat(vector.getDouble(i)).isEqualTo(i);
         }
 
         vector.fill(22);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(22, vector.getDouble(i), 0);
+            assertThat(vector.getDouble(i)).isEqualTo(22);
         }
 
         vector.setDictionary(
@@ -276,7 +273,7 @@ public class ColumnVectorTest {
                         LongStream.range(0, SIZE).boxed().map(Number::doubleValue).toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getDouble(i), 0);
+            assertThat(vector.getDouble(i)).isEqualTo(i);
         }
 
         double[] doubles =
@@ -286,7 +283,7 @@ public class ColumnVectorTest {
         vector = new HeapDoubleVector(SIZE);
         vector.setDoublesFromBinary(0, SIZE, binary, 0);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(i, vector.getDouble(i), 0);
+            assertThat(vector.getDouble(i)).isEqualTo(i);
         }
     }
 
@@ -295,7 +292,7 @@ public class ColumnVectorTest {
     }
 
     @Test
-    public void testBytes() {
+    void testBytes() {
         HeapBytesVector vector = new HeapBytesVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
@@ -303,7 +300,7 @@ public class ColumnVectorTest {
             vector.appendBytes(i, bytes, 0, bytes.length);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertArrayEquals(produceBytes(i), vector.getBytes(i).getBytes());
+            assertThat(vector.getBytes(i).getBytes()).isEqualTo(produceBytes(i));
         }
         vector.reset();
         for (int i = 0; i < SIZE; i++) {
@@ -311,12 +308,12 @@ public class ColumnVectorTest {
             vector.appendBytes(i, bytes, 0, bytes.length);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertArrayEquals(produceBytes(i), vector.getBytes(i).getBytes());
+            assertThat(vector.getBytes(i).getBytes()).isEqualTo(produceBytes(i));
         }
 
         vector.fill(produceBytes(22));
         for (int i = 0; i < SIZE; i++) {
-            assertArrayEquals(produceBytes(22), vector.getBytes(i).getBytes());
+            assertThat(vector.getBytes(i).getBytes()).isEqualTo(produceBytes(22));
         }
 
         vector.setDictionary(
@@ -324,24 +321,24 @@ public class ColumnVectorTest {
                         IntStream.range(0, SIZE).mapToObj(this::produceBytes).toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertArrayEquals(produceBytes(i), vector.getBytes(i).getBytes());
+            assertThat(vector.getBytes(i).getBytes()).isEqualTo(produceBytes(i));
         }
     }
 
     @Test
-    public void testTimestamp() {
+    void testTimestamp() {
         HeapTimestampVector vector = new HeapTimestampVector(SIZE);
 
         for (int i = 0; i < SIZE; i++) {
             vector.setTimestamp(i, TimestampData.fromEpochMillis(i, i));
         }
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(TimestampData.fromEpochMillis(i, i), vector.getTimestamp(i, 9));
+            assertThat(vector.getTimestamp(i, 9)).isEqualTo(TimestampData.fromEpochMillis(i, i));
         }
 
         vector.fill(TimestampData.fromEpochMillis(22, 22));
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(TimestampData.fromEpochMillis(22, 22), vector.getTimestamp(i, 9));
+            assertThat(vector.getTimestamp(i, 9)).isEqualTo(TimestampData.fromEpochMillis(22, 22));
         }
 
         vector.setDictionary(
@@ -351,16 +348,16 @@ public class ColumnVectorTest {
                                 .toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertEquals(TimestampData.fromEpochMillis(i, i), vector.getTimestamp(i, 9));
+            assertThat(vector.getTimestamp(i, 9)).isEqualTo(TimestampData.fromEpochMillis(i, i));
         }
     }
 
     @Test
-    public void testReserveDictIds() {
+    void testReserveDictIds() {
         HeapIntVector vector = new HeapIntVector(SIZE);
-        assertTrue(vector.reserveDictionaryIds(2).vector.length >= 2);
-        assertTrue(vector.reserveDictionaryIds(5).vector.length >= 5);
-        assertTrue(vector.reserveDictionaryIds(2).vector.length >= 2);
+        assertThat(vector.reserveDictionaryIds(2).vector.length).isGreaterThanOrEqualTo(2);
+        assertThat(vector.reserveDictionaryIds(5).vector.length).isGreaterThanOrEqualTo(5);
+        assertThat(vector.reserveDictionaryIds(2).vector.length).isGreaterThanOrEqualTo(2);
     }
 
     private void setRangeDictIds(WritableColumnVector vector) {

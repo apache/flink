@@ -27,7 +27,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
@@ -49,14 +48,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SqlClient}. */
 public class SqlClientTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -94,36 +90,36 @@ public class SqlClientTest {
     public void testEmbeddedWithOptions() throws Exception {
         String[] args = new String[] {"embedded", "-hist", historyPath};
         String actual = runSqlClient(args);
-        assertThat(actual, containsString("Command history file path: " + historyPath));
+        assertThat(actual).contains("Command history file path: " + historyPath);
     }
 
     @Test
     public void testEmbeddedWithLongOptions() throws Exception {
         String[] args = new String[] {"embedded", "--history", historyPath};
         String actual = runSqlClient(args);
-        assertThat(actual, containsString("Command history file path: " + historyPath));
+        assertThat(actual).contains("Command history file path: " + historyPath);
     }
 
     @Test
     public void testEmbeddedWithoutOptions() throws Exception {
         String[] args = new String[] {"embedded"};
         String actual = runSqlClient(args);
-        assertThat(actual, containsString("Command history file path: "));
+        assertThat(actual).contains("Command history file path: ");
     }
 
     @Test
     public void testEmptyOptions() throws Exception {
         String[] args = new String[] {};
         String actual = runSqlClient(args);
-        assertThat(actual, containsString("Command history file path"));
+        assertThat(actual).contains("Command history file path");
     }
 
     @Test
     public void testUnsupportedGatewayMode() {
         String[] args = new String[] {"gateway"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("Gateway mode is not supported yet.");
-        SqlClient.main(args);
+        assertThatThrownBy(() -> SqlClient.main(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("Gateway mode is not supported yet.");
     }
 
     @Test
@@ -135,10 +131,9 @@ public class SqlClientTest {
                         + "QUIT;\n";
         String[] args = new String[] {};
         String output = runSqlClient(args, stmts);
-        assertThat(
-                output,
-                containsString(
-                        "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'"));
+        assertThat(output)
+                .contains(
+                        "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'");
 
         // shouldn't contain error stack
         String[] errorStack =
@@ -147,7 +142,7 @@ public class SqlClientTest {
                     "at org.apache.flink.table.factories.FactoryUtil.createDynamicTableSource"
                 };
         for (String stack : errorStack) {
-            assertThat(output, not(containsString(stack)));
+            assertThat(output).doesNotContain(stack);
         }
     }
 
@@ -168,7 +163,7 @@ public class SqlClientTest {
                     "at org.apache.flink.table.factories.FactoryUtil.createDynamicTableSource"
                 };
         for (String error : errors) {
-            assertThat(output, containsString(error));
+            assertThat(output).contains(error);
         }
     }
 
@@ -188,7 +183,7 @@ public class SqlClientTest {
 
         String[] args = new String[] {"-i", initFile};
         String output = runSqlClient(args, "SET;\nQUIT;\n");
-        assertThat(output, containsString("'key' = 'value'"));
+        assertThat(output).contains("'key' = 'value'");
     }
 
     @Test
@@ -201,16 +196,16 @@ public class SqlClientTest {
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
 
         for (String command : help.split("\n")) {
-            assertThat(output, containsString(command));
+            assertThat(output).contains(command);
         }
     }
 
     @Test
-    public void testExecuteSqlWithHDFSFile() throws Exception {
+    public void testExecuteSqlWithHDFSFile() {
         String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
-        thrown.expect(SqlClientException.class);
-        thrown.expectMessage("SQL Client only supports to load files in local.");
-        runSqlClient(args);
+        assertThatThrownBy(() -> runSqlClient(args))
+                .isInstanceOf(SqlClientException.class)
+                .hasMessage("SQL Client only supports to load files in local.");
     }
 
     private String runSqlClient(String[] args) throws Exception {

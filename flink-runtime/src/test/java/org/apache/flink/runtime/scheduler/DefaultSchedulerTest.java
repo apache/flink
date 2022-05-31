@@ -107,6 +107,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -128,6 +129,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
@@ -369,7 +371,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
         final TaskExecutionState taskExecutionState =
-                createFailedTaskExecutionState(new ExecutionAttemptID());
+                createFailedTaskExecutionState(createExecutionAttemptId());
 
         assertFalse(scheduler.updateTaskExecutionState(taskExecutionState));
     }
@@ -990,8 +992,7 @@ public class DefaultSchedulerTest extends TestLogger {
                 vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
         final ExecutionAttemptID attemptId2 =
                 vertexIterator.next().getCurrentExecutionAttempt().getAttemptId();
-        final ExecutionVertexID executionVertex2 =
-                scheduler.getExecutionVertexIdOrThrow(attemptId2);
+        final ExecutionVertexID executionVertex2 = attemptId2.getExecutionVertexId();
 
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
@@ -1597,10 +1598,11 @@ public class DefaultSchedulerTest extends TestLogger {
                         final JobGraph jobGraph = singleJobVertexJobGraph(1);
                         enableCheckpointing(jobGraph);
                         try {
-                            return SchedulerTestingUtils.newSchedulerBuilder(
+                            return new SchedulerTestingUtils.DefaultSchedulerBuilder(
                                             jobGraph,
                                             ComponentMainThreadExecutorServiceAdapter
-                                                    .forSingleThreadExecutor(executorService))
+                                                    .forSingleThreadExecutor(executorService),
+                                            executorService)
                                     .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
                                     .setCheckpointCleaner(checkpointCleaner)
                                     .build();
@@ -1608,7 +1610,8 @@ public class DefaultSchedulerTest extends TestLogger {
                             throw new RuntimeException(e);
                         }
                     },
-                    executorService);
+                    executorService,
+                    log);
         } finally {
             executorService.shutdownNow();
         }
@@ -1620,7 +1623,8 @@ public class DefaultSchedulerTest extends TestLogger {
      */
     public static void doTestCheckpointCleanerIsClosedAfterCheckpointServices(
             BiFunction<CheckpointRecoveryFactory, CheckpointsCleaner, SchedulerNG> schedulerFactory,
-            ScheduledExecutorService executorService)
+            ScheduledExecutorService executorService,
+            Logger logger)
             throws Exception {
         final CountDownLatch checkpointServicesShutdownBlocked = new CountDownLatch(1);
         final CountDownLatch cleanerClosed = new CountDownLatch(1);
@@ -1638,9 +1642,17 @@ public class DefaultSchedulerTest extends TestLogger {
                 new StandaloneCheckpointIDCounter() {
 
                     @Override
-                    public void shutdown(JobStatus jobStatus) throws Exception {
-                        checkpointServicesShutdownBlocked.await();
-                        super.shutdown(jobStatus);
+                    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+                        try {
+                            checkpointServicesShutdownBlocked.await();
+                        } catch (InterruptedException e) {
+                            logger.error(
+                                    "An error occurred while executing waiting for the CheckpointServices shutdown.",
+                                    e);
+                            Thread.currentThread().interrupt();
+                        }
+
+                        return super.shutdown(jobStatus);
                     }
                 };
         final CheckpointsCleaner checkpointsCleaner =
@@ -1834,12 +1846,14 @@ public class DefaultSchedulerTest extends TestLogger {
     private SchedulerTestingUtils.DefaultSchedulerBuilder createSchedulerBuilder(
             final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+        return new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                        jobGraph,
+                        mainThreadExecutor,
+                        executor,
+                        scheduledExecutorService,
+                        taskRestartExecutor)
                 .setLogger(log)
-                .setIoExecutor(executor)
                 .setJobMasterConfiguration(configuration)
-                .setFutureExecutor(scheduledExecutorService)
-                .setDelayExecutor(taskRestartExecutor)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
                 .setFailoverStrategyFactory(new RestartPipelinedRegionFailoverStrategy.Factory())
                 .setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)

@@ -104,7 +104,8 @@ public class SchedulerBenchmarkUtils {
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
         final DefaultScheduler scheduler =
-                SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                SchedulerTestingUtils.createSchedulerBuilder(
+                                jobGraph, mainThreadExecutor, scheduledExecutorService)
                         .setIoExecutor(scheduledExecutorService)
                         .setFutureExecutor(scheduledExecutorService)
                         .setDelayExecutor(
@@ -117,18 +118,14 @@ public class SchedulerBenchmarkUtils {
     public static void deployTasks(
             ExecutionGraph executionGraph,
             JobVertexID jobVertexID,
-            TestingLogicalSlotBuilder slotBuilder,
-            boolean sendScheduleOrUpdateConsumersMessage)
+            TestingLogicalSlotBuilder slotBuilder)
             throws JobException, ExecutionException, InterruptedException {
 
         for (ExecutionVertex vertex : executionGraph.getJobVertex(jobVertexID).getTaskVertices()) {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
             Execution execution = vertex.getCurrentExecutionAttempt();
             execution.transitionState(ExecutionState.SCHEDULED);
-            execution
-                    .registerProducedPartitions(
-                            slot.getTaskManagerLocation(), sendScheduleOrUpdateConsumersMessage)
-                    .get();
+            execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
             assignResourceAndDeploy(vertex, slot);
         }
     }
@@ -141,7 +138,7 @@ public class SchedulerBenchmarkUtils {
             LogicalSlot slot = slotBuilder.createTestingLogicalSlot();
             Execution execution = vertex.getCurrentExecutionAttempt();
             execution.transitionState(ExecutionState.SCHEDULED);
-            execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
+            execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
             assignResourceAndDeploy(vertex, slot);
         }
     }

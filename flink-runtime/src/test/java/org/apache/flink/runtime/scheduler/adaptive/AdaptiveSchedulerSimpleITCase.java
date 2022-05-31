@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -46,7 +45,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
 import static org.junit.Assert.assertTrue;
 
@@ -128,9 +126,7 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
         // wait until we are in RESTARTING state
         CommonTestUtils.waitUntilCondition(
-                () -> miniCluster.getJobStatus(jobGraph.getJobID()).get() == JobStatus.RESTARTING,
-                Deadline.fromNow(Duration.of(timeInRestartingState, ChronoUnit.MILLIS)),
-                5);
+                () -> miniCluster.getJobStatus(jobGraph.getJobID()).get() == JobStatus.RESTARTING);
 
         // now cancel while in RESTARTING state
         miniCluster.cancelJob(jobGraph.getJobID()).get();

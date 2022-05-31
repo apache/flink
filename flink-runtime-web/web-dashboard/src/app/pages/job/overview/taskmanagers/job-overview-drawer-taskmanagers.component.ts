@@ -20,10 +20,11 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
+import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
-import { VertexTaskManagerDetail } from 'interfaces';
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(
   selector: (item: VertexTaskManagerDetail) => number | string
@@ -56,13 +57,18 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
-    this.jobService.jobWithVertex$
+    this.jobLocalService
+      .jobWithVertexChanges()
       .pipe(
-        takeUntil(this.destroy$),
-        mergeMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadTaskManagers(data.job.jid, data.vertex!.id)),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {

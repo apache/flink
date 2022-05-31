@@ -119,9 +119,9 @@
 
 		<!-- Python -->
 		<file>
-			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-python/target/flink-python-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
-			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-python-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

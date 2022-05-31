@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
@@ -27,8 +26,8 @@ import org.junit.Test
 class SortLimitTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  util
+    .addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
   def testSortProcessingTimeAscWithOffSet0AndLimit1(): Unit = {
@@ -78,7 +77,8 @@ class SortLimitTest extends TableTestBase {
   @Test
   def testOrderByLimit(): Unit = {
     util.verifyRelPlan(
-      "SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10", ExplainDetail.CHANGELOG_MODE)
+      "SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10",
+      ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

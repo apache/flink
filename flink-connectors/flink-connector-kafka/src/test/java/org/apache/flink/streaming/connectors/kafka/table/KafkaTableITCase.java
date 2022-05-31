@@ -24,7 +24,9 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
@@ -44,7 +46,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -58,6 +59,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUt
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -299,28 +302,19 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  %s\n"
                                 + ")",
                         topic, bootstraps, groupId, formatOptions());
-
         tEnv.executeSql(createTable);
 
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
+                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE01'], TRUE),\n"
                         + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
-                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
+                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'102030', 'k2', X'203040'], TRUE)";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
 
         final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
-
-        final Map<String, byte[]> headers1 = new HashMap<>();
-        headers1.put("k1", new byte[] {(byte) 0xC0, (byte) 0xFF, (byte) 0xEE});
-        headers1.put("k2", new byte[] {(byte) 0xBA, (byte) 0xBE});
-
-        final Map<String, byte[]> headers3 = new HashMap<>();
-        headers3.put("k1", new byte[] {(byte) 0x10});
-        headers3.put("k2", new byte[] {(byte) 0x20});
 
         final List<Row> expected =
                 Arrays.asList(
@@ -330,7 +324,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "CreateTime",
                                 LocalDateTime.parse("2020-03-08T13:12:11.123"),
                                 0,
-                                headers1,
+                                map(
+                                        entry("k1", EncodingUtils.decodeHex("C0FFEE")),
+                                        entry("k2", EncodingUtils.decodeHex("BABE01"))),
                                 0,
                                 topic,
                                 true),
@@ -350,7 +346,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "CreateTime",
                                 LocalDateTime.parse("2020-03-10T13:12:11.123"),
                                 0,
-                                headers3,
+                                map(
+                                        entry("k1", EncodingUtils.decodeHex("102030")),
+                                        entry("k2", EncodingUtils.decodeHex("203040"))),
                                 0,
                                 topic,
                                 true));
@@ -527,7 +525,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // 'value.source.timestamp'` DDL
         // will use the session time zone when convert the changelog time from milliseconds to
         // timestamp
-        tEnv.getConfig().getConfiguration().setString("table.local-time-zone", "UTC");
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
@@ -763,9 +761,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // ---------- Produce an event time stream into Kafka -------------------
         String groupId = getStandardProps().getProperty("group.id");
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTable =
                 String.format(
@@ -881,9 +877,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Produce an event time stream into Kafka -------------------
         String bootstraps = getBootstrapServers();
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+        tEnv.getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
 
         final String createTableSql =
                 "CREATE TABLE %s (\n"

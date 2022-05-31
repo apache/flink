@@ -23,17 +23,17 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.testutils.ClassLoaderUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.Serializable;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A test that verifies that the {@link JavaSerializer} properly handles class loading. */
-public class JavaSerializerTest extends SerializerTestBase<Serializable> {
+class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
     /** Class loader and object that is not in the test class path. */
     private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
@@ -43,13 +43,13 @@ public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
     private ClassLoader originalClassLoader;
 
-    @Before
+    @BeforeEach
     public void setupClassLoader() {
         originalClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(OUTSIDE_CLASS_LOADING.getClassLoader());
     }
 
-    @After
+    @AfterEach
     public void restoreOriginalClassLoader() {
         Thread.currentThread().setContextClassLoader(originalClassLoader);
     }
@@ -57,15 +57,12 @@ public class JavaSerializerTest extends SerializerTestBase<Serializable> {
     // ------------------------------------------------------------------------
 
     @Test
-    public void guardTest() {
-        // make sure that this test's assumptions hold
-        try {
-            Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName());
-            fail(
-                    "Test ineffective: The test class that should not be on the classpath is actually on the classpath.");
-        } catch (ClassNotFoundException e) {
-            // expected
-        }
+    void guardTest() {
+        assertThatThrownBy(
+                        () -> Class.forName(OUTSIDE_CLASS_LOADING.getObject().getClass().getName()))
+                .isInstanceOf(ClassNotFoundException.class)
+                .withFailMessage(
+                        "Test ineffective: The test class that should not be on the classpath is actually on the classpath.");
     }
 
     // ------------------------------------------------------------------------

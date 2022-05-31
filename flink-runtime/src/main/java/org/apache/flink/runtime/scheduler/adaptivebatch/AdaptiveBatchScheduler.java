@@ -223,8 +223,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
 
     private void changeJobVertexParallelism(ExecutionJobVertex jobVertex, int parallelism) {
         // update the JSON Plan, it's needed to enable REST APIs to return the latest parallelism of
-        // job
-        // vertices
+        // job vertices
         jobVertex.getJobVertex().setParallelism(parallelism);
         try {
             getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));

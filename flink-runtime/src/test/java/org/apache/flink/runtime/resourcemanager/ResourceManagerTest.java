@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -128,7 +129,7 @@ public class ResourceManagerTest extends TestLogger {
     @After
     public void after() throws Exception {
         if (resourceManager != null) {
-            RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
+            RpcUtils.terminateRpcEndpoint(resourceManager);
         }
 
         if (highAvailabilityServices != null) {
@@ -147,7 +148,7 @@ public class ResourceManagerTest extends TestLogger {
     @AfterClass
     public static void tearDownClass() throws Exception {
         if (rpcService != null) {
-            RpcUtils.terminateRpcServices(TIMEOUT, rpcService);
+            RpcUtils.terminateRpcService(rpcService);
         }
     }
 
@@ -639,8 +640,7 @@ public class ResourceManagerTest extends TestLogger {
 
             if (slotManager == null) {
                 slotManager =
-                        DeclarativeSlotManagerBuilder.newBuilder()
-                                .setScheduledExecutor(rpcService.getScheduledExecutor())
+                        DeclarativeSlotManagerBuilder.newBuilder(rpcService.getScheduledExecutor())
                                 .build();
             }
 
@@ -655,6 +655,7 @@ public class ResourceManagerTest extends TestLogger {
                             resourceManagerId.toUUID(),
                             resourceManagerResourceId,
                             heartbeatServices,
+                            new NoOpDelegationTokenManager(),
                             slotManager,
                             NoOpResourceManagerPartitionTracker::get,
                             jobLeaderIdService,
