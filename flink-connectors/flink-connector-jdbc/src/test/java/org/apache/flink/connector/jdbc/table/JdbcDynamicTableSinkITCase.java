@@ -312,6 +312,48 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
     }
 
     @Test
+    public void testSqlHintWithTargetColumns() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableObjectReuse();
+        env.getConfig().setParallelism(1);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        Table t =
+                tEnv.fromDataStream(
+                        get4TupleDataStream(env), $("id"), $("num"), $("text"), $("ts"));
+
+        tEnv.registerTable("T", t);
+
+        tEnv.executeSql(
+                "CREATE TABLE upsertSink ("
+                        + "  id INT,"
+                        + "  num BIGINT,"
+                        + "  ts TIMESTAMP(3)"
+                        + ") WITH ("
+                        + "  'connector'='jdbc',"
+                        + "  'url'='"
+                        + DB_URL
+                        + "',"
+                        + "  'table-name'='"
+                        + OUTPUT_TABLE2
+                        + "'"
+                        + ")");
+
+        tEnv.executeSql(
+                        "INSERT INTO upsertSink /*+ OPTIONS('lookup.max-retries'='3') */(id, num, ts) SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)")
+                .await();
+        check(
+                new Row[] {
+                    Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
+                    Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
+                    Row.of(20, 6, Timestamp.valueOf("1970-01-01 00:00:00.02"))
+                },
+                DB_URL,
+                OUTPUT_TABLE2,
+                new String[] {"id", "num", "ts"});
+    }
+
+    @Test
     public void testBatchSink() throws Exception {
         TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
