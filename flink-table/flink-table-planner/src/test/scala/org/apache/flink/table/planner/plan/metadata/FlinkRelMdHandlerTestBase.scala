@@ -310,6 +310,9 @@ class FlinkRelMdHandlerTestBase {
     relBuilder.watermark(4, watermarkRexNode).build()
   }
 
+  protected lazy val streamMiniBatchAssigner: RelNode =
+    new StreamPhysicalMiniBatchAssigner(cluster, streamPhysicalTraits, studentStreamScan)
+
   // id, name, score, age, height, sex, class, 1
   // id, null, score, age, height, sex, class, 4
   // id, null, score, age, height, null, class, 5
