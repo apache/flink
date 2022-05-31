@@ -180,7 +180,8 @@ public class ChannelPersistenceITCase {
                                                 numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
                                                 numberOfSubpartitions,
-                                                Integer.MAX_VALUE))
+                                                Integer.MAX_VALUE,
+                                                0))
                         .build();
         resultPartition.setup();
         return (BufferWritingResultPartition) resultPartition;

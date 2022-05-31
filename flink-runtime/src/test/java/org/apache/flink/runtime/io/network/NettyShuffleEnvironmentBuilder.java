@@ -68,6 +68,8 @@ public class NettyShuffleEnvironmentBuilder {
 
     private boolean connectionReuseEnabled = true;
 
+    private int maxOverdraftBuffersPerGate = 0;
+
     private String compressionCodec = "LZ4";
 
     private ResourceID taskManagerLocation = ResourceID.generate();
@@ -158,6 +160,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setMaxOverdraftBuffersPerGate(
+            int maxOverdraftBuffersPerGate) {
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
         this.compressionCodec = compressionCodec;
         return this;
@@ -217,7 +225,8 @@ public class NettyShuffleEnvironmentBuilder {
                         sortShuffleMinParallelism,
                         debloatConfiguration,
                         maxNumberOfConnections,
-                        connectionReuseEnabled),
+                        connectionReuseEnabled,
+                        maxOverdraftBuffersPerGate),
                 taskManagerLocation,
                 new TaskEventDispatcher(),
                 resultPartitionManager,

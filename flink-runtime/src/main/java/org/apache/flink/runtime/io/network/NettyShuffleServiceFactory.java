@@ -198,7 +198,8 @@ public class NettyShuffleServiceFactory
                         config.getMaxBuffersPerChannel(),
                         config.sortShuffleMinBuffers(),
                         config.sortShuffleMinParallelism(),
-                        config.isSSLEnabled());
+                        config.isSSLEnabled(),
+                        config.getMaxOverdraftBuffersPerGate());
 
         SingleInputGateFactory singleInputGateFactory =
                 new SingleInputGateFactory(

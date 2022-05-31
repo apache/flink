@@ -75,6 +75,8 @@ public class ResultPartitionFactory {
 
     private final boolean sslEnabled;
 
+    private final int maxOverdraftBuffersPerGate;
+
     public ResultPartitionFactory(
             ResultPartitionManager partitionManager,
             FileChannelManager channelManager,
@@ -90,7 +92,8 @@ public class ResultPartitionFactory {
             int maxBuffersPerChannel,
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,
-            boolean sslEnabled) {
+            boolean sslEnabled,
+            int maxOverdraftBuffersPerGate) {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
@@ -107,6 +110,7 @@ public class ResultPartitionFactory {
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.sslEnabled = sslEnabled;
+        this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
     }
 
     public ResultPartition create(
@@ -278,7 +282,11 @@ public class ResultPartitionFactory {
                             type);
 
             return bufferPoolFactory.createBufferPool(
-                    pair.getLeft(), pair.getRight(), numberOfSubpartitions, maxBuffersPerChannel);
+                    pair.getLeft(),
+                    pair.getRight(),
+                    numberOfSubpartitions,
+                    maxBuffersPerChannel,
+                    maxOverdraftBuffersPerGate);
         };
     }
 
