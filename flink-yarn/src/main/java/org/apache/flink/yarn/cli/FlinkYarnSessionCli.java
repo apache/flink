@@ -611,10 +611,12 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                     yarnApplicationId = clusterClient.getClusterId();
 
                     try {
+                        // Other threads use the Yarn properties file to connect to the YARN session
+                        writeYarnPropertiesFile(yarnApplicationId, dynamicPropertiesEncoded);
+
+                        // Multiple tests match on the following output
                         System.out.println(
                                 "JobManager Web Interface: " + clusterClient.getWebInterfaceURL());
-
-                        writeYarnPropertiesFile(yarnApplicationId, dynamicPropertiesEncoded);
                     } catch (Exception e) {
                         try {
                             clusterClient.close();
