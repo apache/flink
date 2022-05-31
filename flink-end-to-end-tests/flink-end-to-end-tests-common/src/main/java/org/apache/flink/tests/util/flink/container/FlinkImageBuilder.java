@@ -58,7 +58,7 @@ public class FlinkImageBuilder {
     private final Properties logProperties = new Properties();
 
     private Path tempDirectory;
-    private String imageName = DEFAULT_IMAGE_NAME_BUILD_PREFIX;
+    private String imageNamePrefix = DEFAULT_IMAGE_NAME_BUILD_PREFIX;
     private String imageNameSuffix;
     private Path flinkDist;
     private String javaVersion;
@@ -91,12 +91,12 @@ public class FlinkImageBuilder {
     }
 
     /**
-     * Sets the name of building image.
+     * Sets the prefix name of building image.
      *
      * <p>If the name is not specified, {@link #DEFAULT_IMAGE_NAME_BUILD_PREFIX} will be used.
      */
-    public FlinkImageBuilder setImageName(String imageName) {
-        this.imageName = imageName;
+    public FlinkImageBuilder setImageNamePrefix(String imageNamePrefix) {
+        this.imageNamePrefix = imageNamePrefix;
         return this;
     }
 
@@ -195,7 +195,7 @@ public class FlinkImageBuilder {
     /** Build the image. */
     public ImageFromDockerfile build() throws ImageBuildException {
         sanityCheck();
-        final String finalImageName = imageName + "-" + imageNameSuffix;
+        final String finalImageName = imageNamePrefix + "-" + imageNameSuffix;
         try {
             if (baseImage == null) {
                 baseImage = FLINK_BASE_IMAGE_BUILD_NAME;

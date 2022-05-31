@@ -76,6 +76,7 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
                                         .numTaskManagers(numTaskManagers)
                                         .numSlotsPerTaskManager(numSlotsPerTaskManager)
                                         .enableZookeeperHA()
+                                        .jarPaths(jarPaths)
                                         .build())
                         .setLogger(LOG)
                         .build();
