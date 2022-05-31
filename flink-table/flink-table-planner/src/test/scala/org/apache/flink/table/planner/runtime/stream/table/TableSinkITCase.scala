@@ -87,6 +87,33 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  def testInsertWithTargetColumnsAndSqlHint(): Unit = {
+    val t = env
+      .fromCollection(smallTupleData3)
+      .toTable(tEnv, 'id, 'num, 'text)
+    tEnv.createTemporaryView("src", t)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE appendSink (
+                       |  `t` INT,
+                       |  `num` BIGINT,
+                       |  `text` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'true'
+                       |)
+                       |""".stripMargin)
+    tEnv
+      .executeSql(
+        "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */(t, num, text) SELECT id, num, text FROM src")
+      .await()
+
+    val result = TestValuesTableFactory.getResults("appendSink")
+    val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
   def testAppendSinkWithNestedRow(): Unit = {
     val t = env
       .fromCollection(smallTupleData3)
