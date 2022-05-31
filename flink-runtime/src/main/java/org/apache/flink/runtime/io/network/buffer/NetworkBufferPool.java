@@ -448,7 +448,8 @@ public class NetworkBufferPool
     @Override
     public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers)
             throws IOException {
-        return internalCreateBufferPool(numRequiredBuffers, maxUsedBuffers, 0, Integer.MAX_VALUE);
+        return internalCreateBufferPool(
+                numRequiredBuffers, maxUsedBuffers, 0, Integer.MAX_VALUE, 0);
     }
 
     @Override
@@ -456,17 +457,23 @@ public class NetworkBufferPool
             int numRequiredBuffers,
             int maxUsedBuffers,
             int numSubpartitions,
-            int maxBuffersPerChannel)
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate)
             throws IOException {
         return internalCreateBufferPool(
-                numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);
+                numRequiredBuffers,
+                maxUsedBuffers,
+                numSubpartitions,
+                maxBuffersPerChannel,
+                maxOverdraftBuffersPerGate);
     }
 
     private BufferPool internalCreateBufferPool(
             int numRequiredBuffers,
             int maxUsedBuffers,
             int numSubpartitions,
-            int maxBuffersPerChannel)
+            int maxBuffersPerChannel,
+            int maxOverdraftBuffersPerGate)
             throws IOException {
 
         // It is necessary to use a separate lock from the one used for buffer
@@ -498,7 +505,8 @@ public class NetworkBufferPool
                             numRequiredBuffers,
                             maxUsedBuffers,
                             numSubpartitions,
-                            maxBuffersPerChannel);
+                            maxBuffersPerChannel,
+                            maxOverdraftBuffersPerGate);
 
             allBufferPools.add(localBufferPool);
 
