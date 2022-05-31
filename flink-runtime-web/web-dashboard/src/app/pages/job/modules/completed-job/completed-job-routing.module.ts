@@ -23,6 +23,8 @@ import { JobCheckpointsComponent } from '@flink-runtime-web/pages/job/checkpoint
 import { JobConfigurationComponent } from '@flink-runtime-web/pages/job/configuration/job-configuration.component';
 import { JobExceptionsComponent } from '@flink-runtime-web/pages/job/exceptions/job-exceptions.component';
 import { JobDetailComponent } from '@flink-runtime-web/pages/job/job-detail/job-detail.component';
+import { ClusterConfigGuard } from '@flink-runtime-web/pages/job/modules/completed-job/cluster-config.guard';
+import { ClusterConfigComponent } from '@flink-runtime-web/pages/job/modules/completed-job/cluster-config/cluster-config.component';
 import { JobTimelineComponent } from '@flink-runtime-web/pages/job/timeline/job-timeline.component';
 
 const routes: Routes = [
@@ -63,6 +65,14 @@ const routes: Routes = [
         component: JobConfigurationComponent,
         data: {
           path: 'configuration'
+        }
+      },
+      {
+        path: 'cluster_configuration',
+        component: ClusterConfigComponent,
+        canActivate: [ClusterConfigGuard],
+        data: {
+          path: 'cluster_configuration'
         }
       },
       { path: '**', redirectTo: 'overview', pathMatch: 'full' }

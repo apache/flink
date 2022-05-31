@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { of, Subject } from 'rxjs';
 import { catchError, map, startWith, takeUntil } from 'rxjs/operators';
 
-import { JobManagerConfig } from '@flink-runtime-web/interfaces';
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
 import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
@@ -47,7 +47,7 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
     this.jobManagerService
       .loadConfig()
       .pipe(
-        catchError(() => of([] as JobManagerConfig[])),
+        catchError(() => of([] as ClusterConfiguration[])),
         takeUntil(this.destroy$)
       )
       .subscribe(data => {

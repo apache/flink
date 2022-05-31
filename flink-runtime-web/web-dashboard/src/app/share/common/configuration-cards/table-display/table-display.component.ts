@@ -15,11 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "theme";
 
-:host {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  overflow: auto;
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+
+import { ClusterConfiguration } from '@flink-runtime-web/interfaces';
+
+@Component({
+  selector: 'flink-table-display',
+  templateUrl: './table-display.component.html',
+  styleUrls: ['./table-display.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TableDisplayComponent {
+  @Input() listOfData: Array<{ key: string; value: string }> = [];
+
+  readonly trackByKey = (_: number, node: ClusterConfiguration): string => node.key;
+
+  constructor() {}
 }

@@ -15,11 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @import "theme";
 
 :host {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  overflow: auto;
+  nz-card {
+    margin: @margin-lg;
+  }
+
+  td {
+    font-size: @font-size-sm;
+  }
+
+  .empty {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+  }
+
+  ::ng-deep {
+    .ant-collapse > .ant-collapse-item > .ant-collapse-header {
+      padding: 0 @padding-md;
+    }
+  }
 }

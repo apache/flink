@@ -19,15 +19,23 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 
+import { JOB_MODULE_CONFIG, JOB_MODULE_DEFAULT_CONFIG, JobModuleConfig } from '@flink-runtime-web/pages/job/job.config';
 import { CompletedJobRoutingModule } from '@flink-runtime-web/pages/job/modules/completed-job/completed-job-routing.module';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
+import { StatusService } from '@flink-runtime-web/services';
 import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzPipesModule } from 'ng-zorro-antd/pipes';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzTableModule } from 'ng-zorro-antd/table';
+
+import { ClusterConfigComponent } from './cluster-config/cluster-config.component';
 
 const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (): JobOverviewModuleConfig => {
   return {
@@ -39,13 +47,45 @@ const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (): JobOverviewModuleConfig 
   };
 };
 
+const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobModuleConfig => {
+  const isHistoryServer = statusService.configuration.features['web-history'];
+  return {
+    routerTabs: isHistoryServer
+      ? [
+          { title: 'Overview', path: 'overview' },
+          { title: 'Exceptions', path: 'exceptions' },
+          { title: 'TimeLine', path: 'timeline' },
+          { title: 'Checkpoints', path: 'checkpoints' },
+          { title: 'Job Configuration', path: 'configuration' },
+          { title: 'Cluster Configuration', path: 'cluster_configuration' }
+        ]
+      : JOB_MODULE_DEFAULT_CONFIG.routerTabs
+  };
+};
+
 @NgModule({
-  declarations: [],
-  imports: [CommonModule, CompletedJobRoutingModule, ShareModule, NzIconModule, NzSkeletonModule, NzAlertModule],
+  declarations: [ClusterConfigComponent],
+  imports: [
+    CommonModule,
+    CompletedJobRoutingModule,
+    ShareModule,
+    NzIconModule,
+    NzSkeletonModule,
+    NzAlertModule,
+    NzCardModule,
+    NzTableModule,
+    NzEmptyModule,
+    NzPipesModule
+  ],
   providers: [
     {
       provide: JOB_OVERVIEW_MODULE_CONFIG,
       useFactory: OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY
+    },
+    {
+      provide: JOB_MODULE_CONFIG,
+      useFactory: OVERRIDE_JOB_MODULE_CONFIG_FACTORY,
+      deps: [StatusService]
     }
   ]
 })

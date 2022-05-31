@@ -15,11 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @import "theme";
 
 :host {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  overflow: auto;
+  td {
+    width: 50%;
+    font-size: @font-size-sm;
+
+    &.td-value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: pre;
+    }
+  }
 }
