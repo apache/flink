@@ -292,7 +292,7 @@ public class HiveStatsUtil {
                             currentRowsCount,
                             anotherColStat.getAvgLength(),
                             anotherRowsCount);
-            currentRowsCount += anotherRowsCount;
+            currentRowsCount = add(currentRowsCount, anotherRowsCount);
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -349,10 +349,10 @@ public class HiveStatsUtil {
                             currentRowsCount,
                             anotherColStat.getAvgLength(),
                             anotherRowsCount);
-            currentRowsCount += anotherRowsCount;
+            currentRowsCount = add(currentRowsCount, anotherRowsCount);
             // note: currently, we have no way to get ndv according the statistic from every single
-            // partition, so we just sum the ndv, it may be inaccuracy
-            ndv = add(ndv, anotherColStat.getNdv());
+            // partition, so we use max ndx among partitions, which may be inaccuracy
+            ndv = max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -374,8 +374,8 @@ public class HiveStatsUtil {
             min = min(min, anotherColStat.getMin());
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
-            // partition, so we just sum the ndv, it may be inaccuracy
-            ndv = add(ndv, anotherColStat.getNdv());
+            // partition, so we use max ndx among partitions, which may be inaccuracy
+            ndv = max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -397,8 +397,8 @@ public class HiveStatsUtil {
             min = min(min, anotherColStat.getMin());
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
-            // partition, so we just sum the ndv, it may be inaccuracy
-            ndv = add(ndv, anotherColStat.getNdv());
+            // partition, so we use max ndx among partitions, which may be inaccuracy
+            ndv = max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -420,9 +420,8 @@ public class HiveStatsUtil {
             min = min(min, anotherColStat.getMin());
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
-            // partition,
-            // so we just sum the ndv, it may be inaccuracy
-            ndv = add(ndv, anotherColStat.getNdv());
+            // partition, so we use max ndx among partitions, which may be inaccuracy
+            ndv = max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -467,7 +466,7 @@ public class HiveStatsUtil {
                     stringStats.isSetMaxColLen() ? stringStats.getMaxColLen() : null,
                     stringStats.isSetAvgColLen() ? stringStats.getAvgColLen() : null,
                     stringStats.isSetNumDVs() ? stringStats.getNumDVs() : null,
-                    stringStats.isSetNumDVs() ? stringStats.getNumNulls() : null);
+                    stringStats.isSetNumNulls() ? stringStats.getNumNulls() : null);
         } else if (stats.isSetDecimalStats()) {
             DecimalColumnStatsData decimalStats = stats.getDecimalStats();
             // for now, just return CatalogColumnStatisticsDataDouble for decimal columns

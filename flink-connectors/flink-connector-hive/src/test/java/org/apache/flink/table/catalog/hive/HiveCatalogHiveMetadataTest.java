@@ -268,20 +268,20 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 
         columnStatisticsDataBaseMap.put(
-                "first", new CatalogColumnStatisticsDataString(10L, 3.0, 3L, 100L));
+                "first", new CatalogColumnStatisticsDataString(10L, 3.0, 2L, 100L));
         CatalogColumnStatistics catalogColumnStatistics =
                 new CatalogColumnStatistics(columnStatisticsDataBaseMap);
         catalog.alterPartitionColumnStatistics(
                 path1, partition1Spec, catalogColumnStatistics, false);
 
         columnStatisticsDataBaseMap.put(
-                "first", new CatalogColumnStatisticsDataString(0L, 1.0, 3L, 100L));
+                "first", new CatalogColumnStatisticsDataString(0L, 1.0, 4L, 100L));
         catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
         catalog.alterPartitionColumnStatistics(
                 path1, partition2Spec, catalogColumnStatistics, false);
 
-        // we don't set partition statistic, we can't calculate avgLength from all partitions for we
-        // can't know how many rows in each partition
+        // we haven't set partition statistic, so we can't calculate avgLength of all partitions
+        // for we can't know how many rows in each partition
         columnStatisticsDataBaseMap.put(
                 "first", new CatalogColumnStatisticsDataString(10L, 2.0, 6L, 200L));
         catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
@@ -295,7 +295,7 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         // avgLength = (3 * 3 + 1 * 1) / (3 + 1)
         columnStatisticsDataBaseMap.put(
-                "first", new CatalogColumnStatisticsDataString(10L, 2.5, 6L, 200L));
+                "first", new CatalogColumnStatisticsDataString(10L, 2.5, 4L, 200L));
         catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
         checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
     }
