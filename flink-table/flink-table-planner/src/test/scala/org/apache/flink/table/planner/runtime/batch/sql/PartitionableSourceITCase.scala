@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPOR
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TestingTableEnvironment
-import org.apache.flink.table.utils.TestUserClassLoaderJar
+import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
@@ -56,7 +56,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   private def overrideTableEnv(): Unit = {
     val tmpDir: File = TEMPORARY_FOLDER.newFolder()
     val udfJarFile: File =
-      TestUserClassLoaderJar.createJarFile(tmpDir, "flink-test-udf.jar", "TrimUDF", UDF_CLASS)
+      UserClassLoaderJarTestUtils.createJarFile(tmpDir, "flink-test-udf.jar", "TrimUDF", UDF_CLASS)
     val jars: util.List[URL] = util.Collections.singletonList(udfJarFile.toURI.toURL)
     val cl = ClientUtils.buildUserCodeClassLoader(
       jars,

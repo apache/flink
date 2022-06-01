@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution.librarycache;
+package org.apache.flink.util;
 
-import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
-import org.apache.flink.runtime.util.ClassLoaderUtil;
-import org.apache.flink.testutils.ClassLoaderUtils;
-import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
-
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
+import static org.assertj.core.api.Assertions.fail;
 import static org.hamcrest.CoreMatchers.isA;
-import static org.hamcrest.Matchers.hasItemInArray;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -53,52 +46,23 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
-    @Test
-    public void testMessageDecodingWithUnavailableClass() throws Exception {
-        final ClassLoader systemClassLoader = getClass().getClassLoader();
+    public static final String USER_CLASS = "UserClass";
+    public static final String USER_CLASS_CODE =
+            "import java.io.Serializable;\n"
+                    + "public class "
+                    + USER_CLASS
+                    + " implements Serializable {}";
 
-        final String className = "UserClass";
-        final URLClassLoader userClassLoader =
-                ClassLoaderUtils.compileAndLoadJava(
-                        temporaryFolder.newFolder(),
-                        className + ".java",
-                        "import java.io.Serializable;\n"
-                                + "public class "
-                                + className
-                                + " implements Serializable {}");
+    private static File userJar;
 
-        RemoteRpcInvocation method =
-                new RemoteRpcInvocation(
-                        className,
-                        "test",
-                        new Class<?>[] {
-                            int.class, Class.forName(className, false, userClassLoader)
-                        },
-                        new Object[] {
-                            1, Class.forName(className, false, userClassLoader).newInstance()
-                        });
-
-        SerializedValue<RemoteRpcInvocation> serializedMethod = new SerializedValue<>(method);
-
-        expectedException.expect(ClassNotFoundException.class);
-        expectedException.expect(
-                allOf(
-                        isA(ClassNotFoundException.class),
-                        hasProperty(
-                                "suppressed",
-                                hasItemInArray(
-                                        allOf(
-                                                isA(ClassNotFoundException.class),
-                                                hasProperty(
-                                                        "message",
-                                                        containsString(
-                                                                "Could not deserialize 1th parameter type of method test(int, ...).")))))));
-
-        RemoteRpcInvocation deserializedMethod =
-                serializedMethod.deserializeValue(systemClassLoader);
-        deserializedMethod.getMethodName();
-
-        userClassLoader.close();
+    @BeforeClass
+    public static void prepare() throws Exception {
+        userJar =
+                UserClassLoaderJarTestUtils.createJarFile(
+                        temporaryFolder.newFolder("test-jar"),
+                        "test-classloader.jar",
+                        USER_CLASS,
+                        USER_CLASS_CODE);
     }
 
     @Test
@@ -290,6 +254,92 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
         // It will be true only if all the super classes (except class Object) of the caller are
         // registered as parallel capable.
         assertTrue(TestParentFirstClassLoader.isParallelCapable);
+    }
+
+    @Test
+    public void testParentFirstClassLoadingByAddURL() throws Exception {
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader parentClassLoader =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader1 =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createParentFirstClassLoader(childCodePath, parentClassLoader);
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader2 =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createParentFirstClassLoader(childCodePath, parentClassLoader);
+
+        // test class loader before add user jar ulr to ClassLoader
+        assertClassNotFoundException(USER_CLASS, false, parentClassLoader);
+        assertClassNotFoundException(USER_CLASS, false, childClassLoader1);
+        assertClassNotFoundException(USER_CLASS, false, childClassLoader2);
+
+        // only add jar url to parent ClassLoader
+        parentClassLoader.addURL(userJar.toURI().toURL());
+
+        // test class loader after add jar url
+        final Class<?> clazz1 = Class.forName(USER_CLASS, false, parentClassLoader);
+        final Class<?> clazz2 = Class.forName(USER_CLASS, false, childClassLoader1);
+        final Class<?> clazz3 = Class.forName(USER_CLASS, false, childClassLoader2);
+
+        assertEquals(clazz1, clazz2);
+        assertEquals(clazz1, clazz3);
+
+        parentClassLoader.close();
+        childClassLoader1.close();
+        childClassLoader2.close();
+    }
+
+    @Test
+    public void testChildFirstClassLoadingByAddURL() throws Exception {
+
+        // collect the libraries / class folders with RocksDB related code: the state backend and
+        // RocksDB itself
+        final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
+
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader parentClassLoader =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader1 =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader2 =
+                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
+                        createChildFirstClassLoader(childCodePath, parentClassLoader);
+
+        // test class loader before add user jar ulr to ClassLoader
+        assertClassNotFoundException(USER_CLASS, false, parentClassLoader);
+        assertClassNotFoundException(USER_CLASS, false, childClassLoader1);
+        assertClassNotFoundException(USER_CLASS, false, childClassLoader2);
+
+        // only add jar url to child ClassLoader
+        URL userJarURL = userJar.toURI().toURL();
+        childClassLoader1.addURL(userJarURL);
+        childClassLoader2.addURL(userJarURL);
+
+        // test class loader after add jar url
+        assertClassNotFoundException(USER_CLASS, false, parentClassLoader);
+
+        final Class<?> clazz1 = Class.forName(USER_CLASS, false, childClassLoader1);
+        final Class<?> clazz2 = Class.forName(USER_CLASS, false, childClassLoader2);
+
+        assertNotEquals(clazz1, clazz2);
+
+        parentClassLoader.close();
+        childClassLoader1.close();
+        childClassLoader2.close();
+    }
+
+    private void assertClassNotFoundException(
+            String className, boolean initialize, ClassLoader classLoader) {
+        try {
+            Class.forName(className, initialize, classLoader);
+            fail("Should fail.");
+        } catch (ClassNotFoundException e) {
+        }
     }
 
     private static class TestParentFirstClassLoader

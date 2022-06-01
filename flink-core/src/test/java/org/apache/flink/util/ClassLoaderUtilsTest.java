@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
-
-import org.apache.flink.util.IOUtils;
+package org.apache.flink.util;
 
 import org.junit.Test;
 

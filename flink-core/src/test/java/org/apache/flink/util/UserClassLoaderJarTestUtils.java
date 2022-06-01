@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
-
-import org.apache.flink.util.FileUtils;
+package org.apache.flink.util;
 
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -35,7 +33,12 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 /** Mainly used for testing classloading. */
-public class TestUserClassLoaderJar {
+public class UserClassLoaderJarTestUtils {
+
+    /** Private constructor to prevent instantiation. */
+    private UserClassLoaderJarTestUtils() {
+        throw new RuntimeException();
+    }
 
     /** Pack the generated UDF class into a JAR and return the path of the JAR. */
     public static File createJarFile(File tmpDir, String jarName, String className, String javaCode)

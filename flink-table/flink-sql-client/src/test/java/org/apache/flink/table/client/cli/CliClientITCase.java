@@ -28,8 +28,8 @@ import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
@@ -100,7 +100,7 @@ public class CliClientITCase extends AbstractTestBase {
     @BeforeClass
     public static void setup() throws IOException {
         File udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
                         UserDefinedFunctions.GENERATED_UDF_CLASS,

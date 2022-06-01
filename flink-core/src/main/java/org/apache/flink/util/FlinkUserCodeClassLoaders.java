@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution.librarycache;
+package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.util.ChildFirstClassLoader;
-import org.apache.flink.util.FlinkUserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import java.util.Enumeration;
 import java.util.function.Consumer;
 
 /** Gives the URLClassLoader a nicer name for debugging purposes. */
+@Internal
 public class FlinkUserCodeClassLoaders {
 
     private FlinkUserCodeClassLoaders() {}
@@ -110,6 +110,7 @@ public class FlinkUserCodeClassLoaders {
     /**
      * Regular URLClassLoader that first loads from the parent and only after that from the URLs.
      */
+    @Internal
     public static class ParentFirstClassLoader extends FlinkUserCodeClassLoader {
 
         ParentFirstClassLoader(
@@ -130,7 +131,8 @@ public class FlinkUserCodeClassLoaders {
      * delegate is nulled and can be garbage collected. Additional class resolution will be resolved
      * solely through the bootstrap classloader and most likely result in ClassNotFound exceptions.
      */
-    private static class SafetyNetWrapperClassLoader extends URLClassLoader implements Closeable {
+    @Internal
+    public static class SafetyNetWrapperClassLoader extends URLClassLoader implements Closeable {
         private static final Logger LOG =
                 LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
 
@@ -176,6 +178,11 @@ public class FlinkUserCodeClassLoaders {
         protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
             // called for dynamic class loading
             return ensureInner().loadClass(name, resolve);
+        }
+
+        @Override
+        public void addURL(URL url) {
+            ensureInner().addURL(url);
         }
 
         @Override
