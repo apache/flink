@@ -476,12 +476,17 @@ public class CheckpointCoordinator {
 
         checkNotNull(checkpointProperties);
 
+        return triggerCheckpointFromCheckpointThread(checkpointProperties, targetLocation, false);
+    }
+
+    private CompletableFuture<CompletedCheckpoint> triggerCheckpointFromCheckpointThread(
+            CheckpointProperties checkpointProperties, String targetLocation, boolean isPeriodic) {
         // TODO, call triggerCheckpoint directly after removing timer thread
         // for now, execute the trigger in timer thread to avoid competition
         final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
         timer.execute(
                 () ->
-                        triggerCheckpoint(checkpointProperties, targetLocation, false)
+                        triggerCheckpoint(checkpointProperties, targetLocation, isPeriodic)
                                 .whenComplete(
                                         (completedCheckpoint, throwable) -> {
                                             if (throwable == null) {
@@ -498,16 +503,15 @@ public class CheckpointCoordinator {
      * The return value is a future. It completes when the checkpoint triggered finishes or an error
      * occurred.
      *
-     * @param isPeriodic Flag indicating whether this triggered checkpoint is periodic. If this flag
-     *     is true, but the periodic scheduler is disabled, the checkpoint will be declined.
+     * @param isPeriodic Flag indicating whether this triggered checkpoint is periodic.
      * @return a future to the completed checkpoint.
      */
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
-        return triggerCheckpoint(checkpointProperties, null, isPeriodic);
+        return triggerCheckpointFromCheckpointThread(checkpointProperties, null, isPeriodic);
     }
 
     @VisibleForTesting
-    public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
+    CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
             CheckpointProperties props,
             @Nullable String externalSavepointLocation,
             boolean isPeriodic) {
@@ -976,8 +980,10 @@ public class CheckpointCoordinator {
     private Optional<CheckpointTriggerRequest> chooseRequestToExecute(
             CheckpointTriggerRequest request) {
         synchronized (lock) {
-            return requestDecider.chooseRequestToExecute(
-                    request, isTriggering, lastCheckpointCompletionRelativeTime);
+            Optional<CheckpointTriggerRequest> checkpointTriggerRequest =
+                    requestDecider.chooseRequestToExecute(
+                            request, isTriggering, lastCheckpointCompletionRelativeTime);
+            return checkpointTriggerRequest;
         }
     }
 
@@ -2026,7 +2032,7 @@ public class CheckpointCoordinator {
         @Override
         public void run() {
             try {
-                triggerCheckpoint(true);
+                triggerCheckpoint(checkpointProperties, null, true);
             } catch (Exception e) {
                 LOG.error("Exception while triggering checkpoint for job {}.", job, e);
             }
