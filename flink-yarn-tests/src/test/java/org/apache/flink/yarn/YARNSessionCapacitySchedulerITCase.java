@@ -306,7 +306,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                         "-Dfancy-configuration-value=veryFancy",
                                         "-D" + YarnConfigOptions.VCORES.key() + "=2"
                                     },
-                                    "JobManager Web Interface:",
+                                    "Interactive CLI started",
                                     RunTypes.YARN_SESSION);
 
                     try {
