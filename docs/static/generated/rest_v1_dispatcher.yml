@@ -273,6 +273,17 @@ paths:
                     type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
+  /jobmanager/environment:
+    get:
+      description: Returns the jobmanager environment.
+      operationId: getJobManagerEnvironment
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentInfo'
   /jobmanager/logs:
     get:
       description: Returns the list of log files on the JobManager.
@@ -2021,6 +2032,17 @@ components:
       type: object
       allOf:
       - $ref: '#/components/schemas/SubtaskCheckpointStatistics'
+    JVMInfo:
+      type: object
+      properties:
+        version:
+          type: string
+        arch:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
     LogInfo:
       type: object
       properties:
@@ -2891,6 +2913,19 @@ components:
       - FAILED
       - CANCELED
       - UNKNOWN
+    EnvironmentInfo:
+      type: object
+      properties:
+        environment:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvironmentVariableItem'
+        jvm:
+          $ref: '#/components/schemas/JVMInfo'
+        classpath:
+          type: array
+          items:
+            type: string
     Summary:
       type: object
       properties:
@@ -2915,6 +2950,13 @@ components:
       type: object
       properties:
         id:
+          type: string
+        value:
+          type: string
+    EnvironmentVariableItem:
+      type: object
+      properties:
+        key:
           type: string
         value:
           type: string
