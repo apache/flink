@@ -16,23 +16,19 @@
  * limitations under the License.
  */
 
-export interface JobSubTask {
-  attempt: number;
-  duration: number;
-  'end-time': number;
-  host: string;
-  start_time: number;
-  status: string;
-  subtask: number;
-  metrics: {
-    'read-bytes': number;
-    'read-bytes-complete': boolean;
-    'read-records': number;
-    'read-records-complete': boolean;
-    'write-bytes': number;
-    'write-bytes-complete': boolean;
-    'write-records': number;
-    'write-records-complete': boolean;
-  };
-  'taskmanager-id': string;
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+
+import { AggregatedStatistics, JobVertexStatusDuration } from '@flink-runtime-web/interfaces';
+
+@Component({
+  selector: 'flink-table-aggregated-status-duration',
+  templateUrl: './table-aggregated-status-duration.component.html',
+  styleUrls: ['./table-aggregated-status-duration.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TableAggregatedStatusDurationComponent {
+  @Input() isLoading = false;
+  @Input() durations?: JobVertexStatusDuration<AggregatedStatistics>;
+
+  constructor() {}
 }

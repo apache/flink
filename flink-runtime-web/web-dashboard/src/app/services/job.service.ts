@@ -35,14 +35,14 @@ import {
   JobFlameGraph,
   JobOverview,
   JobsItem,
-  JobSubTask,
   JobSubTaskTime,
   JobVertexTaskManager,
   NodesItemCorrect,
   SubTaskAccumulators,
   TaskStatus,
   UserAccumulators,
-  VerticesLink
+  VerticesLink,
+  JobVertexSubTaskDetail
 } from '@flink-runtime-web/interfaces';
 
 import { ConfigService } from './config.service';
@@ -122,10 +122,10 @@ export class JobService {
     );
   }
 
-  public loadSubTasks(jobId: string, vertexId: string): Observable<JobSubTask[]> {
-    return this.httpClient
-      .get<{ subtasks: JobSubTask[] }>(`${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}`)
-      .pipe(map(data => (data && data.subtasks) || []));
+  public loadSubTasks(jobId: string, vertexId: string): Observable<JobVertexSubTaskDetail> {
+    return this.httpClient.get<JobVertexSubTaskDetail>(
+      `${this.configService.BASE_URL}/jobs/${jobId}/vertices/${vertexId}`
+    );
   }
 
   public loadSubTaskTimes(jobId: string, vertexId: string): Observable<JobSubTaskTime> {

@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
+import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+
+import { AggregatedStatistics, JobVertexMetricStatistics } from '@flink-runtime-web/interfaces';
+
+@Component({
+  selector: 'flink-table-aggregated-metrics',
+  templateUrl: './table-aggregated-metrics.component.html',
+  styleUrls: ['./table-aggregated-metrics.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class TableAggregatedMetricsComponent {
+  @Input() isLoading = false;
+  @Input() metrics?: JobVertexMetricStatistics<AggregatedStatistics>;
+
+  constructor() {}
+}

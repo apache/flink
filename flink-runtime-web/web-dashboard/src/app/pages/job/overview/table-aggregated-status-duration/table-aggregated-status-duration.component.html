@@ -1,0 +1,114 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-table
+  class="small"
+  nzTemplateMode
+  nzSize="small"
+  [nzLoading]="isLoading"
+  [nzScroll]="{ x: '1170px' }"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false"
+>
+  <thead>
+    <tr>
+      <th nzWidth="150px" nzLeft>Status</th>
+      <th nzWidth="100px">Min</th>
+      <th nzWidth="100px">Max</th>
+      <th nzWidth="100px">Avg</th>
+      <th nzWidth="100px">Sum</th>
+      <th nzWidth="100px">Median</th>
+      <th nzWidth="150px">25th Percentile</th>
+      <th nzWidth="150px">75th Percentile</th>
+      <th nzWidth="150px">95th Percentile</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td nzLeft>INITIALIZING</td>
+      <td>{{ durations?.INITIALIZING.min | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.max | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.avg | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.sum | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.median | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.p25 | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.p75 | humanizeDuration }}</td>
+      <td>{{ durations?.INITIALIZING.p95 | humanizeDuration }}</td>
+    </tr>
+    <tr>
+      <td nzLeft>CREATED</td>
+      <td>{{ durations?.CREATED.min | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.max | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.avg | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.sum | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.median | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.p25 | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.p75 | humanizeDuration }}</td>
+      <td>{{ durations?.CREATED.p95 | humanizeDuration }}</td>
+    </tr>
+    <tr>
+      <td nzLeft>SCHEDULED</td>
+      <td>{{ durations?.SCHEDULED.min | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.max | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.avg | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.sum | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.median | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.p25 | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.p75 | humanizeDuration }}</td>
+      <td>{{ durations?.SCHEDULED.p95 | humanizeDuration }}</td>
+    </tr>
+    <tr>
+      <td nzLeft>RUNNING</td>
+      <td>{{ durations?.RUNNING.min | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.max | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.avg | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.sum | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.median | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.p25 | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.p75 | humanizeDuration }}</td>
+      <td>{{ durations?.RUNNING.p95 | humanizeDuration }}</td>
+    </tr>
+    <tr>
+      <td nzLeft>DEPLOYING</td>
+      <td>
+        {{ durations?.DEPLOYING.min | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.max | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.avg | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.sum | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.median | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.p25 | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.p75 | humanizeDuration }}
+      </td>
+      <td>
+        {{ durations?.DEPLOYING.p95 | humanizeDuration }}
+      </td>
+    </tr>
+  </tbody>
+</nz-table>

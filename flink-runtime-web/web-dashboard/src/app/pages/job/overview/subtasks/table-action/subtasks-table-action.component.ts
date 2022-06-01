@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef, OnInit } from '@angular/core';
 
-import { JobSubTask } from '@flink-runtime-web/interfaces';
+import { JobVertexStatusDuration, JobVertexSubTask } from '@flink-runtime-web/interfaces';
 
 export interface JobOverviewSubtasksTableAction {
-  subtask?: JobSubTask;
+  subtask?: JobVertexSubTask;
 }
 
 @Component({
@@ -30,6 +30,28 @@ export interface JobOverviewSubtasksTableAction {
   styleUrls: ['./subtasks-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
-  @Input() subtask?: JobSubTask;
+export class SubtasksTableActionComponent implements OnInit, JobOverviewSubtasksTableAction {
+  @Input() subtask?: JobVertexSubTask;
+  statusDuration: Array<{ key: string; value: number }> = [];
+  visible = false;
+
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  ngOnInit(): void {
+    if (this.subtask) {
+      this.statusDuration = this.convertStatusDuration(this.subtask['status-duration']);
+    }
+  }
+
+  setModalVisible(visible: boolean): void {
+    this.visible = visible;
+    this.cdr.markForCheck();
+  }
+
+  convertStatusDuration(duration: JobVertexStatusDuration<number>): Array<{ key: string; value: number }> {
+    return Object.keys(duration).map(key => ({
+      key,
+      value: duration[key as keyof JobVertexStatusDuration<number>]
+    }));
+  }
 }

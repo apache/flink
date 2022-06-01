@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef } from '@angular/core';
 
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
 
@@ -32,4 +32,12 @@ export interface JobOverviewTaskManagersTableAction {
 })
 export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {
   @Input() taskManager?: VertexTaskManagerDetail;
+  visible = false;
+
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  setModalVisible(visible: boolean): void {
+    this.visible = visible;
+    this.cdr.markForCheck();
+  }
 }

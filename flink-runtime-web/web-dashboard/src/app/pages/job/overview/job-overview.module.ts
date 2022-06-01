@@ -26,6 +26,7 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -43,6 +44,8 @@ import { JobOverviewRoutingModule } from './job-overview-routing.module';
 import { JobOverviewComponent } from './job-overview.component';
 import { JobOverviewListComponent } from './list/job-overview-list.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
+import { TableAggregatedMetricsComponent } from './table-aggregated-metrics/table-aggregated-metrics.component';
+import { TableAggregatedStatusDurationComponent } from './table-aggregated-status-duration/table-aggregated-status-duration.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';
 import { TaskmanagersTableActionComponent } from './taskmanagers/table-action/taskmanagers-table-action.component';
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
@@ -62,7 +65,8 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     NzSelectModule,
     NzDividerModule,
     NzTabsModule,
-    NzDropDownModule
+    NzDropDownModule,
+    NzModalModule
   ],
   declarations: [
     JobOverviewComponent,
@@ -77,7 +81,9 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     JobOverviewDrawerBackpressureComponent,
     JobOverviewDrawerFlameGraphComponent,
     TaskmanagersTableActionComponent,
-    SubtasksTableActionComponent
+    SubtasksTableActionComponent,
+    TableAggregatedMetricsComponent,
+    TableAggregatedStatusDurationComponent
   ]
 })
 export class JobOverviewModule {}
