@@ -350,6 +350,12 @@ public class HiveDialectITCase {
         assertThat(results.toString())
                 .isEqualTo(
                         "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]");
+
+        // test table whose name begins with digits
+        tableEnv.executeSql("create table 2t(3c int)");
+        tableEnv.executeSql("insert into 2t select x from src").await();
+        results = queryResult(tableEnv.sqlQuery("select * from 2t"));
+        assertThat(results.toString()).isEqualTo("[+I[1], +I[2], +I[3]]");
     }
 
     @Test

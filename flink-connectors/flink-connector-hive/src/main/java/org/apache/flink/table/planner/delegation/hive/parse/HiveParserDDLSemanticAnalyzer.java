@@ -1910,7 +1910,8 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private ObjectIdentifier parseObjectIdentifier(String compoundName) {
-        UnresolvedIdentifier unresolvedIdentifier = hiveParser.parseIdentifier(compoundName);
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(compoundName.split("\\."));
         return catalogManager.qualifyIdentifier(unresolvedIdentifier);
     }
 
