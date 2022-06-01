@@ -512,7 +512,8 @@ public final class PythonTableUtils {
         }
 
         return c -> {
-            if (c != null && c.getClass() != byte[].class
+            if (c == null
+                    || c.getClass() != byte[].class
                     || dataType instanceof PickledByteArrayTypeInfo) {
                 return c;
             }
