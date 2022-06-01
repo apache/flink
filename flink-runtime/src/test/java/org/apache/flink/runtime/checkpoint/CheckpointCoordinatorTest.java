@@ -3220,6 +3220,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 checkpointFutures.add(coordinator.triggerCheckpoint(true));
                 activeRequests++;
             }
+            manuallyTriggeredScheduledExecutor.triggerAll();
             assertEquals(
                     activeRequests - maxConcurrentCheckpoints, coordinator.getNumQueuedRequests());
 
@@ -3730,7 +3731,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .build(graph);
         try {
             checkpointCoordinator.triggerCheckpoint(false);
-            // trigger twice to get checkpoint id and create pending checkpoint
+            // trigger three times to trigger checkpoint, to get checkpoint id and create pending
+            // checkpoint
+            manuallyTriggeredScheduledExecutor.trigger();
             manuallyTriggeredScheduledExecutor.trigger();
             manuallyTriggeredScheduledExecutor.trigger();
 

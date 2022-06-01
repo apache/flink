@@ -788,7 +788,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final DefaultScheduler scheduler =
+                createSchedulerAndStartScheduling(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                                new DirectScheduledExecutorService()));
 
         final ArchivedExecutionVertex onlyExecutionVertex =
                 Iterables.getOnlyElement(
@@ -818,7 +822,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final DefaultScheduler scheduler =
+                createSchedulerAndStartScheduling(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                                new DirectScheduledExecutorService()));
 
         final ArchivedExecutionVertex onlyExecutionVertex =
                 Iterables.getOnlyElement(
@@ -856,7 +864,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final CountDownLatch checkpointTriggeredLatch = getCheckpointTriggeredLatch();
 
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final DefaultScheduler scheduler =
+                createSchedulerAndStartScheduling(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                                new DirectScheduledExecutorService()));
 
         final ArchivedExecutionVertex onlyExecutionVertex =
                 Iterables.getOnlyElement(
