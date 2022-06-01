@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerEnvironmentHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
@@ -99,6 +100,7 @@ import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.JobManagerEnvironmentHeaders;
 import org.apache.flink.runtime.rest.messages.JobPlanHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
@@ -316,6 +318,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         ClusterConfigurationInfoHeaders.getInstance(),
                         clusterConfiguration);
+
+        JobManagerEnvironmentHandler jobManagerEnvironmentHandler =
+                new JobManagerEnvironmentHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobManagerEnvironmentHeaders.getInstance());
 
         JobConfigHandler jobConfigHandler =
                 new JobConfigHandler(
@@ -660,6 +669,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         clusterConfigurationHandler.getMessageHeaders(),
                         clusterConfigurationHandler));
+        handlers.add(
+                Tuple2.of(
+                        jobManagerEnvironmentHandler.getMessageHeaders(),
+                        jobManagerEnvironmentHandler));
         handlers.add(Tuple2.of(dashboardConfigHandler.getMessageHeaders(), dashboardConfigHandler));
         handlers.add(Tuple2.of(jobIdsHandler.getMessageHeaders(), jobIdsHandler));
         handlers.add(Tuple2.of(jobStatusHandler.getMessageHeaders(), jobStatusHandler));
