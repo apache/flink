@@ -67,4 +67,9 @@ public abstract class FlinkUserCodeClassLoader extends URLClassLoader {
             throws ClassNotFoundException {
         return super.loadClass(name, resolve);
     }
+
+    @Override
+    protected void addURL(URL url) {
+        super.addURL(url);
+    }
 }

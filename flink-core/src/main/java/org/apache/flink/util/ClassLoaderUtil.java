@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.annotation.Internal;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +30,7 @@ import java.util.jar.JarFile;
  * Utilities for information with respect to class loaders, specifically class loaders for the
  * dynamic loading of user defined classes.
  */
+@Internal
 public final class ClassLoaderUtil {
 
     /**

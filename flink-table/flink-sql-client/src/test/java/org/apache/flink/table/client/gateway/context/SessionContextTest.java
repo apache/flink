@@ -22,7 +22,7 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
-import org.apache.flink.table.utils.TestUserClassLoaderJar;
+import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -59,7 +59,7 @@ public class SessionContextTest {
     @BeforeClass
     public static void prepare() throws Exception {
         udfJar =
-                TestUserClassLoaderJar.createJarFile(
+                UserClassLoaderJarTestUtils.createJarFile(
                         tempFolder.newFolder("test-jar"),
                         "test-classloader-udf.jar",
                         UserDefinedFunctions.GENERATED_UDF_CLASS,
