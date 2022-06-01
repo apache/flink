@@ -243,6 +243,42 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     @Test
+    void t1() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogTable catalogTable = createPartitionedTable();
+        catalog.createTable(path1, catalogTable, false);
+        CatalogPartitionSpec partition1Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2010-04-21 09:45:00");
+                                put("third", "2000");
+                            }
+                        });
+        CatalogPartitionSpec partition2Spec =
+                new CatalogPartitionSpec(
+                        new HashMap<String, String>() {
+                            {
+                                put("second", "2010-04-22 09:45:00");
+                                put("third", "2000");
+                            }
+                        });
+        catalog.createPartition(path1, partition1Spec, createPartition(), true);
+        catalog.createPartition(path1, partition2Spec, createPartition(), true);
+
+        Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
+
+        columnStatisticsDataBaseMap.put(
+                "first", new CatalogColumnStatisticsDataString(10L, 3.0, 2L, 100L));
+
+        catalog.alterTableColumnStatistics(
+                path1, new CatalogColumnStatistics(columnStatisticsDataBaseMap), false);
+        CatalogColumnStatistics catalogColumnStatistics =
+                new CatalogColumnStatistics(columnStatisticsDataBaseMap);
+        checkEquals(catalogColumnStatistics, catalog.getTableColumnStatistics(path1));
+    }
+
+    @Test
     void testPartitionedTableColumnStatistics() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         CatalogTable catalogTable = createPartitionedTable();

@@ -1453,16 +1453,19 @@ public class HiveCatalog extends AbstractCatalog {
             throws TableNotExistException, CatalogException, TablePartitionedException {
         try {
             Table hiveTable = getHiveTable(tablePath);
-            // Set table column stats. This only works for non-partitioned tables.
-            if (!isTablePartitioned(hiveTable)) {
-                client.updateTableColumnStatistics(
-                        HiveStatsUtil.createTableColumnStats(
-                                hiveTable,
-                                columnStatistics.getColumnStatisticsData(),
-                                hiveVersion));
-            } else {
-                throw new TablePartitionedException(getName(), tablePath);
-            }
+            client.updateTableColumnStatistics(
+                    HiveStatsUtil.createTableColumnStats(
+                            hiveTable, columnStatistics.getColumnStatisticsData(), hiveVersion));
+            //            // Set table column stats. This only works for non-partitioned tables.
+            //            if (!isTablePartitioned(hiveTable)) {
+            //                client.updateTableColumnStatistics(
+            //                        HiveStatsUtil.createTableColumnStats(
+            //                                hiveTable,
+            //                                columnStatistics.getColumnStatisticsData(),
+            //                                hiveVersion));
+            //            } else {
+            //                throw new TablePartitionedException(getName(), tablePath);
+            //            }
         } catch (TableNotExistException e) {
             if (!ignoreIfNotExists) {
                 throw e;
@@ -1634,22 +1637,34 @@ public class HiveCatalog extends AbstractCatalog {
                         HiveStatsUtil.createCatalogColumnStats(columnStatisticsObjs, hiveVersion));
             } else {
                 long startTimeMillis = System.currentTimeMillis();
-                // to get column statistic, we merge the statistic of all partitions for all columns
-                // list all partitions
-                List<String> partNames =
-                        client.listPartitionNames(
-                                hiveTable.getDbName(), hiveTable.getTableName(), (short) -1);
-                // get statistic from partition to all columns' statics
-                Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
-                        client.getPartitionColumnStatistics(
+                List<ColumnStatisticsObj> columnStatisticsObjs =
+                        client.getTableColumnStatistics(
                                 hiveTable.getDbName(),
                                 hiveTable.getTableName(),
-                                partNames,
                                 getFieldNames(hiveTable.getSd().getCols()));
                 CatalogColumnStatistics catalogColumnStatistics =
                         new CatalogColumnStatistics(
                                 HiveStatsUtil.createCatalogColumnStats(
-                                        partitionColumnStatistics, hiveVersion, this, tablePath));
+                                        columnStatisticsObjs, hiveVersion));
+                //                // to get column statistic, we merge the statistic of all
+                // partitions for all columns
+                //                // list all partitions
+                //                List<String> partNames =
+                //                        client.listPartitionNames(
+                //                                hiveTable.getDbName(), hiveTable.getTableName(),
+                // (short) -1);
+                //                // get statistic from partition to all columns' statics
+                //                Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =
+                //                        client.getPartitionColumnStatistics(
+                //                                hiveTable.getDbName(),
+                //                                hiveTable.getTableName(),
+                //                                partNames,
+                //                                getFieldNames(hiveTable.getSd().getCols()));
+                //                CatalogColumnStatistics catalogColumnStatistics =
+                //                        new CatalogColumnStatistics(
+                //                                HiveStatsUtil.createCatalogColumnStats(
+                //                                        partitionColumnStatistics, hiveVersion,
+                // this, tablePath));
                 LOG.info(
                         "Hive getTableColumnStatistics {} for {} use time: {} ms.",
                         catalogColumnStatistics,

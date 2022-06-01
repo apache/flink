@@ -318,6 +318,17 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void t1() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql(
+                "CREATE VIEW vp1\n"
+                        + "PARTITIONED ON (value)\n"
+                        + "AS\n"
+                        + "SELECT key, value\n"
+                        + "FROM src");
+    }
+
+    @Test
     public void testInsert() throws Exception {
         // src table
         tableEnv.executeSql("create table src (x int,y string)");
