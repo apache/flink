@@ -23,6 +23,8 @@ import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,7 +59,19 @@ public interface CatalogView extends CatalogBaseTable {
             String originalQuery,
             String expandedQuery,
             Map<String, String> options) {
-        return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
+        return new DefaultCatalogView(
+                schema, comment, originalQuery, expandedQuery, Collections.emptyList(), options);
+    }
+
+    static CatalogView of(
+            Schema schema,
+            @Nullable String comment,
+            String originalQuery,
+            String expandedQuery,
+            List<String> partitionKeys,
+            Map<String, String> options) {
+        return new DefaultCatalogView(
+                schema, comment, originalQuery, expandedQuery, partitionKeys, options);
     }
 
     @Override

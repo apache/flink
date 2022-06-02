@@ -87,21 +87,6 @@ public interface CatalogTable extends CatalogBaseTable {
     }
 
     /**
-     * Check if the table is partitioned or not.
-     *
-     * @return true if the table is partitioned; otherwise, false
-     */
-    boolean isPartitioned();
-
-    /**
-     * Get the partition keys of the table. This will be an empty set if the table is not
-     * partitioned.
-     *
-     * @return partition keys of the table
-     */
-    List<String> getPartitionKeys();
-
-    /**
      * Returns a copy of this {@code CatalogTable} with given table options {@code options}.
      *
      * @return a new copy of this table with replaced table options

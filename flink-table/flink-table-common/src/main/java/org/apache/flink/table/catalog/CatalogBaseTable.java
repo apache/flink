@@ -23,6 +23,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.factories.DynamicTableFactory;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -110,4 +111,19 @@ public interface CatalogBaseTable {
      * @return an optional long description of the table/view
      */
     Optional<String> getDetailedDescription();
+
+    /**
+     * Check if the table is partitioned or not.
+     *
+     * @return true if the table is partitioned; otherwise, false
+     */
+    boolean isPartitioned();
+
+    /**
+     * Get the partition keys of the table. This will be an empty set if the table is not
+     * partitioned.
+     *
+     * @return partition keys of the table
+     */
+    List<String> getPartitionKeys();
 }

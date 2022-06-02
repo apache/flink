@@ -23,6 +23,7 @@ import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +39,7 @@ class DefaultCatalogView implements CatalogView {
     private final @Nullable String comment;
     private final String originalQuery;
     private final String expandedQuery;
+    private final List<String> partitionKeys;
     private final Map<String, String> options;
 
     DefaultCatalogView(
@@ -45,11 +47,13 @@ class DefaultCatalogView implements CatalogView {
             @Nullable String comment,
             String originalQuery,
             String expandedQuery,
+            List<String> partitionKeys,
             Map<String, String> options) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.originalQuery = checkNotNull(originalQuery, "Original query must not be null.");
         this.expandedQuery = checkNotNull(expandedQuery, "Expanded query must not be null.");
+        this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
         this.options = checkNotNull(options, "Options must not be null.");
 
         checkArgument(
@@ -85,7 +89,8 @@ class DefaultCatalogView implements CatalogView {
 
     @Override
     public CatalogBaseTable copy() {
-        return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
+        return new DefaultCatalogView(
+                schema, comment, originalQuery, expandedQuery, partitionKeys, options);
     }
 
     @Override
@@ -96,6 +101,16 @@ class DefaultCatalogView implements CatalogView {
     @Override
     public Optional<String> getDetailedDescription() {
         return Optional.empty();
+    }
+
+    @Override
+    public boolean isPartitioned() {
+        return !partitionKeys.isEmpty();
+    }
+
+    @Override
+    public List<String> getPartitionKeys() {
+        return partitionKeys;
     }
 
     @Override
@@ -111,11 +126,12 @@ class DefaultCatalogView implements CatalogView {
                 && Objects.equals(comment, that.comment)
                 && originalQuery.equals(that.originalQuery)
                 && expandedQuery.equals(that.expandedQuery)
+                && partitionKeys.equals(that.partitionKeys)
                 && options.equals(that.options);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, comment, originalQuery, expandedQuery, options);
+        return Objects.hash(schema, comment, originalQuery, expandedQuery, partitionKeys, options);
     }
 }

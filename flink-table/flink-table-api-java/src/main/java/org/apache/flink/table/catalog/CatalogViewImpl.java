@@ -23,6 +23,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -45,12 +46,23 @@ public class CatalogViewImpl extends AbstractCatalogView {
         super(originalQuery, expandedQuery, schema, properties, comment);
     }
 
+    public CatalogViewImpl(
+            String originalQuery,
+            String expandedQuery,
+            TableSchema schema,
+            List<String> partitionKeys,
+            Map<String, String> properties,
+            String comment) {
+        super(originalQuery, expandedQuery, schema, partitionKeys, properties, comment);
+    }
+
     @Override
     public CatalogBaseTable copy() {
         return new CatalogViewImpl(
                 getOriginalQuery(),
                 getExpandedQuery(),
                 getSchema().copy(),
+                getPartitionKeys(),
                 new HashMap<>(getOptions()),
                 getComment());
     }

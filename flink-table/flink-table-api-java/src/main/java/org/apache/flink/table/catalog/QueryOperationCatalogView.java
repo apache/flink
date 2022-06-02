@@ -24,6 +24,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.QueryOperation;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -69,6 +70,16 @@ public final class QueryOperationCatalogView implements CatalogView {
     @Override
     public Optional<String> getDetailedDescription() {
         return getDescription();
+    }
+
+    @Override
+    public boolean isPartitioned() {
+        throw new TableException("A view backed by a query operation has no partition attribute.");
+    }
+
+    @Override
+    public List<String> getPartitionKeys() {
+        throw new TableException("A view backed by a query operation has no partition attribute.");
     }
 
     @Override
