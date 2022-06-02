@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 
@@ -71,9 +70,7 @@ public class HiveFunctionArguments implements Serializable {
                 args[i] =
                         callContext
                                 .getArgumentValue(
-                                        i,
-                                        ClassLogicalTypeConverter.getDefaultExternalClassForType(
-                                                argTypes[i].getLogicalType()))
+                                        i, argTypes[i].getLogicalType().getDefaultConversion())
                                 .orElse(null);
                 // we always use string type for string constant arg because that's what hive UDFs
                 // expect.

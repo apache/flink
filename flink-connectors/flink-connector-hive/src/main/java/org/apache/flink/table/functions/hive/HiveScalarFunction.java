@@ -34,7 +34,8 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
  * Abstract class to provide more information for Hive {@link UDF} and {@link GenericUDF} functions.
  */
 @Internal
-public abstract class HiveScalarFunction<UDFType> extends ScalarFunction implements HiveFunction {
+public abstract class HiveScalarFunction<UDFType> extends ScalarFunction
+        implements HiveFunction<UDFType> {
 
     protected final HiveFunctionWrapper<UDFType> hiveFunctionWrapper;
 

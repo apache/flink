@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A TableFunction implementation that calls Hive's {@link GenericUDTF}. */
 @Internal
-public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction {
+public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction<GenericUDTF> {
     private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDTF.class);
 
     private final HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper;

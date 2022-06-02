@@ -289,8 +289,6 @@ public class TableEnvHiveConnectorITCase {
                                     .execute()
                                     .collect());
             assertThat(results.toString()).isEqualTo("[+I[{1=a, 2=b}], +I[{3=c}]]");
-
-            assertThat(results.toString()).isEqualTo("[+I[{1=a, 2=b}], +I[{3=c}]]");
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(

@@ -37,7 +37,7 @@ import java.util.Optional;
 
 /** Interface for Hive UDF, UDTF, UDAF. */
 @Internal
-public interface HiveFunction {
+public interface HiveFunction<UDFType> {
 
     /** Sets input arguments for the function. */
     void setArguments(CallContext callContext);
@@ -52,7 +52,7 @@ public interface HiveFunction {
     DataType inferReturnType() throws UDFArgumentException;
 
     /** Gets the wrapper for the Hive function. */
-    HiveFunctionWrapper getFunctionWrapper();
+    HiveFunctionWrapper<UDFType> getFunctionWrapper();
 
     /** Creates {@link TypeInference} for the function. */
     default TypeInference createTypeInference() {
@@ -65,9 +65,9 @@ public interface HiveFunction {
     /** InputTypeStrategy for Hive UDF, UDTF, UDAF. */
     class HiveFunctionInputStrategy implements InputTypeStrategy {
 
-        private final HiveFunction hiveFunction;
+        private final HiveFunction<?> hiveFunction;
 
-        public HiveFunctionInputStrategy(HiveFunction hiveFunction) {
+        public HiveFunctionInputStrategy(HiveFunction<?> hiveFunction) {
             this.hiveFunction = hiveFunction;
         }
 
@@ -103,9 +103,9 @@ public interface HiveFunction {
     /** OutputTypeStrategy for Hive UDF, UDTF, UDAF. */
     class HiveFunctionOutputStrategy implements TypeStrategy {
 
-        private final HiveFunction hiveFunction;
+        private final HiveFunction<?> hiveFunction;
 
-        public HiveFunctionOutputStrategy(HiveFunction hiveFunction) {
+        public HiveFunctionOutputStrategy(HiveFunction<?> hiveFunction) {
             this.hiveFunction = hiveFunction;
         }
 
