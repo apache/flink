@@ -161,6 +161,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_E
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
+import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.getColumnsName;
 
 /**
  * Ported hive's org.apache.hadoop.hive.ql.parse.DDLSemanticAnalyzer, and also incorporated
@@ -531,8 +532,10 @@ public class HiveParserDDLSemanticAnalyzer {
                     operation = convertAlterTableRename(tableName, ast, true);
                     break;
                 case HiveASTParser.TOK_ALTERVIEW_ADDPARTS:
+                    operation = convertAlterTableAddParts(qualified, ast);
+                    break;
                 case HiveASTParser.TOK_ALTERVIEW_DROPPARTS:
-                    handleUnsupportedOperation("ADD/DROP PARTITION for view is not supported");
+                    operation = convertAlterTableDropParts(qualified, ast);
                     break;
                 default:
                     throw new ValidationException("Unknown AST node for ALTER VIEW: " + ast);
@@ -552,6 +555,7 @@ public class HiveParserDDLSemanticAnalyzer {
         String comment = null;
         HiveParserASTNode selectStmt = null;
         Map<String, String> tblProps = null;
+        List<String> partColNames = Collections.emptyList();
         boolean isMaterialized =
                 ast.getToken().getType() == HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW;
         if (isMaterialized) {
@@ -600,7 +604,7 @@ public class HiveParserDDLSemanticAnalyzer {
                     handleUnsupportedOperation("LOCATION for view is not supported");
                     break;
                 case HiveASTParser.TOK_VIEWPARTCOLS:
-                    handleUnsupportedOperation("PARTITION COLUMN for view is not supported");
+                    partColNames = getColumnsName((HiveParserASTNode) child.getChild(0));
                     break;
                 default:
                     throw new ValidationException(
@@ -641,6 +645,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         createViewInfo.getOriginalText(),
                         createViewInfo.getExpandedText(),
                         schema,
+                        partColNames,
                         props,
                         comment);
         if (isAlterViewAs) {

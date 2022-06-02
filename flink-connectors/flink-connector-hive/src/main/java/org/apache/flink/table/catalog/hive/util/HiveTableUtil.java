@@ -439,9 +439,11 @@ public class HiveTableUtil {
         }
 
         if (isView) {
-            // TODO: [FLINK-12398] Support partitioned view in catalog API
-            hiveTable.setPartitionKeys(new ArrayList<>());
-
+            List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
+            List<FieldSchema> partitionColumns =
+                    allColumns.subList(
+                            allColumns.size() - table.getPartitionKeys().size(), allColumns.size());
+            hiveTable.setPartitionKeys(partitionColumns);
             CatalogView view = (CatalogView) table;
             hiveTable.setViewOriginalText(view.getOriginalQuery());
             hiveTable.setViewExpandedText(view.getExpandedQuery());
