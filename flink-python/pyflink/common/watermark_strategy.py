@@ -116,3 +116,15 @@ class TimestampAssigner(abc.ABC):
         :return: The new timestamp.
         """
         pass
+
+
+class AssignerWithPeriodicWatermarksWrapper(object):
+    """
+    The AssignerWithPeriodicWatermarks assigns event time timestamps to elements, and generates
+    low watermarks that signal event time progress within the stream. These timestamps and
+    watermarks are used by functions and operators that operate on event time, for example event
+    time windows.
+    """
+
+    def __init__(self, j_assigner_with_periodic_watermarks):
+        self._j_assigner_with_periodic_watermarks = j_assigner_with_periodic_watermarks
