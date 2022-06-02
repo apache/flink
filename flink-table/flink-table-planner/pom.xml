@@ -427,6 +427,32 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- deploy value connector's source code when user uses it. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-test-sources</id>
+						<goals>
+							<goal>test-jar-no-fork</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+								<addMavenDescriptor>false</addMavenDescriptor>
+							</archive>
+							<includes>
+								<!-- Only include factories sources, because this is where the value connector is stored. -->
+								<include>**/factories/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>
