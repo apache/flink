@@ -28,6 +28,9 @@ from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, Pu
     PulsarSourceBuilder, SubscriptionType, StartCursor, StopCursor, PulsarSerializationSchema, \
     PulsarSink, PulsarSinkBuilder, MessageDelayer, TopicRoutingMode
 from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
+from pyflink.datastream.connectors.kinesis import FlinkKinesisConsumer, KinesisStreamsSink, \
+    KinesisStreamsSinkBuilder, KinesisShardAssigner, KinesisDeserializationSchema, \
+    WatermarkTracker, KinesisFirehoseSink, KinesisFirehoseSinkBuilder
 
 
 __all__ = [
@@ -65,5 +68,13 @@ __all__ = [
     'StopCursor',
     'StreamFormat',
     'StreamingFileSink',
-    'SubscriptionType'
+    'SubscriptionType',
+    'FlinkKinesisConsumer',
+    'KinesisStreamsSink',
+    'KinesisStreamsSinkBuilder',
+    'KinesisFirehoseSink',
+    'KinesisFirehoseSinkBuilder',
+    'KinesisShardAssigner',
+    'KinesisDeserializationSchema',
+    'WatermarkTracker'
 ]
