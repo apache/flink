@@ -61,13 +61,15 @@ under the License.
 					<skip>true</skip>
 				</configuration>
 			</plugin>
-			<!-- deactivate the shade plugin for the quickstart archetypes -->
+
+			<!-- deactivate the parent and own shade plugin for the quickstart archetypes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<phase/>
+						<id>shade-flink</id>
+						<phase>none</phase>
 					</execution>
 				</executions>
 			</plugin>
