@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+pip>=20.3
 setuptools>=18.0
 wheel
 apache-beam==2.38.0

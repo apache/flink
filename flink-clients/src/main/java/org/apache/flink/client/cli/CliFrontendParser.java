@@ -266,7 +266,7 @@ public class CliFrontendParser {
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
                             + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.38.0), "
-                            + "Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                            + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
     public static final Option PYCLIENTEXEC_OPTION =

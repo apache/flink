@@ -1228,7 +1228,7 @@ class TableEnvironment(object):
 
             Please make sure the installation packages matches the platform of the cluster
             and the python version used. These packages will be installed using pip,
-            so also make sure the version of Pip (version >= 7.1.0) and the version of
+            so also make sure the version of Pip (version >= 20.3) and the version of
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
