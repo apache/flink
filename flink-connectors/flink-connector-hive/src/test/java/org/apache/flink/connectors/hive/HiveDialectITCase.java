@@ -573,6 +573,20 @@ public class HiveDialectITCase {
         // drop
         tableEnv.executeSql("drop view v1");
         assertThat(hiveCatalog.tableExists(viewPath)).isFalse();
+
+        // create partitioned view
+        tableEnv.executeSql("create view vp1 partitioned on (y) as select x, y from tbl");
+        // add partition for partitioned view
+        tableEnv.executeSql("alter view vp1 ADD PARTITION (y='y1') PARTITION (y='y2')");
+        List<Row> partitions =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions vp1").collect());
+        assertThat(partitions.toString()).isEqualTo("[+I[y=y1], +I[y=y2]]");
+        // drop partition for partitioned view
+        tableEnv.executeSql("alter view vp1 DROP PARTITION (y='y1')");
+        assertThat(partitions.toString()).isEqualTo("[+I[y=y1], +I[y=y2]]");
+        partitions =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("show partitions vp1").collect());
+        assertThat(partitions.toString()).isEqualTo("[+I[y=y2]]");
     }
 
     @Test

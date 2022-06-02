@@ -83,6 +83,7 @@ import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERT
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.VIEW_PARTITIONED_KEYS;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -439,9 +440,21 @@ public class HiveTableUtil {
         }
 
         if (isView) {
-            // TODO: [FLINK-12398] Support partitioned view in catalog API
-            hiveTable.setPartitionKeys(new ArrayList<>());
-
+            // we put partition columns in the properties, it's a little of hack
+            // TODO: refactor the logic after finishing [FLINK-12398] Support partitioned view in
+            // TODO: catalog API
+            String[] partitionKeys;
+            if (properties.containsKey(FLINK_PROPERTY_PREFIX + VIEW_PARTITIONED_KEYS)) {
+                partitionKeys =
+                        properties.remove(FLINK_PROPERTY_PREFIX + VIEW_PARTITIONED_KEYS).split(",");
+                List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
+                List<FieldSchema> partitionColumns =
+                        allColumns.subList(
+                                allColumns.size() - partitionKeys.length, allColumns.size());
+                hiveTable.setPartitionKeys(partitionColumns);
+            } else {
+                hiveTable.setPartitionKeys(new ArrayList<>());
+            }
             CatalogView view = (CatalogView) table;
             hiveTable.setViewOriginalText(view.getOriginalQuery());
             hiveTable.setViewExpandedText(view.getExpandedQuery());

@@ -27,4 +27,7 @@ public class HiveParserConstants {
     /* Constants for Druid storage handler */
     public static final String DRUID_HIVE_STORAGE_HANDLER_ID =
             "org.apache.hadoop.hive.druid.DruidStorageHandler";
+
+    /* Constants for identify is partitioned view or not */
+    public static final String VIEW_PARTITIONED_KEYS = "view_partitioned_keys";
 }

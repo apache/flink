@@ -134,6 +134,16 @@ public class HiveParserBaseSemanticAnalyzer {
         return getColumns(ast, lowerCase, new ArrayList<>(), new ArrayList<>());
     }
 
+    public static List<String> getColumnsName(HiveParserASTNode ast) {
+        List<String> colList = new ArrayList<String>();
+        int numCh = ast.getChildCount();
+        for (int i = 0; i < numCh; i++) {
+            HiveParserASTNode child = (HiveParserASTNode) ast.getChild(i);
+            colList.add(unescapeIdentifier(child.getText()).toLowerCase());
+        }
+        return colList;
+    }
+
     public static String getTypeStringFromAST(HiveParserASTNode typeNode) throws SemanticException {
         switch (typeNode.getType()) {
             case HiveASTParser.TOK_LIST:

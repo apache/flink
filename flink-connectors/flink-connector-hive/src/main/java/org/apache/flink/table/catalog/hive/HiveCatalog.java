@@ -844,13 +844,6 @@ public class HiveCatalog extends AbstractCatalog {
         Table hiveTable = getHiveTable(tablePath);
         ensurePartitionedTable(tablePath, hiveTable);
 
-        // partition doesn't have connector property, so check the table
-        boolean isHiveTable = isHiveTable(hiveTable.getParameters());
-
-        if (!isHiveTable) {
-            throw new CatalogException("Currently only supports partition for hive tables");
-        }
-
         try {
             client.add_partition(instantiateHivePartition(hiveTable, partitionSpec, partition));
         } catch (AlreadyExistsException e) {
