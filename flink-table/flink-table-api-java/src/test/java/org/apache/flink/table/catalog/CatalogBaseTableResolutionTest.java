@@ -254,7 +254,12 @@ class CatalogBaseTableResolutionTest {
                         DEFAULT_CATALOG, DEFAULT_DATABASE);
 
         return CatalogView.of(
-                VIEW_SCHEMA, comment, originalQuery, expandedQuery, Collections.emptyMap());
+                VIEW_SCHEMA,
+                comment,
+                originalQuery,
+                expandedQuery,
+                Collections.emptyList(),
+                Collections.emptyMap());
     }
 
     private static CatalogManager catalogManager() {

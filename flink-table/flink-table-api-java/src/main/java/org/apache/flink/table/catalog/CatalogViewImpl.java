@@ -22,14 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * An implementation of catalog view.
  *
- * @deprecated Use {@link CatalogView#of(Schema, String, String, String, Map)} or a custom
+ * @deprecated Use {@link CatalogView#of(Schema, String, String, String, List, Map)} or a custom
  *     implementation instead. Don't implement against this internal class. It can lead to
  *     unintended side effects if code checks against this class instead of the common interface.
  */
@@ -42,7 +44,17 @@ public class CatalogViewImpl extends AbstractCatalogView {
             TableSchema schema,
             Map<String, String> properties,
             String comment) {
-        super(originalQuery, expandedQuery, schema, properties, comment);
+        this(originalQuery, expandedQuery, schema, Collections.emptyList(), properties, comment);
+    }
+
+    public CatalogViewImpl(
+            String originalQuery,
+            String expandedQuery,
+            TableSchema schema,
+            List<String> partitionKeys,
+            Map<String, String> properties,
+            String comment) {
+        super(originalQuery, expandedQuery, schema, partitionKeys, properties, comment);
     }
 
     @Override
@@ -51,6 +63,7 @@ public class CatalogViewImpl extends AbstractCatalogView {
                 getOriginalQuery(),
                 getExpandedQuery(),
                 getSchema().copy(),
+                getPartitionKeys(),
                 new HashMap<>(getOptions()),
                 getComment());
     }

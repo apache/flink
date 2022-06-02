@@ -125,6 +125,7 @@ public abstract class CatalogTestBase extends CatalogTest {
                         String.format("select * from %s", t1),
                         String.format(
                                 "select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+                        Collections.emptyList(),
                         Collections.emptyMap());
         return new ResolvedCatalogView(origin, resolvedSchema);
     }
@@ -139,6 +140,7 @@ public abstract class CatalogTestBase extends CatalogTest {
                         String.format("select * from %s", t2),
                         String.format(
                                 "select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+                        Collections.emptyList(),
                         Collections.emptyMap());
         return new ResolvedCatalogView(origin, resolvedSchema);
     }

@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.StringUtils;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,11 +41,13 @@ public abstract class AbstractCatalogView implements CatalogView {
     private final TableSchema schema;
     private final Map<String, String> options;
     private final String comment;
+    private final List<String> partitionKeys;
 
     public AbstractCatalogView(
             String originalQuery,
             String expandedQuery,
             TableSchema schema,
+            List<String> partitionKeys,
             Map<String, String> options,
             String comment) {
         checkArgument(
@@ -57,6 +60,7 @@ public abstract class AbstractCatalogView implements CatalogView {
         this.originalQuery = originalQuery;
         this.expandedQuery = expandedQuery;
         this.schema = checkNotNull(schema, "schema cannot be null");
+        this.partitionKeys = checkNotNull(partitionKeys, "partitionKeys cannot be null");
         this.options = checkNotNull(options, "options cannot be null");
         this.comment = comment;
     }
@@ -69,6 +73,16 @@ public abstract class AbstractCatalogView implements CatalogView {
     @Override
     public String getExpandedQuery() {
         return this.expandedQuery;
+    }
+
+    @Override
+    public boolean isPartitioned() {
+        return !partitionKeys.isEmpty();
+    }
+
+    @Override
+    public List<String> getPartitionKeys() {
+        return partitionKeys;
     }
 
     @Override

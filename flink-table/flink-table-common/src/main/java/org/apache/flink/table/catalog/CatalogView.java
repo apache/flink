@@ -23,6 +23,7 @@ import org.apache.flink.table.api.Schema;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,8 +33,8 @@ import java.util.Map;
  * The framework will resolve instances of this interface to a {@link ResolvedCatalogView} before
  * usage.
  *
- * <p>A catalog implementer can either use {@link #of(Schema, String, String, String, Map)} for a
- * basic implementation of this interface or create a custom class that allows passing
+ * <p>A catalog implementer can either use {@link #of(Schema, String, String, String, List, Map)}
+ * for a basic implementation of this interface or create a custom class that allows passing
  * catalog-specific objects (if necessary).
  */
 @PublicEvolving
@@ -49,6 +50,7 @@ public interface CatalogView extends CatalogBaseTable {
      * @param originalQuery original text of the view definition
      * @param expandedQuery expanded text of the original view definition with materialized
      *     identifiers
+     * @param partitionKeys the partition keys of the view definition
      * @param options options to configure the connector
      */
     static CatalogView of(
@@ -56,8 +58,10 @@ public interface CatalogView extends CatalogBaseTable {
             @Nullable String comment,
             String originalQuery,
             String expandedQuery,
+            List<String> partitionKeys,
             Map<String, String> options) {
-        return new DefaultCatalogView(schema, comment, originalQuery, expandedQuery, options);
+        return new DefaultCatalogView(
+                schema, comment, originalQuery, expandedQuery, partitionKeys, options);
     }
 
     @Override

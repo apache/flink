@@ -1086,6 +1086,7 @@ public class SqlToOperationConverter {
                 comment,
                 originalQuery,
                 expandedQuery,
+                Collections.emptyList(),
                 props);
     }
 

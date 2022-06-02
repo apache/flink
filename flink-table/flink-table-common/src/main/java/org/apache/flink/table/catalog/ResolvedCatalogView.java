@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -95,5 +96,15 @@ public final class ResolvedCatalogView
     @Override
     public String getExpandedQuery() {
         return origin.getExpandedQuery();
+    }
+
+    @Override
+    public boolean isPartitioned() {
+        return origin.isPartitioned();
+    }
+
+    @Override
+    public List<String> getPartitionKeys() {
+        return origin.getPartitionKeys();
     }
 }
