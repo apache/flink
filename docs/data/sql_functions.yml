@@ -628,6 +628,9 @@ collection:
   - sql: map ‘[’ value ‘]’
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
+  - sql: ARRAY_APPEND(array, element)
+    table: array.arrayAppend(element)
+    description: Appends an element to the end of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the end of the array.
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
@@ -637,6 +640,9 @@ collection:
   - sql: ARRAY_POSITION(haystack, needle)
     table: haystack.arrayPosition(needle)
     description: Returns the position of the first occurrence of element in the given array as int. Returns 0 if the given value could not be found in the array. Returns null if either of the arguments are null. And this is not zero based, but 1-based index. The first element in the array has index 1.
+  - sql: ARRAY_PREPEND(array, element)
+    table: array.arrayPrepend(element)
+    description: Appends an element to the beginning of the array and returns the result. If the array itself is null, the function will return null. If an element to add is null, the null element will be added to the beginning of the array.
   - sql: ARRAY_REMOVE(haystack, needle)
     table: haystack.arrayRemove(needle)
     description: Removes all elements that equal to element from array. If the array itself is null, the function will return null. Keeps ordering of elements.

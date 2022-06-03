@@ -1474,6 +1474,15 @@ class Expression(Generic[T]):
         """
         return _unary_op("element")(self)
 
+    def array_append(self, addition) -> 'Expression':
+        """
+        Appends an element to the end of the array and returns the result.
+
+        If the array itself is null, the function will return null. If an element to add is null,
+        the null element will be added to the end of the array.
+        """
+        return _binary_op("arrayAppend")(self, addition)
+
     def array_contains(self, needle) -> 'Expression':
         """
         Returns whether the given element exists in an array.
@@ -1501,6 +1510,15 @@ class Expression(Generic[T]):
         has index 1.
         """
         return _binary_op("arrayPosition")(self, needle)
+
+    def array_prepend(self, addition) -> 'Expression':
+        """
+        Appends an element to the beginning of the array and returns the result.
+
+        If the array itself is null, the function will return null. If an element to add is null,
+        the null element will be added to the beginning of the array.
+        """
+        return _binary_op("arrayPrepend")(self, addition)
 
     def array_remove(self, needle) -> 'Expression':
         """

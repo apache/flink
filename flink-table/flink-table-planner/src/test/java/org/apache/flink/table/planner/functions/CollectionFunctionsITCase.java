@@ -41,9 +41,11 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                        arrayAppendTestCases(),
                         arrayContainsTestCases(),
                         arrayDistinctTestCases(),
                         arrayPositionTestCases(),
+                        arrayArrayPrependTestCases(),
                         arrayRemoveTestCases(),
                         arrayReverseTestCases(),
                         arrayUnionTestCases(),
@@ -54,6 +56,45 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arrayMinTestCases(),
                         arraySortTestCases())
                 .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayAppendTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_APPEND)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2}, null, new String[] {"Hello", "World"})
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .testResult(
+                                $("f0").arrayAppend(null),
+                                "ARRAY_APPEND(f0, NULL)",
+                                new Integer[] {1, 2, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayAppend(1),
+                                "ARRAY_APPEND(f1, 1)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").arrayAppend("!"),
+                                "ARRAY_APPEND(f2, '!')",
+                                new String[] {"Hello", "World", "!"},
+                                DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .testResult(
+                                $("f2").arrayAppend(null),
+                                "ARRAY_APPEND(f2, NULL)",
+                                new String[] {"Hello", "World", null},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testSqlValidationError(
+                                "ARRAY_APPEND(f2, 1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_APPEND(array <ARRAY>, element <ARRAY ELEMENT>)")
+                        .testTableApiValidationError(
+                                $("f2").arrayAppend(1),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_APPEND(array <ARRAY>, element <ARRAY ELEMENT>)"));
     }
 
     private Stream<TestSetSpec> arrayContainsTestCases() {
@@ -278,6 +319,45 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayPosition(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_POSITION(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> arrayArrayPrependTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_PREPEND)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2}, null, new String[] {"Hello", "World"})
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .testResult(
+                                $("f0").arrayPrepend(1),
+                                "ARRAY_PREPEND(f0, 1)",
+                                new Integer[] {1, 1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayPrepend(1),
+                                "ARRAY_PREPEND(f1, 1)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f2").arrayPrepend("!"),
+                                "ARRAY_PREPEND(f2, '!')",
+                                new String[] {"!", "Hello", "World"},
+                                DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .testResult(
+                                $("f2").arrayPrepend(null),
+                                "ARRAY_PREPEND(f2, NULL)",
+                                new String[] {null, "Hello", "World"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testSqlValidationError(
+                                "ARRAY_PREPEND(1, f2)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_PREPEND(array <ARRAY>, element <ARRAY ELEMENT>)")
+                        .testTableApiValidationError(
+                                $("f2").arrayPrepend(1),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_PREPEND(array <ARRAY>, element <ARRAY ELEMENT>)"));
     }
 
     private Stream<TestSetSpec> arrayRemoveTestCases() {
