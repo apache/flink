@@ -20,6 +20,7 @@ package org.apache.flink.table.functions.hive.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
+import org.apache.flink.table.functions.hive.HiveFunctionArguments;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -28,15 +29,14 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 /** Util for Hive functions. */
 @Internal
 public class HiveFunctionUtil {
-    public static boolean isSingleBoxedArray(DataType[] argTypes) {
-        for (DataType dataType : argTypes) {
-            if (HiveFunctionUtil.isPrimitiveArray(dataType)) {
+    public static boolean isSingleBoxedArray(HiveFunctionArguments arguments) {
+        for (int i = 0; i < arguments.size(); i++) {
+            if (HiveFunctionUtil.isPrimitiveArray(arguments.getDataType(i))) {
                 throw new FlinkHiveUDFException(
-                        "Flink doesn't support primitive array for Hive functions yet.");
+                        "Flink doesn't support primitive array for Hive function yet.");
             }
         }
-
-        return argTypes.length == 1 && HiveFunctionUtil.isArrayType(argTypes[0]);
+        return arguments.size() == 1 && HiveFunctionUtil.isArrayType(arguments.getDataType(0));
     }
 
     private static boolean isPrimitiveArray(DataType dataType) {

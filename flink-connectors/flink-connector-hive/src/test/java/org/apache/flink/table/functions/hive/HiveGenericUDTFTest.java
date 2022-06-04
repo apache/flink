@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
@@ -43,6 +44,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -147,13 +151,20 @@ public class HiveGenericUDTFTest {
             Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
         HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
 
-        HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
 
-        udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-        udf.getHiveResultType(constantArgs, argTypes);
+        HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
+        udf.setArguments(callContext);
+        udf.inferReturnType();
 
         ObjectInspector[] argumentInspectors =
-                HiveInspectors.toInspectors(hiveShim, constantArgs, argTypes);
+                HiveInspectors.getArgInspectors(
+                        hiveShim, HiveFunctionArguments.create(callContext));
         ObjectInspector returnInspector = wrapper.createFunction().initialize(argumentInspectors);
 
         udf.open(null);

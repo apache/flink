@@ -120,12 +120,18 @@ public interface HiveShim extends Serializable {
      */
     Class<?> getDateDataTypeClass();
 
+    /** Gets writable class for Date type. */
+    Class<?> getDateWritableClass();
+
     /**
      * Hive Timestamp data type class was changed in Hive 3.1.0.
      *
      * @return Hive's Timestamp class
      */
     Class<?> getTimestampDataTypeClass();
+
+    /** Gets writable class for Timestamp type. */
+    Class<?> getTimestampWritableClass();
 
     /**
      * Generate Hive ColumnStatisticsData from Flink CatalogColumnStatisticsDataDate for DATE

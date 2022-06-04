@@ -38,6 +38,7 @@ import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.exec.RowSchema;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
@@ -68,7 +69,12 @@ public class HiveParserTypeConverter {
 
         for (ColumnInfo ci : rs.getSignature()) {
             if (neededCols == null || neededCols.contains(ci.getInternalName())) {
-                fieldTypes.add(convert(ci.getType(), dtFactory));
+                RelDataType relDataType = convert(ci.getType(), dtFactory);
+                // if the type is struct, we set it nullable
+                if (ci.getType().getCategory() == ObjectInspector.Category.STRUCT) {
+                    relDataType = dtFactory.createTypeWithNullability(relDataType, true);
+                }
+                fieldTypes.add(relDataType);
                 fieldNames.add(ci.getInternalName());
             }
         }
