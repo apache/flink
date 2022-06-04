@@ -716,6 +716,23 @@ class CatalogBaseTable(object):
     def _get(j_catalog_base_table):
         return CatalogBaseTable(j_catalog_base_table)
 
+    def is_partitioned(self) -> bool:
+        """
+        Check if the table is partitioned or not.
+
+        :return: True if the table is partitioned; otherwise, false
+        """
+        return self._j_catalog_base_table.is_partitioned()
+
+    def get_partition_keys(self) -> List[str]:
+        """
+        Get the partition keys of the table. This will be an empty set if the table is not
+        partitioned.
+
+        :return: partition keys of the table
+        """
+        return list(self._j_catalog_base_table.get_partition_keys())
+
     def get_options(self):
         """
         Returns a map of string-based options.
