@@ -20,19 +20,13 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Optionality;
-
-import java.util.List;
 
 /**
  * <code>FIRST_VALUE</code> and <code>LAST_VALUE</code> aggregate functions return the first or the
@@ -51,26 +45,13 @@ public class SqlFirstLastValueAggFunction extends SqlAggFunction {
                 kind,
                 ReturnTypes.ARG0_NULLABLE_IF_EMPTY,
                 null,
-                OperandTypes.ANY,
+                OperandTypes.or(
+                        OperandTypes.ANY,
+                        OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.BOOLEAN)),
                 SqlFunctionCategory.NUMERIC,
                 false,
                 false,
                 Optionality.FORBIDDEN);
         Preconditions.checkArgument(kind == SqlKind.FIRST_VALUE || kind == SqlKind.LAST_VALUE);
-    }
-
-    // ~ Methods ----------------------------------------------------------------
-
-    @SuppressWarnings("deprecation")
-    public List<RelDataType> getParameterTypes(RelDataTypeFactory typeFactory) {
-        return ImmutableList.of(
-                typeFactory.createTypeWithNullability(
-                        typeFactory.createSqlType(SqlTypeName.ANY), true));
-    }
-
-    @SuppressWarnings("deprecation")
-    public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-        return typeFactory.createTypeWithNullability(
-                typeFactory.createSqlType(SqlTypeName.ANY), true);
     }
 }

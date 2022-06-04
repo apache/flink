@@ -26,8 +26,9 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
@@ -36,10 +37,17 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 @Internal
 public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
-    private final transient DataType valueDataType;
+    private final transient DataType[] valueDataTypes;
 
     public FirstValueAggFunction(LogicalType valueType) {
-        this.valueDataType = toInternalDataType(valueType);
+        this.valueDataTypes = new DataType[] {toInternalDataType(valueType)};
+    }
+
+    public FirstValueAggFunction(LogicalType[] valueTypes) {
+        this.valueDataTypes =
+                Arrays.stream(valueTypes)
+                        .map(DataTypeUtils::toInternalDataType)
+                        .toArray(DataType[]::new);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -48,20 +56,20 @@ public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, 
 
     @Override
     public List<DataType> getArgumentDataTypes() {
-        return Collections.singletonList(valueDataType);
+        return Arrays.asList(valueDataTypes);
     }
 
     @Override
     public DataType getAccumulatorDataType() {
         return DataTypes.ROW(
-                        DataTypes.FIELD("firstValue", valueDataType.nullable()),
+                        DataTypes.FIELD("firstValue", valueDataTypes[0].nullable()),
                         DataTypes.FIELD("firstOrder", DataTypes.BIGINT()))
                 .bridgedTo(RowData.class);
     }
 
     @Override
     public DataType getOutputDataType() {
-        return valueDataType;
+        return valueDataTypes[0];
     }
 
     @Override
@@ -82,30 +90,69 @@ public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, 
     }
 
     public void accumulate(RowData rowData, Object value) {
-        GenericRowData acc = (GenericRowData) rowData;
-        if (value != null && acc.getLong(1) == Long.MAX_VALUE) {
-            acc.setField(0, value);
-            acc.setField(1, System.currentTimeMillis());
+        // default is not ignore null
+        // todo: what's the default value? default ignore null, following legacy code
+        accumulate(rowData, value, true);
+    }
+
+    public void accumulate(RowData rowData, Object value, boolean ignoreNull) {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if (value != null || !ignoreNull) {
+            GenericRowData acc = (GenericRowData) rowData;
+            if (acc.getLong(1) == Long.MAX_VALUE) {
+                acc.setField(0, value);
+                acc.setField(1, System.currentTimeMillis());
+            }
         }
     }
 
     public void accumulate(RowData rowData, Object value, Long order) {
-        GenericRowData acc = (GenericRowData) rowData;
-        if (value != null && acc.getLong(1) > order) {
-            acc.setField(0, value);
-            acc.setField(1, order);
+        // default is not ignore null
+        // todo: what's the default value? default ignore null, following legacy code
+        accumulate(rowData, value, order, true);
+    }
+
+    public void accumulate(RowData rowData, Object value, Long order, boolean ignoreNull) {
+        if (value != null || !ignoreNull) {
+            GenericRowData acc = (GenericRowData) rowData;
+            if (order != null && acc.getLong(1) > order) {
+                acc.setField(0, value);
+                acc.setField(1, order);
+            }
         }
     }
 
     public void accumulate(RowData rowData, StringData value) {
-        if (value != null) {
-            accumulate(rowData, (Object) ((BinaryStringData) value).copy());
+        // default is not ignore null
+        // todo: what's the default value? default ignore null, following legacy code
+        accumulate(rowData, value, true);
+    }
+
+    public void accumulate(RowData rowData, StringData value, boolean ignoreNull) {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if (value != null || !ignoreNull) {
+            if (value != null) {
+                accumulate(rowData, (Object) ((BinaryStringData) value).copy());
+            } else {
+                accumulate(rowData, (Object) null, false);
+            }
         }
     }
 
     public void accumulate(RowData rowData, StringData value, Long order) {
-        if (value != null) {
-            accumulate(rowData, (Object) ((BinaryStringData) value).copy(), order);
+        // default is not ignore null
+        // todo: what's the default value? default ignore null, following legacy code
+        accumulate(rowData, value, order, true);
+    }
+
+    public void accumulate(RowData rowData, StringData value, Long order, boolean ignoreNull) {
+        // only when the value isn't null or not to ignore null, accumulate it
+        if (value != null || !ignoreNull) {
+            if (value != null) {
+                accumulate(rowData, (Object) ((BinaryStringData) value).copy(), order);
+            } else {
+                accumulate(rowData, (Object) null, order, false);
+            }
         }
     }
 

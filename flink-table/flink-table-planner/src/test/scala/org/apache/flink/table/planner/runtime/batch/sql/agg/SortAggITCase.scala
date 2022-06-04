@@ -230,7 +230,7 @@ class SortAggITCase extends AggregateITCaseBase("SortAggregate") {
   @Test
   def testFirstValueOnString(): Unit = {
     checkResult(
-      "SELECT first_value(c) over () FROM Table3",
+      "SELECT first_value(c, true) over (PARTITION BY a order by b) FROM Table3",
       Seq(
         row("Hi"),
         row("Hi"),
