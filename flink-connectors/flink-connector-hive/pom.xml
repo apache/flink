@@ -942,8 +942,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<forkCount>1</forkCount>
-					<reuseForks>false</reuseForks>
 					<systemPropertyVariables>
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
 					</systemPropertyVariables>
@@ -1029,7 +1027,6 @@ under the License.
 			<id>hive-3.1.2</id>
 			<properties>
 				<hive.version>3.1.2</hive.version>
-				<derby.version>10.14.1.0</derby.version>
 				<!-- need a hadoop version that fixes HADOOP-14683 -->
 				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
