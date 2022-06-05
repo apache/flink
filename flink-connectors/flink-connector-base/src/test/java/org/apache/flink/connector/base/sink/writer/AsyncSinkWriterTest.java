@@ -95,16 +95,16 @@ public class AsyncSinkWriterTest {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(2)
+                        .maxBatchSize(4)
                         .delay(100)
                         .build();
         for (int i = 0; i < 4; i++) {
             sink.write(String.valueOf(i));
         }
-
+        sink.flush(true);
         assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue())
                 .isGreaterThanOrEqualTo(99);
-        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(110);
+        assertThat(sinkInitContext.getCurrentSendTimeGauge().get().getValue()).isLessThan(120);
     }
 
     @Test
