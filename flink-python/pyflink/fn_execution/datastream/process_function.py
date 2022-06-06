@@ -19,8 +19,9 @@ from typing import cast
 
 from pyflink.datastream import TimerService, TimeDomain
 from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction, \
-    ProcessFunction, CoProcessFunction, BroadcastProcessFunction, OperatorStateStore
-from pyflink.datastream.state import MapStateDescriptor, BroadcastState, ReadOnlyBroadcastState
+    ProcessFunction, CoProcessFunction, BroadcastProcessFunction
+from pyflink.datastream.state import MapStateDescriptor, BroadcastState, ReadOnlyBroadcastState, \
+    OperatorStateStore
 from pyflink.fn_execution.internal_state import InternalBroadcastState
 
 

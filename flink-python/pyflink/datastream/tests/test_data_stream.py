@@ -943,7 +943,6 @@ class DataStreamTests(object):
         self.assert_equals_sorted(side_expected, side_sink.get_results())
 
     def test_co_broadcast_process(self):
-        self.env.set_parallelism(1)
         ds = self.env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())  # type: DataStream
         ds_broadcast = self.env.from_collection(
             [(0, "a"), (1, "b")], type_info=Types.TUPLE([Types.INT(), Types.STRING()])

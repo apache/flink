@@ -1273,15 +1273,6 @@ class OperatorStateBackend(OperatorStateStore, ABC):
         pass
 
 
-class UnsupportedOperatorStateBackend(OperatorStateBackend):
-
-    def get_broadcast_state(self, state_descriptor: MapStateDescriptor):
-        raise RuntimeError("Operator state backend is not supported")
-
-    def commit(self):
-        pass
-
-
 class RemoteOperatorStateBackend(OperatorStateStore):
     def __init__(
         self, state_handler, state_cache_size, map_state_read_cache_size, map_state_write_cache_size

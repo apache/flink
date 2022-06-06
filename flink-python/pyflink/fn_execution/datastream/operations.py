@@ -49,7 +49,7 @@ DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1"
 
 
 class Operation(abc.ABC):
-    def __init__(self, serialized_fn, operator_state_backend):
+    def __init__(self, serialized_fn, operator_state_backend=None):
         if serialized_fn.metric_enabled:
             self.base_metric_group = GenericMetricGroup(None, None)
         else:
@@ -58,7 +58,8 @@ class Operation(abc.ABC):
 
     def finish(self):
         self._update_gauge(self.base_metric_group)
-        self.operator_state_backend.commit()
+        if self.operator_state_backend is not None:
+            self.operator_state_backend.commit()
 
     def _update_gauge(self, base_metric_group):
         if base_metric_group is not None:

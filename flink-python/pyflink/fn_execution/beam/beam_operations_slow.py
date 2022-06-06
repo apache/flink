@@ -184,7 +184,10 @@ class StatelessFunctionOperation(FunctionOperation):
         )
 
     def generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
+        if self.operator_state_backend is not None:
+            return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
+        else:
+            return self.operation_cls(self.spec.serialized_fn)
 
 
 class StatefulFunctionOperation(FunctionOperation):
@@ -197,8 +200,11 @@ class StatefulFunctionOperation(FunctionOperation):
         )
 
     def generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
-                                  self.operator_state_backend)
+        if self.operator_state_backend is not None:
+            return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
+                                      self.operator_state_backend)
+        else:
+            return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
 
     def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
         # ignore timer_family_id

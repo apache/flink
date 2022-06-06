@@ -241,7 +241,10 @@ cdef class StatelessFunctionOperation(FunctionOperation):
             name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend)
 
     cdef object generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
+        if self.operator_state_backend is not None:
+            return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
+        else:
+            return self.operation_cls(self.spec.serialized_fn)
 
 
 cdef class StatefulFunctionOperation(FunctionOperation):
@@ -253,8 +256,11 @@ cdef class StatefulFunctionOperation(FunctionOperation):
             name, spec, counter_factory, sampler, consumers, operation_cls, operator_stat_backend)
 
     cdef object generate_operation(self):
-        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
-                                  self.operator_state_backend)
+        if self.operator_state_backend is not None:
+            return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend,
+                                      self.operator_state_backend)
+        else:
+            return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
 
     cpdef void add_timer_info(self, timer_family_id, timer_info):
         # ignore timer_family_id

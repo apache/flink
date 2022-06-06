@@ -24,8 +24,7 @@ from apache_beam.utils import proto_utils
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
     CountWindowCoder, FlattenRowCoder
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend, \
-    UnsupportedOperatorStateBackend
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend
 
 import pyflink.fn_execution.datastream.operations as datastream_operations
 import pyflink.fn_execution.table.operations as table_operations
@@ -163,7 +162,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             serialized_fn.map_state_write_cache_size,
         )
     else:
-        operator_state_backend = UnsupportedOperatorStateBackend()
+        operator_state_backend = None
 
     if hasattr(serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.

@@ -124,22 +124,6 @@ class KeyedStateStore(ABC):
         pass
 
 
-class OperatorStateStore(ABC):
-    """
-    Interface for getting operator states. Currently, only :class:`~state.BroadcastState` is
-    supported.
-    .. versionadded:: 1.16.0
-    """
-
-    @abstractmethod
-    def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> BroadcastState:
-        """
-        Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
-        which has read/write access to the broadcast operator state.
-        """
-        pass
-
-
 class RuntimeContext(KeyedStateStore):
     """
     A RuntimeContext contains information about the context in which functions are executed.
