@@ -31,19 +31,13 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
-
 /** Built-in FIRST_VALUE aggregate function. */
 @Internal
 public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
     private final transient DataType[] valueDataTypes;
 
-    public FirstValueAggFunction(LogicalType valueType) {
-        this.valueDataTypes = new DataType[] {toInternalDataType(valueType)};
-    }
-
-    public FirstValueAggFunction(LogicalType[] valueTypes) {
+    public FirstValueAggFunction(LogicalType... valueTypes) {
         this.valueDataTypes =
                 Arrays.stream(valueTypes)
                         .map(DataTypeUtils::toInternalDataType)

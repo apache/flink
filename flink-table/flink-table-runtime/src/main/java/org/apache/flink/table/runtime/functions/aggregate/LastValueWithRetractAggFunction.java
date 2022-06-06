@@ -33,8 +33,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
-
 /** Built-in LAST_VALUE with retraction aggregate function. */
 @Internal
 public final class LastValueWithRetractAggFunction<T>
@@ -43,11 +41,7 @@ public final class LastValueWithRetractAggFunction<T>
 
     private final transient DataType[] valueDataTypes;
 
-    public LastValueWithRetractAggFunction(LogicalType valueType) {
-        this.valueDataTypes = new DataType[] {toInternalDataType(valueType)};
-    }
-
-    public LastValueWithRetractAggFunction(LogicalType[] valueTypes) {
+    public LastValueWithRetractAggFunction(LogicalType... valueTypes) {
         this.valueDataTypes =
                 Arrays.stream(valueTypes)
                         .map(DataTypeUtils::toInternalDataType)

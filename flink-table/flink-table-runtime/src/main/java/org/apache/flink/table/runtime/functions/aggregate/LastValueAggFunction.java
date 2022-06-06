@@ -31,19 +31,13 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
-
 /** Built-in LAST_VALUE aggregate function. */
 @Internal
 public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
     private final transient DataType[] valueDataTypes;
 
-    public LastValueAggFunction(LogicalType valueType) {
-        this.valueDataTypes = new DataType[] {toInternalDataType(valueType)};
-    }
-
-    public LastValueAggFunction(LogicalType[] valueTypes) {
+    public LastValueAggFunction(LogicalType... valueTypes) {
         this.valueDataTypes =
                 Arrays.stream(valueTypes)
                         .map(DataTypeUtils::toInternalDataType)
