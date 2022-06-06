@@ -19,7 +19,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
-import org.apache.flink.runtime.scheduler.CacheCorruptedException;
+import org.apache.flink.runtime.scheduler.CachedIntermediateDataSetCorruptedException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -122,31 +122,20 @@ public class ExecutionFailureHandler {
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
-        if (isUnrecoverableError(cause)) {
-            return FailureHandlingResult.unrecoverable(
-                    failingExecutionVertexId,
-                    new JobException("The failure is not recoverable", cause),
-                    timestamp,
-                    globalFailure);
-        }
-
         if (!globalFailure) {
             try {
                 final SchedulingExecutionVertex failedVertex =
                         schedulingTopology.getVertex(failingExecutionVertexId);
-                if (cause instanceof PartitionException
-                        && !failedVertex.getConsumedCacheIntermediateDataSetIds().isEmpty()) {
+                if (isCachedIntermediateDataSetException(cause, failedVertex)) {
                     return FailureHandlingResult.unrecoverable(
                             failingExecutionVertexId,
-                            new CacheCorruptedException(
-                                    "Fail to consume cache",
-                                    cause,
-                                    failedVertex.getConsumedCacheIntermediateDataSetIds()),
+                            new JobException(
+                                    "Cached intermediate dataset is corrupted.",
+                                    new CachedIntermediateDataSetCorruptedException(
+                                            cause,
+                                            failedVertex.getConsumedCacheIntermediateDataSetIds())),
                             timestamp,
                             globalFailure);
-                } else if (cause instanceof CacheCorruptedException) {
-                    return FailureHandlingResult.unrecoverable(
-                            failingExecutionVertexId, cause, timestamp, globalFailure);
                 }
             } catch (IllegalArgumentException e) {
                 // warn and ignore
@@ -154,6 +143,14 @@ public class ExecutionFailureHandler {
                         "Fail to find failing scheduling execution vertex with id {}",
                         failingExecutionVertexId);
             }
+        }
+
+        if (isUnrecoverableError(cause)) {
+            return FailureHandlingResult.unrecoverable(
+                    failingExecutionVertexId,
+                    new JobException("The failure is not recoverable", cause),
+                    timestamp,
+                    globalFailure);
         }
 
         restartBackoffTimeStrategy.notifyFailure(cause);
@@ -175,6 +172,18 @@ public class ExecutionFailureHandler {
                     timestamp,
                     globalFailure);
         }
+    }
+
+    private boolean isCachedIntermediateDataSetException(
+            Throwable cause, SchedulingExecutionVertex failedVertex) {
+        return cause instanceof PartitionException
+                && failedVertex
+                        .getConsumedCacheIntermediateDataSetIds()
+                        .contains(
+                                ((PartitionException) cause)
+                                        .getPartitionId()
+                                        .getPartitionId()
+                                        .getIntermediateDataSetID());
     }
 
     public static boolean isUnrecoverableError(Throwable cause) {

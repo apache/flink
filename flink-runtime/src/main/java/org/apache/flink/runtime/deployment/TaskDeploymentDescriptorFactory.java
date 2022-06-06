@@ -39,7 +39,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobType;
-import org.apache.flink.runtime.scheduler.CacheCorruptedException;
+import org.apache.flink.runtime.scheduler.CachedIntermediateDataSetCorruptedException;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -254,7 +254,8 @@ public class TaskDeploymentDescriptorFactory {
     }
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
-            ExecutionVertex executionVertex) throws IOException, CacheCorruptedException {
+            ExecutionVertex executionVertex)
+            throws IOException, CachedIntermediateDataSetCorruptedException {
         InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
         Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors;
@@ -262,8 +263,7 @@ public class TaskDeploymentDescriptorFactory {
             clusterPartitionShuffleDescriptors =
                     getClusterPartitionShuffleDescriptors(executionVertex);
         } catch (Throwable e) {
-            throw new CacheCorruptedException(
-                    "Fail to get ShuffleDescriptors",
+            throw new CachedIntermediateDataSetCorruptedException(
                     e,
                     executionVertex
                             .getJobVertex()

@@ -19,21 +19,21 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.throwable.ThrowableAnnotation;
+import org.apache.flink.runtime.throwable.ThrowableType;
 
 import java.util.List;
 
 /** Indicates some task fail to consume cached intermediate dataset. */
-public class CacheCorruptedException extends JobException {
+@ThrowableAnnotation(ThrowableType.NonRecoverableError)
+public class CachedIntermediateDataSetCorruptedException extends JobException {
     private final List<IntermediateDataSetID> corruptedIntermediateDataSetID;
 
-    public CacheCorruptedException(
-            String message,
-            Throwable cause,
-            List<IntermediateDataSetID> corruptedIntermediateDataSetID) {
+    public CachedIntermediateDataSetCorruptedException(
+            Throwable cause, List<IntermediateDataSetID> corruptedIntermediateDataSetID) {
         super(
                 String.format(
-                        "%s. Corrupted intermediate dataset IDs: %s",
-                        message, corruptedIntermediateDataSetID),
+                        "Corrupted intermediate dataset IDs: %s", corruptedIntermediateDataSetID),
                 cause);
         this.corruptedIntermediateDataSetID = corruptedIntermediateDataSetID;
     }

@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.scheduler.CacheCorruptedException;
+import org.apache.flink.runtime.scheduler.CachedIntermediateDataSetCorruptedException;
 import org.apache.flink.types.IntValue;
 
 import org.junit.Test;
@@ -174,11 +174,14 @@ public class JobIntermediateDatasetReuseTest {
                     jobResult
                             .getSerializedThrowable()
                             .get()
-                            .deserializeError(Thread.currentThread().getContextClassLoader());
-            assertTrue(cause instanceof CacheCorruptedException);
+                            .deserializeError(Thread.currentThread().getContextClassLoader())
+                            .getCause();
+            assertTrue(cause instanceof CachedIntermediateDataSetCorruptedException);
             assertEquals(
                     intermediateDataSetID,
-                    ((CacheCorruptedException) cause).getCorruptedIntermediateDataSetID().get(0));
+                    ((CachedIntermediateDataSetCorruptedException) cause)
+                            .getCorruptedIntermediateDataSetID()
+                            .get(0));
 
             firstJobGraph.setJobID(new JobID());
             miniCluster.submitJob(firstJobGraph).get();
