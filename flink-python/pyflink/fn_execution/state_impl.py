@@ -1273,7 +1273,7 @@ class OperatorStateBackend(OperatorStateStore, ABC):
         pass
 
 
-class RemoteOperatorStateBackend(OperatorStateStore):
+class RemoteOperatorStateBackend(OperatorStateBackend):
     def __init__(
         self, state_handler, state_cache_size, map_state_read_cache_size, map_state_write_cache_size
     ):

@@ -209,9 +209,6 @@ Other important classes:
       Tag with a name and type for identifying side output of an operator
 """
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
-from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
-                                                   FileSystemCheckpointStorage,
-                                                   CustomCheckpointStorage)
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
     ConnectedStreams, DataStreamSink, BroadcastStream, BroadcastConnectedStream
@@ -222,19 +219,22 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
                                           ProcessWindowFunction, BroadcastProcessFunction)
-from pyflink.datastream.functions import ProcessFunction
-from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
                                               EmbeddedRocksDBStateBackend)
+from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
+                                                   FileSystemCheckpointStorage,
+                                                   CustomCheckpointStorage)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
+from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
 from pyflink.datastream.window import Window, TimeWindow, CountWindow, WindowAssigner, \
     MergingWindowAssigner, TriggerResult, Trigger, GlobalWindow
+from pyflink.datastream.output_tag import OutputTag
 
 __all__ = [
     'StreamExecutionEnvironment',

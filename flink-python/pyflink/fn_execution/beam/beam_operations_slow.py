@@ -17,16 +17,17 @@
 ################################################################################
 import abc
 from abc import abstractmethod
+from typing import Iterable, Any, Dict, List
+
 from apache_beam.runners.worker.bundle_processor import TimerInfo, DataOutputOperation
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils import windowed_value
 from apache_beam.utils.windowed_value import WindowedValue
-from typing import Iterable, Any, Dict, List
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-from pyflink.fn_execution.profiler import Profiler
 from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 
 class OutputProcessor(abc.ABC):

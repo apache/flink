@@ -17,19 +17,11 @@
 ################################################################################
 # cython: language_level=3
 
-from apache_beam.runners.worker.operations cimport
+from apache_beam.runners.worker.operations cimport Operation
+from apache_beam.utils.windowed_value cimport WindowedValue
 
-Operation
-from apache_beam.utils.windowed_value cimport
-
-WindowedValue
-
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport
-
-FlinkLengthPrefixCoderBeamWrapper
-from pyflink.fn_execution.coder_impl_fast cimport
-
-InputStreamWrapper
+from pyflink.fn_execution.beam.beam_coder_impl_fast cimport FlinkLengthPrefixCoderBeamWrapper
+from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
 cdef class InputProcessor:
     cpdef has_next(self)
