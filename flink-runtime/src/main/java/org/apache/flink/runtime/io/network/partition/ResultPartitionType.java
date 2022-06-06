@@ -32,7 +32,7 @@ public enum ResultPartitionType {
      * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
      * that the partition is no longer needed.
      */
-    BLOCKING(false, false, false, false, true),
+    BLOCKING(false, false, false, true),
 
     /**
      * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have a
@@ -45,7 +45,7 @@ public enum ResultPartitionType {
      * scenarios, like when the TaskManager exits or when the TaskManager loses connection to
      * JobManager / ResourceManager for too long.
      */
-    BLOCKING_PERSISTENT(false, false, false, true, true),
+    BLOCKING_PERSISTENT(false, false, true, true),
 
     /**
      * A pipelined streaming data exchange. This is applicable to both bounded and unbounded
@@ -57,7 +57,7 @@ public enum ResultPartitionType {
      * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
      * the {@link #PIPELINED_BOUNDED} variant.
      */
-    PIPELINED(true, true, false, false, false),
+    PIPELINED(true, false, false, false),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool.
@@ -70,7 +70,7 @@ public enum ResultPartitionType {
      * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there
      * are no checkpoint barriers.
      */
-    PIPELINED_BOUNDED(true, true, true, false, false),
+    PIPELINED_BOUNDED(true, true, false, false),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
@@ -81,13 +81,10 @@ public enum ResultPartitionType {
      * in that {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task
      * fails.
      */
-    PIPELINED_APPROXIMATE(true, true, true, false, true);
+    PIPELINED_APPROXIMATE(true, true, false, true);
 
     /** Can the partition be consumed while being produced? */
     private final boolean isPipelined;
-
-    /** Does the partition produce back pressure when not consumed? */
-    private final boolean hasBackPressure;
 
     /** Does this partition use a limited number of (network) buffers? */
     private final boolean isBounded;
@@ -109,20 +106,11 @@ public enum ResultPartitionType {
 
     /** Specifies the behaviour of an intermediate result partition at runtime. */
     ResultPartitionType(
-            boolean isPipelined,
-            boolean hasBackPressure,
-            boolean isBounded,
-            boolean isPersistent,
-            boolean isReconnectable) {
+            boolean isPipelined, boolean isBounded, boolean isPersistent, boolean isReconnectable) {
         this.isPipelined = isPipelined;
-        this.hasBackPressure = hasBackPressure;
         this.isBounded = isBounded;
         this.isPersistent = isPersistent;
         this.isReconnectable = isReconnectable;
-    }
-
-    public boolean hasBackPressure() {
-        return hasBackPressure;
     }
 
     public boolean isBlocking() {
