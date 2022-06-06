@@ -30,6 +30,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** Builder for {@link DeclarativeSlotManager}. */
@@ -47,6 +48,7 @@ public class DeclarativeSlotManagerBuilder {
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
     private SlotTracker slotTracker;
+    private Duration requirementCheckDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
         this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -64,6 +66,7 @@ public class DeclarativeSlotManagerBuilder {
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
         this.resourceTracker = new DefaultResourceTracker();
         this.slotTracker = new DefaultSlotTracker();
+        this.requirementCheckDelay = Duration.ZERO;
     }
 
     public static DeclarativeSlotManagerBuilder newBuilder(ScheduledExecutor scheduledExecutor) {
@@ -135,12 +138,18 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setRequirementCheckDelay(Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
     public DeclarativeSlotManager build() {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
                         slotRequestTimeout,
                         taskManagerTimeout,
+                        requirementCheckDelay,
                         waitResultConsumedBeforeRelease,
                         slotMatchingStrategy,
                         defaultWorkerResourceSpec,

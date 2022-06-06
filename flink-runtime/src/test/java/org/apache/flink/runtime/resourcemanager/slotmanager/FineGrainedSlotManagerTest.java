@@ -43,6 +43,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -576,7 +577,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 final List<CompletableFuture<Void>> checkRequirementFutures = new ArrayList<>();
                 checkRequirementFutures.add(new CompletableFuture<>());
                 checkRequirementFutures.add(new CompletableFuture<>());
-                final long requirementCheckDelay = 50;
+                final Duration requirementCheckDelay = Duration.ofMillis(50);
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
                         (ignored1, ignored2) -> {
                             if (checkRequirementFutures.get(0).isDone()) {
@@ -619,13 +620,13 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             final long registrationTime = (System.nanoTime() - start) / 1_000_000;
                             assumeTrue(
                                     "The time of process requirement and register task manager must not take longer than the requirement check delay. If it does, then this indicates a very slow machine.",
-                                    registrationTime < requirementCheckDelay);
+                                    registrationTime < requirementCheckDelay.toMillis());
 
                             assertFutureCompleteAndReturn(checkRequirementFutures.get(0));
                             assertFutureNotComplete(checkRequirementFutures.get(1));
 
                             // checkTimes will not increase when there's no events
-                            Thread.sleep(requirementCheckDelay * 2);
+                            Thread.sleep(requirementCheckDelay.toMillis() * 2);
                             assertFutureNotComplete(checkRequirementFutures.get(1));
 
                             // checkTimes will increase again if there's another

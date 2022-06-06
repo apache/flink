@@ -142,6 +142,14 @@ public class ResourceManagerOptions {
                                     + START_WORKER_MAX_FAILURE_RATE.key()
                                     + "') is reached.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<Duration> REQUIREMENTS_CHECK_DELAY =
+            ConfigOptions.key("slotmanager.requirement-check.delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription("The delay of the resource requirements check.");
+
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
      *
