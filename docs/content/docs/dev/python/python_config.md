@@ -65,6 +65,9 @@ env_settings = EnvironmentSettings \
     .with_configuration(config) \
     .build()
 table_env = TableEnvironment.create(env_settings)
+
+# or directly pass config into create method
+table_env = TableEnvironment.create(config)
 ```
 
 ## Python Options
