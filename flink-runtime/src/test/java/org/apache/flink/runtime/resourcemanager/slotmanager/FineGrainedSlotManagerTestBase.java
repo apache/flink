@@ -44,6 +44,7 @@ import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.ClassRule;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -150,7 +151,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
                 new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
-        private long requirementCheckDelay = 0;
+        private Duration requirementCheckDelay = Duration.ZERO;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
@@ -176,7 +177,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
             return resourceManagerId;
         }
 
-        public void setRequirementCheckDelay(long requirementCheckDelay) {
+        public void setRequirementCheckDelay(Duration requirementCheckDelay) {
             this.requirementCheckDelay = requirementCheckDelay;
         }
 
@@ -208,8 +209,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
                             taskManagerTracker,
                             slotStatusSyncer,
                             getResourceAllocationStrategy()
-                                    .orElse(resourceAllocationStrategyBuilder.build()),
-                            Time.milliseconds(requirementCheckDelay));
+                                    .orElse(resourceAllocationStrategyBuilder.build()));
             runInMainThreadAndWait(
                     () ->
                             slotManager.start(
