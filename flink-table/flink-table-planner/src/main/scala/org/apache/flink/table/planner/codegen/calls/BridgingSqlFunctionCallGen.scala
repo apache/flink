@@ -64,7 +64,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       callContext,
       classOf[PlannerBase].getClassLoader,
       ctx.tableConfig,
-      new DefaultExpressionEvaluatorFactory(ctx.tableConfig, rexFactory)
+      new DefaultExpressionEvaluatorFactory(ctx.tableConfig, ctx.classLoader, rexFactory)
     )
     val inference = udf.getTypeInference(dataTypeFactory)
 

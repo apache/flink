@@ -88,7 +88,9 @@ abstract class AbstractPythonStreamAggregateOperatorTest {
                 new KeyedOneInputStreamOperatorTestHarness(
                         operator,
                         KeySelectorUtil.getRowDataSelector(
-                                getGrouping(), InternalTypeInfo.of(getInputType())),
+                                Thread.currentThread().getContextClassLoader(),
+                                getGrouping(),
+                                InternalTypeInfo.of(getInputType())),
                         InternalTypeInfo.of(getKeyType()),
                         1,
                         1,

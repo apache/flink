@@ -108,6 +108,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         final GeneratedRecordComparator genComparator =
                 ComparatorCodeGenerator.gen(
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         "SortComparator",
                         inputType,
                         SortUtil.getAscendingSortSpec(partitionFields));
@@ -141,7 +142,8 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 sortSpec.getFieldIndices());
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
                                 planner.createRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
@@ -167,6 +169,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                             planner.getTypeFactory(),
                             planner.createRelBuilder(),
                             config,
+                            planner.getFlinkContext().getClassLoader(),
                             inputType,
                             sortSpec,
                             inputTypeWithConstants);
@@ -194,6 +197,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             FlinkTypeFactory typeFactory,
             FlinkRelBuilder relBuilder,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RowType inputType,
             SortSpec sortSpec,
             RowType inputTypeWithConstants) {
@@ -215,7 +219,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
                     AggsHandlerCodeGenerator generator =
                             new AggsHandlerCodeGenerator(
-                                    new CodeGeneratorContext(config),
+                                    new CodeGeneratorContext(config, classLoader),
                                     relBuilder,
                                     JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                     false); // copyInputField
@@ -282,7 +286,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                 sortSpec.getFieldIndices());
                 AggsHandlerCodeGenerator generator =
                         new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(inputType.getChildren()),
                                 false); // copyInputField
@@ -304,6 +308,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                     createBoundComparator(
                                             relBuilder,
                                             config,
+                                            classLoader,
                                             sortSpec,
                                             group.getUpperBound(),
                                             false,
@@ -316,6 +321,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                     createBoundComparator(
                                             relBuilder,
                                             config,
+                                            classLoader,
                                             sortSpec,
                                             group.getLowerBound(),
                                             true,
@@ -328,6 +334,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                     createBoundComparator(
                                             relBuilder,
                                             config,
+                                            classLoader,
                                             sortSpec,
                                             group.getLowerBound(),
                                             true,
@@ -336,6 +343,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                                     createBoundComparator(
                                             relBuilder,
                                             config,
+                                            classLoader,
                                             sortSpec,
                                             group.getUpperBound(),
                                             false,
@@ -396,6 +404,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
     private GeneratedRecordComparator createBoundComparator(
             FlinkRelBuilder relBuilder,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             SortSpec sortSpec,
             RexWindowBound windowBound,
             boolean isLowerBound,
@@ -407,6 +416,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             return new RangeBoundComparatorCodeGenerator(
                             relBuilder,
                             config,
+                            classLoader,
                             inputType,
                             bound,
                             sortKey,
@@ -417,7 +427,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         } else {
             // if the bound is current row, then window support comparing based on multi fields.
             return new MultiFieldRangeBoundComparatorCodeGenerator(
-                            config, inputType, sortSpec, isLowerBound)
+                            config, classLoader, inputType, sortSpec, isLowerBound)
                     .generateBoundComparator("MultiFieldRangeBoundComparator");
         }
     }

@@ -145,7 +145,9 @@ public class PlannerContext {
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig())
                 .operatorTable(getSqlOperatorTable(getCalciteConfig()))
                 // set the executor to evaluate constant expressions
-                .executor(new ExpressionReducer(context.getTableConfig(), false))
+                .executor(
+                        new ExpressionReducer(
+                                context.getTableConfig(), context.getClassLoader(), false))
                 .context(context)
                 .traitDefs(traitDefs)
                 .build();

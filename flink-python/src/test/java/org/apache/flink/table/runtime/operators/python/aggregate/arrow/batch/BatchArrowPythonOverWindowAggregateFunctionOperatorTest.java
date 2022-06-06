@@ -243,19 +243,25 @@ class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                 3,
                 true,
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "UdafInputProjection",
                         inputRowType,
                         udfInputType,
                         udafInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "GroupKey",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),
                         groupingSet),
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "GroupSet",
                         inputRowType,
                         (RowType) Projection.of(groupingSet).project(inputRowType),

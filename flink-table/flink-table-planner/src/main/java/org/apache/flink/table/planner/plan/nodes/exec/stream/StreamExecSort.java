@@ -80,7 +80,11 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
-                        config, "StreamExecSortComparator", inputType, sortSpec);
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        "StreamExecSortComparator",
+                        inputType,
+                        sortSpec);
         StreamSortOperator sortOperator =
                 new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator);
         Transformation<RowData> inputTransform =

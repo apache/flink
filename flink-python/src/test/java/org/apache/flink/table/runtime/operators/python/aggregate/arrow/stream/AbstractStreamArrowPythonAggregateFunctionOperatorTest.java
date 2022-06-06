@@ -57,7 +57,10 @@ abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
 
         int[] grouping = new int[] {0};
         RowDataKeySelector keySelector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(getInputType()));
+                KeySelectorUtil.getRowDataSelector(
+                        Thread.currentThread().getContextClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(getInputType()));
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new KeyedOneInputStreamOperatorTestHarness<>(
                         operator, keySelector, keySelector.getProducedType());

@@ -134,7 +134,11 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(
-                planner.getExecEnv(), config, sourceTransform, rowtimeExpression.orElse(null));
+                planner.getExecEnv(),
+                config,
+                planner.getFlinkContext().getClassLoader(),
+                sourceTransform,
+                rowtimeExpression.orElse(null));
     }
 
     protected abstract <IN> Transformation<IN> createInput(
@@ -145,6 +149,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
             StreamExecutionEnvironment streamExecEnv,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression);
 

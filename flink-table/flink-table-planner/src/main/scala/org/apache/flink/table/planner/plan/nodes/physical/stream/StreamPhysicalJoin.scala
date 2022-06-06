@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
@@ -94,16 +94,20 @@ class StreamPhysicalJoin(
       .item(
         "leftInputSpec",
         JoinUtil.analyzeJoinInput(
+          unwrapClassLoader(left),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(left.getRowType)),
           joinSpec.getLeftKeys,
-          getUniqueKeys(left, joinSpec.getLeftKeys))
+          getUniqueKeys(left, joinSpec.getLeftKeys)
+        )
       )
       .item(
         "rightInputSpec",
         JoinUtil.analyzeJoinInput(
+          unwrapClassLoader(right),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(right.getRowType)),
           joinSpec.getRightKeys,
-          getUniqueKeys(right, joinSpec.getRightKeys))
+          getUniqueKeys(right, joinSpec.getRightKeys)
+        )
       )
   }
 

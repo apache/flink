@@ -114,7 +114,8 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
                 InternalTypeInfo<RowData> inputType =
                         (InternalTypeInfo<RowData>) inputTransform.getOutputType();
                 RowDataKeySelector keySelector =
-                        KeySelectorUtil.getRowDataSelector(keys, inputType);
+                        KeySelectorUtil.getRowDataSelector(
+                                planner.getFlinkContext().getClassLoader(), keys, inputType);
                 partitioner =
                         new KeyGroupStreamPartitioner<>(
                                 keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);

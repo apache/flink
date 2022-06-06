@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen._
@@ -25,7 +24,7 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
@@ -75,7 +74,8 @@ object IntervalJoinUtil {
       leftLogicalFieldCnt: Int,
       joinRowType: RelDataType,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): (Option[WindowBounds], Option[RexNode]) = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): (Option[WindowBounds], Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = FlinkRexUtil.toCnf(
@@ -127,7 +127,7 @@ object IntervalJoinUtil {
 
     // assemble window bounds from predicates
     val streamTimeOffsets =
-      timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig))
+      timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig, classLoader))
     val (leftLowerBound, leftUpperBound) =
       streamTimeOffsets match {
         case Seq(Some(x: WindowBound), Some(y: WindowBound)) if x.isLeftLower && !y.isLeftLower =>
@@ -337,7 +337,8 @@ object IntervalJoinUtil {
   private def computeWindowBoundFromPredicate(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): Option[WindowBound] = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): Option[WindowBound] = {
 
     val isLeftLowerBound: Boolean =
       timePred.pred.getKind match {
@@ -352,7 +353,8 @@ object IntervalJoinUtil {
       }
 
     // reduce predicate to constants to compute bounds
-    val (leftLiteral, rightLiteral) = reduceTimeExpression(timePred, rexBuilder, tableConfig)
+    val (leftLiteral, rightLiteral) =
+      reduceTimeExpression(timePred, rexBuilder, tableConfig, classLoader)
 
     if (leftLiteral.isEmpty || rightLiteral.isEmpty) {
       return None
@@ -396,7 +398,8 @@ object IntervalJoinUtil {
   private def reduceTimeExpression(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): (Option[Long], Option[Long]) = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): (Option[Long], Option[Long]) = {
 
     /** Checks if the given call is a materialization call for either proctime or rowtime. */
     def isMaterializationCall(call: RexCall): Boolean = {
@@ -440,7 +443,7 @@ object IntervalJoinUtil {
     val rightSideWithLiteral = replaceTimeFieldWithLiteral(rightSide)
 
     // reduce expression to literal
-    val exprReducer = new ExpressionReducer(tableConfig, allowChangeNullability = true)
+    val exprReducer = new ExpressionReducer(tableConfig, classLoader, allowChangeNullability = true)
     val originList = new util.ArrayList[RexNode]()
     originList.add(leftSideWithLiteral)
     originList.add(rightSideWithLiteral)
@@ -488,7 +491,8 @@ object IntervalJoinUtil {
       newLeft.getRowType.getFieldCount,
       newJoinRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
     windowBounds.nonEmpty
   }
 
@@ -499,6 +503,7 @@ object IntervalJoinUtil {
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
   }
 }

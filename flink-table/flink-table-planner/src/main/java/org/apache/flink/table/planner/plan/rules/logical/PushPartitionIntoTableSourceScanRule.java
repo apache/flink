@@ -168,6 +168,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                 partitions ->
                         PartitionPruner.prunePartitions(
                                 context.getTableConfig(),
+                                context.getClassLoader(),
                                 partitionFieldNames.toArray(new String[0]),
                                 partitionFieldTypes,
                                 partitions,

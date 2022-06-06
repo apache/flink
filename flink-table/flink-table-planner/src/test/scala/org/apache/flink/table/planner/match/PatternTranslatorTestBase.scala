@@ -109,6 +109,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
       .translatePattern(
         MatchUtil.createMatchSpec(dataMatch.logicalMatch),
         new Configuration,
+        Thread.currentThread().getContextClassLoader,
         context._1,
         testTableRowType)
       .f0
