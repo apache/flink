@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -48,7 +49,7 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
                 resultPartitions.size() > 0,
                 "The size of result partitions in the ConsumedPartitionGroup should be larger than 0.");
         this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
-        this.resultPartitionType = resultPartitionType;
+        this.resultPartitionType = Preconditions.checkNotNull(resultPartitionType);
 
         // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
         // IntermediateDataSetID
