@@ -26,7 +26,7 @@ FROM (
   FROM Ticker
   MATCH_RECOGNIZE (
     PARTITION BY symbol
-    MEASURES
+     ORDER BY ts_ltz    MEASURES
       A.price as price,
       A.tax as tax
     ONE ROW PER MATCH
@@ -51,8 +51,9 @@ LogicalProject(symbol=[$0], dPrice=[$1])
 +- LogicalMatch(partition=[[0]], order=[[]], outputFields=[[symbol, dPrice]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(PREV(A.$0, 0), _UTF-16LE'a')]], inputFields=[[symbol, price]])
    +- LogicalAggregate(group=[{0, 1}])
       +- LogicalProject(symbol=[$0], price=[$1])
-         +- LogicalMatch(partition=[[0]], order=[[]], outputFields=[[symbol, price, tax]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$1, 0), 0)]], inputFields=[[symbol, price, tax]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
+         +- LogicalMatch(partition=[[0]], order=[[3 ASC-nulls-first]], outputFields=[[symbol, price, tax]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$1, 0), 0)]], inputFields=[[symbol, price, tax, ts_ltz]])
+            +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], ts_ltz=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -63,9 +64,10 @@ Match(partitionBy=[symbol], measures=[FINAL(A.price) AS dPrice], rowsPerMatch=[O
       +- Exchange(distribution=[hash[symbol, price]])
          +- LocalHashAggregate(groupBy=[symbol, price], select=[symbol, price])
             +- Calc(select=[symbol, price])
-               +- Match(partitionBy=[symbol], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$1, 0), 0)}])
-                  +- Exchange(distribution=[hash[symbol]])
-                     +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, price, tax])
+               +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$1, 0), 0)}])
+                  +- Calc(select=[symbol, price, tax, PROCTIME() AS ts_ltz])
+                     +- Exchange(distribution=[hash[symbol]])
+                        +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, price, tax])
 ]]>
     </Resource>
   </TestCase>

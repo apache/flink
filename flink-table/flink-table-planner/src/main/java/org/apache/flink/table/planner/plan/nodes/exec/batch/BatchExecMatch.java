@@ -21,11 +21,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.types.logical.RowType;
+
+import java.util.Collections;
 
 /** Batch {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
 public class BatchExecMatch extends CommonExecMatch
@@ -37,6 +40,18 @@ public class BatchExecMatch extends CommonExecMatch
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(tableConfig, matchSpec, inputProperty, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecMatch.class),
+                ExecNodeContext.newPersistedConfig(BatchExecMatch.class, tableConfig),
+                matchSpec,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @Override
+    public boolean isProcTime(RowType inputRowType) {
+        return true;
     }
 }

@@ -45,8 +45,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * The physical rule is responsible for converting {@link FlinkLogicalMatch} to {@link
- * CommonPhysicalMatch}.
+ * The physical rule is responsible for converting {@link FlinkLogicalMatch} to physical Match rel.
  */
 public abstract class CommonPhysicalMatchRule extends ConverterRule {
 
@@ -111,7 +110,7 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
                 logicalMatch.getRowType());
     }
 
-    public abstract RelNode convertToPhysicalMatch(
+    protected abstract RelNode convertToPhysicalMatch(
             RelOptCluster cluster,
             RelTraitSet traitSet,
             RelNode convertInput,
@@ -146,12 +145,10 @@ public abstract class CommonPhysicalMatchRule extends ConverterRule {
             // try to find ambiguous column
 
             String ambiguousColumns =
-                    "{"
-                            + Arrays.stream(partitionKeys.toArray())
-                                    .mapToObj(k -> inputSchema.getFieldList().get(k).getName())
-                                    .filter(measuresNames::contains)
-                                    .collect(Collectors.joining(", "))
-                            + "}";
+                    Arrays.stream(partitionKeys.toArray())
+                            .mapToObj(k -> inputSchema.getFieldList().get(k).getName())
+                            .filter(measuresNames::contains)
+                            .collect(Collectors.joining(", ", "{", "}"));
 
             throw new ValidationException(
                     String.format("Columns ambiguously defined: %s", ambiguousColumns));

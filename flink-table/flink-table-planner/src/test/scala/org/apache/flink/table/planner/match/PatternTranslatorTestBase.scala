@@ -107,7 +107,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val dataMatch = optimized.asInstanceOf[StreamPhysicalMatch]
     val p = CommonExecMatch
       .translatePattern(
-        MatchUtil.createMatchSpec(dataMatch.logicalMatch),
+        MatchUtil.createMatchSpec(dataMatch.getLogicalMatch),
         new Configuration,
         Thread.currentThread().getContextClassLoader,
         context._1,

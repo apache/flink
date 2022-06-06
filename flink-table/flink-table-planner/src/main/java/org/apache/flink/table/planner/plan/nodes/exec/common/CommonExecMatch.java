@@ -47,7 +47,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -73,7 +72,6 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.tools.RelBuilder;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -82,28 +80,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Common {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
-public class CommonExecMatch extends ExecNodeBase<RowData>
+public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         implements ExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
     public static final String MATCH_TRANSFORMATION = "match";
 
     private final MatchSpec matchSpec;
-
-    public CommonExecMatch(
-            ReadableConfig tableConfig,
-            MatchSpec matchSpec,
-            InputProperty inputProperty,
-            RowType outputType,
-            String description) {
-        this(
-                ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(BatchExecMatch.class),
-                ExecNodeContext.newPersistedConfig(BatchExecMatch.class, tableConfig),
-                matchSpec,
-                Collections.singletonList(inputProperty),
-                outputType,
-                description);
-    }
 
     public CommonExecMatch(
             int id,
@@ -212,7 +194,7 @@ public class CommonExecMatch extends ExecNodeBase<RowData>
         return transform;
     }
 
-    public void checkOrderKeys(RowType inputRowType) {}
+    protected void checkOrderKeys(RowType inputRowType) {}
 
     private EventComparator<RowData> createEventComparator(
             ExecNodeConfig config, ClassLoader classLoader, RowType inputRowType) {
@@ -227,7 +209,7 @@ public class CommonExecMatch extends ExecNodeBase<RowData>
         }
     }
 
-    public Transformation<RowData> translateOrder(
+    protected Transformation<RowData> translateOrder(
             Transformation<RowData> inputTransform, RowType inputRowType, ReadableConfig config) {
         return inputTransform;
     }
@@ -263,9 +245,7 @@ public class CommonExecMatch extends ExecNodeBase<RowData>
                 "Only constant intervals with millisecond resolution are supported as time constraints of patterns.");
     }
 
-    public boolean isProcTime(RowType inputRowType) {
-        return true;
-    }
+    public abstract boolean isProcTime(RowType inputRowType);
 
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {

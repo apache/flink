@@ -33,9 +33,25 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /** Validation test for {@link SqlMatchRecognize}. */
+@RunWith(Parameterized.class)
 public class MatchRecognizeValidationTest extends TableTestBase {
+
+    private static final String STREAM = "stream";
+    private static final String BATCH = "batch";
+
+    @Parameterized.Parameter public String mode;
+
+    @Parameterized.Parameters(name = "mode = {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(STREAM, BATCH);
+    }
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -44,7 +60,10 @@ public class MatchRecognizeValidationTest extends TableTestBase {
 
     @Before
     public void setup() {
-        util = batchTestUtil(TableConfig.getDefault());
+        util =
+                STREAM.equals(mode)
+                        ? streamTestUtil(TableConfig.getDefault())
+                        : batchTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         tEnv.executeSql(
                 "CREATE TABLE Ticker (\n"
@@ -85,6 +104,90 @@ public class MatchRecognizeValidationTest extends TableTestBase {
     public void testMatchProcTimeInSelect() {
         String sql = "SELECT MATCH_PROCTIME() FROM MyTable";
         util.verifyExplain(sql);
+    }
+
+    @Test
+    public void testSortProcessingTimeDesc() {
+        if (STREAM.equals(mode)) {
+            expectedException.expect(TableException.class);
+            expectedException.expectMessage(
+                    "Primary sort order of a streaming table must be ascending on time.");
+            String sqlQuery =
+                    "SELECT *\n"
+                            + "FROM Ticker\n"
+                            + "MATCH_RECOGNIZE (\n"
+                            + "  ORDER BY proctime DESC\n"
+                            + "  MEASURES\n"
+                            + "    A.symbol AS aSymbol\n"
+                            + "  PATTERN (A B)\n"
+                            + "  DEFINE\n"
+                            + "    A AS A.symbol = 'a'\n"
+                            + ") AS T";
+            tEnv.executeSql(sqlQuery);
+        }
+    }
+
+    @Test
+    public void testSortProcessingTimeSecondaryField() {
+        if (STREAM.equals(mode)) {
+            expectedException.expect(TableException.class);
+            expectedException.expectMessage(
+                    "You must specify either rowtime or proctime for order by as the first one.");
+            String sqlQuery =
+                    "SELECT *\n"
+                            + "FROM Ticker\n"
+                            + "MATCH_RECOGNIZE (\n"
+                            + "  ORDER BY price, proctime\n"
+                            + "  MEASURES\n"
+                            + "    A.symbol AS aSymbol\n"
+                            + "  PATTERN (A B)\n"
+                            + "  DEFINE\n"
+                            + "    A AS A.symbol = 'a'\n"
+                            + ") AS T";
+            tEnv.executeSql(sqlQuery);
+        }
+    }
+
+    @Test
+    public void testSortNoOrder() {
+        if (STREAM.equals(mode)) {
+            expectedException.expect(TableException.class);
+            expectedException.expectMessage(
+                    "You must specify either rowtime or proctime for order by.");
+            String sqlQuery =
+                    "SELECT *\n"
+                            + "FROM Ticker\n"
+                            + "MATCH_RECOGNIZE (\n"
+                            + "  MEASURES\n"
+                            + "    A.symbol AS aSymbol\n"
+                            + "  PATTERN (A B)\n"
+                            + "  DEFINE\n"
+                            + "    A AS A.symbol = 'a'\n"
+                            + ") AS T";
+            tEnv.executeSql(sqlQuery);
+        }
+    }
+
+    @Test
+    public void testUpdatesInUpstreamOperatorNotSupported() {
+        if (STREAM.equals(mode)) {
+            expectedException.expect(TableException.class);
+            expectedException.expectMessage(
+                    "Match Recognize doesn't support consuming update changes which is produced by node GroupAggregate(");
+            String sqlQuery =
+                    "SELECT *\n"
+                            + "FROM (SELECT DISTINCT * FROM Ticker)\n"
+                            + "MATCH_RECOGNIZE (\n"
+                            + "  ORDER BY proctime\n"
+                            + "  MEASURES\n"
+                            + "    A.symbol AS aSymbol\n"
+                            + "   ONE ROW PER MATCH"
+                            + "  PATTERN (A B)\n"
+                            + "  DEFINE\n"
+                            + "    A AS A.symbol = 'a'\n"
+                            + ") AS T";
+            tEnv.executeSql(sqlQuery);
+        }
     }
 
     @Test
