@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,6 +58,8 @@ public class JobMasterPartitionTrackerImpl
 
     private final PartitionTrackerFactory.TaskExecutorGatewayLookup taskExecutorGatewayLookup;
     private ResourceManagerGateway resourceManagerGateway;
+    private final Map<IntermediateDataSetID, List<ShuffleDescriptor>>
+            clusterPartitionShuffleDescriptors;
 
     public JobMasterPartitionTrackerImpl(
             JobID jobId,
@@ -66,6 +69,7 @@ public class JobMasterPartitionTrackerImpl
         this.jobId = Preconditions.checkNotNull(jobId);
         this.shuffleMaster = Preconditions.checkNotNull(shuffleMaster);
         this.taskExecutorGatewayLookup = taskExecutorGatewayLookup;
+        this.clusterPartitionShuffleDescriptors = new HashMap<>();
     }
 
     @Override
@@ -133,6 +137,12 @@ public class JobMasterPartitionTrackerImpl
     @Override
     public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateDataSetID) {
+        return clusterPartitionShuffleDescriptors.computeIfAbsent(
+                intermediateDataSetID, this::requestShuffleDescriptorsFromResourceManager);
+    }
+
+    private List<ShuffleDescriptor> requestShuffleDescriptorsFromResourceManager(
+            IntermediateDataSetID intermediateDataSetID) {
         Preconditions.checkNotNull(
                 resourceManagerGateway, "JobMaster is not connected to ResourceManager");
         try {
@@ -140,8 +150,7 @@ public class JobMasterPartitionTrackerImpl
                     .getClusterPartitionsShuffleDescriptors(intermediateDataSetID)
                     .get();
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            return Collections.emptyList();
+            throw new RuntimeException(e);
         }
     }
 
