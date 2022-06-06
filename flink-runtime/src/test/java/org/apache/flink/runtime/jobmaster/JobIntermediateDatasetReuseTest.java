@@ -54,31 +54,15 @@ public class JobIntermediateDatasetReuseTest {
 
     @Test
     public void testClusterPartitionReuse() throws Exception {
-        final TestingMiniClusterConfiguration miniClusterConfiguration =
-                TestingMiniClusterConfiguration.newBuilder().build();
-
-        try (TestingMiniCluster miniCluster =
-                TestingMiniCluster.newBuilder(miniClusterConfiguration).build()) {
-            miniCluster.start();
-
-            IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
-            final JobGraph firstJobGraph = createFirstJobGraph(1, intermediateDataSetID);
-            miniCluster.submitJob(firstJobGraph).get();
-            CompletableFuture<JobResult> jobResultFuture =
-                    miniCluster.requestJobResult(firstJobGraph.getJobID());
-            JobResult jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
-
-            final JobGraph secondJobGraph = createSecondJobGraph(1, intermediateDataSetID);
-            miniCluster.submitJob(secondJobGraph).get();
-            jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
-            jobResult = jobResultFuture.get();
-            assertTrue(jobResult.isSuccess());
-        }
+        internalTestClusterPartitionReuse(1);
     }
 
     @Test
     public void testClusterPartitionReuseMultipleParallelism() throws Exception {
+        internalTestClusterPartitionReuse(64);
+    }
+
+    private void internalTestClusterPartitionReuse(int parallelism) throws Exception {
         final TestingMiniClusterConfiguration miniClusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder().build();
 
@@ -87,14 +71,15 @@ public class JobIntermediateDatasetReuseTest {
             miniCluster.start();
 
             IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
-            final JobGraph firstJobGraph = createFirstJobGraph(64, intermediateDataSetID);
+            final JobGraph firstJobGraph = createFirstJobGraph(parallelism, intermediateDataSetID);
             miniCluster.submitJob(firstJobGraph).get();
             CompletableFuture<JobResult> jobResultFuture =
                     miniCluster.requestJobResult(firstJobGraph.getJobID());
             JobResult jobResult = jobResultFuture.get();
             assertTrue(jobResult.isSuccess());
 
-            final JobGraph secondJobGraph = createSecondJobGraph(64, intermediateDataSetID);
+            final JobGraph secondJobGraph =
+                    createSecondJobGraph(parallelism, intermediateDataSetID);
             miniCluster.submitJob(secondJobGraph).get();
             jobResultFuture = miniCluster.requestJobResult(secondJobGraph.getJobID());
             jobResult = jobResultFuture.get();
