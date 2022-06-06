@@ -196,7 +196,8 @@ public class ExecutionFailureHandlerTest extends TestLogger {
     public void testCacheConsumingHandling() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
         final SchedulingExecutionVertex vertex =
-                topology.newExecutionVertex(new IntermediateDataSetID());
+                topology.newExecutionVertexToConsumeCachedIntermediateDataSet(
+                        new IntermediateDataSetID());
         final ExecutionFailureHandler executionFailureHandler =
                 new ExecutionFailureHandler(topology, failoverStrategy, backoffTimeStrategy);
         final FailureHandlingResult result =

@@ -46,7 +46,7 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
     private final Function<IntermediateResultPartitionID, DefaultResultPartition>
             resultPartitionRetriever;
-    private final List<IntermediateDataSetID> intermediateDataSetIds;
+    private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds;
 
     DefaultExecutionVertex(
             ExecutionVertexID executionVertexId,
@@ -71,13 +71,13 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Function<IntermediateResultPartitionID, DefaultResultPartition>
                     resultPartitionRetriever,
-            List<IntermediateDataSetID> intermediateDataSetIds) {
+            List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds) {
         this.executionVertexId = checkNotNull(executionVertexId);
         this.stateSupplier = checkNotNull(stateSupplier);
         this.producedResults = checkNotNull(producedPartitions);
         this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.resultPartitionRetriever = checkNotNull(resultPartitionRetriever);
-        this.intermediateDataSetIds = intermediateDataSetIds;
+        this.consumedCachedIntermediateDataSetIds = consumedCachedIntermediateDataSetIds;
     }
 
     @Override
@@ -101,8 +101,8 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
     }
 
     @Override
-    public List<IntermediateDataSetID> getCacheIntermediateDataSetIds() {
-        return intermediateDataSetIds;
+    public List<IntermediateDataSetID> getConsumedCacheIntermediateDataSetIds() {
+        return consumedCachedIntermediateDataSetIds;
     }
 
     @Override

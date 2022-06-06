@@ -44,7 +44,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
             resultPartitionsById;
-    private final List<IntermediateDataSetID> cachedIntermediateDataSetID;
+    private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds;
 
     private ExecutionState executionState;
 
@@ -55,14 +55,14 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
             Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                     resultPartitionsById,
             ExecutionState executionState,
-            List<IntermediateDataSetID> cachedIntermediateDataSetID) {
+            List<IntermediateDataSetID> cachedIntermediateDataSetIds) {
 
         this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
         this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.producedPartitions = new ArrayList<>();
         this.resultPartitionsById = checkNotNull(resultPartitionsById);
         this.executionState = executionState;
-        this.cachedIntermediateDataSetID = cachedIntermediateDataSetID;
+        this.consumedCachedIntermediateDataSetIds = cachedIntermediateDataSetIds;
     }
 
     @Override
@@ -95,8 +95,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     }
 
     @Override
-    public List<IntermediateDataSetID> getCacheIntermediateDataSetIds() {
-        return cachedIntermediateDataSetID;
+    public List<IntermediateDataSetID> getConsumedCacheIntermediateDataSetIds() {
+        return consumedCachedIntermediateDataSetIds;
     }
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
@@ -134,9 +134,11 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         return newBuilder().withExecutionVertexID(jobVertexId, subtaskIndex).build();
     }
 
-    public static TestingSchedulingExecutionVertex withCachedIntermediateDataset(
-            IntermediateDataSetID cachedIntermediateDatasetID) {
-        return newBuilder().addCachedIntermediateDataSetID(cachedIntermediateDatasetID).build();
+    public static TestingSchedulingExecutionVertex withConsumedCachedIntermediateDataSetId(
+            IntermediateDataSetID consumedCachedIntermediateDataSetId) {
+        return newBuilder()
+                .addConsumedCachedIntermediateDataSetId(consumedCachedIntermediateDataSetId)
+                .build();
     }
 
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
@@ -147,7 +149,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                 resultPartitionsById = new HashMap<>();
         private ExecutionState executionState = ExecutionState.CREATED;
-        private final List<IntermediateDataSetID> cachedIntermediateDataset = new ArrayList<>();
+        private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds =
+                new ArrayList<>();
 
         Builder withExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
             this.jobVertexId = jobVertexId;
@@ -187,12 +190,12 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     consumedPartitionGroups,
                     resultPartitionsById,
                     executionState,
-                    cachedIntermediateDataset);
+                    consumedCachedIntermediateDataSetIds);
         }
 
-        public Builder addCachedIntermediateDataSetID(
-                IntermediateDataSetID cachedIntermediateDatasetID) {
-            this.cachedIntermediateDataset.add(cachedIntermediateDatasetID);
+        public Builder addConsumedCachedIntermediateDataSetId(
+                IntermediateDataSetID consumedCachedIntermediateDataSetId) {
+            this.consumedCachedIntermediateDataSetIds.add(consumedCachedIntermediateDataSetId);
             return this;
         }
     }

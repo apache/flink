@@ -53,5 +53,5 @@ public interface SchedulingExecutionVertex
      *
      * @return the cache intermediate datasets consumed by the execution vertex.
      */
-    List<IntermediateDataSetID> getCacheIntermediateDataSetIds();
+    List<IntermediateDataSetID> getConsumedCacheIntermediateDataSetIds();
 }

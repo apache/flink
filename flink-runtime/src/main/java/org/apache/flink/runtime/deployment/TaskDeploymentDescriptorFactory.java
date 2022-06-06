@@ -266,7 +266,7 @@ public class TaskDeploymentDescriptorFactory {
                     executionVertex
                             .getJobVertex()
                             .getJobVertex()
-                            .getIntermediateDataSetIdToConsume());
+                            .getIntermediateDataSetIdsToConsume());
         }
 
         return new TaskDeploymentDescriptorFactory(
@@ -287,7 +287,7 @@ public class TaskDeploymentDescriptorFactory {
         final InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
         final List<IntermediateDataSetID> consumedClusterDataSetIds =
-                executionVertex.getJobVertex().getJobVertex().getIntermediateDataSetIdToConsume();
+                executionVertex.getJobVertex().getJobVertex().getIntermediateDataSetIdsToConsume();
         Map<IntermediateDataSetID, ShuffleDescriptor[]> clusterPartitionShuffleDescriptors =
                 new HashMap<>();
 

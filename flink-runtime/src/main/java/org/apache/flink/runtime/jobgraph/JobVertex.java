@@ -587,7 +587,7 @@ public class JobVertex implements java.io.Serializable {
         intermediateDataSetIdsToConsume.add(intermediateDataSetId);
     }
 
-    public List<IntermediateDataSetID> getIntermediateDataSetIdToConsume() {
+    public List<IntermediateDataSetID> getIntermediateDataSetIdsToConsume() {
         return intermediateDataSetIdsToConsume;
     }
 

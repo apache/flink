@@ -135,13 +135,13 @@ public class ExecutionFailureHandler {
                 final SchedulingExecutionVertex failedVertex =
                         schedulingTopology.getVertex(failingExecutionVertexId);
                 if (cause instanceof PartitionException
-                        && !failedVertex.getCacheIntermediateDataSetIds().isEmpty()) {
+                        && !failedVertex.getConsumedCacheIntermediateDataSetIds().isEmpty()) {
                     return FailureHandlingResult.unrecoverable(
                             failingExecutionVertexId,
                             new CacheCorruptedException(
                                     "Fail to consume cache",
                                     cause,
-                                    failedVertex.getCacheIntermediateDataSetIds()),
+                                    failedVertex.getConsumedCacheIntermediateDataSetIds()),
                             timestamp,
                             globalFailure);
                 } else if (cause instanceof CacheCorruptedException) {
