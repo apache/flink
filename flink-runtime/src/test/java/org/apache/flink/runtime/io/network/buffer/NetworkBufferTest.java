@@ -92,7 +92,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
     @Test
     public void testDataBufferIsBuffer() {
-        assertFalse(newBuffer(1024, 1024, false).isBuffer());
+        assertTrue(newBuffer(1024, 1024, true).isBuffer());
     }
 
     @Test
