@@ -32,7 +32,7 @@ public enum ResultPartitionType {
      * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
      * that the partition is no longer needed.
      */
-    BLOCKING(false, false, false, true),
+    BLOCKING(false, false, false, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have a
@@ -45,7 +45,8 @@ public enum ResultPartitionType {
      * scenarios, like when the TaskManager exits or when the TaskManager loses connection to
      * JobManager / ResourceManager for too long.
      */
-    BLOCKING_PERSISTENT(false, false, true, true),
+    BLOCKING_PERSISTENT(
+            false, false, true, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * A pipelined streaming data exchange. This is applicable to both bounded and unbounded
@@ -57,7 +58,7 @@ public enum ResultPartitionType {
      * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
      * the {@link #PIPELINED_BOUNDED} variant.
      */
-    PIPELINED(true, false, false, false),
+    PIPELINED(true, false, false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool.
@@ -70,7 +71,8 @@ public enum ResultPartitionType {
      * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there
      * are no checkpoint barriers.
      */
-    PIPELINED_BOUNDED(true, true, false, false),
+    PIPELINED_BOUNDED(
+            true, true, false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
@@ -81,7 +83,8 @@ public enum ResultPartitionType {
      * in that {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task
      * fails.
      */
-    PIPELINED_APPROXIMATE(true, true, false, true);
+    PIPELINED_APPROXIMATE(
+            true, true, false, true, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM);
 
     /** Can the partition be consumed while being produced? */
     private final boolean isPipelined;
@@ -104,13 +107,46 @@ public enum ResultPartitionType {
      */
     private final boolean isReconnectable;
 
+    private final ConsumingConstraint consumingConstraint;
+
+    private final ReleaseBy releaseBy;
+
+    /** ConsumingConstraint indicates when can the downstream consume the upstream. */
+    private enum ConsumingConstraint {
+        /** Upstream must be finished before downstream consume. */
+        BLOCKING,
+        /** Downstream can consume while upstream is running. */
+        CAN_BE_PIPELINED,
+        /** Downstream must consume while upstream is running. */
+        MUST_BE_PIPELINED
+    }
+
+    /**
+     * ReleaseBy indicates who is responsible for releasing the result partition.
+     *
+     * <p>Attention: This may only be a short-term solution to deal with the partition release
+     * logic. We can discuss the issue of unifying the partition release logic in FLINK-27948. Once
+     * the ticket is resolved, we can remove the enumeration here.
+     */
+    private enum ReleaseBy {
+        UPSTREAM,
+        SCHEDULER
+    }
+
     /** Specifies the behaviour of an intermediate result partition at runtime. */
     ResultPartitionType(
-            boolean isPipelined, boolean isBounded, boolean isPersistent, boolean isReconnectable) {
+            boolean isPipelined,
+            boolean isBounded,
+            boolean isPersistent,
+            boolean isReconnectable,
+            ConsumingConstraint consumingConstraint,
+            ReleaseBy releaseBy) {
         this.isPipelined = isPipelined;
         this.isBounded = isBounded;
         this.isPersistent = isPersistent;
         this.isReconnectable = isReconnectable;
+        this.consumingConstraint = consumingConstraint;
+        this.releaseBy = releaseBy;
     }
 
     public boolean isBlocking() {
