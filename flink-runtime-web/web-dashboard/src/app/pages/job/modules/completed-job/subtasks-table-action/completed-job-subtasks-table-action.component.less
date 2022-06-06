@@ -15,21 +15,3 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { Injectable } from '@angular/core';
-import { Observable, ReplaySubject } from 'rxjs';
-
-import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
-
-@Injectable()
-export class TaskManagerLocalService {
-  private readonly taskManagerDetail$ = new ReplaySubject<TaskManagerDetail>(1);
-
-  public taskManagerDetailChanges(): Observable<TaskManagerDetail> {
-    return this.taskManagerDetail$.asObservable();
-  }
-
-  public setTaskManagerDetail(detail: TaskManagerDetail): void {
-    this.taskManagerDetail$.next(detail);
-  }
-}

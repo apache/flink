@@ -28,6 +28,8 @@ import { FileReadDirective } from '@flink-runtime-web/share/common/file-read/fil
 import { NavigationComponent } from '@flink-runtime-web/share/common/navigation/navigation.component';
 import { ResizeComponent } from '@flink-runtime-web/share/common/resize/resize.component';
 import { JobStatusComponent } from '@flink-runtime-web/share/common/status/job-status.component';
+import { TableAggregatedMetricsComponent } from '@flink-runtime-web/share/common/table-aggregated-metrics/table-aggregated-metrics.component';
+import { TableAggregatedStatusDurationComponent } from '@flink-runtime-web/share/common/table-aggregated-status-duration/table-aggregated-status-duration.component';
 import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
 import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/checkpoint-badge/checkpoint-badge.component';
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
@@ -85,7 +87,9 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     FlameGraphComponent,
     JobStatusComponent,
     TableDisplayComponent,
-    ConfigurationCardsComponent
+    ConfigurationCardsComponent,
+    TableAggregatedMetricsComponent,
+    TableAggregatedStatusDurationComponent
   ],
   exports: [
     JobListComponent,
@@ -105,7 +109,9 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     FlameGraphComponent,
     JobStatusComponent,
     TableDisplayComponent,
-    ConfigurationCardsComponent
+    ConfigurationCardsComponent,
+    TableAggregatedMetricsComponent,
+    TableAggregatedStatusDurationComponent
   ]
 })
 export class ShareModule {}

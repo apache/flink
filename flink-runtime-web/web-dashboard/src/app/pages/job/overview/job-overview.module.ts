@@ -44,8 +44,6 @@ import { JobOverviewRoutingModule } from './job-overview-routing.module';
 import { JobOverviewComponent } from './job-overview.component';
 import { JobOverviewListComponent } from './list/job-overview-list.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
-import { TableAggregatedMetricsComponent } from './table-aggregated-metrics/table-aggregated-metrics.component';
-import { TableAggregatedStatusDurationComponent } from './table-aggregated-status-duration/table-aggregated-status-duration.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';
 import { TaskmanagersTableActionComponent } from './taskmanagers/table-action/taskmanagers-table-action.component';
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
@@ -81,9 +79,7 @@ import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-
     JobOverviewDrawerBackpressureComponent,
     JobOverviewDrawerFlameGraphComponent,
     TaskmanagersTableActionComponent,
-    SubtasksTableActionComponent,
-    TableAggregatedMetricsComponent,
-    TableAggregatedStatusDurationComponent
+    SubtasksTableActionComponent
   ]
 })
 export class JobOverviewModule {}
