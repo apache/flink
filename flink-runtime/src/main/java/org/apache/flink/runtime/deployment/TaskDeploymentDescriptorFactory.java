@@ -150,6 +150,9 @@ public class TaskDeploymentDescriptorFactory {
 
         for (Map.Entry<IntermediateDataSetID, ShuffleDescriptor[]> entry :
                 consumedClusterPartitionShuffleDescriptors.entrySet()) {
+            // For FLIP-205, the JobGraph generating side ensure that the cluster partition is
+            // produced with only one subpartition. Therefore, we always consume the partition with
+            // subparition index of 0.
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             entry.getKey(),
@@ -296,6 +299,9 @@ public class TaskDeploymentDescriptorFactory {
                     internalExecutionGraphAccessor.getClusterPartitionShuffleDescriptors(
                             consumedClusterDataSetId);
 
+            // For FLIP-205, the job graph generating side makes sure that the producer and consumer
+            // of the cluster partition have the same parallelism and each consumer Task consumes
+            // one output partition of the producer.
             Preconditions.checkState(
                     executionVertex.getTotalNumberOfParallelSubtasks() == shuffleDescriptors.size(),
                     "The parallelism (%s) of the cache consuming job vertex is "
