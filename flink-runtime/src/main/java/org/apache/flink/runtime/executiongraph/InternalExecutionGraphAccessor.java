@@ -117,6 +117,7 @@ public interface InternalExecutionGraphAccessor {
 
     ExecutionGraphID getExecutionGraphID();
 
+    /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
     List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
             IntermediateDataSetID intermediateResultPartition);
 }

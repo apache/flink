@@ -19,7 +19,9 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.TestLogger;
@@ -196,10 +198,26 @@ public class ResourceManagerPartitionTrackerImplTest extends TestLogger {
 
         assertThat(tracker.listDataSets().size(), is(0));
 
-        report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 2, PARTITION_ID_1);
-        report(tracker, TASK_EXECUTOR_ID_2, DATA_SET_ID, 2, PARTITION_ID_2);
+        List<ResultPartitionID> resultPartitionIDS = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            resultPartitionIDS.add(
+                    new ResultPartitionID(
+                            new IntermediateResultPartitionID(DATA_SET_ID, i),
+                            ExecutionAttemptID.randomId()));
+        }
 
-        assertThat(tracker.getClusterPartitionShuffleDescriptors(DATA_SET_ID).size(), is(2));
+        for (ResultPartitionID resultPartitionID : resultPartitionIDS) {
+            report(tracker, TASK_EXECUTOR_ID_1, DATA_SET_ID, 100, resultPartitionID);
+        }
+
+        final List<ShuffleDescriptor> shuffleDescriptors =
+                tracker.getClusterPartitionShuffleDescriptors(DATA_SET_ID);
+        assertThat(shuffleDescriptors.size(), is(100));
+        assertThat(
+                shuffleDescriptors.stream()
+                        .map(ShuffleDescriptor::getResultPartitionID)
+                        .collect(Collectors.toList()),
+                contains(resultPartitionIDS.toArray()));
 
         reportEmpty(tracker, TASK_EXECUTOR_ID_1);
         reportEmpty(tracker, TASK_EXECUTOR_ID_2);

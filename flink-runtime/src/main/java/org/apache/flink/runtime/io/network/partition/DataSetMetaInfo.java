@@ -21,9 +21,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /** Container for meta-data of a data set. */
 public final class DataSetMetaInfo {
@@ -31,7 +33,10 @@ public final class DataSetMetaInfo {
 
     private final int numRegisteredPartitions;
     private final int numTotalPartitions;
-    private final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors = new HashMap<>();
+    private final SortedMap<ResultPartitionID, ShuffleDescriptor>
+            shuffleDescriptorsOrderByPartitionNumber =
+                    new TreeMap<>(
+                            Comparator.comparingInt(o -> o.getPartitionId().getPartitionNumber()));
 
     private DataSetMetaInfo(int numRegisteredPartitions, int numTotalPartitions) {
         this.numRegisteredPartitions = numRegisteredPartitions;
@@ -50,11 +55,11 @@ public final class DataSetMetaInfo {
 
     public void addShuffleDescriptors(
             Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors) {
-        this.shuffleDescriptors.putAll(shuffleDescriptors);
+        this.shuffleDescriptorsOrderByPartitionNumber.putAll(shuffleDescriptors);
     }
 
     public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
-        return this.shuffleDescriptors;
+        return this.shuffleDescriptorsOrderByPartitionNumber;
     }
 
     static DataSetMetaInfo withoutNumRegisteredPartitions(int numTotalPartitions) {

@@ -55,7 +55,7 @@ public interface ClusterPartitionManager {
             ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport);
 
     /**
-     * Get the shuffle descriptors of the cluster partitions.
+     * Get the shuffle descriptors of the cluster partitions ordered by partition number.
      *
      * @param intermediateDataSetID The id of the dataset.
      * @return shuffle descriptors of the cluster partitions.

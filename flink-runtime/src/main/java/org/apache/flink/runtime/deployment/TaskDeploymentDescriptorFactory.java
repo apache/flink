@@ -58,7 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -295,7 +294,7 @@ public class TaskDeploymentDescriptorFactory {
                 new HashMap<>();
 
         for (IntermediateDataSetID consumedClusterDataSetId : consumedClusterDataSetIds) {
-            Collection<? extends ShuffleDescriptor> shuffleDescriptors =
+            List<? extends ShuffleDescriptor> shuffleDescriptors =
                     internalExecutionGraphAccessor.getClusterPartitionShuffleDescriptors(
                             consumedClusterDataSetId);
 
@@ -309,23 +308,11 @@ public class TaskDeploymentDescriptorFactory {
                     executionVertex.getTotalNumberOfParallelSubtasks(),
                     shuffleDescriptors.size());
 
-            shuffleDescriptors =
-                    shuffleDescriptors.stream()
-                            .filter(
-                                    descriptor ->
-                                            descriptor
-                                                            .getResultPartitionID()
-                                                            .getPartitionId()
-                                                            .getPartitionNumber()
-                                                    == executionVertex.getParallelSubtaskIndex())
-                            .collect(Collectors.toList());
-
-            Preconditions.checkState(
-                    shuffleDescriptors.size() == 1,
-                    "Expecting one shuffle descriptor but got %s",
-                    shuffleDescriptors.size());
             clusterPartitionShuffleDescriptors.put(
-                    consumedClusterDataSetId, shuffleDescriptors.toArray(new ShuffleDescriptor[0]));
+                    consumedClusterDataSetId,
+                    new ShuffleDescriptor[] {
+                        shuffleDescriptors.get(executionVertex.getParallelSubtaskIndex())
+                    });
         }
         return clusterPartitionShuffleDescriptors;
     }
