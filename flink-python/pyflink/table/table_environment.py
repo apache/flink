@@ -23,6 +23,7 @@ from typing import Union, List, Tuple, Iterable
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.configuration import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table.sources import TableSource
 
@@ -98,18 +99,25 @@ class TableEnvironment(object):
         self._open()
 
     @staticmethod
-    def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
+    def create(conf_or_settings: Union[EnvironmentSettings, Configuration]) -> 'TableEnvironment':
         """
         Creates a table environment that is the entry point and central context for creating Table
         and SQL API programs.
 
-        :param environment_settings: The environment settings used to instantiate the
+        :param conf_or_settings: The configuration or environment settings used to instantiate the
                                      :class:`~pyflink.table.TableEnvironment`.
         :return: The :class:`~pyflink.table.TableEnvironment`.
         """
         gateway = get_gateway()
-        j_tenv = gateway.jvm.TableEnvironment.create(
-            environment_settings._j_environment_settings)
+        if isinstance(conf_or_settings, EnvironmentSettings):
+            environment_settings = conf_or_settings
+        elif isinstance(conf_or_settings, Configuration):
+            environment_settings = EnvironmentSettings.new_instance() \
+                .with_configuration(conf_or_settings).build()
+        else:
+            raise TypeError("argument should be EnvironmentSettings or Configuration")
+
+        j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
 
     def from_table_source(self, table_source: 'TableSource') -> 'Table':
