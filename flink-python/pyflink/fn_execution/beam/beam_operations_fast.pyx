@@ -243,11 +243,11 @@ cdef class StatelessFunctionOperation(FunctionOperation):
 
 cdef class StatefulFunctionOperation(FunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
-                 keyed_state_backend, operator_stat_backend):
+                 keyed_state_backend, operator_state_backend):
         self._keyed_state_backend = keyed_state_backend
         self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
-            name, spec, counter_factory, sampler, consumers, operation_cls, operator_stat_backend)
+            name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend)
 
     cdef object generate_operation(self):
         if self.operator_state_backend is not None:
