@@ -150,12 +150,18 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
         checkOrderKeys(inputRowType);
         final EventComparator<RowData> eventComparator =
-                createEventComparator(config, inputRowType);
+                createEventComparator(
+                        config, planner.getFlinkContext().getClassLoader(), inputRowType);
         final Transformation<RowData> timestampedInputTransform =
                 translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
-                translatePattern(matchSpec, config, planner.createRelBuilder(), inputRowType);
+                translatePattern(
+                        matchSpec,
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        planner.createRelBuilder(),
+                        inputRowType);
         final Pattern<RowData, RowData> cepPattern = cepPatternAndNames.f0;
 
         // TODO remove this once it is supported in CEP library
@@ -189,7 +195,8 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =
                 new MatchCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         planner.createRelBuilder(),
                         false, // nullableInput
                         JavaScalaConversionUtil.toScala(cepPatternAndNames.f1),
@@ -219,7 +226,8 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                         InternalTypeInfo.of(getOutputType()),
                         timestampedInputTransform.getParallelism());
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(partitionKeys, inputTypeInfo);
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(), partitionKeys, inputTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
@@ -254,12 +262,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private EventComparator<RowData> createEventComparator(
-            ExecNodeConfig config, RowType inputRowType) {
+            ExecNodeConfig config, ClassLoader classLoader, RowType inputRowType) {
         SortSpec orderKeys = matchSpec.getOrderKeys();
         if (orderKeys.getFieldIndices().length > 1) {
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config, "RowDataComparator", inputRowType, orderKeys);
+                            config, classLoader, "RowDataComparator", inputRowType, orderKeys);
             return new RowDataEventComparator(rowComparator);
         } else {
             return null;
@@ -302,10 +310,11 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     public static Tuple2<Pattern<RowData, RowData>, List<String>> translatePattern(
             MatchSpec matchSpec,
             ReadableConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             RowType inputRowType) {
         final PatternVisitor patternVisitor =
-                new PatternVisitor(config, relBuilder, inputRowType, matchSpec);
+                new PatternVisitor(config, classLoader, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
         if (matchSpec.getInterval().isPresent()) {
@@ -331,6 +340,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {
         private final ReadableConfig config;
+        private final ClassLoader classLoader;
         private final RelBuilder relBuilder;
         private final RowType inputRowType;
         private final MatchSpec matchSpec;
@@ -339,10 +349,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
         public PatternVisitor(
                 ReadableConfig config,
+                ClassLoader classLoader,
                 RelBuilder relBuilder,
                 RowType inputRowType,
                 MatchSpec matchSpec) {
             this.config = config;
+            this.classLoader = classLoader;
             this.relBuilder = relBuilder;
             this.inputRowType = inputRowType;
             this.matchSpec = matchSpec;
@@ -358,7 +370,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             if (patternDefinition != null) {
                 MatchCodeGenerator generator =
                         new MatchCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config, classLoader),
                                 relBuilder,
                                 false, // nullableInput
                                 JavaScalaConversionUtil.toScala(new ArrayList<>(names)),

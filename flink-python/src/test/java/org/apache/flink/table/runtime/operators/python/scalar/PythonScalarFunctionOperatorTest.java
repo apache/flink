@@ -78,13 +78,17 @@ public class PythonScalarFunctionOperatorTest
                 udfInputType,
                 udfOutputType,
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "UdfInputProjection",
                         inputType,
                         udfInputType,
                         udfInputOffsets),
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(new Configuration()),
+                        new CodeGeneratorContext(
+                                new Configuration(),
+                                Thread.currentThread().getContextClassLoader()),
                         "ForwardedFieldProjection",
                         inputType,
                         forwardedFieldType,

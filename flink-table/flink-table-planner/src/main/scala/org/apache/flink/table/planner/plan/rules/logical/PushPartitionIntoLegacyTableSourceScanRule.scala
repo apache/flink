@@ -140,6 +140,7 @@ class PushPartitionIntoLegacyTableSourceScanRule
       )
       PartitionPruner.prunePartitions(
         tableConfig,
+        context.getClassLoader,
         partitionFieldNames,
         partitionFieldTypes,
         allPartitions,

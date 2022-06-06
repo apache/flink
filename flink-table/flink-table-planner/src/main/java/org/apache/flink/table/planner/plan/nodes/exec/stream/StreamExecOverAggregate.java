@@ -188,7 +188,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 RowType.of(
                         fieldTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
 
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+        final CodeGeneratorContext ctx =
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader());
         final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
         if (group.getLowerBound().isPreceding()
                 && group.getLowerBound().isUnbounded()
@@ -249,7 +250,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        partitionKeys, InternalTypeInfo.of(inputRowType));
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionKeys,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 

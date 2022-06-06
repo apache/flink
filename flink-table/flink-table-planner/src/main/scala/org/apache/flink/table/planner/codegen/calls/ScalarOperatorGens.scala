@@ -1763,11 +1763,6 @@ object ScalarOperatorGens {
     }
   }
 
-  /**
-   * Note that this cast context is going to use the thread context classloader. This is fine when
-   * the context will be used to generate casting for primitive types, but it might create problems
-   * when dealing with user provided types.
-   */
   def toCastContext(ctx: CodeGeneratorContext): CastRule.Context = {
     new CastRule.Context {
       override def isPrinting(): Boolean = false
@@ -1776,7 +1771,7 @@ object ScalarOperatorGens {
 
       override def getSessionZoneId: ZoneId = TableConfigUtils.getLocalTimeZone(ctx.tableConfig)
 
-      override def getClassLoader: ClassLoader = Thread.currentThread().getContextClassLoader
+      override def getClassLoader: ClassLoader = ctx.classLoader
     }
   }
 

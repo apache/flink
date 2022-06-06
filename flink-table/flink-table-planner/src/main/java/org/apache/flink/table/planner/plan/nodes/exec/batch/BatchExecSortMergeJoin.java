@@ -111,7 +111,12 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         RowType keyType = RowType.of(keyFieldTypes);
 
         GeneratedJoinCondition condFunc =
-                JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        nonEquiCondition,
+                        leftType,
+                        rightType);
 
         long externalBufferMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
@@ -125,8 +130,11 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
 
         long managedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2;
 
-        SortCodeGenerator leftSortGen = newSortGen(config, leftKeys, leftType);
-        SortCodeGenerator rightSortGen = newSortGen(config, rightKeys, rightType);
+        SortCodeGenerator leftSortGen =
+                newSortGen(config, planner.getFlinkContext().getClassLoader(), leftKeys, leftType);
+        SortCodeGenerator rightSortGen =
+                newSortGen(
+                        config, planner.getFlinkContext().getClassLoader(), rightKeys, rightType);
 
         int[] keyPositions = IntStream.range(0, leftKeys.length).toArray();
         SortMergeJoinOperator operator =
@@ -136,13 +144,15 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftIsSmaller,
                         condFunc,
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
                                 "SMJProjection",
                                 leftType,
                                 keyType,
                                 leftKeys),
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
                                 "SMJProjection",
                                 rightType,
                                 keyType,
@@ -151,7 +161,11 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftSortGen.generateRecordComparator("LeftComparator"),
                         rightSortGen.generateNormalizedKeyComputer("RightComputer"),
                         rightSortGen.generateRecordComparator("RightComparator"),
-                        newSortGen(config, keyPositions, keyType)
+                        newSortGen(
+                                        config,
+                                        planner.getFlinkContext().getClassLoader(),
+                                        keyPositions,
+                                        keyType)
                                 .generateRecordComparator("KeyComparator"),
                         filterNulls);
 
@@ -171,8 +185,8 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     }
 
     private SortCodeGenerator newSortGen(
-            ExecNodeConfig config, int[] originalKeys, RowType inputType) {
+            ExecNodeConfig config, ClassLoader classLoader, int[] originalKeys, RowType inputType) {
         SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
-        return new SortCodeGenerator(config, inputType, sortSpec);
+        return new SortCodeGenerator(config, classLoader, inputType, sortSpec);
     }
 }

@@ -90,7 +90,12 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
         RowType inputType = (RowType) inputEdge.getOutputType();
         // generate comparator
         GeneratedRecordComparator genComparator =
-                ComparatorCodeGenerator.gen(config, "SortLimitComparator", inputType, sortSpec);
+                ComparatorCodeGenerator.gen(
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        "SortLimitComparator",
+                        inputType,
+                        sortSpec);
 
         // TODO If input is ordered, there is no need to use the heap.
         SortLimitOperator operator =
