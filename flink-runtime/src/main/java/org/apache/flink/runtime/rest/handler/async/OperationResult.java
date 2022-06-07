@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -29,7 +30,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * OperationResultStatus}, it contains either the actual result (if completed successfully), or the
  * cause of failure (if it failed), or none of the two (if still in progress).
  */
-public class OperationResult<R> {
+public class OperationResult<R> implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final OperationResultStatus status;
     @Nullable private final R result;
     @Nullable private final Throwable throwable;
@@ -58,17 +61,17 @@ public class OperationResult<R> {
         return throwable;
     }
 
-    public static <R> OperationResult<R> failure(Throwable throwable) {
+    public static <R extends Serializable> OperationResult<R> failure(Throwable throwable) {
         checkNotNull(throwable);
         return new OperationResult<>(OperationResultStatus.FAILURE, null, throwable);
     }
 
-    public static <R> OperationResult<R> success(R result) {
+    public static <R extends Serializable> OperationResult<R> success(R result) {
         checkNotNull(result);
         return new OperationResult<>(OperationResultStatus.SUCCESS, result, null);
     }
 
-    public static <R> OperationResult<R> inProgress() {
+    public static <R extends Serializable> OperationResult<R> inProgress() {
         return new OperationResult<>(OperationResultStatus.IN_PROGRESS, null, null);
     }
 
