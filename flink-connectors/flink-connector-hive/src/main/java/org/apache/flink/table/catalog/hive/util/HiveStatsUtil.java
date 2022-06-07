@@ -492,6 +492,18 @@ public class HiveStatsUtil {
         }
     }
 
+    private static CatalogColumnStatisticsDataBase createTableColumnStatsFromPartitionedName(
+            String partitionName) {
+        if (partitionName.equals("__HIVE_DEFAULT_PARTITION__")) {
+            // when it's default partition, the ndv should be 1 and null count should be 1
+            return new CatalogColumnStatisticsDataLong(null, null, 1L, 1L);
+        } else {
+            // the partition type should always bigint, so the partitionName should always be xxxx
+            Long partitionValue = Long.valueOf(partitionName);
+            return new CatalogColumnStatisticsDataLong(partitionValue, partitionValue, 1L, 0L);
+        }
+    }
+
     /**
      * Convert Flink ColumnStats to Hive ColumnStatisticsData according to Hive column type. Note we
      * currently assume that, in Flink, the max and min of ColumnStats will be same type as the
@@ -672,7 +684,7 @@ public class HiveStatsUtil {
         return ac + bc == 0 ? null : (a * ac + b * bc) / (ac + bc);
     }
 
-    private static Long min(Long a, Long b) {
+    public static Long min(Long a, Long b) {
         if (a == null || b == null) {
             return a == null ? b : a;
         }
@@ -696,7 +708,7 @@ public class HiveStatsUtil {
         return a.getDaysSinceEpoch() <= b.getDaysSinceEpoch() ? a : b;
     }
 
-    private static Long max(Long a, Long b) {
+    public static Long max(Long a, Long b) {
         if (a == null || b == null) {
             return a == null ? b : a;
         }
@@ -720,7 +732,7 @@ public class HiveStatsUtil {
         return a.getDaysSinceEpoch() >= b.getDaysSinceEpoch() ? a : b;
     }
 
-    private static Long add(Long a, Long b) {
+    public static Long add(Long a, Long b) {
         if (a == null || b == null) {
             return a == null ? b : a;
         }

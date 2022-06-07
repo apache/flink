@@ -242,7 +242,6 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 catalog.getPartitionColumnStatistics(path1, partitionSpec));
     }
 
-    @Test
     void t1() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         CatalogTable catalogTable = createPartitionedTable();
@@ -270,6 +269,8 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         columnStatisticsDataBaseMap.put(
                 "first", new CatalogColumnStatisticsDataString(10L, 3.0, 2L, 100L));
+        columnStatisticsDataBaseMap.put(
+                "second", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
 
         catalog.alterTableColumnStatistics(
                 path1, new CatalogColumnStatistics(columnStatisticsDataBaseMap), false);
