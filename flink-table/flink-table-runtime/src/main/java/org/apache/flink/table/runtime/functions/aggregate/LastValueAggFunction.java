@@ -101,8 +101,10 @@ public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, R
     }
 
     public void accumulate(RowData rowData, Object value, Long order, boolean ignoreNull) {
-        if (value != null || !ignoreNull) {
+        if ((value != null || !ignoreNull) && order != null) {
             GenericRowData acc = (GenericRowData) rowData;
+            // todo: how to deal with order = null ? throw exception or just ignore it
+            // it's legacy code, such method won't be exposed to user.
             if (acc.getLong(1) < order) {
                 acc.setField(0, value);
                 acc.setField(1, order);

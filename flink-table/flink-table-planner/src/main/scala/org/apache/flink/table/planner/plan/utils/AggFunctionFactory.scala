@@ -470,7 +470,7 @@ class AggFunctionFactory(
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new FirstValueWithRetractAggFunction(argTypes:_*)
+          new FirstValueWithRetractAggFunction(argTypes: _*)
         case t =>
           throw new TableException(
             s"FIRST_VALUE with retract aggregate function does not " +
@@ -479,7 +479,7 @@ class AggFunctionFactory(
     } else {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new FirstValueAggFunction(argTypes:_*)
+          new FirstValueAggFunction(argTypes: _*)
         case t =>
           throw new TableException(
             s"FIRST_VALUE aggregate function does not support " +
@@ -495,7 +495,7 @@ class AggFunctionFactory(
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new LastValueWithRetractAggFunction(argTypes:_*)
+          new LastValueWithRetractAggFunction(argTypes: _*)
         case t =>
           throw new TableException(
             s"LAST_VALUE with retract aggregate function does not " +
@@ -504,7 +504,7 @@ class AggFunctionFactory(
     } else {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new LastValueAggFunction(argTypes:_*)
+          new LastValueAggFunction(argTypes: _*)
         case t =>
           throw new TableException(
             s"LAST_VALUE aggregate function does not support " +

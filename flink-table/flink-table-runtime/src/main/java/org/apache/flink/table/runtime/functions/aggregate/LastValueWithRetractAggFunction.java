@@ -135,7 +135,7 @@ public final class LastValueWithRetractAggFunction<T>
             }
             orderList.add(order);
             acc.valueToOrderMap.put(v, orderList);
-            accumulate(acc, value, order);
+            accumulate(acc, value, order, ignoreNull);
         }
     }
 
@@ -150,9 +150,12 @@ public final class LastValueWithRetractAggFunction<T>
             LastValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
             throws Exception {
         // only when the value isn't null or not to ignore null, accumulate it
-        if (value != null || !ignoreNull) {
+        // order shouldn't be null
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             Long prevOrder = acc.lastOrder;
+            // todo: how to deal with order = null ? throw exception or just ignore it?
+            // it's legacy code, such method won't be exposed to user.
             if (prevOrder == null || prevOrder <= order) {
                 acc.lastValue = v;
                 acc.lastOrder = order;
@@ -228,7 +231,7 @@ public final class LastValueWithRetractAggFunction<T>
                 } else {
                     acc.valueToOrderMap.put(v, orderList);
                 }
-                retract(acc, value, order);
+                retract(acc, value, order, ignoreNull);
             }
         }
     }
@@ -244,7 +247,7 @@ public final class LastValueWithRetractAggFunction<T>
             LastValueWithRetractAccumulator<T> acc, Object value, Long order, boolean ignoreNull)
             throws Exception {
         // only when the value isn't null or not to ignore null, retract it
-        if (value != null || !ignoreNull) {
+        if ((value != null || !ignoreNull) && order != null) {
             T v = (T) value;
             List<T> valueList = acc.orderToValueMap.get(order);
             if (valueList == null) {
