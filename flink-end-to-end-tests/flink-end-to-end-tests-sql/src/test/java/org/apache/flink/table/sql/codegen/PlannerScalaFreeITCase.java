@@ -29,7 +29,6 @@ import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -56,14 +55,20 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-/** End to End tests for sql codegen. */
+/**
+ * End to End tests for table planner scala-free since 1.15. Due to scala-free of table planner
+ * introduced, the class in table planner is not visible in distribution runtime, if we use these
+ * class in execution time, ClassNotFound exception will be thrown. ITCase in table planner can not
+ * cover it, so we should add E2E test for these case.
+ */
 @RunWith(Parameterized.class)
-public class SQLCodegenE2EITCase extends TestLogger {
+public class PlannerScalaFreeITCase extends TestLogger {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SQLCodegenE2EITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PlannerScalaFreeITCase.class);
 
-    private static final String CODEGEN_E2E_SQL = "codegen_e2e.sql";
+    private static final String SCALA_FREE_E2E_SQL = "scala_free_e2e.sql";
 
     @Parameterized.Parameters(name = "executionMode")
     public static Collection<String> data() {
@@ -94,7 +99,7 @@ public class SQLCodegenE2EITCase extends TestLogger {
 
     private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
 
-    public SQLCodegenE2EITCase(String executionMode) {
+    public PlannerScalaFreeITCase(String executionMode) {
         this.executionMode = executionMode;
     }
 
@@ -109,14 +114,14 @@ public class SQLCodegenE2EITCase extends TestLogger {
     @Test
     public void testImperativeUdaf() throws Exception {
         try (ClusterController clusterController = flink.startCluster(1)) {
-            // Initialize the SQL statements from "codegen_e2e.sql" file
+            // Initialize the SQL statements from "scala_free_e2e.sql" file
             Map<String, String> varsMap = new HashMap<>();
             varsMap.put("$RESULT", this.result.toAbsolutePath().toString());
             varsMap.put("$MODE", this.executionMode);
 
             List<String> sqlLines = initializeSqlLines(varsMap);
 
-            // Execute SQL statements in "codegen_e2e.sql" file
+            // Execute SQL statements in "scala_free_e2e.sql" file
             executeSqlStatements(clusterController, sqlLines);
 
             // Wait until all the results flushed to the json file.
@@ -137,9 +142,9 @@ public class SQLCodegenE2EITCase extends TestLogger {
     }
 
     private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {
-        URL url = SQLCodegenE2EITCase.class.getClassLoader().getResource(CODEGEN_E2E_SQL);
+        URL url = PlannerScalaFreeITCase.class.getClassLoader().getResource(SCALA_FREE_E2E_SQL);
         if (url == null) {
-            throw new FileNotFoundException(CODEGEN_E2E_SQL);
+            throw new FileNotFoundException(SCALA_FREE_E2E_SQL);
         }
 
         List<String> lines = Files.readAllLines(new File(url.getFile()).toPath());
@@ -157,9 +162,10 @@ public class SQLCodegenE2EITCase extends TestLogger {
     private void checkJsonResultFile() throws Exception {
         boolean success = false;
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(20));
+        List<String> lines = null;
         while (deadline.hasTimeLeft()) {
             if (Files.exists(result)) {
-                List<String> lines = readJsonResultFiles(result);
+                lines = readJsonResultFiles(result);
                 if (lines.size() == 2) {
                     success = true;
                     assertThat(
@@ -180,7 +186,10 @@ public class SQLCodegenE2EITCase extends TestLogger {
             }
             Thread.sleep(500);
         }
-        Assert.assertTrue("Did not get expected results before timeout.", success);
+        assertTrue(
+                String.format(
+                        "Did not get expected results before timeout, actual result: %s.", lines),
+                success);
     }
 
     private static List<String> readJsonResultFiles(Path path) throws IOException {
