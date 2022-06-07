@@ -38,6 +38,12 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-end-to-end-tests-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- The following dependencies are for connector/format sql-jars that
 			we copy using the maven-dependency-plugin. When extending the test
  			to cover more connectors/formats, add a dependency here and an entry
@@ -156,6 +162,12 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-sql-connector-elasticsearch7</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-test-utils</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 								</artifactItem>

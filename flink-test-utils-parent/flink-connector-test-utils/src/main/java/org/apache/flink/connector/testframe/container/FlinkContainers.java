@@ -255,6 +255,11 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         return this.jobManager;
     }
 
+    /** Gets TaskManager containers. */
+    public List<GenericContainer<?>> getTaskManagers() {
+        return this.taskManagers;
+    }
+
     /** Gets JobManager's hostname on the host machine. */
     public String getJobManagerHost() {
         return jobManager.getHost();
