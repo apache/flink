@@ -100,8 +100,6 @@ jobs:
         module: tests
       misc:
         module: misc
-      connector_hive_312:
-        module: connector_hive_312
       finegrained_resource_management:
         module: finegrained_resource_management
   steps:

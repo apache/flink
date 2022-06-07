@@ -25,7 +25,6 @@ STAGE_CONNECTORS_1="connect_1"
 STAGE_CONNECTORS_2="connect_2"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
-STAGE_CONNECTOR_HIVE_312="connector_hive_312"
 STAGE_CLEANUP="cleanup"
 STAGE_FINEGRAINED_RESOURCE_MANAGEMENT="finegrained_resource_management"
 
@@ -167,10 +166,6 @@ MODULES_TESTS="\
 flink-tests,\
 "
 
-MODULES_CONNECTOR_HIVE="\
-flink-connectors/flink-connector-hive,\
-"
-
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT="\
 flink-runtime,\
 flink-tests,\
@@ -218,7 +213,6 @@ function get_test_modules_for_stage() {
     local modules_connectors_2=$MODULES_CONNECTORS_2
     local modules_connectors_1=$MODULES_CONNECTORS_1
     local modules_tests=$MODULES_TESTS
-    local modules_connector_hive=$MODULES_CONNECTOR_HIVE
     local negated_core=\!${MODULES_CORE//,/,\!}
     local negated_table=\!${MODULES_TABLE//,/,\!}
     local negated_connectors_2=\!${MODULES_CONNECTORS_2//,/,\!}
@@ -245,9 +239,6 @@ function get_test_modules_for_stage() {
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"
-        ;;
-        (${STAGE_CONNECTOR_HIVE_312})
-           echo "-Phive-3.1.2 -pl $modules_connector_hive"
         ;;
         (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
             echo "-pl $modules_finegrained_resource_management"
