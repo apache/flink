@@ -33,11 +33,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -49,7 +48,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
@@ -58,13 +56,14 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CsvFormatFactory}. */
-public class CsvFormatFactoryTest extends TestLogger {
-    @Rule public ExpectedException thrown = ExpectedException.none();
+@ExtendWith({TestLoggerExtension.class})
+class CsvFormatFactoryTest {
 
     @Test
-    public void testSeDeSchema() {
+    void testSeDeSchema() {
         final CsvRowDataDeserializationSchema expectedDeser =
                 new CsvRowDataDeserializationSchema.Builder(
                                 PHYSICAL_TYPE, InternalTypeInfo.of(PHYSICAL_TYPE))
@@ -94,7 +93,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testDisableQuoteCharacter() {
+    void testDisableQuoteCharacter() {
         final Map<String, String> options =
                 getModifiedOptions(
                         opts -> {
@@ -131,35 +130,41 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testDisableQuoteCharacterException() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+    void testDisableQuoteCharacterException() {
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> options =
+                                    getModifiedOptions(
+                                            opts ->
+                                                    opts.put(
+                                                            "csv.disable-quote-character", "true"));
+
+                            createTableSink(SCHEMA, options);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .hasRootCause(
                         new ValidationException(
-                                "Format cannot define a quote character and disabled quote character at the same time.")));
-
-        final Map<String, String> options =
-                getModifiedOptions(opts -> opts.put("csv.disable-quote-character", "true"));
-
-        createTableSink(SCHEMA, options);
+                                "Format cannot define a quote character and disabled quote character at the same time."));
     }
 
     @Test
-    public void testInvalidCharacterOption() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+    void testInvalidCharacterOption() {
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> options =
+                                    getModifiedOptions(
+                                            opts -> opts.put("csv.quote-character", "abc"));
+
+                            createTableSink(SCHEMA, options);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .hasRootCause(
                         new ValidationException(
-                                "Option 'csv.quote-character' must be a string with single character, but was: abc")));
-
-        final Map<String, String> options =
-                getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
-
-        createTableSink(SCHEMA, options);
+                                "Option 'csv.quote-character' must be a string with single character, but was: abc"));
     }
 
     @Test
-    public void testEscapedFieldDelimiter() throws IOException {
+    void testEscapedFieldDelimiter() throws IOException {
         final CsvRowDataSerializationSchema expectedSer =
                 new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
                         .setFieldDelimiter('\t')
@@ -206,7 +211,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testDeserializeWithEscapedFieldDelimiter() throws IOException {
+    void testDeserializeWithEscapedFieldDelimiter() throws IOException {
         // test deserialization schema
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
@@ -224,22 +229,24 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidIgnoreParseError() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
+    void testInvalidIgnoreParseError() {
+        assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> options =
+                                    getModifiedOptions(
+                                            opts -> opts.put("csv.ignore-parse-errors", "abc"));
+
+                            createTableSink(SCHEMA, options);
+                        })
+                .isInstanceOf(ValidationException.class)
+                .hasRootCause(
                         new IllegalArgumentException(
                                 "Unrecognized option for boolean: abc. "
-                                        + "Expected either true or false(case insensitive)")));
-
-        final Map<String, String> options =
-                getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
-
-        createTableSink(SCHEMA, options);
+                                        + "Expected either true or false(case insensitive)"));
     }
 
     @Test
-    public void testSerializationWithWriteBigDecimalInScientificNotation() {
+    void testSerializationWithWriteBigDecimalInScientificNotation() {
         final Map<String, String> options =
                 getModifiedOptions(
                         opts -> opts.put("csv.write-bigdecimal-in-scientific-notation", "true"));
@@ -266,7 +273,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testSerializationWithNotWriteBigDecimalInScientificNotation() {
+    void testSerializationWithNotWriteBigDecimalInScientificNotation() {
         final Map<String, String> options =
                 getModifiedOptions(
                         opts -> opts.put("csv.write-bigdecimal-in-scientific-notation", "false"));
@@ -293,7 +300,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testProjectionPushdown() throws IOException {
+    void testProjectionPushdown() throws IOException {
         final Map<String, String> options = getAllOptions();
 
         final Projection projection =
@@ -311,7 +318,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testProjectionPushdownNoOpProjection() throws IOException {
+    void testProjectionPushdownNoOpProjection() throws IOException {
         final Map<String, String> options = getAllOptions();
 
         List<String> fields = Arrays.asList("a", "b", "c");
@@ -329,7 +336,7 @@ public class CsvFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testProjectionPushdownEmptyProjection() throws IOException {
+    void testProjectionPushdownEmptyProjection() throws IOException {
         final Map<String, String> options = getAllOptions();
 
         final int[][] projectionMatrix = new int[][] {};

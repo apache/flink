@@ -74,7 +74,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** MiniCluster-based integration tests CSV data format. */
 @ExtendWith({TestLoggerExtension.class})
-public class DataStreamCsvITCase {
+class DataStreamCsvITCase {
 
     private static final CsvMapper CSV_MAPPER = JacksonMapperFactory.createCsvMapper();
 
@@ -152,7 +152,7 @@ public class DataStreamCsvITCase {
     //  test cases
     // ------------------------------------------------------------------------
     @Test
-    public void testCsvReaderFormatFromPojo() throws Exception {
+    void testCsvReaderFormatFromPojo() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES);
 
         final CsvReaderFormat<CityPojo> csvFormat = CsvReaderFormat.forPojo(CityPojo.class);
@@ -162,7 +162,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCsvReaderFormatFromSchema() throws Exception {
+    void testCsvReaderFormatFromSchema() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_PIPE_SEPARATED);
 
         final CsvReaderFormat<CityPojo> csvFormat =
@@ -179,7 +179,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCsvReaderFormatMalformed() throws Exception {
+    void testCsvReaderFormatMalformed() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_MALFORMED);
 
         final CsvReaderFormat<CityPojo> csvFormat =
@@ -194,7 +194,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCustomBulkWriter() throws Exception {
+    void testCustomBulkWriter() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
