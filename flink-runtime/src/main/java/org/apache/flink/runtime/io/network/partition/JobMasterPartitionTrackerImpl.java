@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -149,8 +148,12 @@ public class JobMasterPartitionTrackerImpl
             return this.resourceManagerGateway
                     .getClusterPartitionsShuffleDescriptors(intermediateDataSetID)
                     .get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Failed to get shuffle descriptors of intermediate dataset %s from ResourceManager",
+                            intermediateDataSetID),
+                    e);
         }
     }
 
