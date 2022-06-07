@@ -60,6 +60,13 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     getTableUniqueKeys(rel.getTable)
   }
 
+  def getUniqueKeys(
+     rel: StreamExecMiniBatchAssigner,
+     mq: RelMetadataQuery,
+     ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(rel.getInput, ignoreNulls)
+  }
+
   private def getTableUniqueKeys(relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
     relOptTable match {
       case sourceTable: TableSourceTable =>
