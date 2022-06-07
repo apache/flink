@@ -673,7 +673,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                             FileUtils.readFileToString(jobmanagerLog, Charset.defaultCharset()));
             assertThat(content.toString())
                     .contains("Starting TaskManagers")
-                    .contains(" (2/2) (attempt #0) with attempt id ");
+                    .contains(" (2/2) #0 (graph: ");
 
             // make sure the detached app is really finished.
             LOG.info("Checking again that app has finished");

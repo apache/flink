@@ -328,7 +328,7 @@ public class SourceStreamTask<
                 if (!operatorChain.isTaskDeployedAsFinished()) {
                     LOG.debug(
                             "Legacy source {} skip execution since the task is finished on restore",
-                            getTaskNameWithSubtaskAndId());
+                            getName());
                     mainOperator.run(lock, operatorChain);
                 }
                 completeProcessing();

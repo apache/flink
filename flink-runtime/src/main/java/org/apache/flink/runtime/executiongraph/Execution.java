@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
@@ -544,11 +545,8 @@ public class Execution
             }
 
             LOG.info(
-                    "Deploying {} (attempt #{}) with attempt id {} and vertex id {} to {} with allocation id {}",
-                    vertex.getTaskNameWithSubtaskIndex(),
-                    getAttemptNumber(),
-                    vertex.getCurrentExecutionAttempt().getAttemptId(),
-                    vertex.getID(),
+                    "Deploying {} to {} with allocation id {}",
+                    getName(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
@@ -583,16 +581,10 @@ public class Execution
                                             ExceptionUtils.stripCompletionException(failure);
 
                                     if (actualFailure instanceof TimeoutException) {
-                                        String taskname =
-                                                vertex.getTaskNameWithSubtaskIndex()
-                                                        + " ("
-                                                        + attemptId
-                                                        + ')';
-
                                         markFailed(
                                                 new Exception(
                                                         "Cannot deploy task "
-                                                                + taskname
+                                                                + getName()
                                                                 + " - TaskManager ("
                                                                 + getAssignedResourceLocation()
                                                                 + ") not responding after a rpcTimeout of "
@@ -870,10 +862,7 @@ public class Execution
         } else {
             return FutureUtils.completedExceptionally(
                     new TaskNotRunningException(
-                            '"'
-                                    + vertex.getTaskNameWithSubtaskIndex()
-                                    + "\" is not running, but in state "
-                                    + getState()));
+                            '"' + getName() + "\" is not running, but in state " + getState()));
         }
     }
 
@@ -1018,7 +1007,7 @@ public class Execution
                     String message =
                             String.format(
                                     "Asynchronous race: Found %s in state %s after successful cancel call.",
-                                    vertex.getTaskNameWithSubtaskIndex(), state);
+                                    getName(), state);
                     LOG.error(message);
                     vertex.getExecutionGraphAccessor().failGlobal(new Exception(message));
                 }
@@ -1095,8 +1084,8 @@ public class Execution
             // we are already aborting or are already aborted or we are already finished
             if (LOG.isDebugEnabled()) {
                 LOG.debug(
-                        "Ignoring transition of vertex {} to {} while being {}.",
-                        getVertexWithAttempt(),
+                        "Ignoring transition of task {} to {} while being {}.",
+                        getName(),
                         FAILED,
                         current);
             }
@@ -1153,7 +1142,7 @@ public class Execution
                 // no reason this should ever happen, but log it to be safe
                 LOG.error(
                         "Error triggering cancel call while marking task {} as failed.",
-                        getVertex().getTaskNameWithSubtaskIndex(),
+                        getName(),
                         tt);
             }
         }
@@ -1195,15 +1184,15 @@ public class Execution
                     // this log statement is guarded because the 'getVertexWithAttempt()' method
                     // performs string concatenations
                     LOG.debug(
-                            "Concurrent canceling/failing of {} while deployment was in progress.",
-                            getVertexWithAttempt());
+                            "Concurrent canceling/failing of task {} while deployment was in progress.",
+                            getName());
                 }
                 sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
             } else {
                 String message =
                         String.format(
                                 "Concurrent unexpected state transition of task %s to %s while deployment was in progress.",
-                                getVertexWithAttempt(), currentState);
+                                getName(), currentState);
 
                 LOG.debug(message);
 
@@ -1336,7 +1325,7 @@ public class Execution
                             fail(
                                     new IllegalStateException(
                                             "Update to task ["
-                                                    + getVertexWithAttempt()
+                                                    + getName()
                                                     + "] on TaskManager "
                                                     + taskManagerLocation
                                                     + " failed",
@@ -1408,17 +1397,11 @@ public class Execution
             markTimestamp(targetState);
 
             if (error == null) {
-                LOG.info(
-                        "{} ({}) switched from {} to {}.",
-                        getVertex().getTaskNameWithSubtaskIndex(),
-                        getAttemptId(),
-                        currentState,
-                        targetState);
+                LOG.info("{} switched from {} to {}.", getName(), currentState, targetState);
             } else if (LOG.isInfoEnabled()) {
                 LOG.info(
-                        "{} ({}) switched from {} to {} on {}.",
-                        getVertex().getTaskNameWithSubtaskIndex(),
-                        getAttemptId(),
+                        "{} switched from {} to {} on {}.",
+                        getName(),
                         currentState,
                         targetState,
                         getLocationInformation(),
@@ -1462,8 +1445,14 @@ public class Execution
         this.stateTimestamps[state.ordinal()] = timestamp;
     }
 
-    public String getVertexWithAttempt() {
-        return vertex.getTaskNameWithSubtaskIndex() + " - execution #" + getAttemptNumber();
+    public String getName() {
+        return TaskInfo.generateSubtaskName(
+                vertex.getTaskName(),
+                attemptId.getSubtaskIndex(),
+                vertex.getTotalNumberOfParallelSubtasks(),
+                attemptId.getAttemptNumber(),
+                attemptId.getExecutionGraphId().toString(),
+                attemptId.getJobVertexId().toString());
     }
 
     // ------------------------------------------------------------------------
@@ -1531,11 +1520,7 @@ public class Execution
         final LogicalSlot slot = assignedResource;
 
         return String.format(
-                "Attempt #%d (%s) @ %s - [%s]",
-                getAttemptNumber(),
-                vertex.getTaskNameWithSubtaskIndex(),
-                (slot == null ? "(unassigned)" : slot),
-                state);
+                "%s @ %s - [%s]", getName(), (slot == null ? "(unassigned)" : slot), state);
     }
 
     @Override

@@ -57,6 +57,10 @@ public class ExecutionAttemptID implements java.io.Serializable {
         this.attemptNumber = attemptNumber;
     }
 
+    public ExecutionGraphID getExecutionGraphId() {
+        return executionGraphId;
+    }
+
     public ExecutionVertexID getExecutionVertexId() {
         return executionVertexId;
     }

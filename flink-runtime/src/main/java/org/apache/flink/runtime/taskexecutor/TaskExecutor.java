@@ -752,9 +752,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
 
             log.info(
-                    "Received task {} ({}), deploy into slot with allocation id {}.",
-                    task.getTaskInfo().getTaskNameWithSubtasks(),
-                    tdd.getExecutionAttemptId(),
+                    "Received task {}, deploy into slot with allocation id {}.",
+                    task.getSubtaskName(),
                     tdd.getAllocationId());
 
             boolean taskAdded;
@@ -1887,10 +1886,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
 
             log.info(
-                    "Un-registering task and sending final execution state {} to JobManager for task {} {}.",
+                    "Un-registering task and sending final execution state {} to JobManager for task {}.",
                     task.getExecutionState(),
-                    task.getTaskInfo().getTaskNameWithSubtasks(),
-                    task.getExecutionId());
+                    task.getSubtaskName());
 
             AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 

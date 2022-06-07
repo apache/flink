@@ -82,7 +82,7 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
 
     @Override
     public String subtaskName() {
-        return taskExecution.getVertexWithAttempt();
+        return taskExecution.getName();
     }
 
     @Override

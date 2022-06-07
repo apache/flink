@@ -109,7 +109,7 @@ public interface RuntimeContext {
     int getAttemptNumber();
 
     /**
-     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
+     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6) #1",
      * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be {@link
      * #getNumberOfParallelSubtasks()}, and 1 would be {@link #getAttemptNumber()}.
      *

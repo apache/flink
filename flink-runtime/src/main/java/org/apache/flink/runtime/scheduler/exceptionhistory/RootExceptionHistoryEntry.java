@@ -56,7 +56,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
         TaskManagerLocation taskManagerLocation = null;
         if (snapshot.getRootCauseExecution().isPresent()) {
             final Execution rootCauseExecution = snapshot.getRootCauseExecution().get();
-            failingTaskName = rootCauseExecution.getVertexWithAttempt();
+            failingTaskName = rootCauseExecution.getName();
             taskManagerLocation = rootCauseExecution.getAssignedResourceLocation();
         }
 
@@ -126,7 +126,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
                         .map(
                                 execution ->
                                         ExceptionHistoryEntry.create(
-                                                execution, execution.getVertexWithAttempt()))
+                                                execution, execution.getName()))
                         .collect(Collectors.toList()));
     }
 

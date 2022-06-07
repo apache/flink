@@ -144,7 +144,7 @@ public class MultipleInputStreamTask<OUT>
                         this,
                         getConfiguration(),
                         getCheckpointCoordinator(),
-                        getTaskNameWithSubtaskAndId(),
+                        getName(),
                         inputGates,
                         operatorChain.getSourceTaskInputs(),
                         mainMailboxExecutor,

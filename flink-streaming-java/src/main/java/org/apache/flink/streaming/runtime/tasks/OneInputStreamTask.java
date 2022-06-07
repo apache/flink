@@ -161,7 +161,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                         this,
                         configuration,
                         getCheckpointCoordinator(),
-                        getTaskNameWithSubtaskAndId(),
+                        getName(),
                         new List[] {Arrays.asList(inputGates)},
                         Collections.emptyList(),
                         mainMailboxExecutor,

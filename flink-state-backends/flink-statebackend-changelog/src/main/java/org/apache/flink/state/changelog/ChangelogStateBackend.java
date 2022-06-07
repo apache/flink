@@ -84,7 +84,7 @@ public class ChangelogStateBackend extends AbstractChangelogStateBackend
                         "Changelog storage is null when creating and restoring"
                                 + " the ChangelogKeyedStateBackend.");
 
-        String subtaskName = env.getTaskInfo().getTaskNameWithSubtasks();
+        String subtaskName = env.getTaskInfo().getSubtaskName();
         ExecutionConfig executionConfig = env.getExecutionConfig();
 
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();

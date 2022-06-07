@@ -93,10 +93,7 @@ public class BroadcastVariableMaterialization<T, C> {
                 throw new IllegalStateException(
                         String.format(
                                 "The task %s already holds a reference to the broadcast variable %s.",
-                                referenceHolder
-                                        .getEnvironment()
-                                        .getTaskInfo()
-                                        .getTaskNameWithSubtasks(),
+                                referenceHolder.getEnvironment().getTaskInfo().getSubtaskName(),
                                 key.toString()));
             }
 
@@ -192,10 +189,7 @@ public class BroadcastVariableMaterialization<T, C> {
                     throw new IllegalStateException(
                             String.format(
                                     "The task %s did not hold a reference to the broadcast variable %s.",
-                                    referenceHolder
-                                            .getEnvironment()
-                                            .getTaskInfo()
-                                            .getTaskNameWithSubtasks(),
+                                    referenceHolder.getEnvironment().getTaskInfo().getSubtaskName(),
                                     key.toString()));
                 } else {
                     return false;

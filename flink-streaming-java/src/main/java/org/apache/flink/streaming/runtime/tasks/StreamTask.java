@@ -1054,24 +1054,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     // ------------------------------------------------------------------------
 
     /**
-     * Gets the name of the task, in the form "taskname (2/5)".
+     * Gets the name of the task, in the form "taskname (2/5) #0 (graph: 8ca5, vertex:
+     * c72a270d2703b0e4093b5f392e040cf5)".
      *
      * @return The name of the task.
      */
     public final String getName() {
-        return getEnvironment().getTaskInfo().getTaskNameWithSubtasks();
-    }
-
-    /**
-     * Gets the name of the task, appended with the subtask indicator and execution id.
-     *
-     * @return The name of the task, with subtask indicator and execution id.
-     */
-    String getTaskNameWithSubtaskAndId() {
-        return getEnvironment().getTaskInfo().getTaskNameWithSubtasks()
-                + " ("
-                + getEnvironment().getExecutionId()
-                + ')';
+        return getEnvironment().getTaskInfo().getSubtaskName();
     }
 
     public CheckpointStorageWorkerView getCheckpointStorage() {
@@ -1597,7 +1586,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             edge,
                             i,
                             environment,
-                            environment.getTaskInfo().getTaskNameWithSubtasks(),
+                            environment.getTaskInfo().getSubtaskName(),
                             edge.getBufferTimeout()));
         }
         return recordWriters;

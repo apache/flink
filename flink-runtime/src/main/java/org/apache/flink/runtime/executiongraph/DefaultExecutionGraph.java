@@ -1589,8 +1589,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public Optional<String> findVertexWithAttempt(ExecutionAttemptID attemptId) {
-        return Optional.ofNullable(currentExecutions.get(attemptId))
-                .map(Execution::getVertexWithAttempt);
+        return Optional.ofNullable(currentExecutions.get(attemptId)).map(Execution::getName);
     }
 
     @Override

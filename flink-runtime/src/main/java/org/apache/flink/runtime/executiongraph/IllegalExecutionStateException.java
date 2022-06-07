@@ -49,7 +49,7 @@ public class IllegalExecutionStateException extends IllegalStateException {
     public IllegalExecutionStateException(
             Execution execution, ExecutionState expected, ExecutionState actual) {
         super(
-                execution.getVertexWithAttempt()
+                execution.getName()
                         + " is no longer in expected state "
                         + expected
                         + " but in state "

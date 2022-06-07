@@ -31,6 +31,7 @@ public class TaskInfo {
 
     private final String taskName;
     private final String taskNameWithSubtasks;
+    private final String subtaskName;
     private final String allocationIDAsString;
     private final int maxNumberOfParallelSubtasks;
     private final int indexOfSubtask;
@@ -49,6 +50,8 @@ public class TaskInfo {
                 indexOfSubtask,
                 numberOfParallelSubtasks,
                 attemptNumber,
+                "UNKNOWN",
+                "UNKNOWN",
                 "UNKNOWN");
     }
 
@@ -58,6 +61,8 @@ public class TaskInfo {
             int indexOfSubtask,
             int numberOfParallelSubtasks,
             int attemptNumber,
+            String graphIdAsString,
+            String vertexIdAsString,
             String allocationIDAsString) {
 
         checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
@@ -77,14 +82,16 @@ public class TaskInfo {
         this.numberOfParallelSubtasks = numberOfParallelSubtasks;
         this.attemptNumber = attemptNumber;
         this.taskNameWithSubtasks =
-                taskName
-                        + " ("
-                        + (indexOfSubtask + 1)
-                        + '/'
-                        + numberOfParallelSubtasks
-                        + ')'
-                        + "#"
-                        + attemptNumber;
+                generateTaskNameWithSubtaskInfo(
+                        taskName, indexOfSubtask, numberOfParallelSubtasks, attemptNumber);
+        this.subtaskName =
+                generateSubtaskName(
+                        taskName,
+                        indexOfSubtask,
+                        numberOfParallelSubtasks,
+                        attemptNumber,
+                        graphIdAsString,
+                        vertexIdAsString);
         this.allocationIDAsString = checkNotNull(allocationIDAsString);
     }
 
@@ -133,7 +140,7 @@ public class TaskInfo {
     }
 
     /**
-     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
+     * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6) #1",
      * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be {@link
      * #getNumberOfParallelSubtasks()}, and 1 would be {@link #getAttemptNumber()}.
      *
@@ -144,11 +151,46 @@ public class TaskInfo {
     }
 
     /**
+     * Returns the name of the subtask, such as "MyTask (3/6) #1 (graph: 8ca5, vertex:
+     * c72a270d2703b0e4093b5f392e040cf5)", where 3 would be ({@link #getIndexOfThisSubtask()} + 1),
+     * and 6 would be {@link #getNumberOfParallelSubtasks()}, 1 would be {@link
+     * #getAttemptNumber()}, 8ca5 would be the short version (first 4 letters) of execution graph
+     * ID, and c72a270d2703b0e4093b5f392e040cf5 would be the job vertex ID.
+     *
+     * @return The name of the subtask.
+     */
+    public String getSubtaskName() {
+        return this.subtaskName;
+    }
+
+    /**
      * Returns the allocation id for where this task is executed.
      *
      * @return the allocation id for where this task is executed.
      */
     public String getAllocationIDAsString() {
         return allocationIDAsString;
+    }
+
+    public static String generateSubtaskName(
+            String taskName,
+            int subtaskIndex,
+            int numberOfParallelSubtasks,
+            int attemptNumber,
+            String graphIdAsString,
+            String vertexIdAsString) {
+        return String.format(
+                "%s (graph: %s, vertex: %s)",
+                generateTaskNameWithSubtaskInfo(
+                        taskName, subtaskIndex, numberOfParallelSubtasks, attemptNumber),
+                graphIdAsString.substring(0, 4),
+                vertexIdAsString);
+    }
+
+    private static String generateTaskNameWithSubtaskInfo(
+            String taskName, int subtaskIndex, int numberOfParallelSubtasks, int attemptNumber) {
+        return String.format(
+                "%s (%d/%d) #%d",
+                taskName, subtaskIndex + 1, numberOfParallelSubtasks, attemptNumber);
     }
 }

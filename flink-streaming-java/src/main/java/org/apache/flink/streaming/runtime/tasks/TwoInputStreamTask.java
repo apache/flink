@@ -67,7 +67,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         this,
                         configuration,
                         getCheckpointCoordinator(),
-                        getTaskNameWithSubtaskAndId(),
+                        getName(),
                         new List[] {inputGates1, inputGates2},
                         Collections.emptyList(),
                         mainMailboxExecutor,
