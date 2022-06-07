@@ -209,6 +209,7 @@ public class HiveStatsUtil {
             HiveCatalog hiveCatalog,
             Map<String, Long> cachePartitionRowCount,
             ObjectPath tablePath) {
+        boolean ndvSum = hiveCatalog.getHiveConf().getBoolean("ndv-sum", true);
         Preconditions.checkArgument(columnStatisticsDataList.size() > 0);
         CatalogColumnStatisticsDataBase colStat = columnStatisticsDataList.get(0);
         if (colStat instanceof CatalogColumnStatisticsDataBinary) {
@@ -221,18 +222,19 @@ public class HiveStatsUtil {
         } else if (colStat instanceof CatalogColumnStatisticsDataBoolean) {
             return mergeCatalogColumnStatisticsDataBoolean(columnStatisticsDataList);
         } else if (colStat instanceof CatalogColumnStatisticsDataDate) {
-            return mergeCatalogColumnStatisticsDataDate(columnStatisticsDataList);
+            return mergeCatalogColumnStatisticsDataDate(columnStatisticsDataList, ndvSum);
         } else if (colStat instanceof CatalogColumnStatisticsDataDouble) {
-            return mergeCatalogColumnStatisticsDataDouble(columnStatisticsDataList);
+            return mergeCatalogColumnStatisticsDataDouble(columnStatisticsDataList, ndvSum);
         } else if (colStat instanceof CatalogColumnStatisticsDataLong) {
-            return mergeCatalogColumnStatisticsDataLong(columnStatisticsDataList);
+            return mergeCatalogColumnStatisticsDataLong(columnStatisticsDataList, ndvSum);
         } else if (colStat instanceof CatalogColumnStatisticsDataString) {
             return mergeCatalogColumnStatisticsDataString(
                     columnStatisticsDataList,
                     partitions,
                     hiveCatalog,
                     cachePartitionRowCount,
-                    tablePath);
+                    tablePath,
+                    ndvSum);
         } else {
             return null;
         }
@@ -327,7 +329,8 @@ public class HiveStatsUtil {
             List<String> partitions,
             HiveCatalog hiveCatalog,
             Map<String, Long> cachePartitionRowCountMap,
-            ObjectPath tablePath) {
+            ObjectPath tablePath,
+            boolean ndvSum) {
         CatalogColumnStatisticsDataString colStat =
                 (CatalogColumnStatisticsDataString) columnStatisticsDataList.get(0);
         Long maxLength = colStat.getMaxLength();
@@ -354,7 +357,7 @@ public class HiveStatsUtil {
             currentRowsCount = add(currentRowsCount, anotherRowsCount);
             // note: currently, we have no way to get ndv according the statistic from every single
             // partition, so we use max ndx among partitions, which may be inaccuracy
-            ndv = max(ndv, anotherColStat.getNdv());
+            ndv = ndvSum ? add(ndv, anotherColStat.getNdv()) : max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -362,7 +365,7 @@ public class HiveStatsUtil {
     }
 
     private static CatalogColumnStatisticsDataBase mergeCatalogColumnStatisticsDataLong(
-            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList) {
+            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList, boolean ndvSum) {
         CatalogColumnStatisticsDataLong colStat =
                 (CatalogColumnStatisticsDataLong) columnStatisticsDataList.get(0);
         Long min = colStat.getMin();
@@ -377,7 +380,7 @@ public class HiveStatsUtil {
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
             // partition, so we use max ndx among partitions, which may be inaccuracy
-            ndv = max(ndv, anotherColStat.getNdv());
+            ndv = ndvSum ? add(ndv, anotherColStat.getNdv()) : max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -385,7 +388,7 @@ public class HiveStatsUtil {
     }
 
     private static CatalogColumnStatisticsDataBase mergeCatalogColumnStatisticsDataDouble(
-            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList) {
+            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList, boolean ndvSum) {
         CatalogColumnStatisticsDataDouble colStat =
                 (CatalogColumnStatisticsDataDouble) columnStatisticsDataList.get(0);
         Double min = colStat.getMin();
@@ -400,7 +403,7 @@ public class HiveStatsUtil {
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
             // partition, so we use max ndx among partitions, which may be inaccuracy
-            ndv = max(ndv, anotherColStat.getNdv());
+            ndv = ndvSum ? add(ndv, anotherColStat.getNdv()) : max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
@@ -408,7 +411,7 @@ public class HiveStatsUtil {
     }
 
     private static CatalogColumnStatisticsDataBase mergeCatalogColumnStatisticsDataDate(
-            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList) {
+            List<CatalogColumnStatisticsDataBase> columnStatisticsDataList, boolean ndvSum) {
         CatalogColumnStatisticsDataDate colStat =
                 (CatalogColumnStatisticsDataDate) columnStatisticsDataList.get(0);
         Date min = colStat.getMin();
@@ -423,7 +426,7 @@ public class HiveStatsUtil {
             max = max(max, anotherColStat.getMax());
             // note: currently, we have no way to get ndv according the statistic from every single
             // partition, so we use max ndx among partitions, which may be inaccuracy
-            ndv = max(ndv, anotherColStat.getNdv());
+            ndv = ndvSum ? add(ndv, anotherColStat.getNdv()) : max(ndv, anotherColStat.getNdv());
             nullCount = add(nullCount, anotherColStat.getNullCount());
             props.putAll(anotherColStat.getProperties());
         }
