@@ -197,13 +197,13 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                         .map(ExecutionJobVertex::getJobVertexId)
                         .collect(Collectors.toSet());
 
-        // any PIPELINED input should be from within this new set so that existing pipelined regions
-        // will not change
+        // any mustBePipelinedConsumed input should be from within this new set so that existing
+        // pipelined regions will not change
         newlyInitializedJobVertices.stream()
                 .map(ExecutionJobVertex::getJobVertex)
                 .flatMap(v -> v.getInputs().stream())
                 .map(JobEdge::getSource)
-                .filter(r -> r.getResultType().isPipelined())
+                .filter(r -> r.getResultType().mustBePipelinedConsumed())
                 .map(IntermediateDataSet::getProducer)
                 .map(JobVertex::getID)
                 .forEach(id -> checkState(newJobVertexIds.contains(id)));
