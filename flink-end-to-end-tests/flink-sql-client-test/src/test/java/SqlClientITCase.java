@@ -20,7 +20,15 @@ import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.container.FlinkContainers;
+import org.apache.flink.util.DockerImageVersions;
 
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.BytesSerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,13 +36,18 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,35 +56,46 @@ public class SqlClientITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SqlClientITCase.class);
 
+    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
     private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
+
+    private final Path sqlConnectorKafkaJar = TestUtils.getResource(".*kafka.*.jar");
 
     private final Path sqlConnectorUpsertTestJar =
             TestUtils.getResource(".*flink-test-utils.*.jar");
 
     public static final Network NETWORK = Network.newNetwork();
 
+    @Container
+    public static final KafkaContainer KAFKA =
+            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
+                    .withNetwork(NETWORK)
+                    .withNetworkAliases("kafka")
+                    .withLogConsumer(LOG_CONSUMER);
+
     public final FlinkContainers flink =
             FlinkContainers.builder()
                     .setNumTaskManagers(1)
                     .setNetwork(NETWORK)
-                    .setLogger(LOG) /*.dependsOn(KAFKA)*/
+                    .setLogger(LOG)
+                    .dependsOn(KAFKA)
                     .build();
 
     @TempDir private File tempDir;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         flink.start();
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         flink.stop();
     }
 
     @Test
-    public void testUpsert() throws Exception {
-        String outputFilepath = "/flink/records.out";
+    void testUpsert() throws Exception {
+        String outputFilepath = "/flink/records-upsert.out";
 
         List<String> sqlLines =
                 Arrays.asList(
@@ -104,16 +128,136 @@ public class SqlClientITCase {
         |   42    |    Kim    |     3      |
         */
 
-        Thread.sleep(5000); // prevent NotFoundException: Status 404
+        verifyNumberOfResultRecords(outputFilepath, 3);
+    }
+
+    @Test
+    void testAppendNoKey() throws Exception {
+        String outputFilepath = "/flink/records-append.out";
+
+        List<String> sqlLines =
+                Arrays.asList(
+                        "SET 'execution.runtime-mode' = 'batch';",
+                        "",
+                        "CREATE TABLE AppendSinkTable (",
+                        "    user_id INT,",
+                        "    user_name STRING,",
+                        "    user_count BIGINT",
+                        "  ) WITH (",
+                        "    'connector' = 'upsert-files',",
+                        "    'key.format' = 'json',",
+                        "    'value.format' = 'json',",
+                        "    'output-filepath' = '" + outputFilepath + "'",
+                        "  );",
+                        "",
+                        "INSERT INTO AppendSinkTable",
+                        "  SELECT *",
+                        "  FROM (",
+                        "    VALUES",
+                        "      (1, 'Bob', CAST(0 AS BIGINT)),",
+                        "      (22, 'Tom', CAST(0 AS BIGINT)),",
+                        "      (42, 'Kim', CAST(0 AS BIGINT)),",
+                        "      (42, 'Kim', CAST(0 AS BIGINT)),",
+                        "      (42, 'Kim', CAST(0 AS BIGINT)),",
+                        "      (1, 'Bob', CAST(0 AS BIGINT)))",
+                        "    AS UserCountTable(user_id, user_name, user_count);");
+        executeSql(sqlLines);
+
+        verifyNumberOfResultRecords(outputFilepath, 6);
+    }
+
+    @Test
+    void testMatchRecognize() throws Exception {
+        String outputFilepath = "/flink/records-matchrecognize.out";
+
+        String[] messages =
+                new String[] {
+                    "{\"timestamp\": \"2018-03-12T08:00:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
+                    "{\"timestamp\": \"2018-03-12T08:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is a warning.\"}}",
+                    "{\"timestamp\": \"2018-03-12T09:00:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"WARNING\", \"message\": \"This is another warning.\"}}",
+                    "{\"timestamp\": \"2018-03-12T09:10:00Z\", \"user\": \"Alice\", \"event\": { \"type\": \"INFO\", \"message\": \"This is a info.\"}}",
+                    "{\"timestamp\": \"2018-03-12T09:20:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
+                    "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": \"Steve\", \"event\": { \"type\": \"INFO\", \"message\": \"This is another info.\"}}",
+                    "{\"timestamp\": \"2018-03-12T09:30:00Z\", \"user\": null, \"event\": { \"type\": \"WARNING\", \"message\": \"This is a bad message because the user is missing.\"}}",
+                    "{\"timestamp\": \"2018-03-12T10:40:00Z\", \"user\": \"Bob\", \"event\": { \"type\": \"ERROR\", \"message\": \"This is an error.\"}}"
+                };
+        sendMessages("test-json", messages);
+
+        List<String> sqlLines =
+                Arrays.asList(
+                        "SET 'execution.runtime-mode' = 'batch';",
+                        "",
+                        "CREATE FUNCTION RegReplace AS 'org.apache.flink.table.toolbox.StringRegexReplaceFunction';",
+                        "",
+                        "CREATE TABLE JsonSourceTable (",
+                        "    `timestamp` TIMESTAMP_LTZ(3),",
+                        "    `user` STRING,",
+                        "    `event` ROW<type STRING, message STRING>,",
+                        "    `rowtime` AS `timestamp`,",
+                        "    WATERMARK FOR `rowtime` AS `rowtime` - INTERVAL '2' SECOND",
+                        ") WITH (",
+                        "    'connector' = 'kafka',",
+                        "    'topic' = 'test-json',",
+                        "    'properties.bootstrap.servers' = '"
+                                + KAFKA.getBootstrapServers()
+                                + "',",
+                        "    'scan.startup.mode' = 'earliest-offset',",
+                        "    'format' = 'json',",
+                        "    'json.timestamp-format.standard' = 'ISO-8601'",
+                        ");",
+                        "",
+                        "CREATE TABLE AppendSinkTable (",
+                        "    user_id INT,",
+                        "    user_name STRING,",
+                        "    user_count BIGINT",
+                        "  ) WITH (",
+                        "    'connector' = 'upsert-files',",
+                        "    'key.format' = 'json',",
+                        "    'value.format' = 'json',",
+                        "    'output-filepath' = '" + outputFilepath + "'",
+                        "  );");
+        executeSql(sqlLines);
+
+        sqlLines =
+                Arrays.asList(
+                        "INSERT INTO AppendSinkTable",
+                        "  SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count",
+                        "  FROM (",
+                        "    SELECT \\`user\\`, \\`rowtime\\`",
+                        "    FROM JsonSourceTable",
+                        "    WHERE \\`user\\` IS NOT NULL)",
+                        "  MATCH_RECOGNIZE (",
+                        "    ORDER BY rowtime",
+                        "    MEASURES",
+                        "        \\`user\\` as userName",
+                        "    PATTERN (A)",
+                        "    DEFINE",
+                        "        A as \\`user\\` = 'Alice'",
+                        "  ) T");
+        executeSql(sqlLines);
 
         verifyNumberOfResultRecords(outputFilepath, 3);
     }
 
+    public void sendMessages(String topic, String... messages) {
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+
+        try (Producer<Bytes, String> producer =
+                new KafkaProducer<>(props, new BytesSerializer(), new StringSerializer())) {
+            for (String message : messages) {
+                producer.send(new ProducerRecord<>(topic, message));
+            }
+        }
+    }
+
     private void verifyNumberOfResultRecords(String resultFilePath, int expectedNumberOfRecords)
-            throws IOException {
+            throws IOException, InterruptedException {
         File tempOutputFile = new File(tempDir, "records.out");
         String tempOutputFilepath = tempOutputFile.toString();
         GenericContainer<?> taskManager = flink.getTaskManagers().get(0);
+        Thread.sleep(5000); // prevent NotFoundException: Status 404
         taskManager.copyFileFromContainer(resultFilePath, tempOutputFilepath);
 
         int numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(tempOutputFile);
@@ -123,7 +267,7 @@ public class SqlClientITCase {
     private void executeSql(List<String> sqlLines) throws Exception {
         flink.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-                        .addJars(sqlConnectorUpsertTestJar, sqlToolBoxJar)
+                        .addJars(sqlConnectorUpsertTestJar, sqlConnectorKafkaJar, sqlToolBoxJar)
                         .build());
     }
 }
