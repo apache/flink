@@ -45,8 +45,15 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
             CompletableFuture<Boolean> terminationFuture,
             int version,
             final long maximumFramesize,
+            final boolean forceSerialization,
             ClassLoader flinkClassLoader) {
-        super(rpcEndpoint, terminationFuture, version, maximumFramesize, flinkClassLoader);
+        super(
+                rpcEndpoint,
+                terminationFuture,
+                version,
+                maximumFramesize,
+                forceSerialization,
+                flinkClassLoader);
     }
 
     @Override

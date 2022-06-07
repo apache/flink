@@ -349,6 +349,7 @@ public class AkkaRpcService implements RpcService {
                                             actorTerminationFuture,
                                             getVersion(),
                                             configuration.getMaximumFramesize(),
+                                            configuration.isForceRpcInvocationSerialization(),
                                             flinkClassLoader),
                             rpcEndpoint.getEndpointId());
 
