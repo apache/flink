@@ -41,6 +41,7 @@ import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
 import java.util.Collections
+
 import scala.collection.JavaConversions._
 
 /** Implements [[org.apache.calcite.sql.util.SqlVisitor]]
