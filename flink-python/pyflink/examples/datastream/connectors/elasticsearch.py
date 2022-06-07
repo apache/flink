@@ -19,10 +19,12 @@
 import logging
 import sys
 
+from pyflink.datastream.connectors.elasticsearch import Elasticsearch6SinkBuilder, \
+    Elasticsearch7SinkBuilder, FlushBackoffType
+
 from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import DeliveryGuarantee, Elasticsearch6SinkBuilder, \
-    Elasticsearch7SinkBuilder, FlushBackoffType
+from pyflink.datastream.connectors import DeliveryGuarantee
 
 
 def write_to_es6(env):
@@ -30,10 +32,12 @@ def write_to_es6(env):
         'file:///path/to/flink-sql-connector-elasticsearch6-1.16.0.jar'
     env.add_jars(ELASTICSEARCH_SQL_CONNECTOR_PATH)
 
-    ds = env.from_collection(['ada', 'beta', 'luna', 'mulan'], type_info=Types.STRING())
+    ds = env.from_collection(
+        [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+        type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
     es_sink = Elasticsearch6SinkBuilder() \
-        .set_emitter('org.apache.flink.connector.elasticsearch.sink.PyTestElasticsearchEmitter') \
+        .set_emitter('foo', 'id', 'bar') \
         .set_hosts(['localhost:9200']) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_bulk_flush_max_actions(1) \
@@ -58,10 +62,12 @@ def write_to_es7(env):
         'file:///path/to/flink-sql-connector-elasticsearch7-1.16.0.jar'
     env.add_jars(ELASTICSEARCH_SQL_CONNECTOR_PATH)
 
-    ds = env.from_collection(['ada', 'beta', 'luna', 'mulan'], type_info=Types.STRING())
+    ds = env.from_collection(
+        [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+        type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
     es7_sink = Elasticsearch7SinkBuilder() \
-        .set_emitter('org.apache.flink.connector.elasticsearch.sink.PyTestElasticsearchEmitter') \
+        .set_emitter('foo', 'id') \
         .set_hosts(['localhost:9200']) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_bulk_flush_max_actions(1) \

@@ -17,7 +17,7 @@
 ################################################################################
 import abc
 from enum import Enum
-from typing import List
+from typing import List, Union
 
 from pyflink.datastream.connectors import Sink, DeliveryGuarantee
 from pyflink.java_gateway import get_gateway
@@ -62,11 +62,14 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
     def __init__(self):
         self._j_elasticsearch_sink_builder = None
 
-    def set_emitter(self, emitter_class_name: str):
+    def set_emitter(self, index: str, key: str, doc_type: str = None) \
+            -> 'ElasticsearchSinkBuilderBase':
         """
         Sets the emitter which is invoked on every record to convert it to Elasticsearch actions.
         """
-        j_emitter = load_java_class(emitter_class_name).newInstance()
+        JPythonSimpleElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter
+        j_emitter = JPythonSimpleElasticsearchEmitter(index, doc_type, key)
         self._j_elasticsearch_sink_builder.setEmitter(j_emitter)
         return self
 
@@ -78,10 +81,12 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         """
         pass
 
-    def set_hosts(self, hosts: List[str]) -> 'ElasticsearchSinkBuilderBase':
+    def set_hosts(self, hosts: Union[str, List[str]]) -> 'ElasticsearchSinkBuilderBase':
         """
         Sets the hosts where the Elasticsearch cluster nodes are reachable.
         """
+        if not isinstance(hosts, list):
+            hosts = [hosts]
         JHttpHost = self.get_http_host_class()
         j_http_hosts_list = [JHttpHost.create(x) for x in hosts]
         j_http_hosts_array = to_jarray(JHttpHost, j_http_hosts_list)
@@ -151,14 +156,14 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setConnectionPassword(password)
         return self
 
-    def set_connection_path_prefix(self, prefix: str):
+    def set_connection_path_prefix(self, prefix: str) -> 'ElasticsearchSinkBuilderBase':
         """
         Sets a prefix which used for every REST communication to the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionPathPrefix(prefix)
         return self
 
-    def set_connection_request_timeout(self, timeout: int):
+    def set_connection_request_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
         """
         Sets the timeout for requesting the connection of the Elasticsearch cluster from the
         connection manager.
@@ -166,14 +171,14 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         self._j_elasticsearch_sink_builder.setConnectionRequestTimeout(timeout)
         return self
 
-    def set_connection_timeout(self, timeout: int):
+    def set_connection_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
         """
         Sets the timeout for establishing a connection of the Elasticsearch cluster.
         """
         self._j_elasticsearch_sink_builder.setConnectionTimeout(timeout)
         return self
 
-    def set_socket_timeout(self, timeout: int):
+    def set_socket_timeout(self, timeout: int) -> 'ElasticsearchSinkBuilderBase':
         """
         Sets the timeout for waiting for data or, put differently, a maximum period inactivity
         between two consecutive data packets.

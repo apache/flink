@@ -17,6 +17,9 @@
 ################################################################################
 from abc import ABC, abstractmethod
 
+from pyflink.datastream.connectors.elasticsearch import Elasticsearch6SinkBuilder, \
+    Elasticsearch7SinkBuilder, FlushBackoffType
+
 from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, Encoder, SimpleStringSchema
@@ -28,8 +31,7 @@ from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
     NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
     RMQConnectionConfig, PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, \
     SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
-    MessageDelayer, Elasticsearch6SinkBuilder, Elasticsearch7SinkBuilder, FlushBackoffType, \
-    FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
+    MessageDelayer, FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -70,12 +72,25 @@ class FlinkElasticsearch6Test(ConnectorTestBase):
         return '/flink-connectors/flink-sql-connector-elasticsearch6'
 
     def test_es_sink(self):
-        builder = Elasticsearch6SinkBuilder() \
-            .set_hosts(['localhost:9200'])
+        ds = self.env.from_collection(
+            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+            type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
+        es_sink = Elasticsearch6SinkBuilder() \
+            .set_emitter('foo', 'id', 'bar') \
+            .set_hosts('localhost:9200') \
+            .build()
+
+        j_emitter = get_field_value(es_sink.get_java_function(), 'emitter')
+        self.assertTrue(
+            is_instance_of(
+                j_emitter,
+                'org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter'))
         self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'hosts')[0].toString(),
-            'http://localhost:9200')
+            get_field_value(
+                es_sink.get_java_function(), 'hosts')[0].toString(), 'http://localhost:9200')
+
+        ds.sink_to(es_sink).name('es sink')
 
 
 class FlinkElasticsearch7Test(ConnectorTestBase):
@@ -85,7 +100,12 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         return '/flink-connectors/flink-sql-connector-elasticsearch7'
 
     def test_es_sink(self):
-        builder = Elasticsearch7SinkBuilder() \
+        ds = self.env.from_collection(
+            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+            type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+        es_sink = Elasticsearch7SinkBuilder() \
+            .set_emitter('foo', 'id') \
             .set_hosts(['localhost:9200']) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_bulk_flush_max_actions(1) \
@@ -97,42 +117,40 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
             .set_connection_path_prefix('foo-bar') \
             .set_connection_request_timeout(30000) \
             .set_connection_timeout(31000) \
-            .set_socket_timeout(32000)
+            .set_socket_timeout(32000) \
+            .build()
 
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'hosts')[0].toString(),
-            'http://localhost:9200')
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'deliveryGuarantee').toString(),
-            'at-least-once')
-
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'bulkFlushMaxActions'), 1)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'bulkFlushMaxMb'), 2)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'bulkFlushInterval'), 1000)
+        j_emitter = get_field_value(es_sink.get_java_function(), 'emitter')
+        self.assertTrue(
+            is_instance_of(
+                j_emitter,
+                'org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter'))
         self.assertEqual(
             get_field_value(
-                builder._j_elasticsearch_sink_builder, 'bulkFlushBackoffType').toString(),
-            'CONSTANT')
+                es_sink.get_java_function(), 'hosts')[0].toString(), 'http://localhost:9200')
         self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'bulkFlushBackoffRetries'), 3)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'bulkFlushBackOffDelay'), 3000)
+            get_field_value(
+                es_sink.get_java_function(), 'deliveryGuarantee').toString(), 'at-least-once')
 
-        self.assertEqual(get_field_value(builder._j_elasticsearch_sink_builder, 'username'), 'foo')
-        self.assertEqual(get_field_value(builder._j_elasticsearch_sink_builder, 'password'), 'bar')
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'connectionRequestTimeout'),
-            30000)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'connectionTimeout'), 31000)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'socketTimeout'), 32000)
-        self.assertEqual(
-            get_field_value(builder._j_elasticsearch_sink_builder, 'connectionPathPrefix'),
-            'foo-bar')
+        j_build_bulk_processor_config = get_field_value(
+            es_sink.get_java_function(), 'buildBulkProcessorConfig')
+        self.assertEqual(j_build_bulk_processor_config.getBulkFlushMaxActions(), 1)
+        self.assertEqual(j_build_bulk_processor_config.getBulkFlushMaxMb(), 2)
+        self.assertEqual(j_build_bulk_processor_config.getBulkFlushInterval(), 1000)
+        self.assertEqual(j_build_bulk_processor_config.getFlushBackoffType().toString(), 'CONSTANT')
+        self.assertEqual(j_build_bulk_processor_config.getBulkFlushBackoffRetries(), 3)
+        self.assertEqual(j_build_bulk_processor_config.getBulkFlushBackOffDelay(), 3000)
+
+        j_network_client_config = get_field_value(
+            es_sink.get_java_function(), 'networkClientConfig')
+        self.assertEqual(j_network_client_config.getUsername(), 'foo')
+        self.assertEqual(j_network_client_config.getPassword(), 'bar')
+        self.assertEqual(j_network_client_config.getConnectionRequestTimeout(), 30000)
+        self.assertEqual(j_network_client_config.getConnectionTimeout(), 31000)
+        self.assertEqual(j_network_client_config.getSocketTimeout(), 32000)
+        self.assertEqual(j_network_client_config.getConnectionPathPrefix(), 'foo-bar')
+
+        ds.sink_to(es_sink).name('es sink')
 
 
 class FlinkKafkaTest(ConnectorTestBase):
