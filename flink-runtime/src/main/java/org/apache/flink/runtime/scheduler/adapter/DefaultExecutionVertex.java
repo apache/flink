@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.scheduler.adapter;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.util.IterableUtils;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -46,7 +44,6 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
 
     private final Function<IntermediateResultPartitionID, DefaultResultPartition>
             resultPartitionRetriever;
-    private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds;
 
     DefaultExecutionVertex(
             ExecutionVertexID executionVertexId,
@@ -55,29 +52,11 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Function<IntermediateResultPartitionID, DefaultResultPartition>
                     resultPartitionRetriever) {
-        this(
-                executionVertexId,
-                producedPartitions,
-                stateSupplier,
-                consumedPartitionGroups,
-                resultPartitionRetriever,
-                Collections.emptyList());
-    }
-
-    DefaultExecutionVertex(
-            ExecutionVertexID executionVertexId,
-            List<DefaultResultPartition> producedPartitions,
-            Supplier<ExecutionState> stateSupplier,
-            List<ConsumedPartitionGroup> consumedPartitionGroups,
-            Function<IntermediateResultPartitionID, DefaultResultPartition>
-                    resultPartitionRetriever,
-            List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds) {
         this.executionVertexId = checkNotNull(executionVertexId);
         this.stateSupplier = checkNotNull(stateSupplier);
         this.producedResults = checkNotNull(producedPartitions);
         this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.resultPartitionRetriever = checkNotNull(resultPartitionRetriever);
-        this.consumedCachedIntermediateDataSetIds = consumedCachedIntermediateDataSetIds;
     }
 
     @Override
@@ -98,11 +77,6 @@ class DefaultExecutionVertex implements SchedulingExecutionVertex {
     @Override
     public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
         return consumedPartitionGroups;
-    }
-
-    @Override
-    public List<IntermediateDataSetID> getConsumedCacheIntermediateDataSetIds() {
-        return consumedCachedIntermediateDataSetIds;
     }
 
     @Override

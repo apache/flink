@@ -19,11 +19,6 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.consumer.PartitionConnectionException;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -192,28 +187,6 @@ public class ExecutionFailureHandlerTest extends TestLogger {
                 result.getVerticesToRestart());
         assertThat(result.getError(), is(error));
         assertThat(result.getTimestamp(), is(timestamp));
-    }
-
-    @Test
-    public void testCacheConsumingHandling() {
-        TestingSchedulingTopology topology = new TestingSchedulingTopology();
-        final IntermediateDataSetID cachedIntermediateDataSetId = new IntermediateDataSetID();
-        final SchedulingExecutionVertex vertex =
-                topology.newExecutionVertexToConsumeCachedIntermediateDataSet(
-                        cachedIntermediateDataSetId);
-        final ExecutionFailureHandler executionFailureHandler =
-                new ExecutionFailureHandler(topology, failoverStrategy, backoffTimeStrategy);
-        final FailureHandlingResult result =
-                executionFailureHandler.getFailureHandlingResult(
-                        vertex.getId(),
-                        new PartitionConnectionException(
-                                new ResultPartitionID(
-                                        new IntermediateResultPartitionID(
-                                                cachedIntermediateDataSetId, 0),
-                                        ExecutionAttemptID.randomId()),
-                                new Exception("error")),
-                        0);
-        assertFalse(result.canRestart());
     }
 
     // ------------------------------------------------------------------------

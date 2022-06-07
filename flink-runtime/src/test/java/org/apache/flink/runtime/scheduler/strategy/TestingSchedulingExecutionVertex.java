@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -44,7 +43,6 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
     private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
             resultPartitionsById;
-    private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds;
 
     private ExecutionState executionState;
 
@@ -54,15 +52,13 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                     resultPartitionsById,
-            ExecutionState executionState,
-            List<IntermediateDataSetID> cachedIntermediateDataSetIds) {
+            ExecutionState executionState) {
 
         this.executionVertexId = new ExecutionVertexID(jobVertexId, subtaskIndex);
         this.consumedPartitionGroups = checkNotNull(consumedPartitionGroups);
         this.producedPartitions = new ArrayList<>();
         this.resultPartitionsById = checkNotNull(resultPartitionsById);
         this.executionState = executionState;
-        this.consumedCachedIntermediateDataSetIds = cachedIntermediateDataSetIds;
     }
 
     @Override
@@ -92,11 +88,6 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     @Override
     public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
         return consumedPartitionGroups;
-    }
-
-    @Override
-    public List<IntermediateDataSetID> getConsumedCacheIntermediateDataSetIds() {
-        return consumedCachedIntermediateDataSetIds;
     }
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
@@ -134,13 +125,6 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         return newBuilder().withExecutionVertexID(jobVertexId, subtaskIndex).build();
     }
 
-    public static TestingSchedulingExecutionVertex withConsumedCachedIntermediateDataSetId(
-            IntermediateDataSetID consumedCachedIntermediateDataSetId) {
-        return newBuilder()
-                .addConsumedCachedIntermediateDataSetId(consumedCachedIntermediateDataSetId)
-                .build();
-    }
-
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
     public static class Builder {
         private JobVertexID jobVertexId = new JobVertexID();
@@ -149,8 +133,6 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
         private final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
                 resultPartitionsById = new HashMap<>();
         private ExecutionState executionState = ExecutionState.CREATED;
-        private final List<IntermediateDataSetID> consumedCachedIntermediateDataSetIds =
-                new ArrayList<>();
 
         Builder withExecutionVertexID(JobVertexID jobVertexId, int subtaskIndex) {
             this.jobVertexId = jobVertexId;
@@ -189,14 +171,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
                     subtaskIndex,
                     consumedPartitionGroups,
                     resultPartitionsById,
-                    executionState,
-                    consumedCachedIntermediateDataSetIds);
-        }
-
-        public Builder addConsumedCachedIntermediateDataSetId(
-                IntermediateDataSetID consumedCachedIntermediateDataSetId) {
-            this.consumedCachedIntermediateDataSetIds.add(consumedCachedIntermediateDataSetId);
-            return this;
+                    executionState);
         }
     }
 }
