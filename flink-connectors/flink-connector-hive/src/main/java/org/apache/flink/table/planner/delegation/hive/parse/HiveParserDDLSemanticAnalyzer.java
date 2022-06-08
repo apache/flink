@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.parse;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
@@ -107,6 +108,7 @@ import org.antlr.runtime.tree.CommonTree;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -514,8 +516,7 @@ public class HiveParserDDLSemanticAnalyzer {
         if (isTemporaryFunction && FunctionUtils.isQualifiedFunctionName(functionName)) {
             // hive's temporary function is more like flink's temp system function, e.g. doesn't
             // belong to a catalog/db
-            throw new ValidationException(
-                    "Temporary function cannot be created with a qualified name.");
+            throw new ValidationException("The name of the temporary macro can't contain `.`.");
         }
 
         if (isTemporaryFunction) {
@@ -535,21 +536,21 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertCreateMacro(HiveParserASTNode ast) throws SemanticException {
         String macroName = ast.getChild(0).getText();
         if (FunctionUtils.isQualifiedFunctionName(macroName)) {
-            throw new SemanticException("Temporary macro cannot be created with a qualified name.");
+            throw new SemanticException("The name of the temporary macro can't contain `.`.");
         }
 
+        // macro use table's columns as argument, so get the corresponding column
         List<FieldSchema> arguments = getColumns((HiveParserASTNode) ast.getChild(1), true);
         Set<String> actualColumnNames = getActualColumnNames(ast, arguments);
 
         HiveParserRowResolver rowResolver = new HiveParserRowResolver();
-        List<String> macroColumnNames = new ArrayList<>();
-        List<TypeInfo> macroColumnTypes = new ArrayList<>();
-        getMacroColumnData(
-                arguments, actualColumnNames, rowResolver, macroColumnNames, macroColumnTypes);
+        Tuple2<List<String>, List<TypeInfo>> macroColumnNameAndType =
+                getMacroColumnData(arguments, actualColumnNames, rowResolver);
         ExprNodeDesc body = getBody(ast, arguments, rowResolver);
 
         GenericUDFMacro macro =
-                new GenericUDFMacro(macroName, body, macroColumnNames, macroColumnTypes);
+                new GenericUDFMacro(
+                        macroName, body, macroColumnNameAndType.f0, macroColumnNameAndType.f1);
 
         FunctionDefinition macroDefinition =
                 new HiveGenericUDF(
@@ -583,31 +584,34 @@ public class HiveParserDDLSemanticAnalyzer {
         return actualColumnNames;
     }
 
-    private void getMacroColumnData(
+    private Tuple2<List<String>, List<TypeInfo>> getMacroColumnData(
             List<FieldSchema> arguments,
             Set<String> actualColumnNames,
-            HiveParserRowResolver rowResolver,
-            List<String> macroColumnNames,
-            List<TypeInfo> macroColumnTypes)
+            HiveParserRowResolver rowResolver)
             throws SemanticException {
+        List<String> macroColumnNames = new ArrayList<>();
+        List<TypeInfo> macroColumnTypes = new ArrayList<>();
         for (FieldSchema argument : arguments) {
             TypeInfo columnType = TypeInfoUtils.getTypeInfoFromTypeString(argument.getType());
             rowResolver.put(
-                    "",
+                    StringUtils.EMPTY,
                     argument.getName(),
-                    new ColumnInfo(argument.getName(), columnType, "", false));
+                    new ColumnInfo(argument.getName(), columnType, StringUtils.EMPTY, false));
             macroColumnNames.add(argument.getName());
             macroColumnTypes.add(columnType);
         }
         Set<String> expectedColumnNames = new LinkedHashSet<>(macroColumnNames);
         if (!expectedColumnNames.equals(actualColumnNames)) {
             throw new SemanticException(
-                    "Expected columns " + expectedColumnNames + " but found " + actualColumnNames);
+                    String.format(
+                            "Expected columns [%s], but found [%s].",
+                            expectedColumnNames, actualColumnNames));
         }
         if (expectedColumnNames.size() != macroColumnNames.size()) {
             throw new SemanticException(
                     "At least one parameter name was used more than once " + macroColumnNames);
         }
+        return Tuple2.of(macroColumnNames, macroColumnTypes);
     }
 
     private ExprNodeDesc getBody(
@@ -624,7 +628,7 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertDropMacro(HiveParserASTNode ast) throws SemanticException {
         String macroName = ast.getChild(0).getText();
         if (FunctionUtils.isQualifiedFunctionName(macroName)) {
-            throw new SemanticException("Temporary macro name cannot be a qualified name.");
+            throw new SemanticException("The name of the temporary macro can't contain `.`.");
         }
 
         boolean ifExists = (ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null);

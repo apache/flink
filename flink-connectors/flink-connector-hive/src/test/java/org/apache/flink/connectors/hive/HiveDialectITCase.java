@@ -822,7 +822,7 @@ public class HiveDialectITCase {
                         tableEnv.executeSql(
                                         "select string_len(x), string_len_plus(x) from macro_test")
                                 .collect());
-        assertEquals("[+I[2, 3], +I[1, 2], +I[2, 3]]", result.toString());
+        assertThat(result.toString()).isEqualTo("[+I[2, 3], +I[1, 2], +I[2, 3]]");
 
         // drop macro
         tableEnv.executeSql("drop temporary macro string_len_plus");
@@ -833,7 +833,7 @@ public class HiveDialectITCase {
                         tableEnv.executeSql(
                                         "select string_len(x), string_len_plus(x) from macro_test")
                                 .collect());
-        assertEquals("[+I[2, 4], +I[1, 3], +I[2, 4]]", result.toString());
+        assertThat(result.toString()).isEqualTo("[+I[2, 4], +I[1, 3], +I[2, 4]]");
     }
 
     @Test

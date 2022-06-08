@@ -55,7 +55,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
      * serialized to string and held on in the HiveFunctionWrapper.
      */
     public HiveFunctionWrapper(String className, UDFType serializableInstance) {
-        this.className = className;
+        this(className);
         Preconditions.checkArgument(
                 serializableInstance instanceof Serializable,
                 String.format(
@@ -128,7 +128,7 @@ public class HiveFunctionWrapper<UDFType> implements Serializable {
                             udfSerializedString, (Class<Serializable>) getUDFClass());
         } catch (ClassNotFoundException e) {
             throw new FlinkHiveUDFException(
-                    String.format("Failed to deserialize function %s", className), e);
+                    String.format("Failed to deserialize function %s.", className), e);
         }
     }
 }
