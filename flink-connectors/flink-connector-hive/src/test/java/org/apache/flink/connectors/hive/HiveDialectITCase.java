@@ -76,6 +76,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -580,7 +581,7 @@ public class HiveDialectITCase {
                                 .collect());
         // the data read from the external table fact_daily should contain the data in
         // directory 'ds=1/hr=1', 'ds=1/hr=2'
-        assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 1]])");
+        assertThat(results.toString()).isEqualTo("[+I[1, 1], +I[2, 1]]");
 
         tableEnv.getConfig()
                 .set(
