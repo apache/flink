@@ -58,6 +58,9 @@
             },
             "web-cancel" : {
               "type" : "boolean"
+            },
+            "web-history" : {
+              "type" : "boolean"
             }
           }
         }
