@@ -23,7 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,25 +36,28 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.DockerImageVersions;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,7 +65,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /** A class containing RabbitMQ source tests against a real RabbiMQ cluster. */
-public class RMQSourceITCase {
+@Testcontainers
+class RMQSourceITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(RMQSourceITCase.class);
     private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
@@ -71,33 +77,32 @@ public class RMQSourceITCase {
     private static final JobID JOB_ID = new JobID();
     private static final SimpleStringSchema SCHEMA = new SimpleStringSchema();
 
-    private RestClusterClient<?> clusterClient;
     private RMQConnectionConfig config;
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir Path tmp;
 
-    @Rule
-    public final MiniClusterWithClientResource flinkCluster =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(new Configuration())
                             .setNumberSlotsPerTaskManager(1)
                             .setNumberTaskManagers(1)
                             .build());
 
-    @ClassRule
-    public static final RabbitMQContainer RMQ_CONTAINER =
+    @Container
+    static final RabbitMQContainer RMQ_CONTAINER =
             new RabbitMQContainer(DockerImageName.parse(DockerImageVersions.RABBITMQ))
                     .withExposedPorts(RABBITMQ_PORT)
                     .withLogConsumer(LOG_CONSUMER);
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         final Connection connection = getRMQConnection();
         final Channel channel = connection.createChannel();
         channel.queueDeclare(QUEUE_NAME, true, false, false, null);
         channel.queuePurge(QUEUE_NAME);
         channel.txSelect();
-        clusterClient = flinkCluster.getRestClusterClient();
         config =
                 new RMQConnectionConfig.Builder()
                         .setHost(RMQ_CONTAINER.getHost())
@@ -112,7 +117,9 @@ public class RMQSourceITCase {
     }
 
     @Test
-    public void testStopWithSavepoint() throws Exception {
+    void testStopWithSavepoint(
+            @InjectClusterClient RestClusterClient<?> clusterClient, @TempDir Path tmp)
+            throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<String> source =
                 env.addSource(new RMQSource<>(config, QUEUE_NAME, SCHEMA));
@@ -136,13 +143,13 @@ public class RMQSourceITCase {
                 .stopWithSavepoint(
                         JOB_ID,
                         false,
-                        tmp.newFolder().getAbsolutePath(),
+                        tmp.toAbsolutePath().toString(),
                         SavepointFormatType.CANONICAL)
                 .get();
     }
 
     @Test
-    public void testMessageDelivery() throws Exception {
+    void testMessageDelivery(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         List<String> msgs =
                 IntStream.range(0, 10).mapToObj(String::valueOf).collect(Collectors.toList());
@@ -158,7 +165,7 @@ public class RMQSourceITCase {
     }
 
     @Test
-    public void testAckFailure() throws Exception {
+    void testAckFailure(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 500));
         env.enableCheckpointing(500);
