@@ -1439,7 +1439,8 @@ class TableSinkITCase extends StreamingTestBase {
                        |""".stripMargin)
     tEnv
       .executeSql(
-        "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */(t, num, text) SELECT id, num, text FROM src")
+        "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */" +
+          "(t, num, text) SELECT id, num, text FROM src")
       .await()
 
     val result = TestValuesTableFactory.getResults("appendSink")

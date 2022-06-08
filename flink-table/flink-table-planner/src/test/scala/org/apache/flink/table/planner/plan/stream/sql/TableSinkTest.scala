@@ -499,7 +499,8 @@ class TableSinkTest extends TableTestBase {
                      |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
-      "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */(a, b) SELECT a + b, c FROM MyTable")
+      "INSERT INTO appendSink /*+ OPTIONS('sink.parallelism' = '1') */" +
+        "(a, b) SELECT a + b, c FROM MyTable")
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 }
