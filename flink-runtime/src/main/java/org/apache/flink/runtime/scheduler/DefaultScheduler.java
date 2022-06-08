@@ -297,18 +297,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private void handleTaskFailure(
             final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+        Throwable revisedError =
+                maybeTranslateToCachedIntermediateDataSetException(error, executionVertexId);
         final long timestamp = System.currentTimeMillis();
-        setGlobalFailureCause(error, timestamp);
-        notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
-        Throwable finalError =
-                maybeTranslateCachedIntermediateDataSetException(error, executionVertexId);
+        setGlobalFailureCause(revisedError, timestamp);
+        notifyCoordinatorsAboutTaskFailure(executionVertexId, revisedError);
         final FailureHandlingResult failureHandlingResult =
                 executionFailureHandler.getFailureHandlingResult(
-                        executionVertexId, finalError, timestamp);
+                        executionVertexId, revisedError, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
-    private Throwable maybeTranslateCachedIntermediateDataSetException(
+    private Throwable maybeTranslateToCachedIntermediateDataSetException(
             @Nullable Throwable cause, ExecutionVertexID failedVertex) {
         if (!(cause instanceof PartitionException)) {
             return cause;
