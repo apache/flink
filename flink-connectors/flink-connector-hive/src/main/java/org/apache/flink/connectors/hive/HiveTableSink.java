@@ -105,9 +105,9 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IS_INSERT_DIRECTORY;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IS_TO_LOCAL_DIRECTORY;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** Table sink to write to Hive tables. */
 public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, SupportsOverwrite {

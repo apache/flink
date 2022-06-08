@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 /**
- * Counterpart of hive's org.apache.hadoop.hive.ql.plan.CreateTableDesc, but only include the
- * properties needed for "insert into directory".
+ * Counterpart of hive's org.apache.hadoop.hive.ql.plan.CreateTableDesc, but only contains the
+ * properties needed for "insert overwrite directory".
  */
 public class HiveParserDirectoryDesc {
     private final HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams rowFormatParams;

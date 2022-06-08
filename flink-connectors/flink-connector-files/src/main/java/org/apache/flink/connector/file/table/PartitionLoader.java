@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -42,21 +42,25 @@ import static org.apache.flink.table.utils.PartitionPathUtils.listStatusWithoutH
  * files, if it is new partition, will create partition to meta store. 2.{@link #loadNonPartition}:
  * just rename all files to final output path.
  *
- * <p>TODO: src and dest may be on different FS.
+ * <p>Src and dest may be on different FS.
  */
 @Internal
 public class PartitionLoader implements Closeable {
 
     private final boolean overwrite;
-    private final FileSystem fs;
+    private final FileSystem sourceFs;
     private final TableMetaStoreFactory.TableMetaStore metaStore;
+    // whether it's to load files to local file system
     private final boolean isToLocal;
 
     public PartitionLoader(
-            boolean overwrite, FileSystem fs, TableMetaStoreFactory factory, boolean isToLocal)
+            boolean overwrite,
+            FileSystem sourceFs,
+            TableMetaStoreFactory factory,
+            boolean isToLocal)
             throws Exception {
         this.overwrite = overwrite;
-        this.fs = fs;
+        this.sourceFs = sourceFs;
         this.metaStore = factory.createTableMetaStore();
         this.isToLocal = isToLocal;
     }
@@ -97,7 +101,7 @@ public class PartitionLoader implements Closeable {
             if (existingFiles != null) {
                 for (FileStatus existingFile : existingFiles) {
                     // TODO: We need move to trash when auto-purge is false.
-                    fs.delete(existingFile.getPath(), true);
+                    sourceFs.delete(existingFile.getPath(), true);
                 }
             }
         }
@@ -107,28 +111,16 @@ public class PartitionLoader implements Closeable {
     private void moveFiles(List<Path> srcDirs, Path destDir) throws Exception {
         for (Path srcDir : srcDirs) {
             if (!srcDir.equals(destDir)) {
-                FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
+                FileStatus[] srcFiles = listStatusWithoutHidden(sourceFs, srcDir);
                 if (srcFiles != null) {
                     for (FileStatus srcFile : srcFiles) {
                         Path srcPath = srcFile.getPath();
                         Path destPath = new Path(destDir, srcPath.getName());
                         // if it's not to move to local file system, just rename it
                         if (!isToLocal) {
-                            fs.rename(srcPath, destPath);
+                            sourceFs.rename(srcPath, destPath);
                         } else {
-                            // need move to local file system
-                            if (fs instanceof HadoopFileSystem) {
-                                HadoopFileSystem hdfs = ((HadoopFileSystem) fs);
-                                hdfs.getHadoopFileSystem()
-                                        .moveToLocalFile(
-                                                new org.apache.hadoop.fs.Path(srcPath.getPath()),
-                                                new org.apache.hadoop.fs.Path(destPath.getPath()));
-                            } else {
-                                throw new IllegalArgumentException(
-                                        String.format(
-                                                "Can't move file from %s to %s for the file system of source path is not instance of HadoopFileSystem",
-                                                srcPath, destPath));
-                            }
+                            FileUtils.copy(srcPath, destPath, true);
                         }
                     }
                 }

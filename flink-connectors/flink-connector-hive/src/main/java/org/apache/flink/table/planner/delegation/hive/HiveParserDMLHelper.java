@@ -23,7 +23,6 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -87,9 +86,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IS_INSERT_DIRECTORY;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IS_TO_LOCAL_DIRECTORY;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
 
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
@@ -260,7 +259,7 @@ public class HiveParserDMLHelper {
             destTable = nameToDestPart.values().iterator().next().getTable();
         } else {
             // happens for INSERT DIRECTORY
-            return createInsertIntoDirectoryOperation(topQB, qbMetaData, queryRelNode, hiveConf);
+            return createInsertIntoDirectoryOperation(topQB, qbMetaData, queryRelNode);
         }
 
         // decide static partition specs
@@ -316,7 +315,7 @@ public class HiveParserDMLHelper {
     }
 
     private SinkModifyOperation createInsertIntoDirectoryOperation(
-            HiveParserQB topQB, QBMetaData qbMetaData, RelNode queryRelNode, HiveConf hiveConf) {
+            HiveParserQB topQB, QBMetaData qbMetaData, RelNode queryRelNode) {
         String dest = topQB.getParseInfo().getClauseNamesForDest().iterator().next();
         // get the location for insert into directory
         String location = qbMetaData.getDestFileForAlias(dest);
@@ -360,7 +359,7 @@ public class HiveParserDMLHelper {
         return new SinkModifyOperation(
                 createDummyTableForInsertDirectory(
                         plannerQueryOperation.getResolvedSchema(), props),
-                new PlannerQueryOperation(queryRelNode),
+                plannerQueryOperation,
                 Collections.emptyMap(),
                 true, // insert into directory is always for overwrite
                 Collections.emptyMap());
@@ -368,14 +367,11 @@ public class HiveParserDMLHelper {
 
     private ContextResolvedTable createDummyTableForInsertDirectory(
             ResolvedSchema resolvedSchema, Map<String, String> props) {
-        Schema.Builder schemaBuilder = Schema.newBuilder();
-        for (Column column : resolvedSchema.getColumns()) {
-            schemaBuilder.column(column.getName(), column.getDataType());
-        }
+        Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         CatalogTable catalogTable =
                 CatalogTable.of(
-                        schemaBuilder.build(),
-                        "a dummy table for the case of insert into directory ",
+                        schema,
+                        "a dummy table for the case of insert overwrite directory ",
                         Collections.emptyList(),
                         props);
         ResolvedCatalogTable resolvedCatalogTable =

@@ -1798,6 +1798,7 @@ public class HiveParserSemanticAnalyzer {
                         // Set the destination for the SELECT query inside the CTAS
                         qb.getMetaData().setDestForAlias(name, fname, isDfsFile);
 
+                        // we use a dedicated class to represent for 'insert overwrite directory'
                         HiveParserDirectoryDesc directoryDesc =
                                 new HiveParserDirectoryDesc(rowFormatParams, storageFormat);
                         int numCh = ast.getChildCount();

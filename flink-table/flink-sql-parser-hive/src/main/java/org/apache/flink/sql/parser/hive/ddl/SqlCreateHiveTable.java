@@ -51,8 +51,6 @@ public class SqlCreateHiveTable extends SqlCreateTable {
     public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
     public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
     public static final String NOT_NULL_COLS = "hive.not.null.cols";
-    public static final String IS_INSERT_DIRECTORY = "is-insert-directory";
-    public static final String IS_TO_LOCAL_DIRECTORY = "is-to-local-directory";
     private final HiveTableCreationContext creationContext;
     private final SqlNodeList originPropList;
     private final boolean isExternal;

@@ -567,7 +567,7 @@ public class HiveDialectQueryITCase {
         String dataDir = warehouse + "/map_table_dir";
         tableEnv.executeSql(
                         String.format(
-                                "INSERT OVERWRITE DIRECTORY '%s'"
+                                "INSERT OVERWRITE LOCAL DIRECTORY '%s'"
                                         + "ROW FORMAT DELIMITED \n"
                                         + "FIELDS TERMINATED BY ':'\n"
                                         + "COLLECTION ITEMS TERMINATED BY '#' \n"
