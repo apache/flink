@@ -31,7 +31,8 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -39,6 +40,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
@@ -46,15 +48,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /** Tests for the {@link CassandraSinkBase}. */
-public class CassandraSinkBaseTest {
+class CassandraSinkBaseTest {
 
-    private static final long DEFAULT_TEST_TIMEOUT = 5000;
+    private static final long DEFAULT_TEST_TIMEOUT_IN_MILLIS = 5000;
 
-    @Test(expected = NoHostAvailableException.class)
-    public void testHostNotFoundErrorHandling() throws Exception {
+    @Test
+    void testHostNotFoundErrorHandling() throws Exception {
         CassandraSinkBase base =
                 new CassandraSinkBase(
                         new ClusterBuilder() {
@@ -74,27 +76,30 @@ public class CassandraSinkBaseTest {
                     }
                 };
 
-        base.open(new Configuration());
+        assertThatThrownBy(() -> base.open(new Configuration()))
+                .isInstanceOf(NoHostAvailableException.class);
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testSuccessfulPath() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testSuccessfulPath() throws Exception {
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
             casSinkFunc.enqueueCompletableFuture(CompletableFuture.completedFuture(null));
 
             final int originalPermits = casSinkFunc.getAvailablePermits();
             assertThat(originalPermits).isGreaterThan(0);
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(0);
+            assertThat(casSinkFunc.getAcquiredPermits()).isZero();
 
             casSinkFunc.invoke("hello");
 
             assertThat(casSinkFunc.getAvailablePermits()).isEqualTo(originalPermits);
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(0);
+            assertThat(casSinkFunc.getAcquiredPermits()).isZero();
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testThrowErrorOnClose() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testThrowErrorOnClose() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
         casSinkFunc.open(new Configuration());
@@ -111,8 +116,9 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testThrowErrorOnInvoke() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testThrowErrorOnInvoke() throws Exception {
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
             Exception cause = new RuntimeException();
             casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
@@ -124,13 +130,14 @@ public class CassandraSinkBaseTest {
                 fail("Sending of second value should have failed.");
             } catch (IOException e) {
                 assertThat(e.getCause()).isEqualTo(cause);
-                assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(0);
+                assertThat(casSinkFunc.getAcquiredPermits()).isZero();
             }
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testIgnoreError() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testIgnoreError() throws Exception {
         Exception cause = new RuntimeException();
         CassandraFailureHandler failureHandler = failure -> assertThat(failure).isEqualTo(cause);
 
@@ -144,8 +151,9 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testThrowErrorOnSnapshot() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testThrowErrorOnSnapshot() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
         try (OneInputStreamOperatorTestHarness<String, Object> testHarness =
@@ -159,8 +167,9 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testWaitForPendingUpdatesOnSnapshot() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testWaitForPendingUpdatesOnSnapshot() throws Exception {
         final TestCassandraSink casSinkFunc = new TestCassandraSink();
 
         try (OneInputStreamOperatorTestHarness<String, Object> testHarness =
@@ -169,7 +178,7 @@ public class CassandraSinkBaseTest {
             casSinkFunc.enqueueCompletableFuture(completableFuture);
 
             casSinkFunc.invoke("hello");
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(1);
+            assertThat(casSinkFunc.getAcquiredPermits()).isOne();
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
@@ -185,15 +194,16 @@ public class CassandraSinkBaseTest {
                 Thread.sleep(5);
             }
 
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(1);
+            assertThat(casSinkFunc.getAcquiredPermits()).isOne();
             completableFuture.complete(null);
             latch.await();
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(0);
+            assertThat(casSinkFunc.getAcquiredPermits()).isZero();
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testWaitForPendingUpdatesOnClose() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testWaitForPendingUpdatesOnClose() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
         try (OneInputStreamOperatorTestHarness<String, Object> testHarness =
@@ -203,7 +213,7 @@ public class CassandraSinkBaseTest {
             casSinkFunc.enqueueCompletableFuture(completableFuture);
 
             casSinkFunc.invoke("hello");
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(1);
+            assertThat(casSinkFunc.getAcquiredPermits()).isOne();
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
@@ -219,63 +229,66 @@ public class CassandraSinkBaseTest {
                 Thread.sleep(5);
             }
 
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(1);
+            assertThat(casSinkFunc.getAcquiredPermits()).isOne();
             completableFuture.complete(null);
             latch.await();
-            assertThat(casSinkFunc.getAcquiredPermits()).isEqualTo(0);
+            assertThat(casSinkFunc.getAcquiredPermits()).isZero();
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testReleaseOnSuccess() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testReleaseOnSuccess() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
 
         try (TestCassandraSink testCassandraSink = createOpenedTestCassandraSink(config)) {
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testCassandraSink.getAvailablePermits()).isOne();
+            assertThat(testCassandraSink.getAcquiredPermits()).isZero();
 
             CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
             testCassandraSink.enqueueCompletableFuture(completableFuture);
             testCassandraSink.invoke("N/A");
 
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(0);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(1);
+            assertThat(testCassandraSink.getAvailablePermits()).isZero();
+            assertThat(testCassandraSink.getAcquiredPermits()).isOne();
 
             completableFuture.complete(null);
 
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testCassandraSink.getAvailablePermits()).isOne();
+            assertThat(testCassandraSink.getAcquiredPermits()).isZero();
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testReleaseOnFailure() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testReleaseOnFailure() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
         final CassandraFailureHandler failureHandler = ignored -> {};
 
         try (TestCassandraSink testCassandraSink =
                 createOpenedTestCassandraSink(config, failureHandler)) {
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testCassandraSink.getAvailablePermits()).isOne();
+            assertThat(testCassandraSink.getAcquiredPermits()).isZero();
 
             CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
             testCassandraSink.enqueueCompletableFuture(completableFuture);
             testCassandraSink.invoke("N/A");
 
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(0);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(1);
+            assertThat(testCassandraSink.getAvailablePermits()).isZero();
+            assertThat(testCassandraSink.getAcquiredPermits()).isOne();
 
             completableFuture.completeExceptionally(new RuntimeException());
 
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testCassandraSink.getAvailablePermits()).isOne();
+            assertThat(testCassandraSink.getAcquiredPermits()).isZero();
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testReleaseOnThrowingSend() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testReleaseOnThrowingSend() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
 
@@ -289,22 +302,23 @@ public class CassandraSinkBaseTest {
         try (TestCassandraSink testCassandraSink =
                 new MockCassandraSink(config, failingSendFunction)) {
             testCassandraSink.open(new Configuration());
-            assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-            assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testCassandraSink.getAvailablePermits()).isOne();
+            assertThat(testCassandraSink.getAcquiredPermits()).isZero();
 
             //noinspection OverlyBroadCatchBlock,NestedTryStatement
             try {
                 testCassandraSink.invoke("none");
             } catch (Throwable e) {
                 assertThat(e).isInstanceOf(Throwable.class);
-                assertThat(testCassandraSink.getAvailablePermits()).isEqualTo(1);
-                assertThat(testCassandraSink.getAcquiredPermits()).isEqualTo(0);
+                assertThat(testCassandraSink.getAvailablePermits()).isOne();
+                assertThat(testCassandraSink.getAcquiredPermits()).isZero();
             }
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
-    public void testTimeoutExceptionOnInvoke() throws Exception {
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT_IN_MILLIS, unit = TimeUnit.MILLISECONDS)
+    void testTimeoutExceptionOnInvoke() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder()
                         .setMaxConcurrentRequests(1)
