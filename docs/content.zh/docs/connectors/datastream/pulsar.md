@@ -308,13 +308,31 @@ Pulsar Source 使用 `setStartCursor(StartCursor)` 方法给定开始消费的�
   {{< /tabs >}}
 
 - 从给定的消息开始消费。
+  {{< tabs "pulsar-starting-position-from-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - 与前者不同的是，给定的消息可以跳过，再进行消费。
+  {{< tabs "pulsar-starting-position-from-message-id-bool" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId, boolean);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id, boolean)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - 从给定的消息时间开始消费。
   {{< tabs "pulsar-starting-position-message-time" >}}
   {{< tab "Java" >}}
@@ -372,13 +390,31 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   {{< /tabs >}}
 
 - 停止于某条消息，结果里不包含此消息。
+  {{< tabs "pulsar-boundedness-at-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.atMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - 停止于某条消息之后，结果里包含此消息。
+  {{< tabs "pulsar-boundedness-after-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - 停止于某个给定的消息发布时间戳，比如 `Message<byte[]>.getPublishTime()`。
   {{< tabs "pulsar-boundedness-publish-time" >}}
   {{< tab "Java" >}}

@@ -342,16 +342,34 @@ Built-in start cursors include:
 The Pulsar connector consumes from the latest available message if the message ID does not exist.
 
   The start message is included in consuming result.
+  {{< tabs "pulsar-starting-position-from-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - Start from a specified message between the earliest and the latest.
 The Pulsar connector consumes from the latest available message if the message ID doesn't exist.
 
   Include or exclude the start message by using the second boolean parameter.
+  {{< tabs "pulsar-starting-position-from-message-id-bool" >}}
+  {{< tab "Java" >}}
   ```java
   StartCursor.fromMessageId(MessageId, boolean);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StartCursor.from_message_id(message_id, boolean)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - Start from the specified message time by `Message<byte[]>.getPublishTime()`.
   {{< tabs "pulsar-starting-position-message-time" >}}
@@ -415,13 +433,31 @@ Built-in stop cursors include:
   {{< /tabs >}}
 
 - Stop when the connector meets a given message, or stop at a message which is produced after this given message.
+  {{< tabs "pulsar-boundedness-at-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.atMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.at_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 - Stop but include the given message in the consuming result.
+  {{< tabs "pulsar-boundedness-after-message-id" >}}
+  {{< tab "Java" >}}
   ```java
   StopCursor.afterMessageId(MessageId);
   ```
+  {{< /tab >}}
+  {{< tab "Python" >}}
+  ```python
+  StopCursor.after_message_id(message_id)
+  ```
+  {{< /tab >}}
+  {{< /tabs >}}
 
 - Stop at the specified message time by `Message<byte[]>.getPublishTime()`.
   {{< tabs "pulsar-boundedness-publish-time" >}}
