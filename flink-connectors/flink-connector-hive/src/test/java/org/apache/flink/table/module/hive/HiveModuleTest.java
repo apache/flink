@@ -37,7 +37,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
-import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_2;
+import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V3_1_1;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -75,7 +75,7 @@ public class HiveModuleTest {
             case HIVE_VERSION_V2_3_9:
                 assertThat(hiveModule.listFunctions()).hasSize(275);
                 break;
-            case HIVE_VERSION_V3_1_2:
+            case HIVE_VERSION_V3_1_1:
                 assertThat(hiveModule.listFunctions()).hasSize(294);
                 break;
             default:
