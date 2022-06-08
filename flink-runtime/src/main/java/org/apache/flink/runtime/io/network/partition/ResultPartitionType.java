@@ -176,6 +176,21 @@ public enum ResultPartitionType {
         return releaseBy == ReleaseBy.UPSTREAM;
     }
 
+    /**
+     * {@link #isPipelinedOrPipelinedBoundedResultPartition()} is used to judge whether it is the
+     * specified {@link #PIPELINED} or {@link #PIPELINED_BOUNDED} resultPartitionType.
+     *
+     * <p>This method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>This method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isPipelinedOrPipelinedBoundedResultPartition() {
+        return this == PIPELINED || this == PIPELINED_BOUNDED;
+    }
+
     public boolean isReconnectable() {
         return isReconnectable;
     }
