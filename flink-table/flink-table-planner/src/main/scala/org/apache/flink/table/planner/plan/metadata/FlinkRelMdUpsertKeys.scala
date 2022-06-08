@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.UpsertKeys
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalOverAggregate, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalDeduplicate, StreamPhysicalDropUpdateBefore, StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalIntervalJoin, StreamPhysicalLocalGroupAggregate, StreamPhysicalOverAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalDeduplicate, StreamPhysicalDropUpdateBefore, StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalIntervalJoin, StreamPhysicalLocalGroupAggregate, StreamPhysicalMiniBatchAssigner, StreamPhysicalOverAggregate}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import com.google.common.collect.ImmutableSet
@@ -51,6 +51,10 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       case t: IntermediateRelTable => t.upsertKeys
       case _ => mq.getUniqueKeys(rel)
     }
+  }
+
+  def getUpsertKeys(rel: StreamPhysicalMiniBatchAssigner, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
   }
 
   def getUpsertKeys(rel: Project, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
