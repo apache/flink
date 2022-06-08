@@ -64,7 +64,9 @@ public class NettyShuffleUtils {
             final int sortShuffleMinBuffers,
             final int numSubpartitions,
             final ResultPartitionType type) {
-        boolean isSortShuffle = type.isBlocking() && numSubpartitions >= sortShuffleMinParallelism;
+        boolean isSortShuffle =
+                type.isBlockingOrBlockingPersistentResultPartition()
+                        && numSubpartitions >= sortShuffleMinParallelism;
         int min = isSortShuffle ? sortShuffleMinBuffers : numSubpartitions + 1;
         int max =
                 type.isBounded()

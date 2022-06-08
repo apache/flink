@@ -270,7 +270,7 @@ public class SsgNetworkMemoryCalculationUtilsTest {
         map.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, resultPartitionType);
         sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
-        if (resultPartitionType.isPipelined()) {
+        if (!resultPartitionType.isBlockingOrBlockingPersistentResultPartition()) {
             return JobGraphTestUtils.streamingJobGraph(source, map, sink);
 
         } else {
