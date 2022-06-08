@@ -168,6 +168,14 @@ public enum ResultPartitionType {
                 || consumingConstraint == ConsumingConstraint.MUST_BE_PIPELINED;
     }
 
+    public boolean isReleaseByScheduler() {
+        return releaseBy == ReleaseBy.SCHEDULER;
+    }
+
+    public boolean isReleaseByUpstream() {
+        return releaseBy == ReleaseBy.UPSTREAM;
+    }
+
     public boolean isReconnectable() {
         return isReconnectable;
     }

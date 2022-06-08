@@ -1299,7 +1299,7 @@ public class Execution
                                     resultPartitionDeploymentDescriptor ->
                                             resultPartitionDeploymentDescriptor
                                                     .getPartitionType()
-                                                    .isPipelined())
+                                                    .isReleaseByUpstream())
                             .map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
                             .peek(shuffleMaster::releasePartitionExternally)
                             .map(ShuffleDescriptor::getResultPartitionID)
