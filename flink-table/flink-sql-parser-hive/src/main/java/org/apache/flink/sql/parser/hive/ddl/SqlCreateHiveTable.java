@@ -51,6 +51,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
     public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
     public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
     public static final String NOT_NULL_COLS = "hive.not.null.cols";
+
     private final HiveTableCreationContext creationContext;
     private final SqlNodeList originPropList;
     private final boolean isExternal;

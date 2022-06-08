@@ -42,13 +42,13 @@ import static org.apache.flink.table.utils.PartitionPathUtils.listStatusWithoutH
  * files, if it is new partition, will create partition to meta store. 2.{@link #loadNonPartition}:
  * just rename all files to final output path.
  *
- * <p>Src and dest may be on different FS.
+ * <p>TODO: src and dest may be on different FS.
  */
 @Internal
 public class PartitionLoader implements Closeable {
 
     private final boolean overwrite;
-    private final FileSystem sourceFs;
+    private final FileSystem fs;
     private final TableMetaStoreFactory.TableMetaStore metaStore;
     // whether it's to load files to local file system
     private final boolean isToLocal;
@@ -60,7 +60,7 @@ public class PartitionLoader implements Closeable {
             boolean isToLocal)
             throws Exception {
         this.overwrite = overwrite;
-        this.sourceFs = sourceFs;
+        this.fs = sourceFs;
         this.metaStore = factory.createTableMetaStore();
         this.isToLocal = isToLocal;
     }
@@ -101,7 +101,7 @@ public class PartitionLoader implements Closeable {
             if (existingFiles != null) {
                 for (FileStatus existingFile : existingFiles) {
                     // TODO: We need move to trash when auto-purge is false.
-                    sourceFs.delete(existingFile.getPath(), true);
+                    fs.delete(existingFile.getPath(), true);
                 }
             }
         }
@@ -111,14 +111,14 @@ public class PartitionLoader implements Closeable {
     private void moveFiles(List<Path> srcDirs, Path destDir) throws Exception {
         for (Path srcDir : srcDirs) {
             if (!srcDir.equals(destDir)) {
-                FileStatus[] srcFiles = listStatusWithoutHidden(sourceFs, srcDir);
+                FileStatus[] srcFiles = listStatusWithoutHidden(fs, srcDir);
                 if (srcFiles != null) {
                     for (FileStatus srcFile : srcFiles) {
                         Path srcPath = srcFile.getPath();
                         Path destPath = new Path(destDir, srcPath.getName());
                         // if it's not to move to local file system, just rename it
                         if (!isToLocal) {
-                            sourceFs.rename(srcPath, destPath);
+                            fs.rename(srcPath, destPath);
                         } else {
                             FileUtils.copy(srcPath, destPath, true);
                         }
