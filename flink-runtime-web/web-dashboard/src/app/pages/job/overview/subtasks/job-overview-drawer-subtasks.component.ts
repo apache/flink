@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestro
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { JobVertexAggregated, JobVertexSubTask } from '@flink-runtime-web/interfaces';
+import { JobVertexAggregated, JobVertexStatusDuration, JobVertexSubTask } from '@flink-runtime-web/interfaces';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -61,6 +61,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   isLoading = true;
   virtualItemSize = 36;
   actionComponent: Type<unknown>;
+  durationBadgeComponent: Type<unknown>;
   stateBadgeComponent: Type<unknown>;
   readonly narrowLogData = typeDefinition<JobVertexSubTask>();
 
@@ -75,6 +76,9 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
     this.actionComponent =
       moduleConfig.customComponents?.subtaskActionComponent ||
       JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.subtaskActionComponent;
+    this.durationBadgeComponent =
+      moduleConfig.customComponents?.durationBadgeComponent ||
+      JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.durationBadgeComponent;
     this.stateBadgeComponent =
       moduleConfig.customComponents?.stateBadgeComponent ||
       JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents.stateBadgeComponent;
@@ -100,5 +104,12 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  convertStatusDuration(duration: JobVertexStatusDuration<number>): Array<{ key: string; value: number }> {
+    return Object.keys(duration).map(key => ({
+      key,
+      value: duration[key as keyof JobVertexStatusDuration<number>]
+    }));
   }
 }

@@ -18,12 +18,12 @@
 
 import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { mergeMap, take, takeUntil } from 'rxjs/operators';
+import { filter, mergeMap, take, takeUntil } from 'rxjs/operators';
 
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewTaskManagersTableAction } from '@flink-runtime-web/pages/job/overview/taskmanagers/table-action/taskmanagers-table-action.component';
-import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
+import { TaskManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-completed-job-taskmanagers-table-action',
@@ -35,7 +35,6 @@ export class CompletedJobTaskmanagersTableActionComponent
   implements OnInit, OnDestroy, JobOverviewTaskManagersTableAction
 {
   @Input() taskManager?: VertexTaskManagerDetail;
-  isHistoryServer = false;
   visible = false;
   loading = true;
   logUrl = '';
@@ -43,32 +42,27 @@ export class CompletedJobTaskmanagersTableActionComponent
   private destroy$ = new Subject<void>();
 
   constructor(
-    private statusService: StatusService,
     private jobLocalService: JobLocalService,
     private taskManagerService: TaskManagerService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.isHistoryServer = this.statusService.configuration.features['web-history'];
-    this.cdr.markForCheck();
-
-    if (this.isHistoryServer && this.taskManager) {
-      this.jobLocalService
-        .jobDetailChanges()
-        .pipe(
-          take(1),
-          mergeMap(job =>
-            this.taskManagerService.loadHistoryServerTaskManagerLogUrl(job.jid, this.taskManager!['taskmanager-id'])
-          ),
-          takeUntil(this.destroy$)
-        )
-        .subscribe(url => {
-          this.loading = false;
-          this.logUrl = url;
-          this.cdr.markForCheck();
-        });
-    }
+    this.jobLocalService
+      .jobDetailChanges()
+      .pipe(
+        take(1),
+        filter(() => !!this.taskManager?.['taskmanager-id'] && this.taskManager['taskmanager-id'] !== '(unassigned)'),
+        mergeMap(job =>
+          this.taskManagerService.loadHistoryServerTaskManagerLogUrl(job.jid, this.taskManager!['taskmanager-id'])
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(url => {
+        this.loading = false;
+        this.logUrl = url;
+        this.cdr.markForCheck();
+      });
   }
 
   ngOnDestroy(): void {

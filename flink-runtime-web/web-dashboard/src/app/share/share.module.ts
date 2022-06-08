@@ -29,7 +29,6 @@ import { NavigationComponent } from '@flink-runtime-web/share/common/navigation/
 import { ResizeComponent } from '@flink-runtime-web/share/common/resize/resize.component';
 import { JobStatusComponent } from '@flink-runtime-web/share/common/status/job-status.component';
 import { TableAggregatedMetricsComponent } from '@flink-runtime-web/share/common/table-aggregated-metrics/table-aggregated-metrics.component';
-import { TableAggregatedStatusDurationComponent } from '@flink-runtime-web/share/common/table-aggregated-status-duration/table-aggregated-status-duration.component';
 import { BackpressureBadgeComponent } from '@flink-runtime-web/share/customize/backpressure-badge/backpressure-badge.component';
 import { CheckpointBadgeComponent } from '@flink-runtime-web/share/customize/checkpoint-badge/checkpoint-badge.component';
 import { JobBadgeComponent } from '@flink-runtime-web/share/customize/job-badge/job-badge.component';
@@ -51,6 +50,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { ConfigurationCardsComponent } from './common/configuration-cards/configuration-cards.component';
 import { TableDisplayComponent } from './common/configuration-cards/table-display/table-display.component';
+import { DurationBadgeComponent } from './customize/duration-badge/duration-badge.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
 
 @NgModule({
@@ -89,7 +89,7 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     TableDisplayComponent,
     ConfigurationCardsComponent,
     TableAggregatedMetricsComponent,
-    TableAggregatedStatusDurationComponent
+    DurationBadgeComponent
   ],
   exports: [
     JobListComponent,
@@ -111,7 +111,7 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     TableDisplayComponent,
     ConfigurationCardsComponent,
     TableAggregatedMetricsComponent,
-    TableAggregatedStatusDurationComponent
+    DurationBadgeComponent
   ]
 })
 export class ShareModule {}

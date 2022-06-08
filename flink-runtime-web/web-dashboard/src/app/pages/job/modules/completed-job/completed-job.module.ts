@@ -43,19 +43,17 @@ import { ClusterConfigComponent } from './cluster-config/cluster-config.componen
 import { CompletedJobSubtasksTableActionComponent } from './subtasks-table-action/completed-job-subtasks-table-action.component';
 import { CompletedJobTaskmanagersTableActionComponent } from './taskmanagers-table-action/completed-job-taskmanagers-table-action.component';
 
-const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (): JobOverviewModuleConfig => {
-  return {
-    routerTabs: [
-      { title: 'Detail', path: 'detail' },
-      { title: 'SubTasks', path: 'subtasks' },
-      { title: 'TaskManagers', path: 'taskmanagers' }
-    ],
-    customComponents: {
-      ...JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents,
-      subtaskActionComponent: CompletedJobSubtasksTableActionComponent,
-      taskManagerActionComponent: CompletedJobTaskmanagersTableActionComponent
-    }
-  };
+const OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobOverviewModuleConfig => {
+  const isHistoryServer = statusService.configuration.features['web-history'];
+  return isHistoryServer
+    ? {
+        customComponents: {
+          ...JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.customComponents,
+          subtaskActionComponent: CompletedJobSubtasksTableActionComponent,
+          taskManagerActionComponent: CompletedJobTaskmanagersTableActionComponent
+        }
+      }
+    : {};
 };
 
 const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobModuleConfig => {
@@ -98,7 +96,8 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
   providers: [
     {
       provide: JOB_OVERVIEW_MODULE_CONFIG,
-      useFactory: OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY
+      useFactory: OVERRIDE_JOB_OVERVIEW_MODULE_CONFIG_FACTORY,
+      deps: [StatusService]
     },
     {
       provide: JOB_MODULE_CONFIG,

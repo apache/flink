@@ -15,29 +15,10 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<span
-  *ngIf="
-    !subtask || !subtask['taskmanager-id'] || subtask['taskmanager-id'] === '(unassigned)';
-    else hrefTpl
-  "
->
-  -
+<span nz-tooltip [nzTooltipTitle]="tooltip">
+  {{ duration ? (duration | humanizeDuration) : '-' }}
 </span>
-<ng-template #hrefTpl>
-  <a nz-dropdown nzPlacement="bottomRight" [nzDropdownMenu]="menu">
-    <i nz-icon nzType="ellipsis" nzTheme="outline"></i>
-  </a>
-  <nz-dropdown-menu #menu="nzDropdownMenu">
-    <ul nz-menu>
-      <li nz-menu-item>
-        <a
-          [routerLink]="['/task-manager', subtask['taskmanager-id'], 'logs']"
-          [queryParamsHandling]="'preserve'"
-          target="_blank"
-        >
-          View Taskmanager Log
-        </a>
-      </li>
-    </ul>
-  </nz-dropdown-menu>
+
+<ng-template #tooltip>
+  <span>{{ state }}: {{ duration ? (duration | humanizeDuration) : '-' }}</span>
 </ng-template>

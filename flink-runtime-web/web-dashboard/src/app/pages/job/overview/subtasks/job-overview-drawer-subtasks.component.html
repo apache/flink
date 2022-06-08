@@ -19,21 +19,15 @@
   <nz-tab nzTitle="Aggregated Metrics">
     <flink-table-aggregated-metrics
       [isLoading]="isLoading"
-      [metrics]="aggregated?.metrics"
+      [aggregated]="aggregated"
     ></flink-table-aggregated-metrics>
-  </nz-tab>
-  <nz-tab nzTitle="Aggregated Status Duration">
-    <flink-table-aggregated-status-duration
-      [isLoading]="isLoading"
-      [durations]="aggregated?.['status-duration']"
-    ></flink-table-aggregated-status-duration>
   </nz-tab>
   <nz-tab nzTitle="Subtask Metrics">
     <nz-table
       nzSize="small"
       [nzLoading]="isLoading"
       [nzData]="listOfTask"
-      [nzScroll]="{ x: '1850px', y: 'calc(100% - 35px)' }"
+      [nzScroll]="{ x: '2170px', y: 'calc(100% - 35px)' }"
       [nzFrontPagination]="false"
       [nzShowPagination]="false"
       [nzVirtualItemSize]="virtualItemSize"
@@ -54,6 +48,7 @@
           <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
           <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
           <th nzWidth="320px">Accumulated Time (Backpressured/Idle/Busy)</th>
+          <th nzWidth="320px">Status Durations</th>
           <th [nzSortFn]="sortStatusFn" nzWidth="120px" nzRight>Status</th>
           <th nzWidth="50px" nzRight>More</th>
         </tr>
@@ -96,6 +91,16 @@
                 {{ subtask['metrics']['accumulated-idle-time'] | humanizeDuration }}
                 /
                 {{ subtask['metrics']['accumulated-busy-time'] | humanizeDuration }}
+              </td>
+              <td>
+                <ng-container *ngIf="!subtask['status-duration']; else badges">-</ng-container>
+                <ng-template #badges>
+                  <flink-dynamic-host
+                    *ngFor="let duration of convertStatusDuration(subtask['status-duration'])"
+                    [data]="{ state: duration.key, duration: duration.value }"
+                    [component]="durationBadgeComponent"
+                  ></flink-dynamic-host>
+                </ng-template>
               </td>
               <td nzRight>
                 <flink-dynamic-host

@@ -18,7 +18,7 @@
 
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
-import { AggregatedStatistics, JobVertexMetricStatistics } from '@flink-runtime-web/interfaces';
+import { JobVertexAggregated } from '@flink-runtime-web/interfaces';
 
 @Component({
   selector: 'flink-table-aggregated-metrics',
@@ -28,7 +28,7 @@ import { AggregatedStatistics, JobVertexMetricStatistics } from '@flink-runtime-
 })
 export class TableAggregatedMetricsComponent {
   @Input() isLoading = false;
-  @Input() metrics?: JobVertexMetricStatistics<AggregatedStatistics>;
+  @Input() aggregated?: JobVertexAggregated;
 
   constructor() {}
 }

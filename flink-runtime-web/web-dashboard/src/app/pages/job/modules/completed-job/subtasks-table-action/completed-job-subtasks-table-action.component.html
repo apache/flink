@@ -15,58 +15,23 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<span *ngIf="!subtask; else hrefTpl">-</span>
+<span
+  *ngIf="
+    !subtask || !subtask['taskmanager-id'] || subtask['taskmanager-id'] === '(unassigned)';
+    else hrefTpl
+  "
+>
+  -
+</span>
 <ng-template #hrefTpl>
   <a nz-dropdown nzPlacement="bottomRight" [nzDropdownMenu]="menu">
     <i nz-icon nzType="ellipsis" nzTheme="outline"></i>
   </a>
   <nz-dropdown-menu #menu="nzDropdownMenu">
     <ul nz-menu>
-      <li nz-menu-item>
-        <a (click)="setModalVisible(true)">View Status Durations</a>
-        <nz-modal
-          nzTitle="Status Durations"
-          [(nzVisible)]="visible"
-          [nzFooter]="null"
-          (nzOnCancel)="setModalVisible(false)"
-        >
-          <ng-container *nzModalContent>
-            <nz-table
-              class="small"
-              [nzData]="statusDuration"
-              [nzSize]="'small'"
-              [nzFrontPagination]="false"
-              [nzShowPagination]="false"
-            >
-              <tbody>
-                <tr *ngFor="let config of statusDuration">
-                  <td>
-                    <strong>{{ config.key }}</strong>
-                  </td>
-                  <td [attr.title]="config.value">{{ config.value | humanizeDuration }}</td>
-                </tr>
-              </tbody>
-            </nz-table>
-          </ng-container>
-        </nz-modal>
-      </li>
-      <li nz-menu-item [nzDisabled]="loading" *ngIf="isHistoryServer; else runtimeTemplate">
+      <li nz-menu-item [nzDisabled]="loading">
         <a [href]="logUrl" target="_blank">View External Taskmanager Log</a>
       </li>
-      <ng-template #runtimeTemplate>
-        <li
-          nz-menu-item
-          *ngIf="subtask['taskmanager-id'] && subtask['taskmanager-id'] !== '(unassigned)'"
-        >
-          <a
-            [routerLink]="['/task-manager', subtask['taskmanager-id'], 'logs']"
-            [queryParamsHandling]="'preserve'"
-            target="_blank"
-          >
-            View Taskmanager Log
-          </a>
-        </li>
-      </ng-template>
     </ul>
   </nz-dropdown-menu>
 </ng-template>

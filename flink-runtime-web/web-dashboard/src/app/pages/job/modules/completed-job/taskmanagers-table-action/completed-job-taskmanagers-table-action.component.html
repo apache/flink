@@ -24,7 +24,7 @@
   <nz-dropdown-menu #menu="nzDropdownMenu">
     <ul nz-menu>
       <li nz-menu-item>
-        <a (click)="setModalVisible(true)">View Aggregated Statistics</a>
+        <a (click)="setModalVisible(true)">View Aggregated Metrics</a>
         <nz-modal
           [nzTitle]="taskManager['taskmanager-id']"
           [(nzVisible)]="visible"
@@ -33,39 +33,19 @@
           (nzOnCancel)="setModalVisible(false)"
         >
           <ng-container *nzModalContent>
-            <nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
-              <nz-tab nzTitle="Aggregated Metrics">
-                <flink-table-aggregated-metrics
-                  [metrics]="taskManager.aggregated?.metrics"
-                ></flink-table-aggregated-metrics>
-              </nz-tab>
-              <nz-tab nzTitle="Aggregated Status Duration">
-                <flink-table-aggregated-status-duration
-                  [durations]="taskManager.aggregated?.['status-duration']"
-                ></flink-table-aggregated-status-duration>
-              </nz-tab>
-            </nz-tabset>
+            <flink-table-aggregated-metrics
+              [aggregated]="taskManager.aggregated"
+            ></flink-table-aggregated-metrics>
           </ng-container>
         </nz-modal>
       </li>
-      <ng-container
+      <li
+        nz-menu-item
+        [nzDisabled]="loading"
         *ngIf="taskManager['taskmanager-id'] && taskManager['taskmanager-id'] !== '(unassigned)'"
       >
-        <li nz-menu-item [nzDisabled]="loading" *ngIf="isHistoryServer; else runtimeTemplate">
-          <a [href]="logUrl" target="_blank">View External Taskmanager Log</a>
-        </li>
-        <ng-template #runtimeTemplate>
-          <li nz-menu-item>
-            <a
-              [routerLink]="['/task-manager', taskManager['taskmanager-id'], 'logs']"
-              [queryParamsHandling]="'preserve'"
-              target="_blank"
-            >
-              View Taskmanager Log
-            </a>
-          </li>
-        </ng-template>
-      </ng-container>
+        <a [href]="logUrl" target="_blank">View External Taskmanager Log</a>
+      </li>
     </ul>
   </nz-dropdown-menu>
 </ng-template>

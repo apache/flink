@@ -24,7 +24,7 @@
   <nz-dropdown-menu #menu="nzDropdownMenu">
     <ul nz-menu>
       <li nz-menu-item>
-        <a (click)="setModalVisible(true)">View Aggregated Statistics</a>
+        <a (click)="setModalVisible(true)">View Aggregated Metrics</a>
         <nz-modal
           [nzTitle]="taskManager['taskmanager-id']"
           [(nzVisible)]="visible"
@@ -33,18 +33,9 @@
           (nzOnCancel)="setModalVisible(false)"
         >
           <ng-container *nzModalContent>
-            <nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
-              <nz-tab nzTitle="Aggregated Metrics">
-                <flink-table-aggregated-metrics
-                  [metrics]="taskManager.aggregated?.metrics"
-                ></flink-table-aggregated-metrics>
-              </nz-tab>
-              <nz-tab nzTitle="Aggregated Status Duration">
-                <flink-table-aggregated-status-duration
-                  [durations]="taskManager.aggregated?.['status-duration']"
-                ></flink-table-aggregated-status-duration>
-              </nz-tab>
-            </nz-tabset>
+            <flink-table-aggregated-metrics
+              [aggregated]="taskManager.aggregated"
+            ></flink-table-aggregated-metrics>
           </ng-container>
         </nz-modal>
       </li>
