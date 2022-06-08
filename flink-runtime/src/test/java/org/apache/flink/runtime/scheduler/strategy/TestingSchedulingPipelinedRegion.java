@@ -78,6 +78,11 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     }
 
     @Override
+    public Iterable<ConsumedPartitionGroup> getAllReleaseBySchedulerConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(consumedPartitionGroups);
+    }
+
+    @Override
     public boolean contains(ExecutionVertexID vertexId) {
         return regionVertices.containsKey(vertexId);
     }

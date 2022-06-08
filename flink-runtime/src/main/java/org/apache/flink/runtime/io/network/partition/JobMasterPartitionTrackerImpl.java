@@ -70,10 +70,8 @@ public class JobMasterPartitionTrackerImpl
         Preconditions.checkNotNull(producingTaskExecutorId);
         Preconditions.checkNotNull(resultPartitionDeploymentDescriptor);
 
-        // blocking and PIPELINED_APPROXIMATE partitions require explicit partition release calls
-        // reconnectable will be removed after FLINK-19895, see also {@link
-        // ResultPartitionType#isReconnectable}.
-        if (!resultPartitionDeploymentDescriptor.getPartitionType().isReconnectable()) {
+        // non-releaseByScheduler partitions don't require explicit partition release calls.
+        if (!resultPartitionDeploymentDescriptor.getPartitionType().isReleaseByScheduler()) {
             return;
         }
 

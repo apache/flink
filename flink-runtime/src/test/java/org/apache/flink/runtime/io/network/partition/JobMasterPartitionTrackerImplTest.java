@@ -80,7 +80,7 @@ public class JobMasterPartitionTrackerImplTest extends TestLogger {
 
         assertThat(
                 partitionTracker.isTrackingPartitionsFor(resourceId),
-                is(resultPartitionType.isReconnectable()));
+                is(resultPartitionType.isReleaseByScheduler()));
     }
 
     @Test

@@ -83,7 +83,7 @@ public class RegionPartitionGroupReleaseStrategy
 
         for (SchedulingPipelinedRegion region : newRegions) {
             for (ConsumedPartitionGroup consumedPartitionGroup :
-                    region.getAllBlockingConsumedPartitionGroups()) {
+                    region.getAllReleaseBySchedulerConsumedPartitionGroups()) {
                 partitionGroupConsumerRegions
                         .computeIfAbsent(
                                 consumedPartitionGroup,
@@ -112,7 +112,7 @@ public class RegionPartitionGroupReleaseStrategy
             consumerRegionGroupExecutionViewMaintainer.regionFinished(pipelinedRegion);
 
             return filterReleasablePartitionGroups(
-                    pipelinedRegion.getAllBlockingConsumedPartitionGroups());
+                    pipelinedRegion.getAllReleaseBySchedulerConsumedPartitionGroups());
         }
         return Collections.emptyList();
     }
