@@ -311,19 +311,19 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
             throw new ParseException(
                 String.format("USING JAR syntax is not applicable to %s language.", functionLanguage));
         }
-        List<SqlNode> list = new ArrayList<SqlNode>();
+        List<SqlNode> resourceList = new ArrayList<SqlNode>();
         SqlResource sqlResource = null;
     }
         sqlResource = SqlResourceInfo() {
-            list.add(sqlResource);
+            resourceList.add(sqlResource);
         }
         (
             <COMMA>
             sqlResource = SqlResourceInfo() {
-                list.add(sqlResource);
+                resourceList.add(sqlResource);
             }
         )*
-        {  resourceInfos = new SqlNodeList(list, s.pos()); }
+        {  resourceInfos = new SqlNodeList(resourceList, s.pos()); }
     ]
     {
         return new SqlCreateFunction(

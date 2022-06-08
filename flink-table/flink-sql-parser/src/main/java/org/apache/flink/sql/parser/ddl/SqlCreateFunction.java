@@ -106,9 +106,9 @@ public class SqlCreateFunction extends SqlCreate {
         if (resourceInfos.size() > 0) {
             writer.keyword("USING");
             SqlWriter.Frame withFrame = writer.startList("", "");
-            for (SqlNode jarPath : resourceInfos) {
+            for (SqlNode resourcePath : resourceInfos) {
                 writer.sep(",");
-                jarPath.unparse(writer, leftPrec, rightPrec);
+                resourcePath.unparse(writer, leftPrec, rightPrec);
             }
             writer.endList(withFrame);
         }
