@@ -30,7 +30,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecMatch
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalMatch}
 import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.utils.TableTestUtil
@@ -105,7 +105,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     }
 
     val dataMatch = optimized.asInstanceOf[StreamPhysicalMatch]
-    val p = StreamExecMatch
+    val p = CommonExecMatch
       .translatePattern(
         MatchUtil.createMatchSpec(dataMatch.logicalMatch),
         new Configuration,

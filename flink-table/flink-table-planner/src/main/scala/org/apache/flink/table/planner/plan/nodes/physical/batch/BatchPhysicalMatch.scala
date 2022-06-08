@@ -15,44 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.physical.stream
+package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalMatch
 import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import _root_.java.util
-import _root_.scala.collection.JavaConversions._
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 
-/** Stream physical RelNode which matches along with MATCH_RECOGNIZE. */
-class StreamPhysicalMatch(
+/** Batch physical RelNode which matches along with MATCH_RECOGNIZE. */
+class BatchPhysicalMatch(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
     logicalMatch: MatchRecognize,
     outputRowType: RelDataType)
   extends CommonPhysicalMatch(cluster, traitSet, inputNode, logicalMatch, outputRowType)
-  with StreamPhysicalRel {
-
-  override def requireWatermark: Boolean = {
-    val rowTimeFields = getInput.getRowType.getFieldList
-      .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-    rowTimeFields.nonEmpty
-  }
+  with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalMatch(cluster, traitSet, inputs.get(0), logicalMatch, outputRowType)
+    new BatchPhysicalMatch(cluster, traitSet, inputs.get(0), logicalMatch, outputRowType)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    new StreamExecMatch(
+    new BatchExecMatch(
       unwrapTableConfig(this),
       MatchUtil.createMatchSpec(logicalMatch),
       InputProperty.DEFAULT,

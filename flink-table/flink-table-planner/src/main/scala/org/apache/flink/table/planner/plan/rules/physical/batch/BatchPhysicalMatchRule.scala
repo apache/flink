@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.rules.physical.stream
+package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMatch
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalMatch
 import org.apache.flink.table.planner.plan.rules.physical.common.CommonPhysicalMatchRule
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 
-class StreamPhysicalMatchRule
+class BatchPhysicalMatchRule
   extends CommonPhysicalMatchRule(
     classOf[FlinkLogicalMatch],
     FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalMatchRule") {
+    FlinkConventions.BATCH_PHYSICAL,
+    "BatchPhysicalMatchRule") {
 
   override def convert(rel: RelNode): RelNode = {
-    super.convert(rel, FlinkConventions.STREAM_PHYSICAL)
+    super.convert(rel, FlinkConventions.BATCH_PHYSICAL)
   }
 
   override def convertToPhysicalMatch(
@@ -44,10 +44,10 @@ class StreamPhysicalMatchRule
       convertInput: RelNode,
       matchRecognize: MatchRecognize,
       rowType: RelDataType): RelNode = {
-    new StreamPhysicalMatch(cluster, traitSet, convertInput, matchRecognize, rowType)
+    new BatchPhysicalMatch(cluster, traitSet, convertInput, matchRecognize, rowType)
   }
 }
 
-object StreamPhysicalMatchRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalMatchRule
+object BatchPhysicalMatchRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalMatchRule
 }
