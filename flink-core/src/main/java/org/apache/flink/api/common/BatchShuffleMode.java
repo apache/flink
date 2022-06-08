@@ -18,6 +18,7 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.description.InlineElement;
@@ -60,7 +61,25 @@ public enum BatchShuffleMode implements DescribedEnum {
     ALL_EXCHANGES_BLOCKING(
             text(
                     "Upstream and downstream tasks run subsequently. This reduces the resource usage "
-                            + "as downstream tasks are started after upstream tasks finished."));
+                            + "as downstream tasks are started after upstream tasks finished.")),
+
+    /**
+     * Downstream can start running anytime, as long as the upstream has started.
+     *
+     * <p>This adapts the resource usage to whatever is available.
+     *
+     * <p>Attention: This feature is working in progress, it will rename to ALL_EXCHANGES_HYBRID
+     * when the effort is finished.
+     */
+    // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
+    // finished.
+    @Documentation.ExcludeFromDocumentation
+    WIP_ALL_EXCHANGES_HYBRID(
+            text(
+                    "Downstream task can start running anytime, as long as the upstream has started."
+                            + " This is a shuffle mode between pipelined and blocking, adapts the "
+                            + "resource usage to whatever is available. Note that the work is not "
+                            + "fully done, please don't use it now."));
 
     private final InlineElement description;
 
