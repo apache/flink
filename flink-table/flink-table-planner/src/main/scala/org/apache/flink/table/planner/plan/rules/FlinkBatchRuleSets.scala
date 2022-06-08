@@ -321,6 +321,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalRank.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
+    FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER,
     FlinkLogicalLegacySink.CONVERTER,
     FlinkLogicalDistribution.BATCH_CONVERTER
@@ -411,6 +412,8 @@ object FlinkBatchRuleSets {
     BatchPhysicalSingleRowJoinRule.INSTANCE,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // CEP
+    BatchPhysicalMatchRule.INSTANCE,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,

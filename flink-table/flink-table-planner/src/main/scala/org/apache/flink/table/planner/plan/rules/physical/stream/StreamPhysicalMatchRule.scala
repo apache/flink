@@ -17,145 +17,35 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMatch
-import org.apache.flink.table.planner.plan.utils.{MatchUtil, RexDefaultVisitor}
+import org.apache.flink.table.planner.plan.rules.physical.common.CommonPhysicalMatchRule
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.calcite.sql.SqlAggFunction
-import org.apache.calcite.util.ImmutableBitSet
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class StreamPhysicalMatchRule
-  extends ConverterRule(
+  extends CommonPhysicalMatchRule(
     classOf[FlinkLogicalMatch],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
     "StreamPhysicalMatchRule") {
 
-  override def matches(call: RelOptRuleCall): Boolean = {
-    val logicalMatch: FlinkLogicalMatch = call.rel(0)
-
-    validateAggregations(logicalMatch.getMeasures.values().asScala)
-    validateAggregations(logicalMatch.getPatternDefinitions.values().asScala)
-    // This check might be obsolete once CALCITE-2747 is resolved
-    validateAmbiguousColumns(logicalMatch)
-    true
-  }
-
   override def convert(rel: RelNode): RelNode = {
-    val logicalMatch: FlinkLogicalMatch = rel.asInstanceOf[FlinkLogicalMatch]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val partitionKeys = logicalMatch.getPartitionKeys
-
-    val requiredDistribution = if (!partitionKeys.isEmpty) {
-      FlinkRelDistribution.hash(logicalMatch.getPartitionKeys.asList())
-    } else {
-      FlinkRelDistribution.SINGLETON
-    }
-    val requiredTraitSet = rel.getCluster.getPlanner
-      .emptyTraitSet()
-      .replace(requiredDistribution)
-      .replace(FlinkConventions.STREAM_PHYSICAL)
-
-    val convertInput: RelNode =
-      RelOptRule.convert(logicalMatch.getInput, requiredTraitSet)
-
-    try {
-      Class
-        .forName(
-          "org.apache.flink.cep.pattern.Pattern",
-          false,
-          Thread.currentThread().getContextClassLoader)
-    } catch {
-      case ex: ClassNotFoundException =>
-        throw new TableException(
-          "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.",
-          ex)
-    }
-
-    new StreamPhysicalMatch(
-      rel.getCluster,
-      traitSet,
-      convertInput,
-      MatchRecognize(
-        logicalMatch.getPattern,
-        logicalMatch.getPatternDefinitions,
-        logicalMatch.getMeasures,
-        logicalMatch.getAfter,
-        logicalMatch.getSubsets,
-        logicalMatch.isAllRows,
-        logicalMatch.getPartitionKeys,
-        logicalMatch.getOrderKeys,
-        logicalMatch.getInterval
-      ),
-      logicalMatch.getRowType)
+    super.convert(rel, FlinkConventions.STREAM_PHYSICAL)
   }
 
-  private def validateAggregations(expr: Iterable[RexNode]): Unit = {
-    val validator = new AggregationsValidator
-    expr.foreach(_.accept(validator))
+  override def convertToPhysicalMatch(
+      cluster: RelOptCluster,
+      traitSet: RelTraitSet,
+      convertInput: RelNode,
+      matchRecognize: MatchRecognize,
+      rowType: RelDataType): RelNode = {
+    new StreamPhysicalMatch(cluster, traitSet, convertInput, matchRecognize, rowType)
   }
-
-  private def validateAmbiguousColumns(logicalMatch: FlinkLogicalMatch): Unit = {
-    if (logicalMatch.isAllRows) {
-      throw new TableException("All rows per match mode is not supported yet.")
-    } else {
-      validateAmbiguousColumnsOnRowPerMatch(
-        logicalMatch.getPartitionKeys,
-        logicalMatch.getMeasures.keySet().asScala,
-        logicalMatch.getInput.getRowType,
-        logicalMatch.getRowType)
-    }
-  }
-
-  private def validateAmbiguousColumnsOnRowPerMatch(
-      partitionKeys: ImmutableBitSet,
-      measuresNames: mutable.Set[String],
-      inputSchema: RelDataType,
-      expectedSchema: RelDataType): Unit = {
-    val actualSize = partitionKeys.toArray.length + measuresNames.size
-    val expectedSize = expectedSchema.getFieldCount
-    if (actualSize != expectedSize) {
-      // try to find ambiguous column
-
-      val ambiguousColumns = partitionKeys.toArray
-        .map(inputSchema.getFieldList.get(_).getName)
-        .filter(measuresNames.contains)
-        .mkString("{", ", ", "}")
-
-      throw new ValidationException(s"Columns ambiguously defined: $ambiguousColumns")
-    }
-  }
-
-  private class AggregationsValidator extends RexDefaultVisitor[Object] {
-
-    override def visitCall(call: RexCall): AnyRef = {
-      call.getOperator match {
-        case _: SqlAggFunction =>
-          call.accept(new MatchUtil.AggregationPatternVariableFinder)
-        case _ =>
-          call.getOperands.asScala.foreach(_.accept(this))
-      }
-
-      null
-    }
-
-    override def visitNode(rexNode: RexNode): AnyRef = {
-      null
-    }
-  }
-
 }
 
 object StreamPhysicalMatchRule {
