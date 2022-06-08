@@ -295,7 +295,7 @@ public class TaskDeploymentDescriptorFactory {
             PartitionLocationConstraint partitionDeploymentConstraint,
             @Nullable ResultPartitionDeploymentDescriptor consumedPartitionDescriptor) {
         // The producing task needs to be RUNNING or already FINISHED
-        if ((resultPartitionType.isPipelined() || isConsumable)
+        if ((resultPartitionType.canBePipelinedConsumed() || isConsumable)
                 && consumedPartitionDescriptor != null
                 && isProducerAvailable(producerState)) {
             // partition is already registered

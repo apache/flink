@@ -162,6 +162,12 @@ public enum ResultPartitionType {
         return consumingConstraint == ConsumingConstraint.MUST_BE_PIPELINED;
     }
 
+    /** return if this partition's upstream and downstream support scheduling in the same time. */
+    public boolean canBePipelinedConsumed() {
+        return consumingConstraint == ConsumingConstraint.CAN_BE_PIPELINED
+                || consumingConstraint == ConsumingConstraint.MUST_BE_PIPELINED;
+    }
+
     public boolean isReconnectable() {
         return isReconnectable;
     }

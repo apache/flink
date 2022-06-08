@@ -136,12 +136,12 @@ public class NettyShuffleUtils {
 
         // In order to avoid network buffer request timeout (see FLINK-12852), we announce
         // network buffer requirement by below:
-        // 1. For pipelined shuffle, the floating buffers may not be returned in time due to back
-        // pressure so we need to include all the floating buffers in the announcement, i.e. we
+        // 1. For canBePipelined shuffle, the floating buffers may not be returned in time due to
+        // back pressure so we need to include all the floating buffers in the announcement, i.e. we
         // should take the max value;
         // 2. For blocking shuffle, it is back pressure free and floating buffers can be recycled
         // in time, so that the minimum required buffers would be enough.
-        int ret = type.isPipelined() ? minAndMax.getRight() : minAndMax.getLeft();
+        int ret = type.canBePipelinedConsumed() ? minAndMax.getRight() : minAndMax.getLeft();
 
         if (ret == Integer.MAX_VALUE) {
             // Should never reach this branch. Result partition will allocate an unbounded
