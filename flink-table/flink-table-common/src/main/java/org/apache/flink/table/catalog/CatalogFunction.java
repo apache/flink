@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.resource.ResourceUri;
+import org.apache.flink.table.resource.ResourceUri;
 
 import java.util.List;
 import java.util.Optional;

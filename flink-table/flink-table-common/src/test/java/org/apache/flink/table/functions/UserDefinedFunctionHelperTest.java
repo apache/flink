@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.FunctionLanguage;
-import org.apache.flink.table.catalog.resource.ResourceUri;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;

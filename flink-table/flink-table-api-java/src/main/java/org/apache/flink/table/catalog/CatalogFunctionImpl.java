@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Collections;
@@ -60,7 +60,8 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
     @Override
     public CatalogFunction copy() {
-        return new CatalogFunctionImpl(getClassName(), functionLanguage, resourceUris);
+        return new CatalogFunctionImpl(
+                getClassName(), functionLanguage, Collections.unmodifiableList(resourceUris));
     }
 
     @Override

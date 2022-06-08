@@ -1320,12 +1320,19 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'");
 
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language scala using jar '/path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+
         sql("create function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
                 .ok(
                         "CREATE FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
 
         sql("create temporary function function1 as 'org.apache.fink.function.function1' language sql using jar 'file:///path/to/test.jar'")
                 .fails("USING JAR syntax is not applicable to SQL language.");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language python using jar 'file:///path/to/test.jar'")
+                .fails("USING JAR syntax is not applicable to PYTHON language.");
     }
 
     @Test

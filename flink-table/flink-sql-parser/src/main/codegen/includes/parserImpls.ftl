@@ -270,7 +270,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     String functionLanguage = null;
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
-    SqlNodeList jarPaths = SqlNodeList.EMPTY;
+    SqlNodeList resourceInfos = SqlNodeList.EMPTY;
 }
 {
     (
@@ -312,30 +312,46 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
                 String.format("USING JAR syntax is not applicable to %s language.", functionLanguage));
         }
         List<SqlNode> list = new ArrayList<SqlNode>();
-        String path = null;
+        SqlResource sqlResource = null;
     }
-        <JAR> <QUOTED_STRING> {
-            path = SqlParserUtil.parseString(token.image);
-            list.add(SqlLiteral.createCharString(path, getPos()));
+        sqlResource = SqlResourceInfo() {
+            list.add(sqlResource);
         }
         (
-            <COMMA> <JAR> <QUOTED_STRING> {
-                path = SqlParserUtil.parseString(token.image);
-                list.add(SqlLiteral.createCharString(path, getPos()));
+            <COMMA>
+            sqlResource = SqlResourceInfo() {
+                list.add(sqlResource);
             }
         )*
-        {  jarPaths = new SqlNodeList(list, s.pos()); }
+        {  resourceInfos = new SqlNodeList(list, s.pos()); }
     ]
     {
         return new SqlCreateFunction(
-                        s.pos(),
-                        functionIdentifier,
-                        functionClassName,
-                        functionLanguage,
-                        ifNotExists,
-                        isTemporary,
-                        isSystemFunction,
-                        jarPaths);
+                    s.pos(),
+                    functionIdentifier,
+                    functionClassName,
+                    functionLanguage,
+                    ifNotExists,
+                    isTemporary,
+                    isSystemFunction,
+                    resourceInfos);
+    }
+}
+
+/**
+ * Parse resource type and path.
+ */
+SqlResource SqlResourceInfo() :
+{
+    String resourcePath;
+}
+{
+    <JAR> <QUOTED_STRING> {
+        resourcePath = SqlParserUtil.parseString(token.image);
+        return new SqlResource(
+                    getPos(),
+                    SqlResourceType.JAR.symbol(getPos()),
+                    SqlLiteral.createCharString(resourcePath, getPos()));
     }
 }
 

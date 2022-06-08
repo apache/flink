@@ -50,8 +50,6 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.catalog.resource.ResourceType;
-import org.apache.flink.table.catalog.resource.ResourceUri;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
@@ -101,6 +99,8 @@ import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
@@ -1235,13 +1235,13 @@ public class SqlToOperationConverterTest {
                         "CREATE CATALOG FUNCTION: (catalogFunction: [Optional[This is a user-defined function]], "
                                 + "identifier: [`builtin`.`default`.`test_udf`], ignoreIfExists: [false], isTemporary: [false])");
 
-        // here doesn't assert the CatalogFunction directly because of the isGeneric method will
-        // load the class
+        // here doesn't assert the CatalogFunction directly because of equals method isn't
+        // implemented
         assertThat(actualFunction.getClassName()).isEqualTo("org.apache.fink.function.function1");
         assertThat(actualFunction.getFunctionLanguage()).isEqualTo(FunctionLanguage.JAVA);
         assertThat(actualFunction.getFunctionResources())
                 .isEqualTo(
-                        Arrays.asList(
+                        Collections.singletonList(
                                 new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
 
         // test create temporary system function
@@ -1249,21 +1249,15 @@ public class SqlToOperationConverterTest {
                 "CREATE TEMPORARY SYSTEM FUNCTION test_udf2 AS 'org.apache.fink.function.function2' "
                         + "LANGUAGE SCALA USING JAR 'file:///path/to/test.jar'";
         operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
-        assertThat(operation).isInstanceOf(CreateTempSystemFunctionOperation.class);
-        CreateTempSystemFunctionOperation tempSystemFunctionOperation =
-                (CreateTempSystemFunctionOperation) operation;
-        actualFunction = tempSystemFunctionOperation.getCatalogFunction();
 
-        // here doesn't assert the CreateTempSystemFunctionOperation directly because of the
-        // isGeneric method will load the class
-        assertThat(tempSystemFunctionOperation.getFunctionName()).isEqualTo("test_udf2");
-        assertThat(tempSystemFunctionOperation.isIgnoreIfExists()).isEqualTo(false);
-        assertThat(actualFunction.getClassName()).isEqualTo("org.apache.fink.function.function2");
-        assertThat(actualFunction.getFunctionLanguage()).isEqualTo(FunctionLanguage.SCALA);
-        assertThat(actualFunction.getFunctionResources())
+        assertThat(operation).isInstanceOf(CreateTempSystemFunctionOperation.class);
+        assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        Arrays.asList(
-                                new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
+                        "CREATE TEMPORARY SYSTEM FUNCTION: (functionName: [test_udf2], "
+                                + "catalogFunction: [CatalogFunctionImpl{className='org.apache.fink.function.function2', "
+                                + "functionLanguage='SCALA', "
+                                + "functionResource='[ResourceUri{resourceType=JAR, uri='file:///path/to/test.jar'}]'}], "
+                                + "ignoreIfExists: [false], functionLanguage: [SCALA])");
     }
 
     @Test

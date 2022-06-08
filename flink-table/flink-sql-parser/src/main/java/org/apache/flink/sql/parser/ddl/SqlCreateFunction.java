@@ -33,7 +33,6 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +52,7 @@ public class SqlCreateFunction extends SqlCreate {
 
     private final boolean isSystemFunction;
 
-    private final SqlNodeList jarPaths;
+    private final SqlNodeList resourceInfos;
 
     public SqlCreateFunction(
             SqlParserPos pos,
@@ -63,14 +62,14 @@ public class SqlCreateFunction extends SqlCreate {
             boolean ifNotExists,
             boolean isTemporary,
             boolean isSystemFunction,
-            SqlNodeList jarPaths) {
+            SqlNodeList resourceInfos) {
         super(OPERATOR, pos, false, ifNotExists);
         this.functionIdentifier = requireNonNull(functionIdentifier);
         this.functionClassName = requireNonNull(functionClassName);
         this.isSystemFunction = isSystemFunction;
         this.isTemporary = isTemporary;
         this.functionLanguage = functionLanguage;
-        this.jarPaths = jarPaths;
+        this.resourceInfos = resourceInfos;
     }
 
     @Override
@@ -81,7 +80,7 @@ public class SqlCreateFunction extends SqlCreate {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(functionIdentifier, functionClassName, jarPaths);
+        return ImmutableNullableList.of(functionIdentifier, functionClassName, resourceInfos);
     }
 
     @Override
@@ -104,12 +103,11 @@ public class SqlCreateFunction extends SqlCreate {
             writer.keyword("LANGUAGE");
             writer.keyword(functionLanguage);
         }
-        if (jarPaths.size() > 0) {
+        if (resourceInfos.size() > 0) {
             writer.keyword("USING");
             SqlWriter.Frame withFrame = writer.startList("", "");
-            for (SqlNode jarPath : jarPaths) {
+            for (SqlNode jarPath : resourceInfos) {
                 writer.sep(",");
-                writer.keyword("JAR");
                 jarPath.unparse(writer, leftPrec, rightPrec);
             }
             writer.endList(withFrame);
@@ -140,10 +138,7 @@ public class SqlCreateFunction extends SqlCreate {
         return functionIdentifier.names.toArray(new String[0]);
     }
 
-    public List<String> getJarPaths() {
-        return jarPaths.getList().stream()
-                .map(SqlCharStringLiteral.class::cast)
-                .map(path -> path.getValueAs(String.class))
-                .collect(Collectors.toList());
+    public List<SqlNode> getResourceInfos() {
+        return resourceInfos.getList();
     }
 }

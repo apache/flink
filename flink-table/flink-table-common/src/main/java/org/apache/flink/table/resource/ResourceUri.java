@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package org.apache.flink.table.catalog.resource;
+package org.apache.flink.table.resource;
 
 import org.apache.flink.annotation.PublicEvolving;
 
@@ -57,5 +57,10 @@ public class ResourceUri {
     @Override
     public int hashCode() {
         return Objects.hash(resourceType, uri);
+    }
+
+    @Override
+    public String toString() {
+        return "ResourceUri{" + "resourceType=" + resourceType + ", uri='" + uri + '\'' + '}';
     }
 }

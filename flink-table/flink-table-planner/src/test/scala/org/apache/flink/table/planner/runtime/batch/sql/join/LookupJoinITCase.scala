@@ -22,10 +22,10 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
 import org.apache.flink.types.Row
 
-import org.junit.{After, Assume, Before, Test}
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{After, Assume, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -96,54 +96,57 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
         isBounded = true)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING
-                         |) WITH (
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = '$isAsyncMode',
-                         |  'bounded' = 'true'
-                         |)
-                         |""".stripMargin)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId',
+           |  'async' = '$isAsyncMode',
+           |  'bounded' = 'true'
+           |)
+           |""".stripMargin)
     }
   }
 
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
     if (!legacyTableSource) {
       val dataId = TestValuesTableFactory.registerData(data)
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING,
-                         |  `nominal_age` as age + 1
-                         |) WITH (
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = '$isAsyncMode',
-                         |  'bounded' = 'true'
-                         |)
-                         |""".stripMargin)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING,
+           |  `nominal_age` as age + 1
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId',
+           |  'async' = '$isAsyncMode',
+           |  'bounded' = 'true'
+           |)
+           |""".stripMargin)
     }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(s"""
-                       |CREATE TABLE $tableName (
-                       |  `id` BIGINT,
-                       |  `len` BIGINT,
-                       |  `content` STRING,
-                       |  `proctime` AS PROCTIME()
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$dataId',
-                       |  'bounded' = 'true'
-                       |)
-                       |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE $tableName (
+         |  `id` BIGINT,
+         |  `len` BIGINT,
+         |  `content` STRING,
+         |  `proctime` AS PROCTIME()
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
   }
 
   @Test
@@ -187,7 +190,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
   @Test
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
-      "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
+      "for system_time as of T.proctime AS D ON T.id = D.id AND D.age = 20 WHERE T.len <= D.age"
 
     val expected = Seq(
       BatchTestBase.row(2, 15, "Hello", "Jark", 22),
