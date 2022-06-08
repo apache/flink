@@ -38,8 +38,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Test for {@link DelegationTokenManager}. */
-public class KerberosDelegationTokenManagerTest {
+/**
+ * Test for {@link DelegationTokenManager}.
+ *
+ * <p>This class is an ITCase because the mocking breaks the {@link UserGroupInformation} class for
+ * other tests.
+ */
+public class KerberosDelegationTokenManagerITCase {
 
     @Test
     public void isProviderEnabledMustGiveBackTrueByDefault() {
