@@ -32,7 +32,7 @@ public enum ResultPartitionType {
      * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
      * that the partition is no longer needed.
      */
-    BLOCKING(false, false, false, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
+    BLOCKING(false, false, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have a
@@ -45,8 +45,7 @@ public enum ResultPartitionType {
      * scenarios, like when the TaskManager exits or when the TaskManager loses connection to
      * JobManager / ResourceManager for too long.
      */
-    BLOCKING_PERSISTENT(
-            false, false, true, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
+    BLOCKING_PERSISTENT(false, true, ConsumingConstraint.BLOCKING, ReleaseBy.SCHEDULER),
 
     /**
      * A pipelined streaming data exchange. This is applicable to both bounded and unbounded
@@ -58,7 +57,7 @@ public enum ResultPartitionType {
      * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
      * the {@link #PIPELINED_BOUNDED} variant.
      */
-    PIPELINED(true, false, false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
+    PIPELINED(false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool.
@@ -71,8 +70,7 @@ public enum ResultPartitionType {
      * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there
      * are no checkpoint barriers.
      */
-    PIPELINED_BOUNDED(
-            true, true, false, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
+    PIPELINED_BOUNDED(true, false, ConsumingConstraint.MUST_BE_PIPELINED, ReleaseBy.UPSTREAM),
 
     /**
      * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
@@ -83,29 +81,13 @@ public enum ResultPartitionType {
      * in that {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task
      * fails.
      */
-    PIPELINED_APPROXIMATE(
-            true, true, false, true, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM);
-
-    /** Can the partition be consumed while being produced? */
-    private final boolean isPipelined;
+    PIPELINED_APPROXIMATE(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM);
 
     /** Does this partition use a limited number of (network) buffers? */
     private final boolean isBounded;
 
     /** This partition will not be released after consuming if 'isPersistent' is true. */
     private final boolean isPersistent;
-
-    /**
-     * Can the partition be reconnected.
-     *
-     * <p>Attention: this attribute is introduced temporally for
-     * ResultPartitionType.PIPELINED_APPROXIMATE It will be removed afterwards: TODO: 1. Approximate
-     * local recovery has its won failover strategy to restart the failed set of tasks instead of
-     * restarting downstream of failed tasks depending on {@code
-     * RestartPipelinedRegionFailoverStrategy} 2. FLINK-19895: Unify the life cycle of
-     * ResultPartitionType Pipelined Family
-     */
-    private final boolean isReconnectable;
 
     private final ConsumingConstraint consumingConstraint;
 
@@ -135,26 +117,14 @@ public enum ResultPartitionType {
 
     /** Specifies the behaviour of an intermediate result partition at runtime. */
     ResultPartitionType(
-            boolean isPipelined,
             boolean isBounded,
             boolean isPersistent,
-            boolean isReconnectable,
             ConsumingConstraint consumingConstraint,
             ReleaseBy releaseBy) {
-        this.isPipelined = isPipelined;
         this.isBounded = isBounded;
         this.isPersistent = isPersistent;
-        this.isReconnectable = isReconnectable;
         this.consumingConstraint = consumingConstraint;
         this.releaseBy = releaseBy;
-    }
-
-    public boolean isBlocking() {
-        return !isPipelined;
-    }
-
-    public boolean isPipelined() {
-        return isPipelined;
     }
 
     /** return if this partition's upstream and downstream must be scheduled in the same time. */
@@ -204,10 +174,6 @@ public enum ResultPartitionType {
      */
     public boolean isPipelinedOrPipelinedBoundedResultPartition() {
         return this == PIPELINED || this == PIPELINED_BOUNDED;
-    }
-
-    public boolean isReconnectable() {
-        return isReconnectable;
     }
 
     /**
