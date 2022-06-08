@@ -109,6 +109,16 @@ public final class FirstValueAggFunction<T> extends BuiltInAggregateFunction<T, 
         }
     }
 
+    //    public void merge(RowData acc, Iterable<RowData> accumulators) throws Exception {
+    //        GenericRowData result = (GenericRowData) acc;
+    //        for (RowData accumulator : accumulators) {
+    //            if (result.getLong(1) > accumulator.getLong(1)) {
+    //                result.setField(0, accumulator.getLong(0));
+    //                result.setField(1, accumulator.getLong(1));
+    //            }
+    //        }
+    //    }
+
     public void resetAccumulator(RowData rowData) {
         GenericRowData acc = (GenericRowData) rowData;
         acc.setField(0, null);
