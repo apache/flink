@@ -63,7 +63,7 @@ public class PostgresCatalogTestBase {
     protected static final String TABLE_PRIMITIVE_TYPE2 = "primitive_table2";
     protected static final String TABLE_ARRAY_TYPE = "array_table";
     protected static final String TABLE_SERIAL_TYPE = "serial_table";
-    protected static final String TABLE_UPPER_NAME = "upper_Table";
+    protected static final String TABLE_UPPER_NAME = "upper_T1";
 
     protected static String baseUrl;
     protected static PostgresCatalog catalog;
@@ -124,8 +124,15 @@ public class PostgresCatalogTestBase {
         createTable(
                 PostgresTablePath.fromFlinkTableName(TABLE_SERIAL_TYPE),
                 getSerialTable().pgSchemaSql);
+
         createQuoteTable(
                 new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE_UPPER_NAME),
+                getUpperTable().pgSchemaSql);
+        createQuoteTable(
+                PostgresTablePath.fromFlinkTableName(TABLE_UPPER_NAME),
+                getUpperTable().pgSchemaSql);
+        createQuoteTable(
+                new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE2),
                 getUpperTable().pgSchemaSql);
 
         executeSQL(
@@ -145,11 +152,25 @@ public class PostgresCatalogTestBase {
                 PostgresCatalog.DEFAULT_DATABASE,
                 String.format(
                         "insert into %s values (%s);", TABLE_SERIAL_TYPE, getSerialTable().values));
+
         executeSQL(
                 PostgresCatalog.DEFAULT_DATABASE,
                 String.format(
                         "insert into %s values (%s);",
                         new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE_UPPER_NAME)
+                                .getQuoteFullPath(),
+                        getUpperTable().values));
+        executeSQL(
+                PostgresCatalog.DEFAULT_DATABASE,
+                String.format(
+                        "insert into public.\"%s\" values (%s);",
+                        TABLE_UPPER_NAME,
+                        getUpperTable().values));
+        executeSQL(
+                PostgresCatalog.DEFAULT_DATABASE,
+                String.format(
+                        "insert into %s values (%s);",
+                        new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE2)
                                 .getQuoteFullPath(),
                         getUpperTable().values));
     }

@@ -207,4 +207,31 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
         assertEquals("[+I[1]]", results.toString());
     }
+
+    @Test
+    public void testUpperTable() {
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tEnv.sqlQuery(
+                                        String.format(
+                                                "select * from %s", TABLE_UPPER_NAME))
+                                .execute()
+                                .collect());
+
+        assertEquals("[+I[1]]", results.toString());
+    }
+
+    @Test
+    public void testUpperSchema() {
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tEnv.sqlQuery(
+                                        String.format(
+                                                "select * from `%s.%s`",
+                                                TEST_UPPER_SCHEMA, TABLE2))
+                                .execute()
+                                .collect());
+
+        assertEquals("[+I[1]]", results.toString());
+    }
 }

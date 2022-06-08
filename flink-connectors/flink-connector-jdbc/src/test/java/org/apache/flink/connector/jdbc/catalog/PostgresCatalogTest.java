@@ -74,7 +74,9 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
                         "public.t1",
                         "public.t4",
                         "public.t5",
-                        "upper_Schema.upper_Table"),
+                        "public.upper_T1",
+                        "upper_Schema.t2",
+                        "upper_Schema.upper_T1"),
                 actual);
 
         actual = catalog.listTables(TEST_DB);
