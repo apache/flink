@@ -17,17 +17,25 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
+import org.apache.flink.api.common.io.OutputFormatBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.util.Preconditions;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * CassandraOutputFormatBase is the common abstract class for writing into Apache Cassandra using
@@ -85,5 +93,58 @@ abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V
                 LOG.error("Error while closing cluster.", e);
             }
         }
+    }
+
+    protected static <T> CompletableFuture<T> listenableFutureToCompletableFuture(
+            final ListenableFuture<T> listenableFuture) {
+        CompletableFuture<T> completable =
+                new CompletableFuture<T>() {
+
+                    @Override
+                    public boolean cancel(boolean mayInterruptIfRunning) {
+                        // propagate cancel to the listenable future
+                        boolean canceledListenableFuture =
+                                listenableFuture.cancel(mayInterruptIfRunning);
+                        final boolean canceledCompletableFuture =
+                                super.cancel(mayInterruptIfRunning);
+                        return canceledListenableFuture && canceledCompletableFuture;
+                    }
+
+                    @Override
+                    public boolean isCancelled() {
+                        return listenableFuture.isCancelled();
+                    }
+
+                    @Override
+                    public boolean isDone() {
+                        return listenableFuture.isDone();
+                    }
+
+                    @Override
+                    public T get() throws InterruptedException, ExecutionException {
+                        return listenableFuture.get();
+                    }
+
+                    @Override
+                    public T get(long timeout, TimeUnit unit)
+                            throws InterruptedException, ExecutionException, TimeoutException {
+                        return listenableFuture.get();
+                    }
+                };
+
+        Futures.addCallback(
+                listenableFuture,
+                new FutureCallback<T>() {
+                    @Override
+                    public void onSuccess(T result) {
+                        completable.complete(result);
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t) {
+                        completable.completeExceptionally(t);
+                    }
+                });
+        return completable;
     }
 }

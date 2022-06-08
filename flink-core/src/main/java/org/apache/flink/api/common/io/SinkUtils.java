@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.cassandra.utils;
+package org.apache.flink.api.common.io;
+
+import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -25,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** Utility class for sinks. */
+@Internal
 public class SinkUtils implements Serializable {
 
     /**

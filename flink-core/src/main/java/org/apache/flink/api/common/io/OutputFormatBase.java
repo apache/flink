@@ -16,22 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.cassandra;
+package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.io.RichOutputFormat;
-import org.apache.flink.connectors.cassandra.utils.SinkUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.Executors;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.FutureCallback;
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Futures;
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ListenableFuture;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -40,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @param <OUT> Type of the elements to write.
  */
+@PublicEvolving
 public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(OutputFormatBase.class);
 
@@ -62,7 +70,10 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
         this.maxConcurrentRequestsTimeout = maxConcurrentRequestsTimeout;
     }
 
-    /** Opens the format and initializes the flush system. */
+    /**
+     * Open the format and initializes the flush system. Implementers must call {@code
+     * super.open()}.
+     */
     @Override
     public void open(int taskNumber, int numTasks) {
         throwable = new AtomicReference<>();
@@ -97,21 +108,35 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
         }
     }
 
+    /**
+     * Asynchronously write a record and deal with {@link OutputFormatBase#maxConcurrentRequests}.
+     * To specify how a record is written, please override the {@link OutputFormatBase#send(Object)}
+     * method.
+     */
     @Override
-    public void writeRecord(OUT record) throws IOException {
+    public final void writeRecord(OUT record) throws IOException {
         checkAsyncErrors();
         tryAcquire(1);
-        final ListenableFuture<V> result;
+        final CompletionStage<V> result;
         try {
             result = send(record);
         } catch (Throwable e) {
             semaphore.release();
             throw e;
         }
-        Futures.addCallback(result, callback);
+        Futures.addCallback(
+                completableFutureToListenableFuture(result.toCompletableFuture()),
+                callback,
+                Executors.directExecutor());
     }
 
-    protected abstract ListenableFuture<V> send(OUT value);
+    /**
+     * Send the actual record for writing.
+     *
+     * @return Implementers must return a CompletionStage which has a valid {@link
+     *     CompletionStage#toCompletableFuture()} implementation.
+     */
+    protected abstract CompletionStage<V> send(OUT record);
 
     private void checkAsyncErrors() throws IOException {
         final Throwable currentError = throwable.getAndSet(null);
@@ -120,7 +145,10 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
         }
     }
 
-    /** Closes the format waiting for pending writes and reports errors. */
+    /**
+     * Close the format waiting for pending writes and reports errors. Implementers must call {@code
+     * super.close()}.
+     */
     @Override
     public void close() throws IOException {
         checkAsyncErrors();
@@ -136,5 +164,41 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
     @VisibleForTesting
     int getAcquiredPermits() {
         return maxConcurrentRequests - semaphore.availablePermits();
+    }
+
+    private static <T> ListenableFuture<T> completableFutureToListenableFuture(
+            CompletableFuture<T> completableFuture) {
+        return new ListenableFuture<T>() {
+            @Override
+            public boolean cancel(boolean b) {
+                return completableFuture.cancel(b);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return completableFuture.isCancelled();
+            }
+
+            @Override
+            public boolean isDone() {
+                return completableFuture.isDone();
+            }
+
+            @Override
+            public T get() throws InterruptedException, ExecutionException {
+                return completableFuture.get();
+            }
+
+            @Override
+            public T get(long timeout, TimeUnit unit)
+                    throws InterruptedException, ExecutionException, TimeoutException {
+                return completableFuture.get(timeout, unit);
+            }
+
+            @Override
+            public void addListener(Runnable listener, Executor executor) {
+                completableFuture.whenComplete((result, error) -> listener.run());
+            }
+        };
     }
 }

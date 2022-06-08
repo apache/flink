@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletionStage;
 
 /**
  * OutputFormat to write data to Apache Cassandra and from a custom Cassandra annotated object.
@@ -86,8 +87,9 @@ public class CassandraPojoOutputFormat<OUT> extends CassandraOutputFormatBase<OU
     }
 
     @Override
-    protected ListenableFuture<Void> send(OUT record) {
-        return mapper.saveAsync(record);
+    protected CompletionStage<Void> send(OUT record) {
+        final ListenableFuture<Void> result = mapper.saveAsync(record);
+        return listenableFutureToCompletableFuture(result);
     }
 
     /** Closes all resources used. */
