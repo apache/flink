@@ -177,6 +177,21 @@ public enum ResultPartitionType {
     }
 
     /**
+     * {@link #isBlockingOrBlockingPersistentResultPartition()} is used to judge whether it is the
+     * specified {@link #BLOCKING} or {@link #BLOCKING_PERSISTENT} resultPartitionType.
+     *
+     * <p>this method suitable for judgment conditions related to the specific implementation of
+     * {@link ResultPartitionType}.
+     *
+     * <p>this method not related to data consumption and partition release. As for the logic
+     * related to partition release, use {@link #isReleaseByScheduler()} instead, and as consume
+     * type, use {@link #mustBePipelinedConsumed()} or {@link #canBePipelinedConsumed()} instead.
+     */
+    public boolean isBlockingOrBlockingPersistentResultPartition() {
+        return this == BLOCKING || this == BLOCKING_PERSISTENT;
+    }
+
+    /**
      * {@link #isPipelinedOrPipelinedBoundedResultPartition()} is used to judge whether it is the
      * specified {@link #PIPELINED} or {@link #PIPELINED_BOUNDED} resultPartitionType.
      *

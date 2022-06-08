@@ -1014,14 +1014,14 @@ public class StreamingJobGraphGenerator {
 
     private void checkBufferTimeout(ResultPartitionType type, StreamEdge edge) {
         long bufferTimeout = edge.getBufferTimeout();
-        if (type.isBlocking()
+        if (!type.canBePipelinedConsumed()
                 && bufferTimeout != ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT) {
             throw new UnsupportedOperationException(
-                    "Blocking partition does not support buffer timeout "
+                    "only canBePipelinedConsumed partition support buffer timeout "
                             + bufferTimeout
                             + " for src operator in edge "
                             + edge
-                            + ". \nPlease either disable buffer timeout (via -1) or use the non-blocking partition.");
+                            + ". \nPlease either disable buffer timeout (via -1) or use the canBePipelinedConsumed partition.");
         }
     }
 

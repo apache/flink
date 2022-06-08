@@ -87,7 +87,7 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
                 SchedulingResultPartition consumedPartition =
                         resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-                if (consumedPartition.getResultType().isBlocking()) {
+                if (!consumedPartition.getResultType().canBePipelinedConsumed()) {
                     blockingConsumedPartitionGroupSet.add(consumedPartitionGroup);
                 }
                 if (consumedPartition.getResultType().isReleaseByScheduler()) {
