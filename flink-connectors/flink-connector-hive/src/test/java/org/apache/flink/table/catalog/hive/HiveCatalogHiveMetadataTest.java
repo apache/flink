@@ -49,6 +49,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 
@@ -329,6 +330,14 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 path1, partition1Spec, new CatalogTableStatistics(3L, 1L, 2L, 2L), false);
         catalog.alterPartitionStatistics(
                 path1, partition2Spec, new CatalogTableStatistics(1L, 1L, 2L, 2L), false);
+
+        Map<String, String> specPartitionMap = new HashMap<>();
+        specPartitionMap.put("second", "2010-04-21 09:45:00");
+        specPartitionMap.put("third", "2000");
+
+        TableStats tableStats =
+                ((HiveCatalog) catalog)
+                        .getPartitionTableStats(path1, Collections.singletonList(specPartitionMap));
 
         // avgLength = (3 * 3 + 1 * 1) / (3 + 1)
         columnStatisticsDataBaseMap.put(
