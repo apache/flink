@@ -159,4 +159,9 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
     protected String getSchemaTableName(ObjectPath tablePath) {
         return tablePath.getObjectName();
     }
+
+    @Override
+    protected String getSchemaTableNameWithQuote(ObjectPath tablePath) {
+        return tablePath.getObjectName();
+    }
 }

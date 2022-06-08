@@ -237,7 +237,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
             PreparedStatement ps =
                     conn.prepareStatement(
-                            String.format("SELECT * FROM %s;", getSchemaTableName(tablePath)));
+                            String.format("SELECT * FROM %s;", getSchemaTableNameWithQuote(tablePath)));
 
             ResultSetMetaData resultSetMetaData = ps.getMetaData();
 
@@ -514,6 +514,10 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
     }
 
     protected String getSchemaTableName(ObjectPath tablePath) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected String getSchemaTableNameWithQuote(ObjectPath tablePath) {
         throw new UnsupportedOperationException();
     }
 }
