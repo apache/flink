@@ -37,6 +37,11 @@ public enum StreamExchangeMode {
     BATCH,
 
     /**
+     * The consumer can start consuming data anytime as long as the producer has started producing.
+     */
+    HYBRID,
+
+    /**
      * The exchange mode is undefined. It leaves it up to the framework to decide the exchange mode.
      * The framework will pick one of {@link StreamExchangeMode#BATCH} or {@link
      * StreamExchangeMode#PIPELINED} in the end.

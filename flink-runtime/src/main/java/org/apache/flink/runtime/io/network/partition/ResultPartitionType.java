@@ -81,7 +81,15 @@ public enum ResultPartitionType {
      * in that {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task
      * fails.
      */
-    PIPELINED_APPROXIMATE(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM);
+    PIPELINED_APPROXIMATE(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.UPSTREAM),
+
+    /**
+     * Hybrid partitions with a bounded (local) buffer pool to support downstream task to
+     * simultaneous reading and writing shuffle data.
+     *
+     * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
+     */
+    HYBRID(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
 
     /** Does this partition use a limited number of (network) buffers? */
     private final boolean isBounded;
