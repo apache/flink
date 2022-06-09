@@ -365,7 +365,8 @@ public class HiveDialectITCase {
         tableEnv.executeSql("insert overwrite dest3 partition (p1) select 1,y,100.45 from src")
                 .await();
         results = queryResult(tableEnv.sqlQuery("select * from dest3"));
-        assertThat(results.toString()).isEqualTo("[+I[1, a, 100.45], +I[1, b, 100.45], +I[1, c, 100.45]]");
+        assertThat(results.toString())
+                .isEqualTo("[+I[1, a, 100.45], +I[1, b, 100.45], +I[1, c, 100.45]]");
     }
 
     @Test
