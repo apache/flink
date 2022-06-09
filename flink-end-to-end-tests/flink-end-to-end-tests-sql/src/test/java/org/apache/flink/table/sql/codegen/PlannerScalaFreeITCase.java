@@ -31,6 +31,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -64,6 +65,7 @@ import static org.junit.Assert.assertTrue;
  * cover it, so we should add E2E test for these case.
  */
 @RunWith(Parameterized.class)
+@Ignore
 public class PlannerScalaFreeITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(PlannerScalaFreeITCase.class);
