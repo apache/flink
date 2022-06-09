@@ -144,6 +144,8 @@ public class StreamingJobGraphGenerator {
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
+    private boolean hasHybridResultPartition = false;
+
     private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
         this.streamGraph = streamGraph;
         this.defaultStreamGraphHasher = new StreamGraphHasherV2();
@@ -976,12 +978,19 @@ public class StreamingJobGraphGenerator {
             case BATCH:
                 resultPartitionType = ResultPartitionType.BLOCKING;
                 break;
+            case HYBRID:
+                resultPartitionType = ResultPartitionType.HYBRID;
+                break;
             case UNDEFINED:
                 resultPartitionType = determineResultPartitionType(partitioner);
                 break;
             default:
                 throw new UnsupportedOperationException(
                         "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
+        }
+
+        if (resultPartitionType == ResultPartitionType.HYBRID) {
+            hasHybridResultPartition = true;
         }
 
         checkBufferTimeout(resultPartitionType, edge);
@@ -1045,6 +1054,8 @@ public class StreamingJobGraphGenerator {
                 return ResultPartitionType.PIPELINED_BOUNDED;
             case ALL_EDGES_PIPELINED_APPROXIMATE:
                 return ResultPartitionType.PIPELINED_APPROXIMATE;
+            case ALL_EDGES_HYBRID:
+                return ResultPartitionType.HYBRID;
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
@@ -1191,6 +1202,10 @@ public class StreamingJobGraphGenerator {
                 effectiveSlotSharingGroup =
                         checkNotNull(vertexRegionSlotSharingGroups.get(vertex.getID()));
             } else {
+                checkState(
+                        !hasHybridResultPartition,
+                        "hybrid shuffle mode currently does not support setting non-default slot sharing group.");
+
                 effectiveSlotSharingGroup =
                         specifiedSlotSharingGroups.computeIfAbsent(
                                 slotSharingGroupKey,
