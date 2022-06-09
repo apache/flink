@@ -22,14 +22,17 @@ from pyflink.common.serialization import JsonRowDeserializationSchema, \
     JsonRowSerializationSchema, Encoder, SimpleStringSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
-    JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
-    OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
-    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner, RMQSink, RMQSource, \
-    RMQConnectionConfig, PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, \
-    SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
-    MessageDelayer, FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
-from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
+from pyflink.datastream.connectors import DeliveryGuarantee, NumberSequenceSource, StreamFormat, \
+    FileSource, FileEnumeratorProvider, FileSplitAssignerProvider, FileSink, BucketAssigner, \
+    RollingPolicy, OutputFileConfig, StreamingFileSink
+from pyflink.datastream.connectors.jdbc import JdbcConnectionOptions, JdbcExecutionOptions, JdbcSink
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
+from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator, FlinkKinesisConsumer, \
+    KinesisStreamsSink, KinesisFirehoseSink
+from pyflink.datastream.connectors.pulsar import PulsarSource, PulsarDeserializationSchema, \
+    SubscriptionType, StartCursor, StopCursor, PulsarSink, PulsarSerializationSchema, \
+    TopicRoutingMode, MessageDelayer
+from pyflink.datastream.connectors.rabbitmq import RMQSource, RMQConnectionConfig, RMQSink
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
