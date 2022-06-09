@@ -151,7 +151,7 @@ public class TaskDeploymentDescriptorFactory {
                 consumedClusterPartitionShuffleDescriptors.entrySet()) {
             // For FLIP-205, the JobGraph generating side ensure that the cluster partition is
             // produced with only one subpartition. Therefore, we always consume the partition with
-            // subparition index of 0.
+            // subpartition index of 0.
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             entry.getKey(),
