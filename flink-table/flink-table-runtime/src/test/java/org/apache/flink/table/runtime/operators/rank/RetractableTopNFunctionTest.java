@@ -35,6 +35,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.apache.flink.table.types.logical.VarCharType.MAX_LENGTH;
 
 /** Tests for {@link RetractableTopNFunction}. */
 public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
@@ -520,7 +521,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 new RetractableTopNFunction(
                         ttlConfig,
                         InternalTypeInfo.ofFields(
-                                VarCharType.STRING_TYPE,
+                                new VarCharType(MAX_LENGTH),
                                 new BigIntType(),
                                 new IntType(),
                                 new IntType()),
