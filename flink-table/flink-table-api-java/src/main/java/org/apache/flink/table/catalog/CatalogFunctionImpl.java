@@ -24,6 +24,7 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -99,6 +100,25 @@ public class CatalogFunctionImpl implements CatalogFunction {
     @Override
     public List<ResourceUri> getFunctionResources() {
         return resourceUris;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogFunctionImpl that = (CatalogFunctionImpl) o;
+        return Objects.equals(className, that.className)
+                && functionLanguage == that.functionLanguage
+                && Objects.equals(resourceUris, that.resourceUris);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(className, functionLanguage, resourceUris);
     }
 
     @Override

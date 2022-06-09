@@ -1237,12 +1237,13 @@ public class SqlToOperationConverterTest {
 
         // here doesn't assert the CatalogFunction directly because of equals method isn't
         // implemented
-        assertThat(actualFunction.getClassName()).isEqualTo("org.apache.fink.function.function1");
-        assertThat(actualFunction.getFunctionLanguage()).isEqualTo(FunctionLanguage.JAVA);
-        assertThat(actualFunction.getFunctionResources())
-                .isEqualTo(
+        CatalogFunction expected =
+                new CatalogFunctionImpl(
+                        "org.apache.fink.function.function1",
+                        FunctionLanguage.JAVA,
                         Collections.singletonList(
                                 new ResourceUri(ResourceType.JAR, "file:///path/to/test.jar")));
+        assertThat(actualFunction).isEqualTo(expected);
 
         // test create temporary system function
         sql =
