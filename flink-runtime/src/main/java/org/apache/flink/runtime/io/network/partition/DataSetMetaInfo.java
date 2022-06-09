@@ -34,7 +34,7 @@ public final class DataSetMetaInfo {
     private final int numRegisteredPartitions;
     private final int numTotalPartitions;
     private final SortedMap<ResultPartitionID, ShuffleDescriptor>
-            shuffleDescriptorsOrderByPartitionNumber =
+            shuffleDescriptorsOrderByPartitionId =
                     new TreeMap<>(
                             Comparator.comparingInt(o -> o.getPartitionId().getPartitionNumber()));
 
@@ -53,13 +53,14 @@ public final class DataSetMetaInfo {
         return numTotalPartitions;
     }
 
-    public void addShuffleDescriptors(
+    public DataSetMetaInfo addShuffleDescriptors(
             Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors) {
-        this.shuffleDescriptorsOrderByPartitionNumber.putAll(shuffleDescriptors);
+        this.shuffleDescriptorsOrderByPartitionId.putAll(shuffleDescriptors);
+        return this;
     }
 
     public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
-        return this.shuffleDescriptorsOrderByPartitionNumber;
+        return this.shuffleDescriptorsOrderByPartitionId;
     }
 
     static DataSetMetaInfo withoutNumRegisteredPartitions(int numTotalPartitions) {

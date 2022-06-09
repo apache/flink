@@ -206,22 +206,18 @@ public class ResourceManagerPartitionTrackerImpl implements ResourceManagerParti
                                         entry.getDataSetId(),
                                         (dataSetID, dataSetMetaInfo) -> {
                                             if (dataSetMetaInfo == null) {
-                                                final DataSetMetaInfo res =
-                                                        DataSetMetaInfo
-                                                                .withoutNumRegisteredPartitions(
-                                                                        entry
-                                                                                .getNumTotalPartitions());
-                                                res.addShuffleDescriptors(
-                                                        entry.getShuffleDescriptors());
-                                                return res;
+                                                return DataSetMetaInfo
+                                                        .withoutNumRegisteredPartitions(
+                                                                entry.getNumTotalPartitions())
+                                                        .addShuffleDescriptors(
+                                                                entry.getShuffleDescriptors());
                                             } else {
                                                 // double check that the meta data is consistent
                                                 Preconditions.checkState(
                                                         dataSetMetaInfo.getNumTotalPartitions()
                                                                 == entry.getNumTotalPartitions());
-                                                dataSetMetaInfo.addShuffleDescriptors(
+                                                return dataSetMetaInfo.addShuffleDescriptors(
                                                         entry.getShuffleDescriptors());
-                                                return dataSetMetaInfo;
                                             }
                                         }));
     }
