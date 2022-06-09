@@ -1707,8 +1707,8 @@ public class HiveParserBaseSemanticAnalyzer {
                                 GroupByDesc.Mode.COMPLETE, isDistinct);
 
                 GenericUDAFEvaluator genericUDAFEvaluator;
-                if (aggName.toLowerCase().equals(FunctionRegistry.LEAD_FUNC_NAME)
-                        || aggName.toLowerCase().equals(FunctionRegistry.LAG_FUNC_NAME)) {
+                if (aggName.equalsIgnoreCase(FunctionRegistry.LEAD_FUNC_NAME)
+                        || aggName.equalsIgnoreCase(FunctionRegistry.LAG_FUNC_NAME)) {
                     ArrayList<ObjectInspector> originalParameterTypeInfos =
                             HiveParserUtils.getWritableObjectInspector(aggParameters);
                     genericUDAFEvaluator =
