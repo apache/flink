@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
@@ -649,6 +651,161 @@ public class HiveDialectITCase {
         functions = tableEnv.listUserDefinedFunctions();
         assertThat(functions).isEmpty();
         tableEnv.executeSql("drop temporary function if exists foo");
+    }
+
+    @Test
+    public void t3() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select\n"
+                                                + "  interval '10 9:8:7.987654321' day to second,\n"
+                                                + "  interval '10' day,\n"
+                                                + "  interval '11' hour,\n"
+                                                + "  interval '12' minute,\n"
+                                                + "  interval '13' second,\n"
+                                                + "  interval '13.123456789' second")
+                                .collect());
+        System.out.println(result);
+
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select\n"
+        //                                                + "\t(1) second,\n"
+        //                                                + "\t 2  seconds,\n"
+        //                                                + "\t(1) minute,\n"
+        //                                                + "\t 2  minutes,\n"
+        //                                                + "\t(1) hour,\n"
+        //                                                + "\t 2  hours,\n"
+        //                                                + "\t(1) day,\n"
+        //                                                + "\t 2  days,\n"
+        //                                                + "\t(1) month,\n"
+        //                                                + "\t 2  months,\n"
+        //                                                + "\t(1) year,\n"
+        //                                                + "\t 2  years")
+        //                                .collect());
+        //        System.out.println(result);
+
+        //        tableEnv.executeSql("create table lineitem (l_shipdate string, l_receiptdate
+        // string)");
+        //        tableEnv.executeSql(
+        //                        "insert into lineitem values ('1996-02-12', '1996-03-22'),
+        // ('1996-02-11', '1996-03-22')")
+        //                .await();
+        //
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select\n"
+        //                                                + "  a.interval1\n"
+        //                                                + "from\n"
+        //                                                + "  (\n"
+        //                                                + "    select\n"
+        //                                                + "       l_shipdate, l_receiptdate,
+        // (cast(l_receiptdate as date) - cast(l_shipdate as date)) as interval1\n"
+        //                                                + "    from lineitem\n"
+        //                                                + "  ) a \n"
+        //                                                + "  join\n"
+        //                                                + "  (\n"
+        //                                                + "    select\n"
+        //                                                + "      l_shipdate, l_receiptdate,
+        // (cast(l_receiptdate as date) - date '1996-02-10') as interval2\n"
+        //                                                + "    from lineitem\n"
+        //                                                + "  ) b\n"
+        //                                                + "  on a.interval1 = b.interval2")
+        //                                .collect());
+        //        System.out.println(result);
+
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select l_receiptdate, "
+        //                                                + " (cast(l_receiptdate as date) -
+        // cast(l_shipdate as date))"
+        //                                                + " as interval1 from lineitem")
+        //                                .collect());
+        //        System.out.println(result);
+    }
+
+    @Test
+    public void t1() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql("select INTERVAL '10 00:00:00.004' DAY TO
+        // SECOND")
+        //                                .collect());
+        //        System.out.println(result);
+
+        //        tableEnv.executeSql("create table src(key string, value string)");
+        //        tableEnv.executeSql("insert into src values ('238', 'val_238')").await();
+
+        tableEnv.executeSql("create table src(key string)");
+        //        tableEnv.executeSql("insert into src values('3')").await();
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select interval_year_month(concat(key, '-1'))
+        // from src")
+        //                                .collect());
+        //        System.out.println(result);
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select\n"
+        //                                                + "  iym, count(*), min(key), max(key),
+        // min(iym), max(iym), min(idt), max(idt)\n"
+        //                                                + "from (\n"
+        //                                                + "  select\n"
+        //                                                + "    key,\n"
+        //                                                + "    interval_year_month(concat(key,
+        // '-1')) as iym,\n"
+        //                                                + "    interval_day_time(concat(key, '
+        // 1:1:1')) as idt\n"
+        //                                                + "  from src) q1\n"
+        //                                                + "group by iym \n"
+        //                                                + "order by iym")
+        //                                .collect());
+
+        List<Row> result =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select key, min(iym) from (select key,"
+                                                + " interval_year_month(concat(key, '-1')) as iym from src) q1 group by key")
+                                .collect());
+        System.out.println(result);
+
+        //        List<Row> result =
+        //                CollectionUtil.iteratorToList(
+        //                        tableEnv.executeSql(
+        //                                        "select\n"
+        //                                                + "  interval '10 9:8:7.987654321' day to
+        // second,\n"
+        //                                                + "  interval '10' day,\n"
+        //                                                + "  interval '11' hour,\n"
+        //                                                + "  interval '12' minute,\n"
+        //                                                + "  interval '13' second,\n"
+        //                                                + "  interval '13.123456789' second")
+        //                                .collect());
+        //        System.out.println(result);
     }
 
     @Test
