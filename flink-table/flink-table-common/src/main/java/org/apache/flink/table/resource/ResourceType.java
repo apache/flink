@@ -20,7 +20,7 @@ package org.apache.flink.table.resource;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/** An enum that represents the type of a resourced needed by a function. */
+/** An enum that represents the type of resource. */
 @PublicEvolving
 public enum ResourceType {
     FILE,

@@ -1235,8 +1235,6 @@ public class SqlToOperationConverterTest {
                         "CREATE CATALOG FUNCTION: (catalogFunction: [Optional[This is a user-defined function]], "
                                 + "identifier: [`builtin`.`default`.`test_udf`], ignoreIfExists: [false], isTemporary: [false])");
 
-        // here doesn't assert the CatalogFunction directly because of equals method isn't
-        // implemented
         CatalogFunction expected =
                 new CatalogFunctionImpl(
                         "org.apache.fink.function.function1",

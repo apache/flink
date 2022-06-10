@@ -34,10 +34,12 @@ public class ResourceUri {
         this.uri = uri;
     }
 
+    /** Get resource type info. */
     public ResourceType getResourceType() {
         return resourceType;
     }
 
+    /** Get resource unique path info. */
     public String getUri() {
         return uri;
     }

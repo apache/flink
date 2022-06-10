@@ -59,9 +59,6 @@ public interface CatalogFunction {
     /**
      * Distinguish if the function is a generic function.
      *
-     * @deprecated This method is currently only used in hive to determine if a function is a
-     *     generic function. The behavior should be implemented by hive itself, instead of providing
-     *     a public api, so we deprecate it.
      * @return whether the function is a generic function
      * @deprecated There is no replacement for this function, as now functions have type inference
      *     strategies

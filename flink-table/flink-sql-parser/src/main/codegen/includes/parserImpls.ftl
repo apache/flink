@@ -308,8 +308,9 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     ]
     [ <USING>  {
         if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
-            throw new ParseException(
-                String.format("USING JAR syntax is not applicable to %s language.", functionLanguage));
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
         }
         List<SqlNode> resourceList = new ArrayList<SqlNode>();
         SqlResource sqlResource = null;
