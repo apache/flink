@@ -906,7 +906,7 @@ public class CEPOperatorTest extends TestLogger {
 
             harness.setProcessingTime(21L);
 
-            assertTrue(operator2.hasNonEmptySharedBuffer(42));
+            assertTrue(!operator2.hasNonEmptySharedBuffer(42));
 
             harness.processElement(new StreamRecord<>(startEvent1, 21L));
             assertTrue(operator2.hasNonEmptySharedBuffer(42));
