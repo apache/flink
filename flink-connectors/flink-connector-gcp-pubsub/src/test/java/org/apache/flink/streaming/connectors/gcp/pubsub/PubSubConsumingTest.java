@@ -30,7 +30,7 @@ import com.google.auth.Credentials;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,15 +41,14 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for consuming records with {@link PubSubSource}. */
-public class PubSubConsumingTest {
+class PubSubConsumingTest {
 
     @Test
-    public void testProcessMessage() throws Exception {
+    void testProcessMessage() throws Exception {
         TestPubSubSubscriber testPubSubSubscriber =
                 new TestPubSubSubscriber(
                         receivedMessage("1", pubSubMessage("A")),
@@ -70,10 +69,11 @@ public class PubSubConsumingTest {
             thread.start();
             awaitRecordCount(results, 2);
 
-            assertThat(new ArrayList<>(results), equalTo(Arrays.asList("A", "B")));
+            assertThat(new ArrayList<>(results)).isEqualTo(Arrays.asList("A", "B"));
             pubSubSource.snapshotState(0, 0);
             pubSubSource.notifyCheckpointComplete(0);
-            assertThat(testPubSubSubscriber.getAcknowledgedIds(), equalTo(Arrays.asList("1", "2")));
+            assertThat(testPubSubSubscriber.getAcknowledgedIds())
+                    .isEqualTo(Arrays.asList("1", "2"));
         } finally {
             pubSubSource.cancel();
             thread.join();
@@ -81,8 +81,7 @@ public class PubSubConsumingTest {
     }
 
     @Test
-    public void testStoppingConnectorWhenDeserializationSchemaIndicatesEndOfStream()
-            throws Exception {
+    void testStoppingConnectorWhenDeserializationSchemaIndicatesEndOfStream() throws Exception {
         TestPubSubSubscriber testPubSubSubscriber =
                 new TestPubSubSubscriber(
                         receivedMessage("1", pubSubMessage("A")),
@@ -112,13 +111,12 @@ public class PubSubConsumingTest {
             awaitRecordCount(results, 2);
 
             // we do not emit the end of stream record
-            assertThat(new ArrayList<>(results), equalTo(Arrays.asList("A", "B")));
+            assertThat(new ArrayList<>(results)).isEqualTo(Arrays.asList("A", "B"));
             pubSubSource.snapshotState(0, 0);
             pubSubSource.notifyCheckpointComplete(0);
             // we acknowledge also the end of the stream record
-            assertThat(
-                    testPubSubSubscriber.getAcknowledgedIds(),
-                    equalTo(Arrays.asList("1", "2", "3")));
+            assertThat(testPubSubSubscriber.getAcknowledgedIds())
+                    .isEqualTo(Arrays.asList("1", "2", "3"));
         } finally {
             pubSubSource.cancel();
             thread.join();
@@ -126,7 +124,7 @@ public class PubSubConsumingTest {
     }
 
     @Test
-    public void testProducingMultipleResults() throws Exception {
+    void testProducingMultipleResults() throws Exception {
         TestPubSubSubscriber testPubSubSubscriber =
                 new TestPubSubSubscriber(
                         receivedMessage("1", pubSubMessage("A")),
@@ -163,11 +161,12 @@ public class PubSubConsumingTest {
             awaitRecordCount(results, 2);
 
             // we emit only the records prior to the end of the stream
-            assertThat(new ArrayList<>(results), equalTo(Arrays.asList("A", "B")));
+            assertThat(new ArrayList<>(results)).isEqualTo(Arrays.asList("A", "B"));
             pubSubSource.snapshotState(0, 0);
             pubSubSource.notifyCheckpointComplete(0);
             // we acknowledge also the end of the stream record
-            assertThat(testPubSubSubscriber.getAcknowledgedIds(), equalTo(Arrays.asList("1", "2")));
+            assertThat(testPubSubSubscriber.getAcknowledgedIds())
+                    .isEqualTo(Arrays.asList("1", "2"));
         } finally {
             pubSubSource.cancel();
             thread.join();
