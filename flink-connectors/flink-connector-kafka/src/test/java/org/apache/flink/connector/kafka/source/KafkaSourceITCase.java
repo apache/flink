@@ -183,33 +183,36 @@ public class KafkaSourceITCase {
 
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
-            final CloseableIterator<Integer> resultIterator =
+
+            try (CloseableIterator<Integer> resultIterator =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     "testValueOnlyDeserializer")
-                            .executeAndCollect();
+                            .executeAndCollect()) {
+                AtomicInteger actualSum = new AtomicInteger();
+                resultIterator.forEachRemaining(actualSum::addAndGet);
 
-            AtomicInteger actualSum = new AtomicInteger();
-            resultIterator.forEachRemaining(actualSum::addAndGet);
-
-            // Calculate the actual sum of values
-            // Values in a partition should start from partition ID, and end with
-            // (NUM_RECORDS_PER_PARTITION - 1)
-            // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
-            int expectedSum = 0;
-            for (int partition = 0; partition < KafkaSourceTestEnv.NUM_PARTITIONS; partition++) {
-                for (int value = partition;
-                        value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
-                        value++) {
-                    expectedSum += value;
+                // Calculate the actual sum of values
+                // Values in a partition should start from partition ID, and end with
+                // (NUM_RECORDS_PER_PARTITION - 1)
+                // e.g. Values in partition 5 should be {5, 6, 7, 8, 9}
+                int expectedSum = 0;
+                for (int partition = 0;
+                        partition < KafkaSourceTestEnv.NUM_PARTITIONS;
+                        partition++) {
+                    for (int value = partition;
+                            value < KafkaSourceTestEnv.NUM_RECORDS_PER_PARTITION;
+                            value++) {
+                        expectedSum += value;
+                    }
                 }
+
+                // Since we have two topics, the expected sum value should be doubled
+                expectedSum *= 2;
+
+                assertThat(actualSum.get()).isEqualTo(expectedSum);
             }
-
-            // Since we have two topics, the expected sum value should be doubled
-            expectedSum *= 2;
-
-            assertThat(actualSum.get()).isEqualTo(expectedSum);
         }
 
         @ParameterizedTest(name = "Object reuse in deserializer = {arguments}")
