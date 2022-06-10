@@ -1604,7 +1604,6 @@ under the License.
 				<version>3.0.0-M5</version>
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
-					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables combine.children="append">
