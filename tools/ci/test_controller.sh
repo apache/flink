@@ -78,6 +78,7 @@ source "${HERE}/watchdog.sh"
 # =============================================================================
 
 export LOG4J_PROPERTIES=${HERE}/log4j.properties
+export MAVEN_OPTS="-verbose:class"
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
