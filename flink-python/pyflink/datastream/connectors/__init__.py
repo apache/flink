@@ -32,6 +32,7 @@ from pyflink.datastream.connectors.pulsar import PulsarDeserializationSchema, Pu
 from pyflink.datastream.connectors.rabbitmq import RMQConnectionConfig, RMQSource, RMQSink
 from pyflink.datastream.connectors.kinesis import (FlinkKinesisConsumer, KinesisStreamsSink,
                                                    KinesisFirehoseSink)
+from pyflink.datastream.connectors.cassandra import CassandraSink
 
 
 __all__ = [
@@ -73,5 +74,6 @@ __all__ = [
     'KinesisStreamsSink',
     'KinesisFirehoseSink',
     'Elasticsearch6SinkBuilder',
-    'Elasticsearch7SinkBuilder'
+    'Elasticsearch7SinkBuilder',
+    'CassandraSink'
 ]
