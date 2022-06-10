@@ -387,9 +387,7 @@ public class HiveParserBaseSemanticAnalyzer {
     }
 
     private static void checkColumnName(String columnName) throws SemanticException {
-        ColumnInfo columnInfo = new ColumnInfo();
-        columnInfo.setAlias(columnName);
-        if (VirtualColumn.isVirtualColumnBasedOnAlias(columnInfo)) {
+        if (VirtualColumn.VIRTUAL_COLUMN_NAMES.contains(columnName.toUpperCase())) {
             throw new SemanticException("Invalid column name " + columnName);
         }
     }
