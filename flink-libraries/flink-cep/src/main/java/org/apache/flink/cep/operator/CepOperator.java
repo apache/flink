@@ -271,7 +271,7 @@ public class CepOperator<IN, KEY, OUT>
 
     private void registerTimer(long timestamp) {
         if (isProcessingTime) {
-            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timestamp);
+            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timestamp + 1);
         } else {
             timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
         }
@@ -358,6 +358,9 @@ public class CepOperator<IN, KEY, OUT>
         }
 
         // STEP 3
+        advanceTime(nfa, timerService.currentProcessingTime());
+
+        // STEP 4
         updateNFA(nfa);
     }
 
