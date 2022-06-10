@@ -108,7 +108,10 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop.version>2.8.5</hadoop.version>
+		<flink.XmxMax>4096m</flink.XmxMax>
+		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>2048m</flink.XmxITCase>
+		<!-- XmxMax / forkCountUnitTest -->
 		<flink.XmxUnitTest>1024m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set

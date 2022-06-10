@@ -222,6 +222,20 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+					<id>default-test</id>
+					<configuration>
+						<!-- Run everything in 1 JVM because we load a lot of classes into memory -->
+						<forkCount>1</forkCount>
+						<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxMax}</argLine>
+					</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>
