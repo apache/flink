@@ -104,8 +104,7 @@ public class PlannerScalaFreeITCase extends TestLogger {
     }
 
     @Before
-    public void before() throws Exception {
-        DOWNLOAD_CACHE.before();
+    public void before() {
         Path tmpPath = tmp.getRoot().toPath();
         LOG.info("The current temporary path: {}", tmpPath);
         this.result = tmpPath.resolve("result");
