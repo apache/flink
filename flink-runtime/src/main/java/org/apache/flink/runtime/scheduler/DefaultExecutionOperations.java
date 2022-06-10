@@ -20,16 +20,26 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.Execution;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Operations on the {@link ExecutionVertex}. */
-public interface ExecutionVertexOperations {
+/** Default implementation of {@link ExecutionOperations}. */
+public class DefaultExecutionOperations implements ExecutionOperations {
 
-    void deploy(ExecutionVertex executionVertex) throws JobException;
+    @Override
+    public void deploy(Execution execution) throws JobException {
+        execution.deploy();
+    }
 
-    CompletableFuture<?> cancel(ExecutionVertex executionVertex);
+    @Override
+    public CompletableFuture<?> cancel(Execution execution) {
+        execution.cancel();
+        return execution.getReleaseFuture();
+    }
 
-    void markFailed(ExecutionVertex executionVertex, Throwable cause);
+    @Override
+    public void markFailed(Execution execution, Throwable cause) {
+        execution.markFailed(cause);
+    }
 }

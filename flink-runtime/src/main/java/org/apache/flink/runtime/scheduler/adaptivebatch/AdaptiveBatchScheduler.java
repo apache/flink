@@ -41,10 +41,11 @@ import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResult;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertex;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.scheduler.DefaultExecutionDeployer;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
-import org.apache.flink.runtime.scheduler.ExecutionVertexOperations;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
@@ -93,7 +94,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
             final SchedulingStrategyFactory schedulingStrategyFactory,
             final FailoverStrategy.Factory failoverStrategyFactory,
             final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
-            final ExecutionVertexOperations executionVertexOperations,
+            final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
             long initializationTimestamp,
@@ -120,7 +121,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
                 schedulingStrategyFactory,
                 failoverStrategyFactory,
                 restartBackoffTimeStrategy,
-                executionVertexOperations,
+                executionOperations,
                 executionVertexVersioner,
                 executionSlotAllocatorFactory,
                 initializationTimestamp,
@@ -130,7 +131,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements Schedule
                 shuffleMaster,
                 rpcTimeout,
                 computeVertexParallelismStoreForDynamicGraph(
-                        jobGraph.getVertices(), defaultMaxParallelism));
+                        jobGraph.getVertices(), defaultMaxParallelism),
+                new DefaultExecutionDeployer.Factory());
 
         this.logicalTopology = DefaultLogicalTopology.fromJobGraph(jobGraph);
 

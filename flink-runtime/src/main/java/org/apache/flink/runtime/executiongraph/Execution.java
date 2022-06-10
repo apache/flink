@@ -888,7 +888,7 @@ public class Execution
      *
      * @param t The exception that caused the task to fail.
      */
-    void markFailed(Throwable t) {
+    public void markFailed(Throwable t) {
         processFail(t, false);
     }
 
