@@ -498,15 +498,20 @@ public class KafkaSourceITCase {
                         resultPerPartition
                                 .computeIfAbsent(partitionAndValue.tp, ignored -> new ArrayList<>())
                                 .add(partitionAndValue.value));
+
+        // Expected elements from partition P should be an integer sequence from P to
+        // NUM_RECORDS_PER_PARTITION.
         resultPerPartition.forEach(
                 (tp, values) -> {
                     int firstExpectedValue =
                             Integer.parseInt(tp.substring(tp.lastIndexOf('-') + 1));
                     for (int i = 0; i < values.size(); i++) {
                         assertThat((int) values.get(i))
-                                .as(String.format(
-                                        "The %d-th value for partition %s should be %d",
-                                        i, tp, firstExpectedValue + i)).isEqualTo(firstExpectedValue + i);
+                                .as(
+                                        String.format(
+                                                "The %d-th value for partition %s should be %d",
+                                                i, tp, firstExpectedValue + i))
+                                .isEqualTo(firstExpectedValue + i);
                     }
                 });
     }
