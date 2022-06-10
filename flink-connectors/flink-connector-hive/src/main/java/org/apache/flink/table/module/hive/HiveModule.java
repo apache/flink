@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
+import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFInternalInterval;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
@@ -125,6 +126,13 @@ public class HiveModule implements Module {
             return Optional.of(
                     factory.createFunctionDefinitionFromHiveFunction(
                             name, GenericUDFLegacyGroupingID.class.getName()));
+        }
+
+        // We override Hive's internal_interval. Refer to the implementation for more details
+        if (name.equalsIgnoreCase("internal_interval")) {
+            return Optional.of(
+                    factory.createFunctionDefinitionFromHiveFunction(
+                            name, HiveGenericUDFInternalInterval.class.getName()));
         }
 
         Optional<FunctionInfo> info = hiveShim.getBuiltInFunctionInfo(name);
