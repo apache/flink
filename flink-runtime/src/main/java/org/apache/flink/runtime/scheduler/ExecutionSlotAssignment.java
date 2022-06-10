@@ -18,29 +18,30 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** The slot assignment for a {@link ExecutionVertex}. */
-class SlotExecutionVertexAssignment {
+/** The slot assignment for an {@link Execution}. */
+class ExecutionSlotAssignment {
 
-    private final ExecutionVertexID executionVertexId;
+    private final ExecutionAttemptID executionAttemptId;
 
     private final CompletableFuture<LogicalSlot> logicalSlotFuture;
 
-    SlotExecutionVertexAssignment(
-            ExecutionVertexID executionVertexId, CompletableFuture<LogicalSlot> logicalSlotFuture) {
-        this.executionVertexId = checkNotNull(executionVertexId);
+    ExecutionSlotAssignment(
+            ExecutionAttemptID executionAttemptId,
+            CompletableFuture<LogicalSlot> logicalSlotFuture) {
+        this.executionAttemptId = checkNotNull(executionAttemptId);
         this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
     }
 
-    ExecutionVertexID getExecutionVertexId() {
-        return executionVertexId;
+    ExecutionAttemptID getExecutionAttemptId() {
+        return executionAttemptId;
     }
 
     CompletableFuture<LogicalSlot> getLogicalSlotFuture() {

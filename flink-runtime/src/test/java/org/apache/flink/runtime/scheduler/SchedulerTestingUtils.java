@@ -85,6 +85,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.scheduler.SchedulerBase.computeVertexParallelismStore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -419,13 +420,14 @@ public class SchedulerTestingUtils {
                 new RestartPipelinedRegionFailoverStrategy.Factory();
         protected RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 NoRestartBackoffTimeStrategy.INSTANCE;
-        protected ExecutionVertexOperations executionVertexOperations =
-                new DefaultExecutionVertexOperations();
+        protected ExecutionOperations executionOperations = new DefaultExecutionOperations();
         protected ExecutionVertexVersioner executionVertexVersioner =
                 new ExecutionVertexVersioner();
         protected ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
         protected JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+        protected ExecutionDeployer.Factory executionDeployerFactory =
+                new DefaultExecutionDeployer.Factory();
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph,
@@ -541,9 +543,9 @@ public class SchedulerTestingUtils {
             return this;
         }
 
-        public DefaultSchedulerBuilder setExecutionVertexOperations(
-                final ExecutionVertexOperations executionVertexOperations) {
-            this.executionVertexOperations = executionVertexOperations;
+        public DefaultSchedulerBuilder setExecutionOperations(
+                final ExecutionOperations executionOperations) {
+            this.executionOperations = executionOperations;
             return this;
         }
 
@@ -561,6 +563,12 @@ public class SchedulerTestingUtils {
 
         public DefaultSchedulerBuilder setJobStatusListener(JobStatusListener jobStatusListener) {
             this.jobStatusListener = jobStatusListener;
+            return this;
+        }
+
+        public DefaultSchedulerBuilder setExecutionDeployerFactory(
+                ExecutionDeployer.Factory executionDeployerFactory) {
+            this.executionDeployerFactory = executionDeployerFactory;
             return this;
         }
 
@@ -592,7 +600,7 @@ public class SchedulerTestingUtils {
                     schedulingStrategyFactory,
                     failoverStrategyFactory,
                     restartBackoffTimeStrategy,
-                    executionVertexOperations,
+                    executionOperations,
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
                     System.currentTimeMillis(),
@@ -600,7 +608,9 @@ public class SchedulerTestingUtils {
                     jobStatusListener,
                     executionGraphFactory,
                     shuffleMaster,
-                    rpcTimeout);
+                    rpcTimeout,
+                    computeVertexParallelismStore(jobGraph),
+                    executionDeployerFactory);
         }
     }
 }

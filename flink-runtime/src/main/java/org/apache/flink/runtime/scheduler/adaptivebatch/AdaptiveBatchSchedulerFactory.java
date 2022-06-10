@@ -48,7 +48,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
-import org.apache.flink.runtime.scheduler.DefaultExecutionVertexOperations;
+import org.apache.flink.runtime.scheduler.DefaultExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
@@ -161,7 +161,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 new VertexwiseSchedulingStrategy.Factory(),
                 FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
                 restartBackoffTimeStrategy,
-                new DefaultExecutionVertexOperations(),
+                new DefaultExecutionOperations(),
                 new ExecutionVertexVersioner(),
                 allocatorFactory,
                 initializationTimestamp,

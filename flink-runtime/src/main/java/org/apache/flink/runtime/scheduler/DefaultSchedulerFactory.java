@@ -47,6 +47,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerComponents.createSchedulerComponents;
+import static org.apache.flink.runtime.scheduler.SchedulerBase.computeVertexParallelismStore;
 
 /** Factory for {@link DefaultScheduler}. */
 public class DefaultSchedulerFactory implements SchedulerNGFactory {
@@ -130,7 +131,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getSchedulingStrategyFactory(),
                 FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
                 restartBackoffTimeStrategy,
-                new DefaultExecutionVertexOperations(),
+                new DefaultExecutionOperations(),
                 new ExecutionVertexVersioner(),
                 schedulerComponents.getAllocatorFactory(),
                 initializationTimestamp,
@@ -145,7 +146,9 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 },
                 executionGraphFactory,
                 shuffleMaster,
-                rpcTimeout);
+                rpcTimeout,
+                computeVertexParallelismStore(jobGraph),
+                new DefaultExecutionDeployer.Factory());
     }
 
     @Override

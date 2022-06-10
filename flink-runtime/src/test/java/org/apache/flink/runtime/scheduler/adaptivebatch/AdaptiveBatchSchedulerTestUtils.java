@@ -88,7 +88,7 @@ public class AdaptiveBatchSchedulerTestUtils {
                     schedulingStrategyFactory,
                     failoverStrategyFactory,
                     restartBackoffTimeStrategy,
-                    executionVertexOperations,
+                    executionOperations,
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
                     System.currentTimeMillis(),
