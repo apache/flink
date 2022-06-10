@@ -118,6 +118,7 @@ under the License.
 		<flink.forkCountITCase>2</flink.forkCountITCase>
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
+		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
@@ -1651,7 +1652,7 @@ under the License.
 								<include>${test.unit.pattern}</include>
 							</includes>
 							<forkCount>${flink.forkCountUnitTest}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxUnitTest} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxUnitTest}</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1672,7 +1673,7 @@ under the License.
 								<exclude>**/*$*</exclude>
 							</excludes>
 							<forkCount>${flink.forkCountITCase}</forkCount>
-							<argLine>-Xms256m -Xmx${flink.XmxITCase} -XX:+UseG1GC</argLine>
+							<argLine>${flink.surefire.baseArgLine} -Xmx${flink.XmxITCase}</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
