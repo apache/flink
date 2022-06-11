@@ -271,6 +271,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
     SqlNodeList resourceInfos = SqlNodeList.EMPTY;
+    SqlParserPos functionLanguagePos = null;
 }
 {
     (
@@ -278,7 +279,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         {
             if (!isTemporary){
                 throw SqlUtil.newContextException(getPos(),
-                ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
+                    ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
             }
         }
         <FUNCTION>
@@ -295,26 +296,40 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         String p = SqlParserUtil.parseString(token.image);
         functionClassName = SqlLiteral.createCharString(p, getPos());
     }
-    [<LANGUAGE>
+    [
+        <LANGUAGE>
         (
-            <JAVA>  { functionLanguage = "JAVA"; }
+            <JAVA> {
+                functionLanguage = "JAVA";
+                functionLanguagePos = getPos();
+            }
         |
-            <SCALA> { functionLanguage = "SCALA"; }
+            <SCALA> {
+                functionLanguage = "SCALA";
+                functionLanguagePos = getPos();
+            }
         |
-            <SQL>   { functionLanguage = "SQL"; }
+            <SQL> {
+                functionLanguage = "SQL";
+                functionLanguagePos = getPos();
+            }
         |
-            <PYTHON>   { functionLanguage = "PYTHON"; }
+            <PYTHON> {
+                functionLanguage = "PYTHON";
+                functionLanguagePos = getPos();
+            }
         )
     ]
-    [ <USING>  {
-        if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
-            throw SqlUtil.newContextException(
-                getPos(),
-                ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
+    [
+        <USING> {
+            if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
+                throw SqlUtil.newContextException(
+                    functionLanguagePos,
+                    ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
+            }
+            List<SqlNode> resourceList = new ArrayList<SqlNode>();
+            SqlResource sqlResource = null;
         }
-        List<SqlNode> resourceList = new ArrayList<SqlNode>();
-        SqlResource sqlResource = null;
-    }
         sqlResource = SqlResourceInfo() {
             resourceList.add(sqlResource);
         }
