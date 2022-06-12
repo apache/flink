@@ -1314,6 +1314,36 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "CREATE SYSTEM FUNCTION is not supported, "
                                 + "system functions can only be registered as temporary "
                                 + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
+
+        // test create function using jar
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language scala using jar '/path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+
+        sql("create temporary system function function1 as 'org.apache.fink.function.function1' language scala using jar '/path/to/test.jar'")
+                .ok(
+                        "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+
+        sql("create function function1 as 'org.apache.fink.function.function1' language java using jar 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language ^sql^ using jar 'file:///path/to/test.jar'")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to SQL language.");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language ^python^ using jar 'file:///path/to/test.jar'")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to PYTHON language.");
+
+        sql("create temporary function function1 as 'org.apache.fink.function.function1' language java using ^file^ 'file:///path/to/test'")
+                .fails(
+                        "Encountered \"file\" at line 1, column 97.\n"
+                                + "Was expecting:\n"
+                                + "    \"JAR\" ...\n"
+                                + "    .*");
     }
 
     @Test
