@@ -57,6 +57,7 @@ class TableEnvironmentTest {
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+  val batchTableEnv = StreamTableEnvironment.create(env, TableTestUtil.BATCH_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {
@@ -1485,6 +1486,51 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithExplainInsertStaticPartition(): Unit = {
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  f0 BIGINT,
+        |  f1 INT,
+        |  f2 STRING
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'true'
+        |)
+      """.stripMargin
+    val tableResult1 = batchTableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  f0 BIGINT,
+        |  f1 INT,
+        |  f2 STRING
+        |) PARTITIONED BY (f2)
+        |WITH (
+        |  'connector' = 'filesystem',
+        |  'path' = '/tmp',
+        |  'format' = 'testcsv'
+        |)
+      """.stripMargin
+    val tableResult2 = batchTableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    checkExplain(
+      "EXPLAIN PLAN FOR INSERT INTO MySink PARTITION (f2 = '123') SELECT f0, f1 FROM MyTable",
+      "/explain/testExecuteSqlWithExplainInsertIntoStaticPartition.out",
+      streaming = false
+    )
+
+    checkExplain(
+      "EXPLAIN PLAN FOR INSERT OVERWRITE MySink PARTITION (f2 = '123') SELECT f0, f1 FROM MyTable",
+      "/explain/testExecuteSqlWithExplainInsertOverwriteStaticPartition.out",
+      streaming = false
+    )
+  }
+
+  @Test
   def testExecuteSqlWithUnsupportedExplain(): Unit = {
     val createTableStmt =
       """
@@ -1998,8 +2044,12 @@ class TableEnvironmentTest {
     assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 
-  private def checkExplain(sql: String, resultPath: String): Unit = {
-    val tableResult2 = tableEnv.executeSql(sql)
+  private def checkExplain(sql: String, resultPath: String, streaming: Boolean = true): Unit = {
+    val tableResult2 = if (streaming) {
+      tableEnv.executeSql(sql)
+    } else {
+      batchTableEnv.executeSql(sql)
+    }
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     val it = tableResult2.collect()
     assertTrue(it.hasNext)

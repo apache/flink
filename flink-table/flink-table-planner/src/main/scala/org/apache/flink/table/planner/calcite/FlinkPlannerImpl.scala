@@ -149,7 +149,20 @@ class FlinkPlannerImpl(
       }
       sqlNode match {
         case richExplain: SqlRichExplain =>
-          richExplain.setOperand(0, validate(richExplain.getStatement))
+          val validatedStatement = richExplain.getStatement match {
+            // only validate source here
+            case insert: RichSqlInsert =>
+              if (insert.isUpsert) {
+                throw new ValidationException(
+                  "UPSERT INTO statement is not supported. Please use INSERT INTO instead.")
+              }
+              val validatedSource = validate(insert.getSource)
+              insert.setOperand(2, validatedSource)
+              insert
+            case others =>
+              validate(others)
+          }
+          richExplain.setOperand(0, validatedStatement)
           richExplain
         case statementSet: SqlStatementSet =>
           statementSet.getInserts.asScala.zipWithIndex.foreach {
