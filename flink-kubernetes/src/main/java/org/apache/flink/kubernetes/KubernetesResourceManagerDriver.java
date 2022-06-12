@@ -245,8 +245,6 @@ public class KubernetesResourceManagerDriver
                 recoveredWorkers.size(),
                 ++currentMaxAttemptId);
 
-        // Should not invoke resource event handler on the main thread executor.
-        // We are in the initializing thread. The main thread executor is not yet ready.
         getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
     }
 
