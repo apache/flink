@@ -70,7 +70,7 @@ import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -129,7 +129,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>{@link #updateTaskExecutionState} updates the task execution state for given task
  * </ul>
  */
-public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
+public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         implements JobMasterGateway, JobMasterService {
 
     /** Default names for Flink's distributed components. */

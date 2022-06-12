@@ -63,25 +63,6 @@ class TestingDispatcher extends Dispatcher {
 
     private final CompletableFuture<Void> startFuture;
 
-    TestingDispatcher(
-            RpcService rpcService,
-            DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
-            Collection<JobResult> recoveredDirtyJobResults,
-            DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            DispatcherServices dispatcherServices)
-            throws Exception {
-        super(
-                rpcService,
-                fencingToken,
-                recoveredJobs,
-                recoveredDirtyJobResults,
-                dispatcherBootstrapFactory,
-                dispatcherServices);
-
-        this.startFuture = new CompletableFuture<>();
-    }
-
     private TestingDispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
@@ -160,14 +141,12 @@ class TestingDispatcher extends Dispatcher {
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
-        return callAsyncWithoutFencing(
-                        () -> getJobTerminationFuture(jobId), TimeUtils.toDuration(timeout))
+        return callAsync(() -> getJobTerminationFuture(jobId), TimeUtils.toDuration(timeout))
                 .thenCompose(Function.identity());
     }
 
     CompletableFuture<Integer> getNumberJobs(Time timeout) {
-        return callAsyncWithoutFencing(
-                () -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
+        return callAsync(() -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
     }
 
     void waitUntilStarted() {
