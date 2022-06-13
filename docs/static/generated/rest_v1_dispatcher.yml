@@ -123,59 +123,6 @@ paths:
         "200":
           description: The request was successful.
   /jars/{jarid}/plan:
-    get:
-      description: Returns the dataflow plan of a job contained in a jar previously
-        uploaded via '/jars/upload'. Program arguments can be passed both via the
-        JSON request (recommended) or query parameters.
-      operationId: retrieveJarPlan
-      parameters:
-      - name: jarid
-        in: path
-        description: "String value that identifies a jar. When uploading the jar a\
-          \ path is returned, where the filename is the ID. This value is equivalent\
-          \ to the `id` field in the list of uploaded jars (/jars)."
-        required: true
-        schema:
-          type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: programArg
-        in: query
-        description: Comma-separated list of program arguments.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: entry-class
-        in: query
-        description: String value that specifies the fully qualified name of the entry
-          point class. Overrides the class defined in the jar file manifest.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: parallelism
-        in: query
-        description: Positive integer value that specifies the desired parallelism
-          for the job.
-        required: false
-        style: form
-        schema:
-          type: integer
-          format: int32
-      responses:
-        "200":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JobPlanInfo'
     post:
       description: Returns the dataflow plan of a job contained in a jar previously
         uploaded via '/jars/upload'. Program arguments can be passed both via the
