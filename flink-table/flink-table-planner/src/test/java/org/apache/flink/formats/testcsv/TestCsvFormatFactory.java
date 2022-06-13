@@ -42,8 +42,10 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.types.DataType;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -127,36 +129,48 @@ public class TestCsvFormatFactory
 
         @Override
         public TableStats reportStatistics(List<Path> files, DataType producedDataType) {
+            // For Csv format, it's a heavy operation to obtain accurate statistics by scanning all
+            // files. So, We obtain the estimated statistics by sampling, the specific way is to
+            // sample the first 100 lines and calculate their row size, then compare row size with
+            // total file size to get the estimated row count.
             final int totalSampleLineCnt = 100;
             try {
-                long totalSize = 0;
-                int sampledLineCnt = 0;
-                long sampledTotalSize = 0;
+                long totalFileSize = 0;
+                int sampledRowCnt = 0;
+                long sampledRowSize = 0;
                 for (Path file : files) {
                     FileSystem fs = FileSystem.get(file.toUri());
                     FileStatus status = fs.getFileStatus(file);
-                    totalSize += status.getLen();
+                    totalFileSize += status.getLen();
 
                     // sample the line size
-                    if (sampledLineCnt < totalSampleLineCnt) {
+                    if (sampledRowCnt < totalSampleLineCnt) {
                         try (InputStreamReader isr =
-                                new InputStreamReader(new FileInputStream(file.getPath()))) {
-                            BufferedReader br = new BufferedReader(isr);
+                                        new InputStreamReader(
+                                                Files.newInputStream(
+                                                        new File(file.toUri()).toPath()));
+                                BufferedReader br = new BufferedReader(isr)) {
                             String line;
-                            while (sampledLineCnt < totalSampleLineCnt
+                            while (sampledRowCnt < totalSampleLineCnt
                                     && (line = br.readLine()) != null) {
-                                sampledLineCnt += 1;
-                                sampledTotalSize += line.length();
+                                sampledRowCnt += 1;
+                                sampledRowSize += line.getBytes(StandardCharsets.UTF_8).length;
                             }
                         }
                     }
                 }
-                if (sampledTotalSize == 0) {
+
+                // If line break is "\r\n", br.readLine() will ignore '\n' which make sampledRowSize
+                // smaller than totalFileSize. This will influence test result.
+                if (sampledRowCnt < totalSampleLineCnt) {
+                    sampledRowSize = totalFileSize;
+                }
+                if (sampledRowSize == 0) {
                     return TableStats.UNKNOWN;
                 }
 
-                int realSampledLineCnt = Math.min(totalSampleLineCnt, sampledLineCnt);
-                int estimatedRowCount = (int) (totalSize * realSampledLineCnt / sampledTotalSize);
+                int realSampledLineCnt = Math.min(totalSampleLineCnt, sampledRowCnt);
+                long estimatedRowCount = totalFileSize * realSampledLineCnt / sampledRowSize;
                 return new TableStats(estimatedRowCount);
             } catch (Exception e) {
                 return TableStats.UNKNOWN;
