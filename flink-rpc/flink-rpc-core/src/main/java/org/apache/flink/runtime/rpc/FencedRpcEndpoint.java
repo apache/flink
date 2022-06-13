@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 import java.util.UUID;
@@ -36,62 +33,21 @@ import java.util.UUID;
 public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 
     private final F fencingToken;
-    private volatile MainThreadExecutor fencedMainThreadExecutor;
 
-    protected FencedRpcEndpoint(RpcService rpcService, String endpointId, @Nonnull F fencingToken) {
+    protected FencedRpcEndpoint(RpcService rpcService, String endpointId, F fencingToken) {
         super(rpcService, endpointId);
 
         Preconditions.checkNotNull(fencingToken, "The fence token should be null");
         Preconditions.checkNotNull(rpcServer, "The rpc server should be null");
 
-        // no fencing token == no leadership
         this.fencingToken = fencingToken;
-
-        MainThreadExecutable mainThreadExecutable =
-                getRpcService().fenceRpcServer(rpcServer, fencingToken);
-        setFencedMainThreadExecutor(
-                new MainThreadExecutor(
-                        mainThreadExecutable, this::validateRunsInMainThread, endpointId));
     }
 
-    protected FencedRpcEndpoint(RpcService rpcService, @Nonnull F fencingToken) {
+    protected FencedRpcEndpoint(RpcService rpcService, F fencingToken) {
         this(rpcService, UUID.randomUUID().toString(), fencingToken);
     }
 
     public F getFencingToken() {
         return fencingToken;
-    }
-
-    /**
-     * Set fenced main thread executor and register it to closeable register.
-     *
-     * @param fencedMainThreadExecutor the given fenced main thread executor
-     */
-    private void setFencedMainThreadExecutor(MainThreadExecutor fencedMainThreadExecutor) {
-        if (this.fencedMainThreadExecutor != null) {
-            this.fencedMainThreadExecutor.close();
-            unregisterResource(this.fencedMainThreadExecutor);
-        }
-        this.fencedMainThreadExecutor = fencedMainThreadExecutor;
-        registerResource(this.fencedMainThreadExecutor);
-    }
-
-    /**
-     * Returns a main thread executor which is bound to the currently valid fencing token. This
-     * means that runnables which are executed with this executor fail after the fencing token has
-     * changed. This allows to scope operations by the fencing token.
-     *
-     * @return MainThreadExecutor bound to the current fencing token
-     */
-    @Override
-    protected MainThreadExecutor getMainThreadExecutor() {
-        return fencedMainThreadExecutor;
-    }
-
-    @VisibleForTesting
-    public boolean validateResourceClosed() {
-        return super.validateResourceClosed()
-                && (fencedMainThreadExecutor == null
-                        || fencedMainThreadExecutor.validateScheduledExecutorClosed());
     }
 }
