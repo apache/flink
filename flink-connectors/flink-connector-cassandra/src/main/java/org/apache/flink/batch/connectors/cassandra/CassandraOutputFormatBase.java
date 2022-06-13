@@ -33,6 +33,19 @@ import java.time.Duration;
  * CassandraOutputFormatBase is the common abstract class for writing into Apache Cassandra using
  * output formats.
  *
+ * <p>In case of experiencing the following error: {@code Error while sending value.
+ * com.datastax.driver.core.exceptions.WriteTimeoutException: Cassandra timeout during write query
+ * at consistency LOCAL_ONE (1 replica were required but only 0 acknowledged the write)},
+ *
+ * <p>it is recommended to increase the Cassandra write timeout to adapt to your workload in your
+ * Cassandra cluster so that such timeout errors do not happen. For that you need to raise
+ * write_request_timeout_in_ms conf parameter in your cassandra.yml. Indeed, This exception means
+ * that Cassandra coordinator node (internal Cassandra) waited too long for an internal replication
+ * (replication to another node and did not ack the write. It is not recommended to lower the
+ * replication factor in your Cassandra cluster because it is mandatory that you do not loose data
+ * in case of a Cassandra cluster failure. Waiting for a single replica for write acknowledge is the
+ * minimum level for this guarantee in Cassandra.}
+ *
  * @param <OUT> Type of the elements to write.
  */
 abstract class CassandraOutputFormatBase<OUT, V> extends OutputFormatBase<OUT, V> {
