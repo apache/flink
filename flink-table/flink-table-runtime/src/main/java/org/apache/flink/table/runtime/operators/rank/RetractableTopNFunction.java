@@ -191,16 +191,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
                     sortedMap.put(sortKey, count);
                 }
             } else {
-                if (sortedMap.isEmpty()) {
-                    if (lenient) {
-                        LOG.warn(STATE_CLEARED_WARN_MSG);
-                    } else {
-                        throw new RuntimeException(STATE_CLEARED_WARN_MSG);
-                    }
-                } else {
-                    throw new RuntimeException(
-                            "Can not retract a non-existent record. This should never happen.");
-                }
+                stateStaledErrorHandle();
             }
 
             if (!stateRemoved) {
@@ -231,10 +222,16 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
     private void processStateStaled(Iterator<Map.Entry<RowData, Long>> sortedMapIterator)
             throws RuntimeException {
+        if (lenient) {
+            // Sync with dataState first
+            sortedMapIterator.remove();
+        }
+        stateStaledErrorHandle();
+    }
+
+    private void stateStaledErrorHandle() {
         // Skip the data if it's state is cleared because of state ttl.
         if (lenient) {
-            // Sync with dataState
-            sortedMapIterator.remove();
             LOG.warn(STATE_CLEARED_WARN_MSG);
         } else {
             throw new RuntimeException(STATE_CLEARED_WARN_MSG);
@@ -395,8 +392,12 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             }
         }
         if (isInRankEnd(currentRank)) {
-            // there is no enough elements in Top-N, emit DELETE message for the retract record.
-            collectDelete(out, prevRow, currentRank);
+            if (!findsSortKey && null == prevRow) {
+                stateStaledErrorHandle();
+            } else {
+                // there is no enough elements in Top-N, emit DELETE message for the retract record.
+                collectDelete(out, prevRow, currentRank);
+            }
         }
 
         return findsSortKey;
