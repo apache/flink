@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** A {@link SplitReader} implementation that reads records from Kafka partitions. */
@@ -302,7 +303,7 @@ public class KafkaPartitionSplitReader
         Map<TopicPartition, Long> endOffset = consumer.endOffsets(partitionsStoppingAtLatest);
         stoppingOffsets.putAll(endOffset);
         if (!partitionsStoppingAtCommitted.isEmpty()) {
-            consumer.committed(partitionsStoppingAtCommitted)
+            retryOnWakeup(() -> consumer.committed(partitionsStoppingAtCommitted))
                     .forEach(
                             (tp, offsetAndMetadata) -> {
                                 Preconditions.checkNotNull(
@@ -320,7 +321,7 @@ public class KafkaPartitionSplitReader
         List<TopicPartition> emptyPartitions = new ArrayList<>();
         // If none of the partitions have any records,
         for (TopicPartition tp : consumer.assignment()) {
-            if (consumer.position(tp) >= getStoppingOffset(tp)) {
+            if (retryOnWakeup(() -> consumer.position(tp)) >= getStoppingOffset(tp)) {
                 emptyPartitions.add(tp);
             }
         }
@@ -343,7 +344,8 @@ public class KafkaPartitionSplitReader
         if (LOG.isDebugEnabled()) {
             StringJoiner splitsInfo = new StringJoiner(",");
             for (KafkaPartitionSplit split : splitsChange.splits()) {
-                long startingOffset = consumer.position(split.getTopicPartition());
+                long startingOffset =
+                        retryOnWakeup(() -> consumer.position(split.getTopicPartition()));
                 long stoppingOffset = getStoppingOffset(split.getTopicPartition());
                 splitsInfo.add(
                         String.format(
@@ -395,6 +397,32 @@ public class KafkaPartitionSplitReader
                         Boolean::parseBoolean);
         if (needToRegister) {
             kafkaSourceReaderMetrics.registerKafkaConsumerMetrics(consumer);
+        }
+    }
+
+    /**
+     * Catch {@link WakeupException} in Kafka consumer call and retry the invocation on exception.
+     *
+     * <p>This helper function handles a race condition as below:
+     *
+     * <ol>
+     *   <li>Fetcher thread finishes a {@link KafkaConsumer#poll(Duration)} call
+     *   <li>Task thread assigns new splits so invokes {@link #wakeUp()}, then the wakeup is
+     *       recorded and held by the consumer
+     *   <li>Later fetcher thread invokes {@link #handleSplitsChanges(SplitsChange)}, and
+     *       interactions with consumer will throw {@link WakeupException} because of the previously
+     *       held wakeup in the consumer
+     * </ol>
+     *
+     * <p>Under this case we need to catch the {@link WakeupException} and retry the operation.
+     */
+    private <V> V retryOnWakeup(Supplier<V> consumerCall) {
+        while (true) {
+            try {
+                return consumerCall.get();
+            } catch (WakeupException we) {
+                // Do nothing here and the loop will retry the consumer call.
+            }
         }
     }
 
