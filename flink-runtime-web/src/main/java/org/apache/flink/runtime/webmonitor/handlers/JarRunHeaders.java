@@ -75,6 +75,6 @@ public class JarRunHeaders
 
     @Override
     public String operationId() {
-        return "runJar";
+        return "submitJobFromJar";
     }
 }

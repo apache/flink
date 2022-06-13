@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Collection;
@@ -74,6 +76,21 @@ public interface MessageHeaders<
      * @return short description
      */
     default String operationId() {
-        return getHttpMethod().name().toLowerCase(Locale.ROOT) + getClass().getSimpleName();
+        if (getHttpMethod() != HttpMethodWrapper.GET) {
+            throw new UnsupportedOperationException(
+                    "The default implementation is only supported for GET calls. Please override 'operationId()'.");
+        }
+
+        final String className = getClass().getSimpleName();
+        final int headersSuffixStart = className.lastIndexOf("Headers");
+        if (headersSuffixStart == -1) {
+            throw new IllegalStateException(
+                    "Expect name of class "
+                            + getClass()
+                            + " to end on 'Headers'. Please rename the class or override 'operationId()'.");
+        }
+
+        return getHttpMethod().name().toLowerCase(Locale.ROOT)
+                + className.substring(0, headersSuffixStart);
     }
 }
