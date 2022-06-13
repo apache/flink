@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import java.util.Arrays;
+
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -83,7 +85,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                     0L,
                     new DefaultVertexAttemptNumberStore(),
                     SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
-                    (execution, previousState, newState) -> {},
+                    Arrays.asList((execution, previousState, newState) -> {}),
                     log);
             fail("Expected ExecutionGraph creation to fail because of non restored state.");
         } catch (Exception e) {
@@ -112,7 +114,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 0L,
                 new DefaultVertexAttemptNumberStore(),
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
-                (execution, previousState, newState) -> {},
+                Arrays.asList((execution, previousState, newState) -> {}),
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();

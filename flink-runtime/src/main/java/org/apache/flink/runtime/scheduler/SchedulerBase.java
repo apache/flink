@@ -19,6 +19,8 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import java.util.Arrays;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -51,6 +53,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobStatusProvider;
@@ -81,6 +84,7 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
+import org.apache.flink.runtime.scheduler.metrics.InitializationStateTimeMetrics;
 import org.apache.flink.runtime.scheduler.metrics.JobStatusMetrics;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -161,6 +165,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final DeploymentStateTimeMetrics deploymentStateTimeMetrics;
 
+    private final InitializationStateTimeMetrics initializationStateTimeMetrics;
+
     public SchedulerBase(
             final Logger log,
             final JobGraph jobGraph,
@@ -201,6 +207,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 MetricOptions.JobStatusMetricsSettings.fromConfiguration(jobMasterConfiguration);
         this.deploymentStateTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
+        this.initializationStateTimeMetrics =
+                new InitializationStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
         this.executionGraph =
                 createAndRestoreExecutionGraph(
@@ -368,7 +376,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         initializationTimestamp,
                         new DefaultVertexAttemptNumberStore(),
                         vertexParallelismStore,
-                        deploymentStateTimeMetrics,
+                        Arrays.asList(deploymentStateTimeMetrics, initializationStateTimeMetrics),
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
@@ -597,6 +605,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 executionGraph,
                 this::getNumberOfRestarts,
                 deploymentStateTimeMetrics,
+                initializationStateTimeMetrics,
                 executionGraph::registerJobStatusListener,
                 executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
                 jobStatusMetricsSettings);
@@ -609,6 +618,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             JobStatusProvider jobStatusProvider,
             Gauge<Long> numberOfRestarts,
             DeploymentStateTimeMetrics deploymentTimeMetrics,
+            InitializationStateTimeMetrics initializationStateTimeMetrics,
             Consumer<JobStatusListener> jobStatusListenerRegistrar,
             long initializationTimestamp,
             MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings) {
@@ -623,6 +633,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         jobStatusListenerRegistrar.accept(jobStatusMetrics);
 
         deploymentTimeMetrics.registerMetrics(metrics);
+        initializationStateTimeMetrics.registerMetrics(metrics);
     }
 
     protected abstract void startSchedulingInternal();

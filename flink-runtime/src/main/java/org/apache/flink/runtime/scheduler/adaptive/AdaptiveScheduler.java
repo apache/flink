@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import java.util.Arrays;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -102,6 +104,7 @@ import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpControll
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
+import org.apache.flink.runtime.scheduler.metrics.InitializationStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -212,6 +215,8 @@ public class AdaptiveScheduler
 
     private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
+    private final InitializationStateTimeMetrics initializationTimeMetrics;
+
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     public AdaptiveScheduler(
@@ -282,11 +287,15 @@ public class AdaptiveScheduler
         deploymentTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
+        initializationTimeMetrics =
+                new InitializationStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
+
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
                 deploymentTimeMetrics,
+                initializationTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
                 jobStatusMetricsSettings);
@@ -1027,7 +1036,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
-                deploymentTimeMetrics,
+                Arrays.asList(deploymentTimeMetrics, initializationTimeMetrics),
                 LOG);
     }
 

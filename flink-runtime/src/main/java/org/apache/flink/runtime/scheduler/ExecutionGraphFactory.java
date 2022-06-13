@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import java.util.List;
+
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -60,7 +62,7 @@ public interface ExecutionGraphFactory {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
-            ExecutionStateUpdateListener executionStateUpdateListener,
+            List<ExecutionStateUpdateListener> executionStateUpdateListenerList,
             Logger log)
             throws Exception;
 }
