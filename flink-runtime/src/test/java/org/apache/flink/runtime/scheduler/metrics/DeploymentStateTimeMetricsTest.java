@@ -31,13 +31,13 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
+
 class DeploymentStateTimeMetricsTest {
 
-    private static final MetricOptions.JobStatusMetricsSettings settings =
-            enable(
-                    MetricOptions.JobStatusMetrics.STATE,
-                    MetricOptions.JobStatusMetrics.CURRENT_TIME,
-                    MetricOptions.JobStatusMetrics.TOTAL_TIME);
+    private static final MetricOptions.JobStatusMetricsSettings settings = enable(
+            MetricOptions.JobStatusMetrics.STATE,
+            MetricOptions.JobStatusMetrics.CURRENT_TIME,
+            MetricOptions.JobStatusMetrics.TOTAL_TIME);
 
     @Test
     void testInitialValues() {
@@ -76,6 +76,25 @@ class DeploymentStateTimeMetricsTest {
         metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
         metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
         metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
+
+        final ExecutionAttemptID id2 = createExecutionAttemptId();
+
+        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
+
+        assertThat(metrics.getBinary()).isEqualTo(0L);
+    }
+
+    @Test
+    void testDeploymentStart_batch_notTriggeredIfOneDeploymentIsInitializing() {
+        final DeploymentStateTimeMetrics metrics =
+                new DeploymentStateTimeMetrics(JobType.BATCH, settings);
+
+        final ExecutionAttemptID id1 = createExecutionAttemptId();
+
+        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
+        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
         final ExecutionAttemptID id2 = createExecutionAttemptId();
 

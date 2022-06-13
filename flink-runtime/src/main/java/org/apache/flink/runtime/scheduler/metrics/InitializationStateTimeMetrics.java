@@ -38,10 +38,10 @@ import org.apache.flink.util.clock.SystemClock;
  *
  * <p>These metrics differentiate between batch & streaming use-cases:
  *
- * <p>Batch: Measures from the start of the first initialization until the first task has been deployed.
+ * <p>Batch: Measures from the start of the first initialization until the first task is running.
  * From that point the job is making progress.
  *
- * <p>Streaming: Measures from the start of the first initialization until all tasks have been deployed.
+ * <p>Streaming: Measures from the start of the first initialization until all tasks are running.
  * From that point on checkpoints can be triggered, and thus progress be made.
  */
 public class InitializationStateTimeMetrics

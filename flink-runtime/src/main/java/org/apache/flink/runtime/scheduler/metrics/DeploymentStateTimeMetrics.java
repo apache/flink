@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.scheduler.metrics;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricGroup;
@@ -31,24 +33,25 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Predicate;
 
+
 /**
  * Metrics that capture how long a job was deploying tasks.
  *
  * <p>These metrics differentiate between batch & streaming use-cases:
  *
- * <p>Batch: Measures from the start of the first deployment until the first task has been deployed.
- * From that point the job is making progress.
+ * <p>Batch: Measures from the start of the first deployment until the first task has been
+ * deployed. From that point the job is making progress.
  *
- * <p>Streaming: Measures from the start of the first deployment until all tasks have been deployed.
- * From that point on checkpoints can be triggered, and thus progress be made.
+ * <p>Streaming: Measures from the start of the first deployment until all tasks have been
+ * deployed. From that point on checkpoints can be triggered, and thus progress be made.
  */
 public class DeploymentStateTimeMetrics
         implements ExecutionStateUpdateListener, StateTimeMetric, MetricsRegistrar {
 
     private static final long NOT_STARTED = -1L;
 
-    private final Predicate<Integer> deploymentStartPredicate;
-    private final Predicate<Integer> deploymentEndPredicate;
+    private final Predicate<Pair<Integer, Integer>> deploymentStartPredicate;
+    private final Predicate<Pair<Integer, Integer>> deploymentEndPredicate;
     private final MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings;
     private final Clock clock;
 
@@ -76,19 +79,29 @@ public class DeploymentStateTimeMetrics
         this.clock = clock;
 
         if (semantic == JobType.BATCH) {
-            deploymentStartPredicate = initializingDeployments -> initializingDeployments == 0;
-            deploymentEndPredicate = completedDeployments -> completedDeployments > 0;
-        } else {
-            deploymentStartPredicate = initializingDeployments -> true;
+            // If the job type is batch:
+            // Deployment is started iff there is atleast one task in deploying state and no task
+            // is either
+            // initializing or running.
+            // Deployment is completed iff any task is in either initializing or deploying state
+            deploymentStartPredicate = deploymentPair -> deploymentPair.getLeft() == 0
+                    && deploymentPair.getRight() == 0;
             deploymentEndPredicate =
-                    completedDeployments -> completedDeployments == expectedDeployments.size();
+                    deploymentPair -> deploymentPair.getLeft() > 0 || deploymentPair.getRight() > 0;
+        } else {
+            // If the job type is streaming:
+            // Deployment is measures from start of first deployment
+            // Deployment is completed if all tasks are either initializing or running
+            deploymentStartPredicate = deploymentPair -> true;
+            deploymentEndPredicate =
+                    deploymentPair -> (deploymentPair.getLeft() + deploymentPair.getRight())
+                            == expectedDeployments.size();
         }
     }
 
     @Override
     public long getCurrentTime() {
-        return deploymentStart == NOT_STARTED
-                ? 0L
+        return deploymentStart == NOT_STARTED ? 0L
                 : Math.max(0, clock.absoluteTimeMillis() - deploymentStart);
     }
 
@@ -140,11 +153,12 @@ public class DeploymentStateTimeMetrics
         }
 
         if (deploymentStart == NOT_STARTED) {
-            if (pendingDeployments > 0 && deploymentStartPredicate.test(initializingDeployments)) {
+            if (pendingDeployments > 0 && deploymentStartPredicate.test(Pair.of(initializingDeployments,
+                    completedDeployments))) {
                 markDeploymentStart();
             }
         } else {
-            if (deploymentEndPredicate.test(completedDeployments)
+            if (deploymentEndPredicate.test(Pair.of(initializingDeployments, completedDeployments))
                     || expectedDeployments.isEmpty()) {
                 markDeploymentEnd();
             }
@@ -162,10 +176,7 @@ public class DeploymentStateTimeMetrics
 
     @VisibleForTesting
     boolean hasCleanState() {
-        return expectedDeployments.isEmpty()
-                && pendingDeployments == 0
-                && completedDeployments == 0
-                && initializingDeployments == 0
-                && deploymentStart == NOT_STARTED;
+        return expectedDeployments.isEmpty() && pendingDeployments == 0 && completedDeployments == 0
+                && initializingDeployments == 0 && deploymentStart == NOT_STARTED;
     }
 }
