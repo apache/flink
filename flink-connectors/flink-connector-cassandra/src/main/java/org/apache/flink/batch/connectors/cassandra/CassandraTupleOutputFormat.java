@@ -23,7 +23,8 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import java.time.Duration;
 
 /**
- * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster.
+ * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster. Please read the
+ * recommendations in {@linkplain CassandraOutputFormatBase}.
  *
  * @param <OUT> Type of {@link Tuple} to write to Cassandra.
  */

@@ -30,6 +30,7 @@ import java.time.Duration;
 
 /**
  * OutputFormat to write data to Apache Cassandra and from a custom Cassandra annotated object.
+ * Please read the recommendations in {@linkplain CassandraOutputFormatBase}.
  *
  * @param <OUT> type of outputClass
  */
