@@ -14,8 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.scheduler.metrics;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Predicate;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
@@ -27,48 +32,44 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Predicate;
 
 /**
- * Metrics that capture how long a job was deploying tasks.
+ * Metrics that capture how long a job took in initialization
  *
  * <p>These metrics differentiate between batch & streaming use-cases:
  *
- * <p>Batch: Measures from the start of the first deployment until the first task has been deployed.
+ * <p>Batch: Measures from the start of the first initialization until the first task has been deployed.
  * From that point the job is making progress.
  *
- * <p>Streaming: Measures from the start of the first deployment until all tasks have been deployed.
+ * <p>Streaming: Measures from the start of the first initialization until all tasks have been deployed.
  * From that point on checkpoints can be triggered, and thus progress be made.
  */
-public class DeploymentStateTimeMetrics
+public class InitializationStateTimeMetrics
         implements ExecutionStateUpdateListener, StateTimeMetric, MetricsRegistrar {
-
     private static final long NOT_STARTED = -1L;
 
-    private final Predicate<Integer> deploymentStartPredicate;
-    private final Predicate<Integer> deploymentEndPredicate;
+    private final Predicate<Pair<Integer, Integer>> initializationStartPredicate;
+    private final Predicate<Integer> initializationEndPredicate;
     private final MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings;
     private final Clock clock;
 
-    // deployment book-keeping
+    // book-keeping
     private final Set<ExecutionAttemptID> expectedDeployments = new HashSet<>();
     private int pendingDeployments = 0;
     private int initializingDeployments = 0;
     private int completedDeployments = 0;
 
     // metrics state
-    private long deploymentStart = NOT_STARTED;
-    private long deploymentTimeTotal = 0L;
+    private long initializationStart = NOT_STARTED;
+    private long initializationTimeTotal = 0L;
 
-    public DeploymentStateTimeMetrics(
+    public InitializationStateTimeMetrics(
             JobType semantic, MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings) {
         this(semantic, stateTimeMetricsSettings, SystemClock.getInstance());
     }
 
     @VisibleForTesting
-    DeploymentStateTimeMetrics(
+    InitializationStateTimeMetrics(
             JobType semantic,
             MetricOptions.JobStatusMetricsSettings stateTimeMetricsSettings,
             Clock clock) {
@@ -76,35 +77,38 @@ public class DeploymentStateTimeMetrics
         this.clock = clock;
 
         if (semantic == JobType.BATCH) {
-            deploymentStartPredicate = initializingDeployments -> initializingDeployments == 0;
-            deploymentEndPredicate = completedDeployments -> completedDeployments > 0;
+            // For batch, if there is no task running and atleast one task is initializing, the
+            // job is initializing
+            initializationStartPredicate = deploymentPair -> deploymentPair.getLeft() == 0;
+            initializationEndPredicate = completedDeployments -> completedDeployments > 0;
         } else {
-            deploymentStartPredicate = initializingDeployments -> true;
-            deploymentEndPredicate =
+            // For streaming, if there is no task which is deploying and atleast one task is
+            // initializing, the job is initializing
+            initializationStartPredicate = deploymentPair -> deploymentPair.getRight() == 0;
+            initializationEndPredicate =
                     completedDeployments -> completedDeployments == expectedDeployments.size();
         }
     }
 
     @Override
     public long getCurrentTime() {
-        return deploymentStart == NOT_STARTED
-                ? 0L
-                : Math.max(0, clock.absoluteTimeMillis() - deploymentStart);
+        return initializationStart == NOT_STARTED ? 0L
+                : Math.max(0, clock.absoluteTimeMillis() - initializationStart);
     }
 
     @Override
     public long getTotalTime() {
-        return getCurrentTime() + deploymentTimeTotal;
+        return getCurrentTime() + initializationTimeTotal;
     }
 
     @Override
     public long getBinary() {
-        return deploymentStart == NOT_STARTED ? 0L : 1L;
+        return initializationStart == NOT_STARTED ? 0L : 1L;
     }
 
     @Override
     public void registerMetrics(MetricGroup metricGroup) {
-        StateTimeMetric.register(stateTimeMetricsSettings, metricGroup, this, "deploying");
+        StateTimeMetric.register(stateTimeMetricsSettings, metricGroup, this, "initializing");
     }
 
     @Override
@@ -139,33 +143,31 @@ public class DeploymentStateTimeMetrics
                 break;
         }
 
-        if (deploymentStart == NOT_STARTED) {
-            if (pendingDeployments > 0 && deploymentStartPredicate.test(initializingDeployments)) {
-                markDeploymentStart();
+        if (initializationStart == NOT_STARTED) {
+            if (initializingDeployments > 0 && initializationStartPredicate.test(Pair.of(completedDeployments,
+                    pendingDeployments))) {
+                markInitializationStart();
             }
         } else {
-            if (deploymentEndPredicate.test(completedDeployments)
+            if (initializationEndPredicate.test(completedDeployments)
                     || expectedDeployments.isEmpty()) {
-                markDeploymentEnd();
+                markInitializationEnd();
             }
         }
     }
 
-    private void markDeploymentStart() {
-        deploymentStart = clock.absoluteTimeMillis();
+    private void markInitializationStart() {
+        initializationStart = clock.absoluteTimeMillis();
     }
 
-    private void markDeploymentEnd() {
-        deploymentTimeTotal += Math.max(0, clock.absoluteTimeMillis() - deploymentStart);
-        deploymentStart = NOT_STARTED;
+    private void markInitializationEnd() {
+        initializationTimeTotal += Math.max(0, clock.absoluteTimeMillis() - initializationStart);
+        initializationStart = NOT_STARTED;
     }
 
     @VisibleForTesting
     boolean hasCleanState() {
-        return expectedDeployments.isEmpty()
-                && pendingDeployments == 0
-                && completedDeployments == 0
-                && initializingDeployments == 0
-                && deploymentStart == NOT_STARTED;
+        return expectedDeployments.isEmpty() && pendingDeployments == 0 && completedDeployments == 0
+                && initializingDeployments == 0 && initializationStart == NOT_STARTED;
     }
 }
