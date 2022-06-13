@@ -27,6 +27,8 @@ import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 
@@ -42,15 +44,24 @@ public class TestEmptyMessageHeaders
 
     private final String url;
     private final String description;
+    @Nullable private final String operationId;
 
     public TestEmptyMessageHeaders() {
-        this.url = URL;
-        this.description = DESCRIPTION;
+        this(URL, DESCRIPTION, null);
     }
 
     public TestEmptyMessageHeaders(String url, String description) {
+        this(url, description, null);
+    }
+
+    public TestEmptyMessageHeaders(String operationId) {
+        this(URL, DESCRIPTION, operationId);
+    }
+
+    private TestEmptyMessageHeaders(String url, String description, @Nullable String operationId) {
         this.url = url;
         this.description = description;
+        this.operationId = operationId;
     }
 
     @Override
@@ -71,6 +82,11 @@ public class TestEmptyMessageHeaders
     @Override
     public HttpResponseStatus getResponseStatusCode() {
         return HttpResponseStatus.OK;
+    }
+
+    @Override
+    public String operationId() {
+        return operationId != null ? operationId : MessageHeaders.super.operationId();
     }
 
     @Override

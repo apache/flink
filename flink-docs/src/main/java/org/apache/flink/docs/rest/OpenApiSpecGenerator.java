@@ -82,7 +82,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -152,7 +154,8 @@ public class OpenApiSpecGenerator {
                         .filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
                         .filter(OpenApiSpecGenerator::shouldBeDocumented)
                         .collect(Collectors.toList());
-        specs.forEach(spec -> add(spec, openApi));
+        final Set<String> usedOperationIds = new HashSet<>();
+        specs.forEach(spec -> add(spec, openApi, usedOperationIds));
 
         final List<Schema> asyncOperationSchemas = collectAsyncOperationResultVariants(specs);
 
@@ -285,7 +288,8 @@ public class OpenApiSpecGenerator {
                 .addSchemas(SerializedThrowable.class.getSimpleName(), serializedThrowableSchema);
     }
 
-    private static void add(MessageHeaders<?, ?, ?> spec, OpenAPI openApi) {
+    private static void add(
+            MessageHeaders<?, ?, ?> spec, OpenAPI openApi, Set<String> usedOperationIds) {
         final PathItem pathItem =
                 openApi.getPaths()
                         .computeIfAbsent(
@@ -298,7 +302,7 @@ public class OpenApiSpecGenerator {
 
         operation.description(spec.getDescription());
 
-        setOperationId(operation, spec);
+        setOperationId(operation, spec, usedOperationIds);
         setParameters(operation, spec);
         setRequest(operation, spec);
         setResponse(operation, spec);
@@ -307,16 +311,22 @@ public class OpenApiSpecGenerator {
     }
 
     private static void setOperationId(
-            final Operation operation, final MessageHeaders<?, ?, ?> spec) {
+            final Operation operation,
+            final MessageHeaders<?, ?, ?> spec,
+            Set<String> usedOperationIds) {
         final String baseId = spec.operationId();
 
         final Matcher matcher = HTTPS_VERB_SUFFIX_PATTERN.matcher(baseId);
-        if (matcher.matches()) {
-            final String group = matcher.group(1);
-            operation.setOperationId(group);
-        } else {
-            operation.setOperationId(baseId);
+
+        final String operationId = matcher.matches() ? matcher.group(1) : baseId;
+
+        if (!usedOperationIds.add(operationId)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Duplicate OperationId '%s' for path '%s'",
+                            operationId, spec.getTargetRestEndpointURL()));
         }
+        operation.setOperationId(operationId);
     }
 
     private static void setParameters(
