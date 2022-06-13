@@ -1137,12 +1137,37 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Return how much time (in milliseconds) the job has spent deploying* tasks in total.</td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <td>deployingTimeTotal</td>
+      <td>Return how much time (in milliseconds) the job has spent deploying* tasks in total.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
+      <td>initializingState</td>
+      <td>Return 1 if the job is currently initializing** tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>initializingTime</td>
+      <td>Return the time (in milliseconds) since the job has started initializing** tasks, otherwise return 0.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>initializingTimeTotal</td>
+      <td>Return how much time (in milliseconds) the job has spent initializing** tasks in total.</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
 *A job is considered to be deploying tasks when:
 * for streaming jobs, any task is in the DEPLOYING state
 * for batch jobs, if at least 1 task is in the DEPLOYING state, and there are no INITIALIZING/RUNNING tasks
+
+**A job is considered to be initializing tasks when:
+* for streaming jobs, any task is in the INITIALIZING state
+* for batch jobs, if at least 1 task is in the INITIALIZING state, and there are no RUNNING tasks
 {{< /hint >}}
 
 <table class="table table-bordered">
