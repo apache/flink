@@ -152,13 +152,7 @@ class FlinkPlannerImpl(
           val validatedStatement = richExplain.getStatement match {
             // only validate source here
             case insert: RichSqlInsert =>
-              if (insert.isUpsert) {
-                throw new ValidationException(
-                  "UPSERT INTO statement is not supported. Please use INSERT INTO instead.")
-              }
-              val validatedSource = validate(insert.getSource)
-              insert.setOperand(2, validatedSource)
-              insert
+              validateRichSqlInsert(insert)
             case others =>
               validate(others)
           }
@@ -173,16 +167,7 @@ class FlinkPlannerImpl(
           execute.setOperand(0, validate(execute.getStatement))
           execute
         case insert: RichSqlInsert =>
-          // We don't support UPSERT INTO semantics (see FLINK-24225).
-          if (insert.isUpsert) {
-            throw new ValidationException(
-              "UPSERT INTO statement is not supported. Please use INSERT INTO instead.")
-          }
-          // only validate source here.
-          // ignore row type which will be verified in table environment.
-          val validatedSource = validator.validate(insert.getSource)
-          insert.setOperand(2, validatedSource)
-          insert
+          validateRichSqlInsert(insert)
         case compile: SqlCompilePlan =>
           compile.setOperand(0, validate(compile.getOperandList.get(0)))
           compile
@@ -240,6 +225,19 @@ class FlinkPlannerImpl(
       sqlValidator.setExpectedOutputType(sqlNode, outputType)
     }
     sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
+  }
+
+  private def validateRichSqlInsert(insert: RichSqlInsert): SqlNode = {
+    // We don't support UPSERT INTO semantics (see FLINK-24225).
+    if (insert.isUpsert) {
+      throw new ValidationException(
+        "UPSERT INTO statement is not supported. Please use INSERT INTO instead.")
+    }
+    // only validate source here.
+    // ignore row type which will be verified in table environment.
+    val validatedSource = validate(insert.getSource)
+    insert.setOperand(2, validatedSource)
+    insert
   }
 
   def rex(
