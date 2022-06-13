@@ -87,11 +87,7 @@ public enum ResultPartitionType {
      * Hybrid partitions with a bounded (local) buffer pool to support downstream task to
      * simultaneous reading and writing shuffle data.
      *
-     * <p>Hybrid result has the following two characteristics:
-     *
-     * <p>Intermediate data can be consumed any time, whether fully produced or not.
-     *
-     * <p>Intermediate data can be consumed directly from memory as much as possible.
+     * <p>Hybrid partitions can be consumed any time, whether fully produced or not.
      */
     HYBRID(true, false, ConsumingConstraint.CAN_BE_PIPELINED, ReleaseBy.SCHEDULER);
 

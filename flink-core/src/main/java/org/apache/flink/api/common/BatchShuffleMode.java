@@ -64,22 +64,16 @@ public enum BatchShuffleMode implements DescribedEnum {
                             + "as downstream tasks are started after upstream tasks finished.")),
 
     /**
-     * Downstream can start running anytime, as long as the upstream has started.
+     * *DO NOT USE* - This feature is in progress.
+     *
+     * <p>Downstream can start running anytime, as long as the upstream has started.
      *
      * <p>This adapts the resource usage to whatever is available.
-     *
-     * <p>Attention: This feature is working in progress, it will rename to ALL_EXCHANGES_HYBRID
-     * when the effort is finished.
      */
     // TODO remove the annotation and rename this enum constant when hybrid shuffle effort is
     // finished.
     @Documentation.ExcludeFromDocumentation
-    WIP_ALL_EXCHANGES_HYBRID(
-            text(
-                    "Downstream task can start running anytime, as long as the upstream has started."
-                            + " This is a shuffle mode between pipelined and blocking, adapts the "
-                            + "resource usage to whatever is available. Note that the work is not "
-                            + "fully done, please don't use it now."));
+    WIP_ALL_EXCHANGES_HYBRID(text("DO NOT USE - This feature is in progress."));
 
     private final InlineElement description;
 
