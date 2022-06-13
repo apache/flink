@@ -20,9 +20,9 @@ This project bundles the following dependencies under the Apache Software Licens
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
-- org.scala-lang:scala-compiler:2.12.7
-- org.scala-lang:scala-library:2.12.7
-- org.scala-lang:scala-reflect:2.12.7
+- org.scala-lang:scala-compiler:2.12.16
+- org.scala-lang:scala-library:2.12.16
+- org.scala-lang:scala-reflect:2.12.16
 - org.scala-lang.modules:scala-java8-compat_2.12:0.8.0
 - org.scala-lang.modules:scala-parser-combinators_2.12:1.1.2
 - org.scala-lang.modules:scala-xml_2.12:1.0.6

@@ -47,7 +47,7 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<scala.version>2.12.7</scala.version>
+		<scala.version>2.12.16</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
