@@ -550,13 +550,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
             final boolean yarnAccessFSEnabled =
                     !CollectionUtil.isNullOrEmpty(
-                            flinkConfiguration.get(YarnConfigOptions.YARN_ACCESS));
+                            flinkConfiguration.get(
+                                    SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS));
             if (!fetchToken && yarnAccessFSEnabled) {
                 throw new IllegalConfigurationException(
                         String.format(
                                 "When %s is disabled, %s must be disabled as well.",
                                 SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN.key(),
-                                YarnConfigOptions.YARN_ACCESS.key()));
+                                SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS.key()));
             }
         }
 
@@ -1150,7 +1151,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             if (fetchToken) {
                 List<Path> yarnAccessList =
                         ConfigUtils.decodeListFromConfig(
-                                configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+                                configuration,
+                                SecurityOptions.KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS,
+                                Path::new);
                 pathsToObtainToken.addAll(yarnAccessList);
                 pathsToObtainToken.addAll(fileUploader.getRemotePaths());
             }

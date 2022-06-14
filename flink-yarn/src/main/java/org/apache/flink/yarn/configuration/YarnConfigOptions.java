@@ -340,14 +340,6 @@ public class YarnConfigOptions {
                                     + "they doesn't need to be downloaded every time for each application. An example could be "
                                     + "hdfs://$namenode_address/path/of/flink/lib");
 
-    public static final ConfigOption<List<String>> YARN_ACCESS =
-            key("yarn.security.kerberos.additionalFileSystems")
-                    .stringType()
-                    .asList()
-                    .noDefaultValue()
-                    .withDescription(
-                            "A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.");
-
     @SuppressWarnings("unused")
     public static final ConfigOption<String> HADOOP_CONFIG_KEY =
             key("flink.hadoop.<key>")

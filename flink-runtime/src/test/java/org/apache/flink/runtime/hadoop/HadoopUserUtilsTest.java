@@ -21,6 +21,7 @@ package org.apache.flink.runtime.hadoop;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import sun.security.krb5.KrbException;
@@ -37,6 +38,11 @@ class HadoopUserUtilsTest {
         System.setProperty("java.security.krb5.kdc", "");
         System.setProperty("java.security.krb5.conf", "/dev/null");
         sun.security.krb5.Config.refresh();
+    }
+
+    @AfterAll
+    public static void cleanupHadoopConfigs() {
+        UserGroupInformation.setConfiguration(new Configuration());
     }
 
     @Test
