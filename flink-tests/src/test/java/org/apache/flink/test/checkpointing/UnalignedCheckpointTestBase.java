@@ -757,7 +757,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
             conf.set(
                     ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
-                    "org.apache.flink.test.checkpointing.SharedPoolNettyShuffleServiceFactory");
+                    SharedPoolNettyShuffleServiceFactory.class.getName());
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
             conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
