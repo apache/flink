@@ -286,6 +286,53 @@ public class HiveGenericUDFTest {
         assertThat(udf.eval(result)).isEqualTo(3);
     }
 
+    @Test
+    public void testInitUDFWithConstantArguments() {
+        // test init udf with different type of constants as arguments to
+        // make sure we can get the ConstantObjectInspector normally
+
+        // test with byte type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.TINYINT()});
+        // test with short type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.SMALLINT()});
+        // test with int type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.INT()});
+        // test with long type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.BIGINT()});
+        // test with float type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.FLOAT()});
+        // test with double type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {1}, new DataType[] {DataTypes.DOUBLE()});
+        // test with string type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {"test"}, new DataType[] {DataTypes.STRING()});
+        // test with char type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {"tes"}, new DataType[] {DataTypes.CHAR(7)});
+        // test with varchar type as constant argument
+        init(GenericUDFCoalesce.class, new Object[] {"tes"}, new DataType[] {DataTypes.VARCHAR(7)});
+        // test with date type as constant argument
+        init(
+                GenericUDFCoalesce.class,
+                new Object[] {new Date(10000)},
+                new DataType[] {DataTypes.DATE()});
+        // test with timestamp type as constant argument
+        init(
+                GenericUDFCoalesce.class,
+                new Object[] {new Timestamp(10000)},
+                new DataType[] {DataTypes.TIMESTAMP()});
+
+        // test with decimal type as constant argument
+        init(
+                GenericUDFCoalesce.class,
+                new Object[] {new BigDecimal("23.45")},
+                new DataType[] {DataTypes.DECIMAL(10, 3)});
+
+        // test with binary type as constant argument
+        init(
+                GenericUDFCoalesce.class,
+                new Object[] {new byte[] {1, 2}},
+                new DataType[] {DataTypes.BYTES()});
+    }
+
     private static HiveGenericUDF init(
             Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
         HiveGenericUDF udf =

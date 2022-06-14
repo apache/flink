@@ -37,6 +37,7 @@ import org.apache.flink.types.Row;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
+import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.io.HiveCharWritable;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
@@ -90,7 +91,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.ByteWritable;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -442,7 +443,7 @@ public class HiveInspectors {
             case BYTE:
                 className = WritableConstantByteObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
-                        className, org.apache.hadoop.hive.serde2.io.ByteWritable.class, value);
+                        className, ByteWritable.class, value);
             case SHORT:
                 className = WritableConstantShortObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
@@ -511,7 +512,7 @@ public class HiveInspectors {
             case BINARY:
                 className = WritableConstantBinaryObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
-                        className, ByteWritable.class, value);
+                        className, BytesWritable.class, value);
             case UNKNOWN:
             case VOID:
                 // If type is null, we use the Constant String to replace
