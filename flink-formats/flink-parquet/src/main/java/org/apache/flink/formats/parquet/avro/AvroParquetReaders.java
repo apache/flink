@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -50,7 +51,15 @@ public class AvroParquetReaders {
     public static <T extends SpecificRecordBase> StreamFormat<T> forSpecificRecord(
             final Class<T> typeClass) {
         return new AvroParquetRecordFormat<>(
-                new AvroTypeInfo<>(typeClass), () -> SpecificData.get());
+                new AvroTypeInfo<>(typeClass),
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see FLINK-28043 for more details.
+                new SerializableSupplier<GenericData>() {
+                    @Override
+                    public GenericData get() {
+                        return SpecificData.get();
+                    }
+                });
     }
 
     /**
@@ -83,7 +92,15 @@ public class AvroParquetReaders {
         // this is a PoJo that Avo will reader via reflect de-serialization
         // for Flink, this is just a plain PoJo type
         return new AvroParquetRecordFormat<>(
-                TypeExtractor.createTypeInfo(typeClass), () -> ReflectData.get());
+                TypeExtractor.createTypeInfo(typeClass),
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see FLINK-28043 for more details.
+                new SerializableSupplier<GenericData>() {
+                    @Override
+                    public GenericData get() {
+                        return ReflectData.get();
+                    }
+                });
     }
 
     /**
@@ -98,7 +115,15 @@ public class AvroParquetReaders {
      */
     public static StreamFormat<GenericRecord> forGenericRecord(final Schema schema) {
         return new AvroParquetRecordFormat<>(
-                new GenericRecordAvroTypeInfo(schema), () -> GenericData.get());
+                new GenericRecordAvroTypeInfo(schema),
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see FLINK-28043 for more details.
+                new SerializableSupplier<GenericData>() {
+                    @Override
+                    public GenericData get() {
+                        return GenericData.get();
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------
