@@ -1022,9 +1022,9 @@ under the License.
 	</build>
 
 	<profiles>
-		<!-- Activate these profiles with -Phive-x.x.x to build and test against different Hive versions -->
+		<!-- Activate these profiles with -Phive3 to build and test against Hive 3.x versions -->
 		<profile>
-			<id>hive-3.1.1</id>
+			<id>hive3</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
 				<derby.version>10.14.1.0</derby.version>
