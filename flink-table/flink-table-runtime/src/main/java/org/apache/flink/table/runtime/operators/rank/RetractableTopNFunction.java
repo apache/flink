@@ -222,13 +222,16 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
     private void processStateStaled(Iterator<Map.Entry<RowData, Long>> sortedMapIterator)
             throws RuntimeException {
-        if (lenient) {
-            // Sync with dataState first
-            sortedMapIterator.remove();
-        }
+        // Sync with dataState first
+        sortedMapIterator.remove();
+
         stateStaledErrorHandle();
     }
 
+    /**
+     * Handle state staled error by configured lenient option. If option is true, warning log only,
+     * otherwise a {@link RuntimeException} will be thrown.
+     */
     private void stateStaledErrorHandle() {
         // Skip the data if it's state is cleared because of state ttl.
         if (lenient) {
