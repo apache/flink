@@ -49,7 +49,7 @@ public class HadoopUtilsTest extends TestLogger {
     }
 
     @AfterClass
-    public static void cleanupHadoopConfigs() throws KrbException {
+    public static void cleanupHadoopConfigs() {
         UserGroupInformation.setConfiguration(new Configuration());
     }
 

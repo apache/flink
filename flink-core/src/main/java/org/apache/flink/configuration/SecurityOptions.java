@@ -148,6 +148,18 @@ public class SecurityOptions {
                     .withDescription(
                             "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
 
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<List<String>> KERBEROS_HADOOP_FILESYSTEMS_TO_ACCESS =
+            key("security.kerberos.access.hadoopFileSystems")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDeprecatedKeys("yarn.security.kerberos.additionalFileSystems")
+                    .withDescription(
+                            "A comma-separated list of Kerberos-secured Hadoop filesystems Flink is going to access. For example, "
+                                    + "security.kerberos.access.hadoopFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. "
+                                    + "The JobManager needs to have access to these filesystems to retrieve the security tokens.");
+
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options
     // ------------------------------------------------------------------------
