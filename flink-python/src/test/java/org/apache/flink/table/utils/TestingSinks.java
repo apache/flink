@@ -36,7 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Testing utils adopted from legacy planner until the Python code is updated. */
+/** Testing Sinks that collects test output data for validation. */
 public class TestingSinks {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestingSinks.class);

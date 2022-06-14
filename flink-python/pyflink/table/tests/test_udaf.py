@@ -575,18 +575,6 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, COUNT(c) as c, my_count(c) as d") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.BIGINT(),
-                DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over(lit(1).hours).on(t.rowtime).alias("w")) \
             .group_by(t.a, col("w")) \
             .select(t.a,
@@ -646,15 +634,6 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Tumble.over("2.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, my_sum(c) as b") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over(row_interval(2)).on(t.protime).alias("w")) \
             .group_by(t.a, col("w")) \
             .select(t.a, call("my_sum", t.c).alias("b")) \
@@ -705,17 +684,6 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, my_sum(c) as c") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over(lit(1).hours)
                  .every(lit(30).minutes)
                  .on(t.rowtime)
@@ -778,15 +746,6 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         CREATE TABLE Results(a TINYINT, d BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, my_sum(c) as b") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over(row_interval(2)).every(row_interval(1)).on(t.protime).alias("w")) \
             .group_by(t.a, col("w")) \
             .select(t.a, call("my_sum", t.c).alias("b")) \
@@ -837,17 +796,6 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Session.with_gap("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, w.start, w.end, my_count(c) as c") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.BIGINT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Session.with_gap(lit(30).minutes).on(t.rowtime).alias("w")) \
             .group_by(t.a, t.b, col("w")) \
             .select(t.a, col("w").start, col("w").end, call("my_count", t.c).alias("c")) \

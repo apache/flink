@@ -16,35 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.utils.python;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.configuration.ConfigOptions;
 
-import java.util.HashSet;
-import java.util.Set;
+/** Options for PythonInputFormatTableSource. */
+public class PythonInputFormatTableOptions {
 
-/** TableFactory for TestingSinks. */
-public class TestingSinkTableFactory implements DynamicTableSinkFactory {
+    public static final ConfigOption<String> INPUT_FILE_PATH =
+            ConfigOptions.key("file-path")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The path of the input file.");
 
-    @Override
-    public DynamicTableSink createDynamicTableSink(Context context) {
-        return new TestingSinks.TestAppendingSink(context.getPhysicalRowDataType());
-    }
-
-    @Override
-    public String factoryIdentifier() {
-        return "test-sink";
-    }
-
-    @Override
-    public Set<ConfigOption<?>> requiredOptions() {
-        return new HashSet<>();
-    }
-
-    @Override
-    public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>();
-    }
+    public static final ConfigOption<Boolean> BATCH_MODE =
+            ConfigOptions.key("batched")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Whether the values are serialized in batch.");
 }

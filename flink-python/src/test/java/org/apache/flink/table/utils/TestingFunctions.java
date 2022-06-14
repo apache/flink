@@ -31,7 +31,7 @@ import org.junit.Assert;
 import java.util.Arrays;
 import java.util.Iterator;
 
-/** Testing utils adopted from legacy planner until the Python code is updated. */
+/** Testing Function for python udf tests. */
 public class TestingFunctions {
 
     /** RichFunc0 for testing. */

@@ -56,7 +56,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Testing utils adopted from legacy planner until the Python code is updated. */
+/**
+ * Testing CollectionTableFactory that creates collection DynamicTableSource and DynamicTableSink.
+ */
 public class TestCollectionTableFactory
         implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 

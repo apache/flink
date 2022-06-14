@@ -1687,11 +1687,9 @@ def _from_java_data_type(j_data_type):
     """
     gateway = get_gateway()
 
-    java_data_type = j_data_type
-
     # Atomic Type with parameters.
-    if is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
-        logical_type = java_data_type.getLogicalType()
+    if is_instance_of(j_data_type, gateway.jvm.AtomicDataType):
+        logical_type = j_data_type.getLogicalType()
         if is_instance_of(logical_type, gateway.jvm.CharType):
             data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
         elif is_instance_of(logical_type, gateway.jvm.VarCharType):
@@ -1766,9 +1764,9 @@ def _from_java_data_type(j_data_type):
         return data_type
 
     # Array Type, MultiSet Type.
-    elif is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
-        logical_type = java_data_type.getLogicalType()
-        element_type = java_data_type.getElementDataType()
+    elif is_instance_of(j_data_type, gateway.jvm.CollectionDataType):
+        logical_type = j_data_type.getLogicalType()
+        element_type = j_data_type.getElementDataType()
         if is_instance_of(logical_type, gateway.jvm.ArrayType):
             data_type = DataTypes.ARRAY(_from_java_data_type(element_type),
                                         logical_type.isNullable())
@@ -1781,10 +1779,10 @@ def _from_java_data_type(j_data_type):
         return data_type
 
     # Map Type.
-    elif is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
-        logical_type = java_data_type.getLogicalType()
-        key_type = java_data_type.getKeyDataType()
-        value_type = java_data_type.getValueDataType()
+    elif is_instance_of(j_data_type, gateway.jvm.KeyValueDataType):
+        logical_type = j_data_type.getLogicalType()
+        key_type = j_data_type.getKeyDataType()
+        value_type = j_data_type.getValueDataType()
         if is_instance_of(logical_type, gateway.jvm.MapType):
             data_type = DataTypes.MAP(
                 _from_java_data_type(key_type),
@@ -1796,18 +1794,18 @@ def _from_java_data_type(j_data_type):
         return data_type
 
     # Row Type.
-    elif is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
-        logical_type = java_data_type.getLogicalType()
-        field_data_types = java_data_type.getChildren()
+    elif is_instance_of(j_data_type, gateway.jvm.FieldsDataType):
+        logical_type = j_data_type.getLogicalType()
+        field_data_types = j_data_type.getChildren()
         if is_instance_of(logical_type, gateway.jvm.RowType):
             fields = [DataTypes.FIELD(name, _from_java_data_type(field_data_types[idx]))
                       for idx, name in enumerate(logical_type.getFieldNames())]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
-        elif java_data_type.getConversionClass().isAssignableFrom(
+        elif j_data_type.getConversionClass().isAssignableFrom(
                 gateway.jvm.org.apache.flink.table.api.dataview.ListView._java_lang_class):
             array_type = _from_java_data_type(field_data_types[0])
             data_type = DataTypes.LIST_VIEW(array_type.element_type)
-        elif java_data_type.getConversionClass().isAssignableFrom(
+        elif j_data_type.getConversionClass().isAssignableFrom(
                 gateway.jvm.org.apache.flink.table.api.dataview.MapView._java_lang_class):
             map_type = _from_java_data_type(field_data_types[0])
             data_type = DataTypes.MAP_VIEW(map_type.key_type, map_type.value_type)
@@ -1821,7 +1819,7 @@ def _from_java_data_type(j_data_type):
         TypeError("Unsupported data type: %s" % j_data_type)
 
 
-def _to_java_data_type(data_type: Union[DataType, List[str]]):
+def _to_java_data_type(data_type: DataType):
     """
     Converts the specified Python DataType to Java DataType.
     """

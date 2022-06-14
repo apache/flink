@@ -933,12 +933,11 @@ class StreamExecutionEnvironment(object):
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
-            # Since flink python module depends on table module, we can make use of utils of it when
-            # implementing python DataStream API.
-            PythonTableUtils = gateway.jvm\
-                .org.apache.flink.table.utils.python.PythonTableUtils
+
+            PythonTypeUtils = gateway.jvm\
+                .org.apache.flink.streaming.api.utils.PythonTypeUtils
             execution_config = self._j_stream_execution_environment.getConfig()
-            j_input_format = PythonTableUtils.getCollectionInputFormat(
+            j_input_format = PythonTypeUtils.getCollectionInputFormat(
                 j_objs,
                 out_put_type_info.get_java_type_info(),
                 execution_config

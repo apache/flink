@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import atexit
 import os
 import sys
 import tempfile
@@ -1426,7 +1427,7 @@ class TableEnvironment(object):
         elements = [schema.to_sql_type(element) for element in elements]
         return self._from_elements(elements, schema)
 
-    def _from_elements(self, elements: List, schema: Union[DataType, List[str]]) -> Table:
+    def _from_elements(self, elements: List, schema: DataType) -> Table:
         """
         Creates a table from a collection of elements.
 
@@ -1439,22 +1440,15 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            row_type_info = _to_java_data_type(schema)
-            execution_config = self._get_j_env().getConfig()
+            j_schema = _to_java_data_type(schema)
             gateway = get_gateway()
-            j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonTableUtils
-            PythonInputFormatTableSource = gateway.jvm \
-                .org.apache.flink.table.utils.python.PythonInputFormatTableSource
-            j_input_format = PythonTableUtils.getInputFormat(
-                j_objs, row_type_info, execution_config)
-            j_table_source = PythonInputFormatTableSource(
-                j_input_format, row_type_info)
-
-            return Table(self._j_tenv.fromTableSource(j_table_source), self)
+            j_table = PythonTableUtils.createTableFromElement(
+                self._j_tenv, temp_file.name, j_schema, True)
+            return Table(j_table, self)
         finally:
-            os.unlink(temp_file.name)
+            atexit.register(lambda: os.unlink(temp_file.name))
 
     def from_pandas(self, pdf,
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],

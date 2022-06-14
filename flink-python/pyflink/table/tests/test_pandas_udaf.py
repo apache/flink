@@ -100,10 +100,6 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         """
         self.t_env.execute_sql(sink_table_ddl)
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
-            [DataTypes.TINYINT(), DataTypes.INT(), DataTypes.FLOAT(), DataTypes.INT()])
-        self.t_env.register_table_sink("Results", table_sink)
         self.t_env.get_config().set('python.metric.enabled', 'true')
         self.t_env.register_function("max_add", udaf(MaxAdd(),
                                                      result_type=DataTypes.INT(),
@@ -320,18 +316,6 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
             WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, w.start, w.end, mean_udaf(c) as b") \
-
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.FLOAT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over(lit(1).hours)
                  .every(lit(30).minutes)
                  .on(col("rowtime"))
@@ -431,16 +415,6 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         CREATE TABLE Results(a TINYINT, d FLOAT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, mean_udaf(c) as b") \
-
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.FLOAT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over(row_interval(2))
                  .every(row_interval(1))
                  .on(t.protime)
@@ -500,18 +474,6 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, w.start, w.end, w.rowtime, mean_udaf(c) as b") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.TIMESTAMP(3),
-                DataTypes.FLOAT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over(lit(1).hours).on(t.rowtime).alias("w")) \
             .group_by(t.a, t.b, col("w")) \
             .select(t.a,
@@ -577,15 +539,6 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
         CREATE TABLE Results(a TINYINT, d FLOAT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
-        t.window(Tumble.over("2.rows").on("protime").alias("w")) \
-            .group_by("a, b, w") \
-            .select("a, mean_udaf(c) as b") \
-        table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'd'],
-            [
-                DataTypes.TINYINT(),
-                DataTypes.FLOAT()])
-        self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over(row_interval(2)).on(t.protime).alias("w")) \
             .group_by(t.a, t.b, col("w")) \
             .select(t.a, mean_udaf(t.c).alias("b")) \

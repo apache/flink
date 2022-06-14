@@ -37,7 +37,7 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Testing utils adopted from legacy planner until the Python code is updated. */
+/** Testing Descriptors for python tests. */
 public class TestingDescriptors {
 
     /** CustomAssigner for testing. */
