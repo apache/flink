@@ -27,10 +27,9 @@ import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import javax.annotation.Nullable;
-
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 
 /**
  * A {@link MessageHeaders} for testing purpose. Its request body, response body and message
@@ -44,21 +43,21 @@ public class TestEmptyMessageHeaders
 
     private final String url;
     private final String description;
-    @Nullable private final String operationId;
+    private final String operationId;
 
     public TestEmptyMessageHeaders() {
-        this(URL, DESCRIPTION, null);
+        this(URL, DESCRIPTION, UUID.randomUUID().toString());
     }
 
     public TestEmptyMessageHeaders(String url, String description) {
-        this(url, description, null);
+        this(url, description, UUID.randomUUID().toString());
     }
 
     public TestEmptyMessageHeaders(String operationId) {
         this(URL, DESCRIPTION, operationId);
     }
 
-    private TestEmptyMessageHeaders(String url, String description, @Nullable String operationId) {
+    private TestEmptyMessageHeaders(String url, String description, String operationId) {
         this.url = url;
         this.description = description;
         this.operationId = operationId;
@@ -86,7 +85,7 @@ public class TestEmptyMessageHeaders
 
     @Override
     public String operationId() {
-        return operationId != null ? operationId : MessageHeaders.super.operationId();
+        return operationId;
     }
 
     @Override
