@@ -1040,7 +1040,6 @@ public class AdaptiveSchedulerTest extends TestLogger {
             Consumer<AdaptiveSchedulerBuilder> setupScheduler,
             Consumer<JobGraph> setupJobGraph)
             throws Exception {
-        final int numAvailableSlots = 4;
         final JobGraph jobGraph = createJobGraph();
         setupJobGraph.accept(jobGraph);
         RunFailedJobListener listener = new RunFailedJobListener();
@@ -1070,7 +1069,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final AdaptiveScheduler scheduler = builder.build(EXECUTOR_RESOURCE.getExecutor());
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
-                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
         taskManagerGateway.setCancelConsumer(cancelledTasks::add);
 
         singleThreadMainThreadExecutor.execute(
@@ -1080,7 +1079,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             declarativeSlotPool,
                             createSlotOffersForResourceRequirements(
                                     ResourceCounter.withResource(
-                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
                             taskManagerGateway);
                 });
         listener.waitForRunning();
