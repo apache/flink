@@ -115,6 +115,34 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
+  def testFirstLastValue(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, String)]
+    data.+=((1, 1, "A"))
+    data.+=((2, 2, "B"))
+    data.+=((2, 2, "B"))
+    data.+=((4, 3, "C"))
+    data.+=((5, 3, "C"))
+    data.+=((4, 3, "C"))
+    data.+=((7, 3, "B"))
+    data.+=((1, 4, "A"))
+    data.+=((9, 4, "D"))
+    data.+=((4, 1, "A"))
+    data.+=((3, 2, "B"))
+
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select('c, call("FIRST_VALUE", 'a), call("last_value", col("a")))
+
+    val sink = new TestingRetractSink()
+    t.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList("A,1,4", "B,2,3", "C,4,4", "D,9,9")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testDistinctAggregateMixedWithNonDistinct(): Unit = {
     val t = failingDataSource(tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)

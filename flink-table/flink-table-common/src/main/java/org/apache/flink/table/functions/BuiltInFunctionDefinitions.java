@@ -410,6 +410,20 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
+    public static final BuiltInFunctionDefinition FIRST_VALUE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("first_value")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
+                    .build();
+
+    public static final BuiltInFunctionDefinition LAST_VALUE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("last_value")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
+                    .build();
+
     public static final BuiltInFunctionDefinition SUM =
             BuiltInFunctionDefinition.newBuilder()
                     .name("sum")
