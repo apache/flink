@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.utils;
 
 import org.apache.flink.annotation.Internal;
-    import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -1076,7 +1076,9 @@ public class PythonTypeUtils {
         }
 
         return c -> {
-            if (c.getClass() != byte[].class || dataType instanceof PickledByteArrayTypeInfo) {
+            if (c == null
+                    || c.getClass() != byte[].class
+                    || dataType instanceof PickledByteArrayTypeInfo) {
                 return c;
             }
 

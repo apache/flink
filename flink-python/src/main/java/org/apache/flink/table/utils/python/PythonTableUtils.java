@@ -484,13 +484,6 @@ public final class PythonTableUtils {
                             + implClass.orElse(null));
         }
 
-        return c -> {
-            if (c == null
-                    || c.getClass() != byte[].class
-                    || dataType instanceof PickledByteArrayTypeInfo) {
-                return c;
-            }
-
         throw new IllegalStateException("Failed to get converter for LogicalType: " + logicalType);
     }
 

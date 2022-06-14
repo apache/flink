@@ -34,6 +34,7 @@ public class PythonInputFormatTableSource implements ScanTableSource {
     private final String filePath;
     private final boolean batched;
     private final DataType producedDataType;
+
     public PythonInputFormatTableSource(
             String filePath, boolean batched, DataType producedDataType) {
         this.filePath = filePath;
@@ -43,11 +44,7 @@ public class PythonInputFormatTableSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new PythonInputFormatTableSource(
-              filePath,
-              batched,
-              producedDataType
-        );
+        return new PythonInputFormatTableSource(filePath, batched, producedDataType);
     }
 
     @Override
