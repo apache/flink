@@ -1043,7 +1043,6 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final JobGraph jobGraph = createJobGraph();
         setupJobGraph.accept(jobGraph);
         RunFailedJobListener listener = new RunFailedJobListener();
-        List<ExecutionAttemptID> cancelledTasks = new ArrayList<>();
 
         final CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -1070,7 +1069,16 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new SubmissionBufferingTaskManagerGateway(PARALLELISM);
-        taskManagerGateway.setCancelConsumer(cancelledTasks::add);
+        taskManagerGateway.setCancelConsumer(
+                attemptId ->
+                        singleThreadMainThreadExecutor.execute(
+                                () ->
+                                        scheduler.updateTaskExecutionState(
+                                                new TaskExecutionStateTransition(
+                                                        new TaskExecutionState(
+                                                                attemptId,
+                                                                ExecutionState.CANCELED,
+                                                                null)))));
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -1105,16 +1113,6 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         singleThreadMainThreadExecutor);
         runTestLogicFuture.get();
 
-        Consumer<ExecutionAttemptID> canceller =
-                attemptId ->
-                        scheduler.updateTaskExecutionState(
-                                new TaskExecutionStateTransition(
-                                        new TaskExecutionState(
-                                                attemptId, ExecutionState.CANCELED, null)));
-        CompletableFuture<Void> cancelFuture =
-                CompletableFuture.runAsync(
-                        () -> cancelledTasks.forEach(canceller), singleThreadMainThreadExecutor);
-        cancelFuture.get();
         listener.waitForTerminal();
 
         return scheduler.requestJob().getExceptionHistory();
