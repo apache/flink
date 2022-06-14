@@ -1559,7 +1559,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         public SubmissionBufferingTaskManagerGateway(int capacity) {
             submittedTasks = new ArrayBlockingQueue<>(capacity);
-            super.setSubmitConsumer(submittedTasks::offer);
+            setSubmitConsumer(ignored -> {});
         }
 
         @Override
