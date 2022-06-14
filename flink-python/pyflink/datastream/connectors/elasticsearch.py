@@ -21,7 +21,7 @@ from typing import List, Union
 
 from pyflink.datastream.connectors import Sink, DeliveryGuarantee
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import to_jarray, load_java_class
+from pyflink.util.java_utils import to_jarray
 
 
 class FlushBackoffType(Enum):
@@ -62,14 +62,27 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
     def __init__(self):
         self._j_elasticsearch_sink_builder = None
 
-    def set_emitter(self, index: str, key: str, doc_type: str = None) \
+    def set_static_index(self, index: str, key_field: str = None, doc_type: str = None) \
             -> 'ElasticsearchSinkBuilderBase':
         """
-        Sets the emitter which is invoked on every record to convert it to Elasticsearch actions.
+        Sets the emitter with static index which is invoked on every record to convert it to
+        Elasticsearch actions.
         """
-        JPythonSimpleElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter
-        j_emitter = JPythonSimpleElasticsearchEmitter(index, doc_type, key)
+        JSimpleElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
+        j_emitter = JSimpleElasticsearchEmitter(index, doc_type, key_field, False)
+        self._j_elasticsearch_sink_builder.setEmitter(j_emitter)
+        return self
+
+    def set_dynamic_index(self, index_field: str, key_field: str = None, doc_type: str = None) \
+            -> 'ElasticsearchSinkBuilderBase':
+        """
+        Sets the emitter with dynamic index which is invoked on every record to convert it to
+        Elasticsearch actions.
+        """
+        JSimpleElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
+        j_emitter = JSimpleElasticsearchEmitter(index_field, doc_type, key_field, True)
         self._j_elasticsearch_sink_builder.setEmitter(j_emitter)
         return self
 

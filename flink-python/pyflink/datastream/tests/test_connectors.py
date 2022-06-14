@@ -17,8 +17,7 @@
 ################################################################################
 from abc import ABC, abstractmethod
 
-from pyflink.datastream.connectors.elasticsearch import Elasticsearch6SinkBuilder, \
-    Elasticsearch7SinkBuilder, FlushBackoffType
+from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, FlushBackoffType
 
 from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
@@ -65,34 +64,6 @@ class ConnectorTestBase(PyFlinkTestCase, ABC):
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
 
 
-class FlinkElasticsearch6Test(ConnectorTestBase):
-
-    @classmethod
-    def _get_jars_relative_path(cls):
-        return '/flink-connectors/flink-sql-connector-elasticsearch6'
-
-    def test_es_sink(self):
-        ds = self.env.from_collection(
-            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
-            type_info=Types.MAP(Types.STRING(), Types.STRING()))
-
-        es_sink = Elasticsearch6SinkBuilder() \
-            .set_emitter('foo', 'id', 'bar') \
-            .set_hosts('localhost:9200') \
-            .build()
-
-        j_emitter = get_field_value(es_sink.get_java_function(), 'emitter')
-        self.assertTrue(
-            is_instance_of(
-                j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter'))
-        self.assertEqual(
-            get_field_value(
-                es_sink.get_java_function(), 'hosts')[0].toString(), 'http://localhost:9200')
-
-        ds.sink_to(es_sink).name('es sink')
-
-
 class FlinkElasticsearch7Test(ConnectorTestBase):
 
     @classmethod
@@ -105,7 +76,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
             type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
         es_sink = Elasticsearch7SinkBuilder() \
-            .set_emitter('foo', 'id') \
+            .set_static_index('foo', 'id') \
             .set_hosts(['localhost:9200']) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_bulk_flush_max_actions(1) \
@@ -124,7 +95,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertTrue(
             is_instance_of(
                 j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.PythonSimpleElasticsearchEmitter'))
+                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
         self.assertEqual(
             get_field_value(
                 es_sink.get_java_function(), 'hosts')[0].toString(), 'http://localhost:9200')
@@ -151,6 +122,24 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertEqual(j_network_client_config.getConnectionPathPrefix(), 'foo-bar')
 
         ds.sink_to(es_sink).name('es sink')
+
+    def test_es_sink_dynamic(self):
+        ds = self.env.from_collection(
+            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+            type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+        es_dynamic_index_sink = Elasticsearch7SinkBuilder() \
+            .set_dynamic_index('name', 'id') \
+            .set_hosts(['localhost:9200']) \
+            .build()
+
+        j_emitter = get_field_value(es_dynamic_index_sink.get_java_function(), 'emitter')
+        self.assertTrue(
+            is_instance_of(
+                j_emitter,
+                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+
+        ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
 
 
 class FlinkKafkaTest(ConnectorTestBase):

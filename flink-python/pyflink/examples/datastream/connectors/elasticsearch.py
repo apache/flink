@@ -37,7 +37,7 @@ def write_to_es6(env):
         type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
     es_sink = Elasticsearch6SinkBuilder() \
-        .set_emitter('foo', 'id', 'bar') \
+        .set_static_index('foo', 'id', 'bar') \
         .set_hosts(['localhost:9200']) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_bulk_flush_max_actions(1) \
@@ -57,6 +57,25 @@ def write_to_es6(env):
     env.execute()
 
 
+def write_to_es6_dynamic_index(env):
+    ELASTICSEARCH_SQL_CONNECTOR_PATH = \
+        'file:///path/to/flink-sql-connector-elasticsearch6-1.16.0.jar'
+    env.add_jars(ELASTICSEARCH_SQL_CONNECTOR_PATH)
+
+    ds = env.from_collection(
+        [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+        type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+    es_sink = Elasticsearch6SinkBuilder() \
+        .set_dynamic_index('name', 'id', 'bar') \
+        .set_hosts(['localhost:9200']) \
+        .build()
+
+    ds.sink_to(es_sink).name('es6 dynamic index sink')
+
+    env.execute()
+
+
 def write_to_es7(env):
     ELASTICSEARCH_SQL_CONNECTOR_PATH = \
         'file:///path/to/flink-sql-connector-elasticsearch7-1.16.0.jar'
@@ -67,7 +86,7 @@ def write_to_es7(env):
         type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
     es7_sink = Elasticsearch7SinkBuilder() \
-        .set_emitter('foo', 'id') \
+        .set_static_index('foo', 'id') \
         .set_hosts(['localhost:9200']) \
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .set_bulk_flush_max_actions(1) \
@@ -87,6 +106,25 @@ def write_to_es7(env):
     env.execute()
 
 
+def write_to_es7_dynamic_index(env):
+    ELASTICSEARCH_SQL_CONNECTOR_PATH = \
+        'file:///path/to/flink-sql-connector-elasticsearch7-1.16.0.jar'
+    env.add_jars(ELASTICSEARCH_SQL_CONNECTOR_PATH)
+
+    ds = env.from_collection(
+        [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+        type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+    es7_sink = Elasticsearch7SinkBuilder() \
+        .set_dynamic_index('name', 'id') \
+        .set_hosts(['localhost:9200']) \
+        .build()
+
+    ds.sink_to(es7_sink).name('es7 dynamic index sink')
+
+    env.execute()
+
+
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
@@ -95,6 +133,8 @@ if __name__ == '__main__':
 
     print("start writing data to elasticsearch6")
     write_to_es6(env)
+    write_to_es6_dynamic_index(env)
 
     print("start writing data to elasticsearch7")
     write_to_es7(env)
+    write_to_es7_dynamic_index(env)
