@@ -37,9 +37,11 @@ import org.apache.flink.types.Row;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
+import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.io.HiveCharWritable;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
+import org.apache.hadoop.hive.serde2.io.ShortWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -89,11 +91,9 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.ByteWritable;
-import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.ShortWritable;
 import org.apache.hadoop.io.Text;
 
 import javax.annotation.Nullable;
@@ -442,7 +442,7 @@ public class HiveInspectors {
             case BYTE:
                 className = WritableConstantByteObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
-                        className, ByteWritable.class, value);
+                        className, org.apache.hadoop.hive.serde2.io.ByteWritable.class, value);
             case SHORT:
                 className = WritableConstantShortObjectInspector.class.getName();
                 return HiveReflectionUtils.createConstantObjectInspector(
