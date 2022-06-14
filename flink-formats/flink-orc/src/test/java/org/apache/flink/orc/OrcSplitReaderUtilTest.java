@@ -21,16 +21,16 @@ package org.apache.flink.orc;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.orc.OrcSplitReaderUtil.logicalTypeToOrcType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcSplitReaderUtil}. */
-public class OrcSplitReaderUtilTest {
+class OrcSplitReaderUtilTest {
 
     @Test
-    public void testLogicalTypeToOrcType() {
+    void testLogicalTypeToOrcType() {
         test("boolean", DataTypes.BOOLEAN());
         test("char(123)", DataTypes.CHAR(123));
         test("varchar(123)", DataTypes.VARCHAR(123));
@@ -61,6 +61,6 @@ public class OrcSplitReaderUtilTest {
     }
 
     private void test(String expected, DataType type) {
-        assertThat(logicalTypeToOrcType(type.getLogicalType()).toString()).isEqualTo(expected);
+        assertThat(logicalTypeToOrcType(type.getLogicalType())).hasToString(expected);
     }
 }
