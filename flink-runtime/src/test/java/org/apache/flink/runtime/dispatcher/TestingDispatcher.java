@@ -44,6 +44,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
@@ -52,6 +53,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -138,6 +140,10 @@ class TestingDispatcher extends Dispatcher {
                         throw new CompletionException(e);
                     }
                 });
+    }
+
+    <T> CompletableFuture<T> callAsyncInMainThread(Callable<CompletableFuture<T>> callable) {
+        return callAsync(callable, TestingUtils.TESTING_DURATION).thenCompose(Function.identity());
     }
 
     CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {

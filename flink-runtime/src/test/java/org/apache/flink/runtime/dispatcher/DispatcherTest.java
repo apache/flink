@@ -557,7 +557,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .deserializeError(ClassLoader.getSystemClassLoader());
 
         // ensure correct exception type
-        assertThat(throwable, is(testFailure));
+        assertThat(throwable.getMessage(), equalTo(testFailure.getMessage()));
     }
 
     /** Test that {@link JobResult} is cached when the job finishes. */
@@ -590,9 +590,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(
                 dispatcherGateway.requestJobStatus(failedJobId, TIMEOUT).get(),
                 equalTo(expectedState));
-        assertThat(
-                dispatcherGateway.requestExecutionGraphInfo(failedJobId, TIMEOUT).get(),
-                equalTo(failedExecutionGraphInfo));
+        final CompletableFuture<ExecutionGraphInfo> completableFutureCompletableFuture =
+                dispatcher.callAsyncInMainThread(
+                        () -> dispatcher.requestExecutionGraphInfo(failedJobId, TIMEOUT));
+        assertThat(completableFutureCompletableFuture.get(), is(failedExecutionGraphInfo));
     }
 
     @Test
