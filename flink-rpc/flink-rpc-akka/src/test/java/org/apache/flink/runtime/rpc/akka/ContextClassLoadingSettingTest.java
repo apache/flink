@@ -19,6 +19,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -439,6 +440,7 @@ class ContextClassLoadingSettingTest {
         }
 
         @Override
+        @Local
         public CompletableFuture<ClassLoader> getContextClassLoader() {
             return CompletableFuture.completedFuture(
                     Thread.currentThread().getContextClassLoader());
