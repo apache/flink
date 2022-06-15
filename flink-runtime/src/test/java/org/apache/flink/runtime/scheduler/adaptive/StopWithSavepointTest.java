@@ -545,6 +545,9 @@ class StopWithSavepointTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 List<ExceptionHistoryEntry> failureCollection) {
+            if (hadStateTransition) {
+                throw new IllegalStateException("Only one state transition is allowed.");
+            }
             simulateTransitionToState(Canceling.class);
 
             cancellingStateValidator.validateInput(
@@ -560,6 +563,9 @@ class StopWithSavepointTest {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
                 List<ExceptionHistoryEntry> failureCollection) {
+            if (hadStateTransition) {
+                throw new IllegalStateException("Only one state transition is allowed.");
+            }
             simulateTransitionToState(Restarting.class);
             restartingStateValidator.validateInput(
                     new ExecutingTest.RestartingArguments(
@@ -577,6 +583,9 @@ class StopWithSavepointTest {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Throwable failureCause,
                 List<ExceptionHistoryEntry> failureCollection) {
+            if (hadStateTransition) {
+                throw new IllegalStateException("Only one state transition is allowed.");
+            }
             simulateTransitionToState(Failing.class);
             failingStateValidator.validateInput(
                     new ExecutingTest.FailingArguments(
@@ -593,6 +602,9 @@ class StopWithSavepointTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 List<ExceptionHistoryEntry> failureCollection) {
+            if (hadStateTransition) {
+                throw new IllegalStateException("Only one state transition is allowed.");
+            }
             simulateTransitionToState(Executing.class);
             executingStateTransition.validateInput(
                     new ExecutingTest.CancellingArguments(
