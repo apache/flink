@@ -341,18 +341,19 @@ public abstract class AbstractKeyedStateBackend<K>
         checkNotNull(namespace, "Namespace");
 
         if (lastName != null && lastName.equals(stateDescriptor.getName())) {
-        	if (namespace != VoidNamespace.INSTANCE || lastState.getNamespaceSerializer() == VoidNamespaceSerializer.INSTANCE) {
-        		lastState.setCurrentNamespace(namespace);
-        	}
+            if (namespace != VoidNamespace.INSTANCE || lastState.getNamespaceSerializer() == VoidNamespaceSerializer.INSTANCE) {
+                lastState.setCurrentNamespace(namespace);
+            }
             return (S) lastState;
         }
 
         InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
         if (previous != null) {
             lastState = previous;
-        	if (namespace != VoidNamespace.INSTANCE || lastState.getNamespaceSerializer() == VoidNamespaceSerializer.INSTANCE) {
-        		lastState.setCurrentNamespace(namespace);
-        	}
+            if (namespace != VoidNamespace.INSTANCE
+                    || lastState.getNamespaceSerializer() == VoidNamespaceSerializer.INSTANCE) {
+                lastState.setCurrentNamespace(namespace);
+            }
             lastName = stateDescriptor.getName();
             return (S) previous;
         }
