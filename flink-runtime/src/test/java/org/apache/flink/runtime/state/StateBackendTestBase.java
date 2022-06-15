@@ -5188,7 +5188,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state2.update("b");
 
             // draw a snapshot
-            KeyedStateHandle snapshot=
+            KeyedStateHandle snapshot =
                     runSnapshot(
                             backend.snapshot(
                                     682375462378L,
