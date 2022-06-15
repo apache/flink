@@ -49,7 +49,7 @@ import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperCl
 @Internal
 public class UserResourceManager {
 
-    private final Logger LOG = LoggerFactory.getLogger(UserResourceManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(UserResourceManager.class);
 
     private final SafetyNetWrapperClassLoader userClassLoader;
     private final Map<ResourceUri, URL> resourceInfos;
