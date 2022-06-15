@@ -21,7 +21,7 @@ import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.graph.{Graph => JavaGraph}
 import org.apache.flink.graph.scala._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.reflect.Method
 
