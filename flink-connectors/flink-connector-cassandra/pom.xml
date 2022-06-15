@@ -60,7 +60,7 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes>
-									<include>com.datastax.cassandra:cassandra-driver-core</include>
+									<include>com.datastax.cassandra:cassandra-driver-core:shaded</include>
 									<include>com.datastax.cassandra:cassandra-driver-mapping</include>
 									<include>com.google.guava:guava</include>
 								</includes>
