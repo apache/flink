@@ -38,6 +38,7 @@ import { TaskBadgeComponent } from '@flink-runtime-web/share/customize/task-badg
 import { PipeModule } from '@flink-runtime-web/share/pipes/pipe.module';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -72,7 +73,8 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
     RouterModule,
     NzSkeletonModule,
     NzEmptyModule,
-    NzPopconfirmModule
+    NzPopconfirmModule,
+    NzDescriptionsModule
   ],
   declarations: [
     JobBadgeComponent,

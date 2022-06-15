@@ -18,13 +18,13 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Input, OnDestroy, OnInit } from '@angular/core';
 import { merge, Subject } from 'rxjs';
-import { distinctUntilKeyChanged, takeUntil, tap } from 'rxjs/operators';
+import { distinctUntilKeyChanged, mergeMap, take, takeUntil, tap } from 'rxjs/operators';
 
 import { RouterTab } from '@flink-runtime-web/core/module-config';
 import { JobDetailCorrect } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JOB_MODULE_CONFIG, JOB_MODULE_DEFAULT_CONFIG, JobModuleConfig } from '@flink-runtime-web/pages/job/job.config';
-import { JobService, StatusService } from '@flink-runtime-web/services';
+import { JobManagerService, JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-status',
@@ -33,20 +33,24 @@ import { JobService, StatusService } from '@flink-runtime-web/services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobStatusComponent implements OnInit, OnDestroy {
-  @Input() public isLoading = true;
-  public statusTips: string;
-  public jobDetail: JobDetailCorrect;
-  public readonly listOfNavigation: RouterTab[];
+  @Input() isLoading = true;
+  statusTips: string;
+  jobDetail: JobDetailCorrect;
+  jmLogUrl = '';
+  urlLoading = true;
+  readonly listOfNavigation: RouterTab[];
   private readonly checkpointIndexOfNavigation: number;
 
-  public webCancelEnabled = this.statusService.configuration.features['web-cancel'];
+  webCancelEnabled = this.statusService.configuration.features['web-cancel'];
+  isHistoryServer = this.statusService.configuration.features['web-history'];
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
     private readonly jobLocalService: JobLocalService,
-    public readonly statusService: StatusService,
+    private readonly jobManagerService: JobManagerService,
+    private readonly statusService: StatusService,
     private readonly cdr: ChangeDetectorRef,
     @Inject(JOB_MODULE_CONFIG) readonly moduleConfig: JobModuleConfig
   ) {
@@ -54,7 +58,22 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     this.checkpointIndexOfNavigation = this.checkpointIndexOfNav();
   }
 
-  public ngOnInit(): void {
+  ngOnInit(): void {
+    if (this.isHistoryServer) {
+      this.jobLocalService
+        .jobDetailChanges()
+        .pipe(
+          take(1),
+          mergeMap(job => this.jobManagerService.loadHistoryServerJobManagerLogUrl(job.jid)),
+          takeUntil(this.destroy$)
+        )
+        .subscribe(url => {
+          this.urlLoading = false;
+          this.jmLogUrl = url;
+          this.cdr.markForCheck();
+        });
+    }
+
     const updateList$ = this.jobLocalService.jobDetailChanges().pipe(tap(data => this.handleJobDetailChanged(data)));
     const updateTip$ = this.jobLocalService.jobDetailChanges().pipe(
       distinctUntilKeyChanged('state'),
@@ -67,19 +86,19 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     merge(updateList$, updateTip$).pipe(takeUntil(this.destroy$)).subscribe();
   }
 
-  public ngOnDestroy(): void {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  public cancelJob(): void {
+  cancelJob(): void {
     this.jobService.cancelJob(this.jobDetail.jid).subscribe(() => {
       this.statusTips = 'Cancelling...';
       this.cdr.markForCheck();
     });
   }
 
-  public checkpointIndexOfNav(): number {
+  checkpointIndexOfNav(): number {
     return this.listOfNavigation.findIndex(item => item.path === 'checkpoints');
   }
 

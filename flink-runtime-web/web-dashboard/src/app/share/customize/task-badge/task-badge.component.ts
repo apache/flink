@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
-import { TaskStatus } from '@flink-runtime-web/interfaces';
+import { JobStatusCounts, TaskStatus } from '@flink-runtime-web/interfaces';
 import { ConfigService } from '@flink-runtime-web/services';
 
 @Component({
@@ -28,7 +28,7 @@ import { ConfigService } from '@flink-runtime-web/services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskBadgeComponent {
-  @Input() tasks: TaskStatus;
+  @Input() tasks: TaskStatus | JobStatusCounts;
   statusList = Object.keys(this.configService.COLOR_MAP);
 
   constructor(private readonly configService: ConfigService) {}
