@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -70,6 +71,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     protected final PulsarAdmin pulsarAdmin;
     protected final SourceConfiguration sourceConfiguration;
     protected final PulsarDeserializationSchema<OUT> deserializationSchema;
+    @Nullable protected final CryptoKeyReader cryptoKeyReader;
     protected final AtomicBoolean wakeup;
 
     protected Consumer<byte[]> pulsarConsumer;
@@ -79,11 +81,13 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
             PulsarClient pulsarClient,
             PulsarAdmin pulsarAdmin,
             SourceConfiguration sourceConfiguration,
-            PulsarDeserializationSchema<OUT> deserializationSchema) {
+            PulsarDeserializationSchema<OUT> deserializationSchema,
+            @Nullable CryptoKeyReader cryptoKeyReader) {
         this.pulsarClient = pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.sourceConfiguration = sourceConfiguration;
         this.deserializationSchema = deserializationSchema;
+        this.cryptoKeyReader = cryptoKeyReader;
         this.wakeup = new AtomicBoolean(false);
     }
 
@@ -216,6 +220,11 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                 createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
 
         consumerBuilder.topic(partition.getFullTopicName());
+
+        // Add CryptoKeyReader if it exists for supporting end-to-end encryption.
+        if (cryptoKeyReader != null) {
+            consumerBuilder.cryptoKeyReader(cryptoKeyReader);
+        }
 
         // Add KeySharedPolicy for Key_Shared subscription.
         if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {

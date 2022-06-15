@@ -36,11 +36,14 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGene
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.UniformRangeGenerator;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -125,6 +128,7 @@ public final class PulsarSourceBuilder<OUT> {
     private StopCursor stopCursor;
     private Boundedness boundedness;
     private PulsarDeserializationSchema<OUT> deserializationSchema;
+    @Nullable private CryptoKeyReader cryptoKeyReader;
 
     // private builder constructor.
     PulsarSourceBuilder() {
@@ -370,6 +374,18 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
+     * Sets a {@link CryptoKeyReader}. Configure the key reader to be used to decrypt the message
+     * payloads.
+     *
+     * @param cryptoKeyReader CryptoKeyReader object
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<OUT> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        this.cryptoKeyReader = checkNotNull(cryptoKeyReader);
+        return this;
+    }
+
+    /**
      * Set an arbitrary property for the PulsarSource and Pulsar Consumer. The valid keys can be
      * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
@@ -496,7 +512,8 @@ public final class PulsarSourceBuilder<OUT> {
                 startCursor,
                 stopCursor,
                 boundedness,
-                deserializationSchema);
+                deserializationSchema,
+                cryptoKeyReader);
     }
 
     // ------------- private helpers  --------------

@@ -32,17 +32,23 @@ import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrap
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
 
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_ENCRYPTION_KEYS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_NAME;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_SEND_TIMEOUT_MS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
@@ -103,6 +109,8 @@ public class PulsarSinkBuilder<IN> {
     private TopicRoutingMode topicRoutingMode;
     private TopicRouter<IN> topicRouter;
     private MessageDelayer<IN> messageDelayer;
+    @Nullable private CryptoKeyReader cryptoKeyReader;
+    private List<String> encryptionKeys = new ArrayList<>();
 
     // private builder constructor.
     PulsarSinkBuilder() {
@@ -244,6 +252,36 @@ public class PulsarSinkBuilder<IN> {
     }
 
     /**
+     * Sets a {@link CryptoKeyReader}. Configure the key reader to be used to encrypt the message
+     * payloads.
+     *
+     * @param cryptoKeyReader CryptoKeyReader object.
+     * @return this PulsarSinkBuilder.
+     */
+    public PulsarSinkBuilder<IN> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        this.cryptoKeyReader = checkNotNull(cryptoKeyReader);
+        return this;
+    }
+
+    /**
+     * Add public encryption key, used by producer to encrypt the data key.
+     *
+     * <p>At the time of producer creation, Pulsar client checks if there are keys added to
+     * encryptionKeys. If keys are found, a callback {@link CryptoKeyReader#getPrivateKey(String,
+     * Map)} and {@link CryptoKeyReader#getPublicKey(String, Map)} is invoked against each key to
+     * load the values of the key. Application should implement this callback to return the key in
+     * pkcs8 format. If compression is enabled, message is encrypted after compression. If batch
+     * messaging is enabled, the batched message is encrypted.
+     *
+     * @param keys Encryption keys.
+     * @return this PulsarSinkBuilder.
+     */
+    public PulsarSinkBuilder<IN> setEncryptionKeys(String... keys) {
+        this.encryptionKeys.addAll(Arrays.asList(keys));
+        return this;
+    }
+
+    /**
      * Set an arbitrary property for the PulsarSink and Pulsar Producer. The valid keys can be found
      * in {@link PulsarSinkOptions} and {@link PulsarOptions}.
      *
@@ -353,6 +391,13 @@ public class PulsarSinkBuilder<IN> {
             this.messageDelayer = MessageDelayer.never();
         }
 
+        // Add the encryption keys if user provides one.
+        if (cryptoKeyReader != null) {
+            checkArgument(
+                    !encryptionKeys.isEmpty(), "You should provide at least on encryption key.");
+            configBuilder.set(PULSAR_ENCRYPTION_KEYS, encryptionKeys);
+        }
+
         // This is an unmodifiable configuration for Pulsar.
         // We don't use Pulsar's built-in configure classes for compatible requirement.
         SinkConfiguration sinkConfiguration =
@@ -364,7 +409,8 @@ public class PulsarSinkBuilder<IN> {
                 metadataListener,
                 topicRoutingMode,
                 topicRouter,
-                messageDelayer);
+                messageDelayer,
+                cryptoKeyReader);
     }
 
     // ------------- private helpers  --------------

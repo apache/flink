@@ -78,7 +78,8 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
         MockInitContext initContext = new MockInitContext();
 
         PulsarWriter<String> writer =
-                new PulsarWriter<>(configuration, schema, listener, router, delayer, initContext);
+                new PulsarWriter<>(
+                        configuration, schema, listener, router, delayer, null, initContext);
 
         writer.flush(false);
         writer.prepareCommit();
