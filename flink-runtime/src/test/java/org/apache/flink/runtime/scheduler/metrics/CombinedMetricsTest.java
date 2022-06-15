@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.scheduler.metrics;
 
 import org.apache.flink.configuration.MetricOptions;
@@ -27,6 +28,11 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
+
+/**
+ * Tests combining DeploymentStateMetricsTest and
+ * InitializationStateTimeMetricsTest
+ */
 public class CombinedMetricsTest {
     private static final MetricOptions.JobStatusMetricsSettings settings =
             enable(

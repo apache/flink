@@ -47,7 +47,7 @@ public interface ExecutionGraphFactory {
      *     attempts of previous runs
      * @param vertexParallelismStore vertexMaxParallelismStore keeping information about the vertex
      *     max parallelism settings
-     * @param executionStateUpdateListener listener for state transitions of the individual
+     * @param executionStateUpdateListenerList listeners for state transitions of the individual
      *     executions
      * @param log log to use for logging
      * @return restored {@link ExecutionGraph}
