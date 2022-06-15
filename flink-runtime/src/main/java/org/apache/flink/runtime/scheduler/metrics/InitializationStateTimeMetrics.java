@@ -16,12 +16,6 @@
  */
 package org.apache.flink.runtime.scheduler.metrics;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Predicate;
-
-import org.apache.commons.lang3.tuple.Pair;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricGroup;
@@ -32,6 +26,11 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Metrics that capture how long a job took in initialization
@@ -92,7 +91,8 @@ public class InitializationStateTimeMetrics
 
     @Override
     public long getCurrentTime() {
-        return initializationStart == NOT_STARTED ? 0L
+        return initializationStart == NOT_STARTED
+                ? 0L
                 : Math.max(0, clock.absoluteTimeMillis() - initializationStart);
     }
 
@@ -144,8 +144,9 @@ public class InitializationStateTimeMetrics
         }
 
         if (initializationStart == NOT_STARTED) {
-            if (initializingDeployments > 0 && initializationStartPredicate.test(Pair.of(completedDeployments,
-                    pendingDeployments))) {
+            if (initializingDeployments > 0
+                    && initializationStartPredicate.test(
+                            Pair.of(completedDeployments, pendingDeployments))) {
                 markInitializationStart();
             }
         } else {
@@ -167,7 +168,10 @@ public class InitializationStateTimeMetrics
 
     @VisibleForTesting
     boolean hasCleanState() {
-        return expectedDeployments.isEmpty() && pendingDeployments == 0 && completedDeployments == 0
-                && initializingDeployments == 0 && initializationStart == NOT_STARTED;
+        return expectedDeployments.isEmpty()
+                && pendingDeployments == 0
+                && completedDeployments == 0
+                && initializingDeployments == 0
+                && initializationStart == NOT_STARTED;
     }
 }

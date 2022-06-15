@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import java.util.Arrays;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
@@ -54,6 +52,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.hamcrest.Matchers.notNullValue;

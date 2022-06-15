@@ -16,8 +16,6 @@
  */
 package org.apache.flink.runtime.scheduler.metrics;
 
-import java.time.Duration;
-
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -26,16 +24,18 @@ import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 public class InitializationStateTimeMetricsTest {
-    private static final MetricOptions.JobStatusMetricsSettings settings = enable(
-            MetricOptions.JobStatusMetrics.STATE,
-            MetricOptions.JobStatusMetrics.CURRENT_TIME,
-            MetricOptions.JobStatusMetrics.TOTAL_TIME);
+    private static final MetricOptions.JobStatusMetricsSettings settings =
+            enable(
+                    MetricOptions.JobStatusMetrics.STATE,
+                    MetricOptions.JobStatusMetrics.CURRENT_TIME,
+                    MetricOptions.JobStatusMetrics.TOTAL_TIME);
 
     @Test
     void testInitialValues() {

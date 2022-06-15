@@ -31,13 +31,13 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 class DeploymentStateTimeMetricsTest {
 
-    private static final MetricOptions.JobStatusMetricsSettings settings = enable(
-            MetricOptions.JobStatusMetrics.STATE,
-            MetricOptions.JobStatusMetrics.CURRENT_TIME,
-            MetricOptions.JobStatusMetrics.TOTAL_TIME);
+    private static final MetricOptions.JobStatusMetricsSettings settings =
+            enable(
+                    MetricOptions.JobStatusMetrics.STATE,
+                    MetricOptions.JobStatusMetrics.CURRENT_TIME,
+                    MetricOptions.JobStatusMetrics.TOTAL_TIME);
 
     @Test
     void testInitialValues() {

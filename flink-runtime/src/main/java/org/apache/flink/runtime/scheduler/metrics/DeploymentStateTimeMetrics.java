@@ -17,8 +17,6 @@
 
 package org.apache.flink.runtime.scheduler.metrics;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricGroup;
@@ -29,21 +27,22 @@ import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Predicate;
-
 
 /**
  * Metrics that capture how long a job was deploying tasks.
  *
  * <p>These metrics differentiate between batch & streaming use-cases:
  *
- * <p>Batch: Measures from the start of the first deployment until the first task has been
- * deployed. From that point the job is making progress.
+ * <p>Batch: Measures from the start of the first deployment until the first task has been deployed.
+ * From that point the job is making progress.
  *
- * <p>Streaming: Measures from the start of the first deployment until all tasks have been
- * deployed. From that point on checkpoints can be triggered, and thus progress be made.
+ * <p>Streaming: Measures from the start of the first deployment until all tasks have been deployed.
+ * From that point on checkpoints can be triggered, and thus progress be made.
  */
 public class DeploymentStateTimeMetrics
         implements ExecutionStateUpdateListener, StateTimeMetric, MetricsRegistrar {
@@ -84,8 +83,9 @@ public class DeploymentStateTimeMetrics
             // is either
             // initializing or running.
             // Deployment is completed iff any task is in either initializing or deploying state
-            deploymentStartPredicate = deploymentPair -> deploymentPair.getLeft() == 0
-                    && deploymentPair.getRight() == 0;
+            deploymentStartPredicate =
+                    deploymentPair ->
+                            deploymentPair.getLeft() == 0 && deploymentPair.getRight() == 0;
             deploymentEndPredicate =
                     deploymentPair -> deploymentPair.getLeft() > 0 || deploymentPair.getRight() > 0;
         } else {
@@ -94,14 +94,16 @@ public class DeploymentStateTimeMetrics
             // Deployment is completed if all tasks are either initializing or running
             deploymentStartPredicate = deploymentPair -> true;
             deploymentEndPredicate =
-                    deploymentPair -> (deploymentPair.getLeft() + deploymentPair.getRight())
-                            == expectedDeployments.size();
+                    deploymentPair ->
+                            (deploymentPair.getLeft() + deploymentPair.getRight())
+                                    == expectedDeployments.size();
         }
     }
 
     @Override
     public long getCurrentTime() {
-        return deploymentStart == NOT_STARTED ? 0L
+        return deploymentStart == NOT_STARTED
+                ? 0L
                 : Math.max(0, clock.absoluteTimeMillis() - deploymentStart);
     }
 
@@ -153,8 +155,9 @@ public class DeploymentStateTimeMetrics
         }
 
         if (deploymentStart == NOT_STARTED) {
-            if (pendingDeployments > 0 && deploymentStartPredicate.test(Pair.of(initializingDeployments,
-                    completedDeployments))) {
+            if (pendingDeployments > 0
+                    && deploymentStartPredicate.test(
+                            Pair.of(initializingDeployments, completedDeployments))) {
                 markDeploymentStart();
             }
         } else {
@@ -176,7 +179,10 @@ public class DeploymentStateTimeMetrics
 
     @VisibleForTesting
     boolean hasCleanState() {
-        return expectedDeployments.isEmpty() && pendingDeployments == 0 && completedDeployments == 0
-                && initializingDeployments == 0 && deploymentStart == NOT_STARTED;
+        return expectedDeployments.isEmpty()
+                && pendingDeployments == 0
+                && completedDeployments == 0
+                && initializingDeployments == 0
+                && deploymentStart == NOT_STARTED;
     }
 }

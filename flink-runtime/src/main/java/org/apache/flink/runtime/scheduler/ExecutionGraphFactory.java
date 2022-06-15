@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import java.util.List;
-
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -30,6 +28,8 @@ import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.slf4j.Logger;
+
+import java.util.List;
 
 /** Factory for creating an {@link ExecutionGraph}. */
 public interface ExecutionGraphFactory {

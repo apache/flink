@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import java.util.List;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
@@ -47,6 +45,7 @@ import org.apache.flink.util.function.CachingSupplier;
 import org.slf4j.Logger;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
@@ -141,10 +140,10 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                 new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
         ExecutionStateUpdateListener combinedExecutionStateUpdateListener =
                 (execution, previousState, newState) -> {
-                    for (ExecutionStateUpdateListener executionStateUpdateListener : executionStateUpdateListenerList) {
-                        executionStateUpdateListener.onStateUpdate(execution,
-                                previousState,
-                                newState);
+                    for (ExecutionStateUpdateListener executionStateUpdateListener :
+                            executionStateUpdateListenerList) {
+                        executionStateUpdateListener.onStateUpdate(
+                                execution, previousState, newState);
                     }
                     if (newState.isTerminal()) {
                         executionDeploymentTracker.stopTrackingDeploymentOf(execution);
