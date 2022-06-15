@@ -303,7 +303,9 @@ public class KafkaPartitionSplitReader
         Map<TopicPartition, Long> endOffset = consumer.endOffsets(partitionsStoppingAtLatest);
         stoppingOffsets.putAll(endOffset);
         if (!partitionsStoppingAtCommitted.isEmpty()) {
-            retryOnWakeup(() -> consumer.committed(partitionsStoppingAtCommitted))
+            retryOnWakeup(
+                            () -> consumer.committed(partitionsStoppingAtCommitted),
+                            "getting committed offset as stopping offsets")
                     .forEach(
                             (tp, offsetAndMetadata) -> {
                                 Preconditions.checkNotNull(
@@ -321,7 +323,10 @@ public class KafkaPartitionSplitReader
         List<TopicPartition> emptyPartitions = new ArrayList<>();
         // If none of the partitions have any records,
         for (TopicPartition tp : consumer.assignment()) {
-            if (retryOnWakeup(() -> consumer.position(tp)) >= getStoppingOffset(tp)) {
+            if (retryOnWakeup(
+                            () -> consumer.position(tp),
+                            "getting starting offset to check if split is empty")
+                    >= getStoppingOffset(tp)) {
                 emptyPartitions.add(tp);
             }
         }
@@ -345,7 +350,9 @@ public class KafkaPartitionSplitReader
             StringJoiner splitsInfo = new StringJoiner(",");
             for (KafkaPartitionSplit split : splitsChange.splits()) {
                 long startingOffset =
-                        retryOnWakeup(() -> consumer.position(split.getTopicPartition()));
+                        retryOnWakeup(
+                                () -> consumer.position(split.getTopicPartition()),
+                                "logging starting position");
                 long stoppingOffset = getStoppingOffset(split.getTopicPartition());
                 splitsInfo.add(
                         String.format(
@@ -416,12 +423,14 @@ public class KafkaPartitionSplitReader
      *
      * <p>Under this case we need to catch the {@link WakeupException} and retry the operation.
      */
-    private <V> V retryOnWakeup(Supplier<V> consumerCall) {
+    private <V> V retryOnWakeup(Supplier<V> consumerCall, String description) {
         while (true) {
             try {
                 return consumerCall.get();
             } catch (WakeupException we) {
-                // Do nothing here and the loop will retry the consumer call.
+                LOG.debug(
+                        "Caught WakeupException while executing Kafka consumer call for {}. Will retry the consumer call.",
+                        description);
             }
         }
     }
