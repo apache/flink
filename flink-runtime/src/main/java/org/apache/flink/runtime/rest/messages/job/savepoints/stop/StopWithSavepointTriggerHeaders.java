@@ -80,4 +80,9 @@ public class StopWithSavepointTriggerHeaders
         return "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK before taking"
                 + " the savepoint to flush out any state waiting for timers to fire.";
     }
+
+    @Override
+    public String operationId() {
+        return "triggerStopWithSavepoint";
+    }
 }
