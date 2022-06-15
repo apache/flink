@@ -5158,12 +5158,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         }
     }
 
-	/**
-	 * This test verifies that the same descriptor can be used in different contexts
-	 * to refer to the same state and successfully create a snapshot.
-	 * @throws Exception
-	 */
-  	@Test
+    /**
+     * This test verifies that the same descriptor can be used in different contexts
+     * to refer to the same state and successfully create a snapshot.
+     * @throws Exception
+     */
+      @Test
     @SuppressWarnings("unused")
     public void testSameDescriptorInDifferentNamespace() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
@@ -5178,12 +5178,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         final Integer namespace = 1;
 
         try {
-        	// Assume a state from trigger context (assigned to window).
+            // Assume a state from trigger context (assigned to window).
             ValueState<String> state1 = backend.getPartitionedState(namespace, IntSerializer.INSTANCE, desc);
             backend.setCurrentKey(1);
             state1.update("a");
 
-        	// Assume a global state on a window process function.
+            // Assume a global state on a window process function.
             ValueState<String> state2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
             state2.update("b");
 
