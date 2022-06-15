@@ -23,19 +23,19 @@ import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /** Tests the behaviors of {@link HadoopRenameFileCommitter} with local file system. */
-public class HadoopRenameCommitterLocalFSITCase extends AbstractFileCommitterTest {
+class HadoopRenameCommitterLocalFSITCase extends AbstractFileCommitterTest {
 
-    public HadoopRenameCommitterLocalFSITCase(boolean override) throws IOException {
-        super(override);
-    }
+    @TempDir private static java.nio.file.Path tmpDir;
 
     @Override
-    protected Path getBasePath() throws IOException {
-        return new Path(TEMPORARY_FOLDER.newFolder().toURI());
+    protected Path getBasePath() {
+        return new Path(tmpDir.resolve(UUID.randomUUID().toString()).toUri());
     }
 
     @Override

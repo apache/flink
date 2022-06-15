@@ -26,17 +26,17 @@ import org.apache.flink.util.MutableURLClassLoader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** Tests the behaviors of {@link HadoopPathBasedBulkFormatBuilder}. */
-public class HadoopPathBasedBulkFormatBuilderTest {
+class HadoopPathBasedBulkFormatBuilderTest {
 
     /**
      * Tests if we could create {@link HadoopPathBasedBulkFormatBuilder} within user classloader. It
@@ -47,7 +47,7 @@ public class HadoopPathBasedBulkFormatBuilderTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testCreatingBuildWithinUserClassLoader() throws Exception {
         ClassLoader appClassLoader = getClass().getClassLoader();
-        Assume.assumeTrue(appClassLoader instanceof URLClassLoader);
+        assumeTrue(appClassLoader instanceof URLClassLoader);
 
         ClassLoader userClassLoader =
                 new SpecifiedChildFirstUserClassLoader(
