@@ -5161,6 +5161,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     /**
      * This test verifies that the same descriptor can be used in different contexts to refer to the
      * same state and successfully create a snapshot.
+     *
      * @throws Exception
      */
     @Test
