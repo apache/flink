@@ -253,19 +253,11 @@ public class NFA<T> {
      * @param nfaState The NFAState object that we need to affect while processing
      * @param timestamp timestamp that indicates that there will be no more events with lower
      *     timestamp
-     * @return all timed outed partial matches
+     * @return all pending matches and timed outed partial matches
      * @throws Exception Thrown if the system cannot access the state.
      */
-    public Collection<Tuple2<Map<String, List<T>>, Long>> advanceTime(
-            final SharedBufferAccessor<T> sharedBufferAccessor,
-            final NFAState nfaState,
-            final long timestamp)
-            throws Exception {
-        return advanceTimeAndHandlePendingState(sharedBufferAccessor, nfaState, timestamp).f1;
-    }
-
     public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>>
-            advanceTimeAndHandlePendingState(
+            advanceTime(
                     final SharedBufferAccessor<T> sharedBufferAccessor,
                     final NFAState nfaState,
                     final long timestamp)
@@ -284,7 +276,6 @@ public class NFA<T> {
                             sharedBufferAccessor.materializeMatch(
                                     extractCurrentMatches(sharedBufferAccessor, computationState));
                     pendingMatches.add(pendingPattern);
-
                 } else if (handleTimeout) {
                     // extract the timed out event pattern
                     Map<String, List<T>> timedOutPattern =

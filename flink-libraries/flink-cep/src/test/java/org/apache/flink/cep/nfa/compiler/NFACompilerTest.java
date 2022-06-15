@@ -217,7 +217,7 @@ public class NFACompilerTest extends TestLogger {
         assertEquals(
                 Sets.newHashSet(
                         Tuple2.of("middle", StateTransitionAction.IGNORE),
-                        Tuple2.of("middle:0", StateTransitionAction.TAKE)),
+                        Tuple2.of("middle:0", StateTransitionAction.PROCEED)),
                 middleTransitions);
 
         assertTrue(stateMap.containsKey("middle:0"));

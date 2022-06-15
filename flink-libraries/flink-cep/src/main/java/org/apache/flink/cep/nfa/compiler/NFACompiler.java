@@ -157,12 +157,8 @@ public class NFACompiler {
          * create multiple NFAs.
          */
         void compileFactory() {
-            if (currentPattern.getQuantifier().getConsumingStrategy()
-                            == Quantifier.ConsumingStrategy.NOT_FOLLOW
-                    && currentPattern.getWindowTime() == null) {
-                throw new MalformedPatternException(
-                        "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
-            }
+
+            Pattern lastPattern = currentPattern;
 
             checkPatternNameUniqueness();
 
@@ -175,6 +171,13 @@ public class NFACompiler {
             sinkState = createMiddleStates(sinkState);
             // add the beginning state
             createStartState(sinkState);
+
+            if (lastPattern.getQuantifier().getConsumingStrategy()
+                            == Quantifier.ConsumingStrategy.NOT_FOLLOW
+                    && getWindowTime() == 0) {
+                throw new MalformedPatternException(
+                        "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
+            }
         }
 
         AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
@@ -305,15 +308,13 @@ public class NFACompiler {
                 if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
                     // skip notFollow patterns, they are converted into edge conditions
-                    if (currentPattern.getWindowTime() != null
-                            && currentPattern.getWindowTime().toMilliseconds() > 0
-                            && sinkState.isFinal()) {
+                    if (getWindowTime() > 0 && lastSink.isFinal()) {
                         final State<T> notFollow =
                                 createState(currentPattern.getName(), State.StateType.Pending);
                         final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
                         final State<T> stopState =
                                 createStopState(notCondition, currentPattern.getName());
-                        notFollow.addTake(stopState, notCondition);
+                        notFollow.addProceed(stopState, notCondition);
                         notFollow.addIgnore(new RichNotCondition<>(notCondition));
                         lastSink = notFollow;
                     }

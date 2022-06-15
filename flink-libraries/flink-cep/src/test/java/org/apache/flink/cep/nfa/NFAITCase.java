@@ -477,7 +477,7 @@ public class NFAITCase extends TestLogger {
         for (StreamRecord<Event> event : events) {
 
             Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp());
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f1;
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -549,9 +549,7 @@ public class NFAITCase extends TestLogger {
 
         for (StreamRecord<Event> event : events) {
             Collection<Map<String, List<Event>>> pendingMatches =
-                    nfa.advanceTimeAndHandlePendingState(
-                                    sharedBufferAccessor, nfaState, event.getTimestamp())
-                            .f0;
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f0;
             resultingPendingMatches.addAll(pendingMatches);
             nfa.process(
                     sharedBufferAccessor,
