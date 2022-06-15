@@ -359,10 +359,6 @@ class ContextClassLoadingSettingTest {
 
         CompletableFuture<Void> doSomethingAsync();
 
-        CompletableFuture<ClassLoader> doCallAsync();
-
-        CompletableFuture<ClassLoader> doRunAsync();
-
         void doSomethingWithoutReturningAnything();
 
         CompletableFuture<PickyObject> getPickyObject();
@@ -414,13 +410,11 @@ class ContextClassLoadingSettingTest {
             return rpcResponseFuture;
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doCallAsync() {
             return callAsync(
                     () -> Thread.currentThread().getContextClassLoader(), Duration.ofSeconds(10));
         }
 
-        @Override
         public CompletableFuture<ClassLoader> doRunAsync() {
             final CompletableFuture<ClassLoader> contextClassLoader = new CompletableFuture<>();
             runAsync(
