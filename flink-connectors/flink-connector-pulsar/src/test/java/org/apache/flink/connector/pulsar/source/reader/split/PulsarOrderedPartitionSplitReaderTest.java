@@ -38,7 +38,7 @@ class PulsarOrderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTe
 
     @TestTemplate
     void consumeMessageCreatedBeforeHandleSplitsChangesWithoutSeek(
-            PulsarPartitionSplitReaderBase<String> splitReader) {
+            PulsarPartitionSplitReaderBase splitReader) {
         String topicName = randomAlphabetic(10);
         operator().setupTopic(topicName, STRING, () -> randomAlphabetic(10));
         handleSplit(splitReader, topicName, 0);
@@ -47,7 +47,7 @@ class PulsarOrderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTe
 
     @TestTemplate
     void consumeMessageCreatedBeforeHandleSplitsChangesAndUseLatestStartCursorWithoutSeek(
-            PulsarPartitionSplitReaderBase<String> splitReader) {
+            PulsarPartitionSplitReaderBase splitReader) {
         String topicName = randomAlphabetic(10);
         operator().setupTopic(topicName, STRING, () -> randomAlphabetic(10));
         handleSplit(splitReader, topicName, 0, MessageId.latest);
@@ -56,7 +56,7 @@ class PulsarOrderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTe
 
     @TestTemplate
     void consumeMessageCreatedBeforeHandleSplitsChangesAndUseEarliestStartCursorWithoutSeek(
-            PulsarPartitionSplitReaderBase<String> splitReader) {
+            PulsarPartitionSplitReaderBase splitReader) {
         String topicName = randomAlphabetic(10);
         operator().setupTopic(topicName, STRING, () -> randomAlphabetic(10));
         handleSplit(splitReader, topicName, 0, MessageId.earliest);
@@ -65,7 +65,7 @@ class PulsarOrderedPartitionSplitReaderTest extends PulsarPartitionSplitReaderTe
 
     @TestTemplate
     void consumeMessageCreatedBeforeHandleSplitsChangesAndUseSecondLastMessageWithoutSeek(
-            PulsarPartitionSplitReaderBase<String> splitReader) {
+            PulsarPartitionSplitReaderBase splitReader) {
         String topicName = randomAlphabetic(10);
         operator().setupTopic(topicName, STRING, () -> randomAlphabetic(10));
         MessageIdImpl lastMessageId =
