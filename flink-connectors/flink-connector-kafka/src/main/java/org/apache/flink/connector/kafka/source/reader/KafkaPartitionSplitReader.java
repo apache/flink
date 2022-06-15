@@ -424,14 +424,13 @@ public class KafkaPartitionSplitReader
      * <p>Under this case we need to catch the {@link WakeupException} and retry the operation.
      */
     private <V> V retryOnWakeup(Supplier<V> consumerCall, String description) {
-        while (true) {
-            try {
-                return consumerCall.get();
-            } catch (WakeupException we) {
-                LOG.debug(
-                        "Caught WakeupException while executing Kafka consumer call for {}. Will retry the consumer call.",
-                        description);
-            }
+        try {
+            return consumerCall.get();
+        } catch (WakeupException we) {
+            LOG.info(
+                    "Caught WakeupException while executing Kafka consumer call for {}. Will retry the consumer call.",
+                    description);
+            return consumerCall.get();
         }
     }
 
