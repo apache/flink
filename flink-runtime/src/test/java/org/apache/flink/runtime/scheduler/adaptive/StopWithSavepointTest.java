@@ -29,6 +29,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -67,9 +68,12 @@ class StopWithSavepointTest {
             StopWithSavepoint sws =
                     createStopWithSavepoint(ctx, mockExecutionGraph, savepointFuture);
             ctx.setStopWithSavepoint(sws);
-            ctx.setExpectFinished(assertNonNull());
 
-            mockExecutionGraph.completeTerminationFuture(JobStatus.FINISHED);
+            sws.onGloballyTerminalState(JobStatus.FINISHED);
+            // this is a sanity check that we haven't scheduled a state transition
+            ctx.triggerExecutors();
+
+            ctx.setExpectFinished(assertNonNull());
             savepointFuture.complete(SAVEPOINT_PATH);
             ctx.triggerExecutors();
 
@@ -78,24 +82,32 @@ class StopWithSavepointTest {
     }
 
     @Test
-    void testJobFailed() throws Exception {
+    void testJobFailedAndSavepointOperationSucceeds() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
-            StopWithSavepoint sws = createStopWithSavepoint(ctx, mockExecutionGraph);
+            final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+            StopWithSavepoint sws =
+                    createStopWithSavepoint(ctx, mockExecutionGraph, savepointFuture);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
+
+            // fail job:
+            mockExecutionGraph.completeTerminationFuture(JobStatus.FAILED);
+            // this is a sanity check that we haven't scheduled a state transition
+            ctx.triggerExecutors();
 
             ctx.setExpectFailing(
                     failingArguments -> {
                         assertThat(failingArguments.getExecutionGraph().getState())
                                 .isEqualTo(JobStatus.FAILED);
                         assertThat(failingArguments.getFailureCause())
-                                .satisfies(FlinkAssertions.anyCauseMatches(FlinkException.class));
+                                .satisfies(
+                                        FlinkAssertions.anyCauseMatches(
+                                                StopWithSavepointStoppingException.class));
                     });
 
-            // fail job:
-            mockExecutionGraph.completeTerminationFuture(JobStatus.FAILED);
+            savepointFuture.complete(SAVEPOINT_PATH);
             ctx.triggerExecutors();
 
             assertThat(sws.getOperationFuture()).isCompletedExceptionally();
@@ -179,7 +191,8 @@ class StopWithSavepointTest {
     @Test
     void testRestartOnGlobalFailureIfRestartConfigured() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
-            StopWithSavepoint sws = createStopWithSavepoint(ctx);
+            final CompletableFuture<String> savepointFuture = CompletableFuture.completedFuture("");
+            StopWithSavepoint sws = createStopWithSavepoint(ctx, savepointFuture);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
@@ -193,7 +206,8 @@ class StopWithSavepointTest {
     void testFailingOnGlobalFailureIfNoRestartConfigured() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
 
-            StopWithSavepoint sws = createStopWithSavepoint(ctx);
+            final CompletableFuture<String> savepointFuture = CompletableFuture.completedFuture("");
+            StopWithSavepoint sws = createStopWithSavepoint(ctx, savepointFuture);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
@@ -211,7 +225,8 @@ class StopWithSavepointTest {
     void testFailingOnUpdateTaskExecutionStateWithNoRestart() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
             StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
-            StopWithSavepoint sws = createStopWithSavepoint(ctx, executionGraph);
+            final CompletableFuture<String> savepointFuture = CompletableFuture.completedFuture("");
+            StopWithSavepoint sws = createStopWithSavepoint(ctx, executionGraph, savepointFuture);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
 
@@ -238,7 +253,8 @@ class StopWithSavepointTest {
     void testRestartingOnUpdateTaskExecutionStateWithRestart() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
             StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
-            StopWithSavepoint sws = createStopWithSavepoint(ctx, executionGraph);
+            final CompletableFuture<String> savepointFuture = CompletableFuture.completedFuture("");
+            StopWithSavepoint sws = createStopWithSavepoint(ctx, executionGraph, savepointFuture);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
@@ -338,6 +354,52 @@ class StopWithSavepointTest {
     }
 
     @Test
+    void testOnFailureWaitsForSavepointCompletion() throws Exception {
+        try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
+            CheckpointScheduling mockStopWithSavepointOperations = new MockCheckpointScheduling();
+            CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+            StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+            StopWithSavepoint sws =
+                    createStopWithSavepoint(
+                            ctx, mockStopWithSavepointOperations, executionGraph, savepointFuture);
+            ctx.setStopWithSavepoint(sws);
+
+            ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
+
+            sws.onFailure(new Exception("task failure"));
+            // this is a sanity check that we haven't scheduled a state transition
+            ctx.triggerExecutors();
+
+            ctx.setExpectRestarting(assertNonNull());
+            savepointFuture.complete(SAVEPOINT_PATH);
+            ctx.triggerExecutors();
+        }
+    }
+
+    @Test
+    void testConcurrentSavepointFailureAndGloballyTerminalStateCauseRestart() throws Exception {
+        try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
+            CheckpointScheduling mockStopWithSavepointOperations = new MockCheckpointScheduling();
+            CompletableFuture<String> savepointFuture = new CompletableFuture<>();
+            StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+            StopWithSavepoint sws =
+                    createStopWithSavepoint(
+                            ctx, mockStopWithSavepointOperations, executionGraph, savepointFuture);
+            ctx.setStopWithSavepoint(sws);
+
+            ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
+
+            sws.onFailure(new Exception("task failure"));
+            // this is a sanity check that we haven't scheduled a state transition
+            ctx.triggerExecutors();
+
+            ctx.setExpectRestarting(assertNonNull());
+            savepointFuture.completeExceptionally(new Exception("savepoint failure"));
+            ctx.triggerExecutors();
+        }
+    }
+
+    @Test
     void testEnsureCheckpointSchedulerIsStartedAgain() throws Exception {
         try (MockStopWithSavepointContext ctx = new MockStopWithSavepointContext()) {
             MockCheckpointScheduling mockStopWithSavepointOperations =
@@ -364,6 +426,15 @@ class StopWithSavepointTest {
                 new MockCheckpointScheduling(),
                 new StateTrackingMockExecutionGraph(),
                 new CompletableFuture<>());
+    }
+
+    private static StopWithSavepoint createStopWithSavepoint(
+            MockStopWithSavepointContext ctx, CompletableFuture<String> savepointFuture) {
+        return createStopWithSavepoint(
+                ctx,
+                new MockCheckpointScheduling(),
+                new StateTrackingMockExecutionGraph(),
+                savepointFuture);
     }
 
     private static StopWithSavepoint createStopWithSavepoint(

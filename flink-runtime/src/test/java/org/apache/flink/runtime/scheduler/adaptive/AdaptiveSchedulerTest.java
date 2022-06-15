@@ -27,6 +27,7 @@ import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -65,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -1166,7 +1168,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 jobGraph ->
                         jobGraph.setSnapshotSettings(
                                 new JobCheckpointingSettings(
-                                        CheckpointCoordinatorConfiguration.builder().build(),
+                                        // set a large checkpoint interval so we can easily deduce
+                                        // the savepoints checkpoint id
+                                        CheckpointCoordinatorConfiguration.builder()
+                                                .setCheckpointInterval(Long.MAX_VALUE)
+                                                .build(),
                                         null));
         final CompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -1190,6 +1196,17 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             new TaskExecutionStateTransition(
                                     new TaskExecutionState(
                                             attemptId, ExecutionState.FAILED, expectedException)));
+
+                    // fail the savepoint so that the job terminates
+                    for (ExecutionAttemptID id : attemptIds) {
+                        scheduler.declineCheckpoint(
+                                new DeclineCheckpoint(
+                                        scheduler.requestJob().getJobId(),
+                                        id,
+                                        checkpointIDCounter.get() - 1,
+                                        new CheckpointException(
+                                                CheckpointFailureReason.IO_EXCEPTION)));
+                    }
                 };
 
         final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
