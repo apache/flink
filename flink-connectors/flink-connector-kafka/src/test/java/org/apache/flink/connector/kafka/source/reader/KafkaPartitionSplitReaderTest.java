@@ -133,6 +133,24 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
+    public void testWakeupThenAssign() throws IOException {
+        KafkaPartitionSplitReader reader = createReader();
+        // Assign splits with records
+        assignSplits(reader, splitsByOwners.get(0));
+        // Run a fetch operation, and it should not block
+        reader.fetch();
+        // Wake the reader up then assign a new split. This assignment should not throw
+        // WakeupException.
+        reader.wakeUp();
+        TopicPartition tp = new TopicPartition(TOPIC1, 0);
+        assignSplits(
+                reader,
+                Collections.singletonMap(
+                        KafkaPartitionSplit.toSplitId(tp),
+                        new KafkaPartitionSplit(tp, KafkaPartitionSplit.EARLIEST_OFFSET)));
+    }
+
+    @Test
     public void testNumBytesInCounter() throws Exception {
         final OperatorMetricGroup operatorMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
