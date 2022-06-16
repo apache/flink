@@ -181,8 +181,9 @@ public class ProcessMemoryUtils<FM extends FlinkMemory> {
                             getJvmOverheadRangeFraction(config));
             jvmMetaspaceAndOverhead =
                     new JvmMetaspaceAndOverhead(jvmMetaspaceSize, jvmOverheadSize);
-            sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
         }
+        sanityCheckTotalProcessMemory(config, totalFlinkMemorySize, jvmMetaspaceAndOverhead);
+
         return jvmMetaspaceAndOverhead;
     }
 
