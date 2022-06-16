@@ -27,10 +27,10 @@ import java.util.function.Predicate;
 /** Utility class to create concrete retry predicates. */
 public class RetryPredicates {
 
-    /** A predicate matches empty result which means an empty {@link Collection} */
+    /** A predicate matches empty result which means an empty {@link Collection}. */
     public static final EmptyResultPredicate EMPTY_RESULT_PREDICATE = new EmptyResultPredicate();
 
-    /** A predicate matches any exception which means a non-null{@link Throwable} */
+    /** A predicate matches any exception which means a non-null{@link Throwable}. */
     public static final HasExceptionPredicate HAS_EXCEPTION_PREDICATE = new HasExceptionPredicate();
 
     /**

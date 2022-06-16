@@ -29,7 +29,7 @@ public interface AsyncRetryPredicate<OUT> {
      * An Optional Java {@Predicate} that defines a condition on asyncFunction's future result which
      * will trigger a later reattempt operation, will be called before user's ResultFuture#complete.
      *
-     * @return predicate on result of {@link Collection<OUT>}
+     * @return predicate on result of {@link Collection}
      */
     Optional<Predicate<Collection<OUT>>> resultPredicate();
 

@@ -408,7 +408,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         private ScheduledFuture<?> delayedRetryTimer;
 
-        /** start from 1, when this entry created, the first attempt will happen */
+        /** start from 1, when this entry created, the first attempt will happen. */
         private int currentAttempts = 1;
 
         private long backoffTimeMillis;
