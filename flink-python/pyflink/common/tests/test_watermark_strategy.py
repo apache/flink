@@ -18,7 +18,7 @@
 from pyflink.common import Duration
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import is_instance_of
+from pyflink.util.java_utils import is_instance_of, get_field_value
 
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -34,9 +34,7 @@ class WatermarkStrategyTests(PyFlinkTestCase):
             j_watermark_strategy,
             jvm.org.apache.flink.api.common.eventtime.WatermarkStrategyWithIdleness
         ))
-        field = j_watermark_strategy.getClass().getDeclaredField("idlenessTimeout")
-        field.setAccessible(True)
-        self.assertEqual(field.get(j_watermark_strategy).toMillis(), 5000)
+        self.assertEqual(get_field_value(j_watermark_strategy, "idlenessTimeout").toMillis(), 5000)
 
     def test_with_watermark_alignment(self):
         jvm = get_gateway().jvm
@@ -70,9 +68,7 @@ class WatermarkStrategyTests(PyFlinkTestCase):
             j_watermark_generator,
             jvm.org.apache.flink.api.common.eventtime.BoundedOutOfOrdernessWatermarks
         ))
-        field = j_watermark_generator.getClass().getDeclaredField("outOfOrdernessMillis")
-        field.setAccessible(True)
-        self.assertEqual(field.get(j_watermark_generator), 3000)
+        self.assertEqual(get_field_value(j_watermark_generator, "outOfOrdernessMillis"), 3000)
 
     def test_no_watermarks(self):
         jvm = get_gateway().jvm
