@@ -59,6 +59,15 @@ public class FileSystemConnectorOptions {
                                     + "but also imply more frequent listing or directory traversal of the file system / object store. "
                                     + "If this config option is not set, the provided path will be scanned once, hence the source will be bounded.");
 
+    public static final ConfigOption<FileStatisticsType> SOURCE_REPORT_STATISTICS =
+            key("source.report-statistics")
+                    .enumType(FileStatisticsType.class)
+                    .defaultValue(FileStatisticsType.ALL)
+                    .withDescription(
+                            "The file statistics type which the source could provide. "
+                                    + "The statistics reporting is a heavy operation in some cases,"
+                                    + "this config allows users to choose the statistics type according to different situations.");
+
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
                     .memoryType()
@@ -252,13 +261,37 @@ public class FileSystemConnectorOptions {
         PARTITION_TIME(
                 "partition-time",
                 text(
-                        "Based on the  time extracted from partition values, requires watermark generation. "
+                        "Based on the time extracted from partition values, requires watermark generation. "
                                 + "Commits partition once the watermark passes the time extracted from partition values plus delay."));
 
         private final String value;
         private final InlineElement description;
 
         PartitionCommitTriggerType(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Statistics types for file system, see {@link #SOURCE_REPORT_STATISTICS}. */
+    public enum FileStatisticsType implements DescribedEnum {
+        NONE("NONE", text("Do not report any file statistics.")),
+        ALL("ALL", text("Report all file statistics that the format can provide."));
+
+        private final String value;
+        private final InlineElement description;
+
+        FileStatisticsType(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }

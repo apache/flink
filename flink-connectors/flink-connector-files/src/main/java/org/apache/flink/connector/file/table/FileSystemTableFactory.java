@@ -106,6 +106,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FileSystemConnectorOptions.PARTITION_DEFAULT_NAME);
         options.add(FileSystemConnectorOptions.SOURCE_MONITOR_INTERVAL);
+        options.add(FileSystemConnectorOptions.SOURCE_REPORT_STATISTICS);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL);
         options.add(FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL);
