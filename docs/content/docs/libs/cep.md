@@ -718,7 +718,7 @@ next.within(Time.seconds(10))
 {{< /tab >}}
 {{< /tabs >}}
 
-Notice that A pattern sequence can end in notFollowedBy() with temporal constraint
+Notice that a pattern sequence can end in notFollowedBy() with temporal constraint
 E.g. a pattern like:
 
 {{< tabs "df27eb6d-c532-430a-b56f-98ad4082e6d5" >}}

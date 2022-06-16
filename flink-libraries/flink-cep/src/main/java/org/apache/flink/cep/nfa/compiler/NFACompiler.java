@@ -158,7 +158,7 @@ public class NFACompiler {
          */
         void compileFactory() {
 
-            Pattern lastPattern = currentPattern;
+            Pattern<T, ?> lastPattern = currentPattern;
 
             checkPatternNameUniqueness();
 
