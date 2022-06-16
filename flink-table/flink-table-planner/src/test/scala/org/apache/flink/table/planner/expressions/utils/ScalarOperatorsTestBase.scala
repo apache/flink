@@ -68,7 +68,7 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       DataTypes.FIELD("f9", DataTypes.INT()),
       DataTypes.FIELD("f10", DataTypes.STRING()),
       DataTypes.FIELD("f11", DataTypes.BOOLEAN().notNull()),
-      DataTypes.FIELD("f12", DataTypes.BOOLEAN().notNull()),
+      DataTypes.FIELD("f12", DataTypes.BOOLEAN()),
       DataTypes.FIELD(
         "f13",
         DataTypes.ROW(
