@@ -50,6 +50,13 @@ class StatementSet(object):
         """
         self._j_statement_set.addInsertSql(stmt)
         return self
+    
+    def attach_as_datastream(self: StatementSet):
+        """
+        combine table api statements into datastream
+        """
+        self._t_env._before_execute()
+        self._j_statement_set.attachAsDataStream()
 
     def add_insert(self,
                    target_path_or_descriptor: Union[str, TableDescriptor],
