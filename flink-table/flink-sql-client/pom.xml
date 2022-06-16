@@ -70,12 +70,14 @@ under the License.
 			<groupId>org.jline</groupId>
 			<artifactId>jline-terminal</artifactId>
 			<version>3.21.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jline</groupId>
 			<artifactId>jline-reader</artifactId>
 			<version>3.21.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- configuration -->
@@ -187,6 +189,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-parser</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>

@@ -61,18 +61,21 @@ under the License.
 			<groupId>io.prometheus</groupId>
 			<artifactId>simpleclient</artifactId>
 			<version>${prometheus.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>io.prometheus</groupId>
 			<artifactId>simpleclient_httpserver</artifactId>
 			<version>${prometheus.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>io.prometheus</groupId>
 			<artifactId>simpleclient_pushgateway</artifactId>
 			<version>${prometheus.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- test dependencies -->

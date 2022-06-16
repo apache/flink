@@ -42,12 +42,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-parquet</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.parquet</groupId>
 			<artifactId>parquet-avro</artifactId>
 			<version>${flink.format.parquet.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
