@@ -181,11 +181,11 @@ public class TableConfigOptions {
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
     public static final ConfigOption<String> RESOURCE_DOWNLOAD_DIR =
-            key("resource.download.dir")
+            key("table.resource.download.dir")
                     .stringType()
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDescription(
-                            "Temporary local directory for downloaded resources from the remote file system.");
+                            "Local directory that is used by planner for storing downloaded resources.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types

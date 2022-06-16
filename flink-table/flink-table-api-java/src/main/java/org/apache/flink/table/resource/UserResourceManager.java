@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -149,8 +150,9 @@ public class UserResourceManager {
 
     @VisibleForTesting
     protected URL downloadResource(Path remotePath) {
-        File localFile = new File(localTmpDir, remotePath.getName());
-        Path localResourcePath = new Path(localFile.toURI());
+        // get local resource path
+        java.nio.file.Path path = Paths.get(localTmpDir, remotePath.getName()).toAbsolutePath();
+        Path localResourcePath = new Path(path.toUri());
         try {
             FileUtils.copy(remotePath, localResourcePath, true);
             LOG.info(
