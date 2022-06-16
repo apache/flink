@@ -72,7 +72,7 @@ class WatermarkStrategy(object):
         return WatermarkStrategy(self._j_watermark_strategy.withIdleness(idle_timeout._j_duration))
 
     def with_watermark_alignment(self, watermark_group: str, max_allowed_watermark_drift: Duration,
-                                 update_interval: Optional[Duration] = None):
+                                 update_interval: Optional[Duration] = None) -> 'WatermarkStrategy':
         """
         Creates a new :class:`WatermarkStrategy` that configures the maximum watermark drift from
         other sources/tasks/partitions in the same watermark group. The group may contain completely
@@ -111,7 +111,7 @@ class WatermarkStrategy(object):
             ))
 
     @staticmethod
-    def for_monotonous_timestamps():
+    def for_monotonous_timestamps() -> 'WatermarkStrategy':
         """
         Creates a watermark strategy for situations with monotonously ascending timestamps.
 
@@ -124,7 +124,7 @@ class WatermarkStrategy(object):
         return WatermarkStrategy(JWaterMarkStrategy.forMonotonousTimestamps())
 
     @staticmethod
-    def for_bounded_out_of_orderness(max_out_of_orderness: Duration):
+    def for_bounded_out_of_orderness(max_out_of_orderness: Duration) -> 'WatermarkStrategy':
         """
         Creates a watermark strategy for situations where records are out of order, but you can
         place an upper bound on how far the events are out of order. An out-of-order bound B means
@@ -137,7 +137,7 @@ class WatermarkStrategy(object):
             JWaterMarkStrategy.forBoundedOutOfOrderness(max_out_of_orderness._j_duration))
 
     @staticmethod
-    def no_watermarks():
+    def no_watermarks() -> 'WatermarkStrategy':
         """
         Creates a watermark strategy that generates no watermarks at all. This may be useful in
         scenarios that do pure processing-time based stream processing.
