@@ -35,7 +35,8 @@ import java.util.List;
 
 /**
  * A {@link Transformation} representing a Python Co-Broadcast-Process operation, which will be
- * translated into different operations by @{link}.
+ * translated into different operations by {@link
+ * org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStateTransformationTranslator}.
  */
 public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
         extends AbstractBroadcastStateTransformation<IN1, IN2, OUT> {

@@ -19,7 +19,7 @@ import typing
 import uuid
 from enum import Enum
 from py4j.java_collections import ListConverter
-from typing import Callable, Union, List, cast, Optional
+from typing import Callable, Union, List, cast, Optional, overload
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
@@ -486,17 +486,24 @@ class DataStream(object):
         j_united_stream = self._j_data_stream.union(j_data_stream_arr)
         return DataStream(j_data_stream=j_united_stream)
 
-    def connect(
-        self, ds: Union["DataStream", "BroadcastStream"]
-    ) -> Union["ConnectedStreams", "BroadcastConnectedStream"]:
+    @overload
+    def connect(self, ds: 'DataStream') -> 'ConnectedStreams':
+        pass
+
+    @overload
+    def connect(self, ds: 'BroadcastStream') -> 'BroadcastConnectedStream':
+        pass
+
+    def connect(self, ds):
         """
         If ds is a :class:`DataStream`, creates a new :class:`ConnectedStreams` by connecting
         DataStream outputs of (possible) different types with each other. The DataStreams connected
         using this operator can be used with CoFunctions to apply joint transformations.
+
         If ds is a :class:`BroadcastStream`, creates a new :class:`BroadcastConnectedStream` by
         connecting the current :class:`DataStream` with a :class:`BroadcastStream`. The latter can
         be created using the :meth:`broadcast` method. The resulting stream can be further processed
-        using the :meth:`BroadcastConnectedStream.process` method.
+        using the :meth:`BroadcastConnectedStream.process` method. This is added in version 1.16.0.
 
         :param ds: The DataStream or BroadcastStream with which this stream will be connected.
         :return: The ConnectedStreams or BroadcastConnectedStream.
@@ -573,13 +580,22 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.forward())
 
-    def broadcast(self, *args) -> Union["DataStream", "BroadcastStream"]:
+    @overload
+    def broadcast(self) -> 'DataStream':
+        pass
+
+    @overload
+    def broadcast(self, *args) -> 'BroadcastStream':
+        pass
+
+    def broadcast(self, *args):
         """
         Sets the partitioning of the DataStream so that the output elements are broadcasted to every
         parallel instance of the next operation.
-        If :class:`~state.MapStateDescriptor` (s) are passed in, it returns a
-        :class:`BroadcastStream` with :class:`~state.BroadcastState` (s) implicitly created as the
-        descriptors specified.
+
+        If args are :class:`~state.MapStateDescriptor` s, it returns a
+        :class:`BroadcastStream` with :class:`~state.BroadcastState` s implicitly created as the
+        descriptors specified. This is added in version 1.16.0.
 
         Example:
         ::
@@ -1618,7 +1634,7 @@ class KeyedStream(DataStream):
     def forward(self) -> 'DataStream':
         raise Exception('Cannot override partitioning for KeyedStream.')
 
-    def broadcast(self, *args) -> Union['DataStream', 'BroadcastStream']:
+    def broadcast(self, *args):
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def partition_custom(self, partitioner: Union[Callable, Partitioner],

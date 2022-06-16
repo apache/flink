@@ -244,9 +244,13 @@ def extract_stateless_function(
                 timestamp = value[0]
                 watermark = value[1]
                 broadcast_ctx.set_timestamp(timestamp)
-                broadcast_ctx.timer_service().advance_watermark(watermark)
+                cast(
+                    TimerServiceImpl, broadcast_ctx.timer_service()
+                ).advance_watermark(watermark)
                 read_only_broadcast_ctx.set_timestamp(timestamp)
-                read_only_broadcast_ctx.timer_service().advance_watermark(watermark)
+                cast(
+                    TimerServiceImpl, read_only_broadcast_ctx.timer_service()
+                ).advance_watermark(watermark)
 
                 data = value[2]
                 if data[0]:
