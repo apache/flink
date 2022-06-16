@@ -722,6 +722,22 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .build();
 
+    public static final BuiltInFunctionDefinition ASCII =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ascii")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.TINYINT())))
+                    .build();
+
+    public static final BuiltInFunctionDefinition CHR =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("chr")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.INTEGER_NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.CHAR(1))))
+                    .build();
+
     public static final BuiltInFunctionDefinition UUID =
             BuiltInFunctionDefinition.newBuilder()
                     .name("uuid")

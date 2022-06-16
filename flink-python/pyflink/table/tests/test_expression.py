@@ -143,6 +143,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
         self.assertEqual('fromBase64(a)', str(expr1.from_base64))
         self.assertEqual('toBase64(a)', str(expr1.to_base64))
+        self.assertEqual('ascii(a)', str(expr1.ascii))
+        self.assertEqual('chr(a)', str(expr1.chr))
         self.assertEqual('ltrim(a)', str(expr1.ltrim))
         self.assertEqual('rtrim(a)', str(expr1.rtrim))
         self.assertEqual('repeat(a, 3)', str(expr1.repeat(3)))

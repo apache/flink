@@ -55,6 +55,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
@@ -65,6 +66,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDIN
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
@@ -1020,6 +1022,16 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the base64-encoded result of the input string. */
     public OutType toBase64() {
         return toApiSpecificExpression(unresolvedCall(TO_BASE64, toExpr()));
+    }
+
+    /** Returns the numeric value of the first character of the input string. */
+    public OutType ascii() {
+        return toApiSpecificExpression(unresolvedCall(ASCII, toExpr()));
+    }
+
+    /** Returns the ASCII character result of the input integer. */
+    public OutType chr() {
+        return toApiSpecificExpression(unresolvedCall(CHR, toExpr()));
     }
 
     /** Returns a string that removes the left whitespaces from the given string. */
