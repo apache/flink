@@ -178,7 +178,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testAscii(): Unit = {
-    testSqlApi("ascii('efg')", "101")
+    testAllApis("efg".ascii(), "ASCII('efg')", "101")
 
     testSqlApi("ascii('abcdef')", "97")
 
@@ -1594,6 +1594,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testChr(): Unit = {
+    testAllApis(
+      65.chr(),
+      "CHR(65)",
+      "A"
+    )
+
+    testAllApis(
+      -9.chr(),
+      "CHR(-9)",
+      ""
+    )
+
     testSqlApi(
       "CHR(f4)",
       ","
@@ -1607,11 +1619,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "CHR(f42)",
       Character.MIN_VALUE.toString
-    )
-
-    testSqlApi(
-      "CHR(65)",
-      "A"
     )
 
     testSqlApi(
@@ -1632,11 +1639,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "CHR(97 + 256)",
       "a"
-    )
-
-    testSqlApi(
-      "CHR(-9)",
-      ""
     )
 
     testSqlApi(

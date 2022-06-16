@@ -411,10 +411,12 @@ string:
       返回字符串 string 的 base64 编码的结果；如果字符串为 `NULL`，则返回 `NULL`。
       例如 `TO_BASE64('hello world')` 返回 `"aGVsbG8gd29ybGQ="`。
   - sql: ASCII(string)
+    table: STRING.ascii()
     description: |
       返回字符串 string 第一个字符的数值。如果字符串为 `NULL` 则返回 `NULL`。
       例如 `ascii('abc')` 返回 `97`，`ascii(CAST(NULL AS VARCHAR))` 返回 `NULL`。
   - sql: CHR(integer)
+    table: INT.chr()
     description: |
       返回二进制等于 integer 的 ASCII 字符。如果整数 integer 大于 255，我们先将得到整数对 255 取模数，
       并返回模数的 CHR。如果整数为 `NULL`，则返回 `NULL`。例如 `chr(97)` 返回 `a`，`chr(353)` 返回 `a`，
