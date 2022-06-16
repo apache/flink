@@ -144,6 +144,15 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes>
+							<exclude>org.apache.flink.configuration.ConfigConstants#HDFS_DEFAULT_CONFIG</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#HDFS_SITE_CONFIG</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#PATH_HADOOP_CONFIG</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
 			</plugin>
 
 			<!-- publish some test base classes -->

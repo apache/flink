@@ -50,8 +50,7 @@ Other file system types are accessed by an implementation that bridges to the su
   - ...
 
 Flink loads Hadoop's file systems transparently if it finds the Hadoop File System classes in the class path and finds a valid
-Hadoop configuration. By default, it looks for the Hadoop configuration in the class path. Alternatively, one can specify a
-custom location via the configuration entry `fs.hdfs.hadoopconf`.
+Hadoop configuration. By default, it looks for the Hadoop configuration in the class path.
 
 
 # Persistence Guarantees

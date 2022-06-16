@@ -18,11 +18,11 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
@@ -133,10 +133,17 @@ class YarnFileStageTestS3ITCase {
         }
 
         final Configuration conf = new Configuration();
-        conf.setString(ConfigConstants.HDFS_SITE_CONFIG, hadoopConfig.getAbsolutePath());
         conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
 
-        FileSystem.initialize(conf, null);
+        final Map<String, String> originalEnv = System.getenv();
+        final Map<String, String> newEnv = new HashMap<>(originalEnv);
+        newEnv.put("HADOOP_CONF_DIR", hadoopConfig.getAbsolutePath());
+        try {
+            CommonTestUtils.setEnv(newEnv);
+            FileSystem.initialize(conf, null);
+        } finally {
+            CommonTestUtils.setEnv(originalEnv);
+        }
     }
 
     /**

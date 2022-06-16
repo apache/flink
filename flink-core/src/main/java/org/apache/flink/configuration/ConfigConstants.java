@@ -571,29 +571,6 @@ public final class ConfigConstants {
     public static final String MESOS_ARTIFACT_SERVER_SSL_ENABLED =
             "mesos.resourcemanager.artifactserver.ssl.enabled";
 
-    // ------------------------ Hadoop Configuration ------------------------
-
-    /**
-     * Path to hdfs-default.xml file.
-     *
-     * @deprecated Use environment variable HADOOP_CONF_DIR instead.
-     */
-    @Deprecated public static final String HDFS_DEFAULT_CONFIG = "fs.hdfs.hdfsdefault";
-
-    /**
-     * Path to hdfs-site.xml file.
-     *
-     * @deprecated Use environment variable HADOOP_CONF_DIR instead.
-     */
-    @Deprecated public static final String HDFS_SITE_CONFIG = "fs.hdfs.hdfssite";
-
-    /**
-     * Path to Hadoop configuration.
-     *
-     * @deprecated Use environment variable HADOOP_CONF_DIR instead.
-     */
-    @Deprecated public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
-
     // ------------------------ File System Behavior ------------------------
 
     /**

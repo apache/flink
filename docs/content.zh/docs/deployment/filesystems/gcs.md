@@ -96,7 +96,7 @@ You can use the following method for authentication
 
   ```yaml
   flinkConfiguration:
-    fs.hdfs.hadoopconf: <DIRECTORY PATH WHERE core-site.xml IS SAVED>
+    env.hadoop.conf.dir: <DIRECTORY PATH WHERE core-site.xml IS SAVED>
   ```
 
 * You can provide the necessary key via the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
