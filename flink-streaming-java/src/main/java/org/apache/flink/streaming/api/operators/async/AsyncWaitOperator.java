@@ -326,7 +326,8 @@ public class AsyncWaitOperator<IN, OUT>
      * @return a handle that allows to set the result of the async computation for the given
      *     element.
      */
-    private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement) throws Exception {
+    private ResultFuture<OUT> addToWorkQueue(StreamElement streamElement)
+            throws InterruptedException {
 
         Optional<ResultFuture<OUT>> queueEntry;
         while (!(queueEntry = queue.tryPut(streamElement)).isPresent()) {
