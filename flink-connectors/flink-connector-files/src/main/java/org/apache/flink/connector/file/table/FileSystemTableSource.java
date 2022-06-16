@@ -35,7 +35,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
-import org.apache.flink.table.connector.format.FileBasedStatisticsReportableDecodingFormat;
+import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInputFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -358,12 +358,11 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             List<Path> files =
                     splits.stream().map(FileSourceSplit::path).collect(Collectors.toList());
 
-            if (bulkReaderFormat instanceof FileBasedStatisticsReportableDecodingFormat) {
-                return ((FileBasedStatisticsReportableDecodingFormat<?>) bulkReaderFormat)
+            if (bulkReaderFormat instanceof FileBasedStatisticsReportableInputFormat) {
+                return ((FileBasedStatisticsReportableInputFormat) bulkReaderFormat)
                         .reportStatistics(files, producedDataType);
-            } else if (deserializationFormat
-                    instanceof FileBasedStatisticsReportableDecodingFormat) {
-                return ((FileBasedStatisticsReportableDecodingFormat<?>) deserializationFormat)
+            } else if (deserializationFormat instanceof FileBasedStatisticsReportableInputFormat) {
+                return ((FileBasedStatisticsReportableInputFormat) deserializationFormat)
                         .reportStatistics(files, producedDataType);
             } else {
                 return TableStats.UNKNOWN;
