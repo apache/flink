@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 /** Interface encapsulates an asynchronous retry predicate. */
+@PublicEvolving
 public interface AsyncRetryPredicate<OUT> {
 
     /**

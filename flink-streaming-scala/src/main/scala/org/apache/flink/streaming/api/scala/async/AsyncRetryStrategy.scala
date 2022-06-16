@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.scala.async
 
+import org.apache.flink.annotation.PublicEvolving
+
 /** Interface encapsulates an asynchronous retry strategy. */
+@PublicEvolving
 trait AsyncRetryStrategy[OUT] extends Serializable {
 
   /** @return whether the next attempt can happen */
