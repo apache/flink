@@ -92,6 +92,13 @@ public class NFA<T> {
     private final Map<String, State<T>> states;
 
     /**
+     * The lengths of a windowed pattern, as specified using the {@link
+     * org.apache.flink.cep.pattern.Pattern#within(Time, WithinType)} Pattern.within(Time,
+     * WithinType)} method with {@code WithinType.PREVIOUS_AND_CURRENT}.
+     */
+    private final Map<String, Long> windowTimes;
+
+    /**
      * The length of a windowed pattern, as specified using the {@link
      * org.apache.flink.cep.pattern.Pattern#within(Time)} Pattern.within(Time)} method.
      */
@@ -105,11 +112,13 @@ public class NFA<T> {
 
     public NFA(
             final Collection<State<T>> validStates,
+            final Map<String, Long> windowTimes,
             final long windowTime,
             final boolean handleTimeout) {
         this.windowTime = windowTime;
         this.handleTimeout = handleTimeout;
         this.states = loadStates(validStates);
+        this.windowTimes = windowTimes;
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
@@ -273,7 +282,21 @@ public class NFA<T> {
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
         for (ComputationState computationState : nfaState.getPartialMatches()) {
-            if (isStateTimedOut(computationState, timestamp)) {
+            String currentStateName = computationState.getCurrentStateName();
+            boolean isTimeoutForPreviousEvent =
+                    windowTimes.containsKey(currentStateName)
+                            && isStateTimedOut(
+                                    computationState,
+                                    timestamp,
+                                    computationState.getPreviousTimestamp(),
+                                    windowTimes.get(currentStateName));
+            boolean isTimeoutForFirstEvent =
+                    isStateTimedOut(
+                            computationState,
+                            timestamp,
+                            computationState.getStartTimestamp(),
+                            windowTime);
+            if (isTimeoutForPreviousEvent || isTimeoutForFirstEvent) {
                 if (getState(computationState).isPending()) {
                     // extract the Pending State
                     Map<String, List<T>> pendingPattern =
@@ -288,7 +311,11 @@ public class NFA<T> {
                     timeoutResult.add(
                             Tuple2.of(
                                     timedOutPattern,
-                                    computationState.getStartTimestamp() + windowTime));
+                                    isTimeoutForPreviousEvent
+                                            ? computationState.getPreviousTimestamp()
+                                                    + windowTimes.get(
+                                                            computationState.getCurrentStateName())
+                                            : computationState.getStartTimestamp() + windowTime));
                 }
 
                 sharedBufferAccessor.releaseNode(
@@ -307,10 +334,12 @@ public class NFA<T> {
         return Tuple2.of(pendingMatches, timeoutResult);
     }
 
-    private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
-        return !isStartState(state)
-                && windowTime > 0L
-                && timestamp - state.getStartTimestamp() >= windowTime;
+    private boolean isStateTimedOut(
+            final ComputationState state,
+            final long timestamp,
+            final long startTimestamp,
+            final long windowTime) {
+        return !isStartState(state) && windowTime > 0L && timestamp - startTimestamp >= windowTime;
     }
 
     private Collection<Map<String, List<T>>> doProcess(
@@ -646,6 +675,7 @@ public class NFA<T> {
                                     computationState.getPreviousBufferEntry(),
                                     version,
                                     computationState.getStartTimestamp(),
+                                    computationState.getPreviousTimestamp(),
                                     computationState.getStartEventID());
                         }
                     }
@@ -677,6 +707,7 @@ public class NFA<T> {
                         startTimestamp = computationState.getStartTimestamp();
                         startEventId = computationState.getStartEventID();
                     }
+                    final long previousTimestamp = event.getTimestamp();
 
                     addComputationState(
                             sharedBufferAccessor,
@@ -685,6 +716,7 @@ public class NFA<T> {
                             newEntry,
                             nextVersion,
                             startTimestamp,
+                            previousTimestamp,
                             startEventId);
 
                     // check if newly created state is optional (have a PROCEED path to Final state)
@@ -698,6 +730,7 @@ public class NFA<T> {
                                 newEntry,
                                 nextVersion,
                                 startTimestamp,
+                                previousTimestamp,
                                 startEventId);
                     }
                     break;
@@ -733,6 +766,7 @@ public class NFA<T> {
             NodeId previousEntry,
             DeweyNumber version,
             long startTimestamp,
+            long previousTimestamp,
             EventId startEventId)
             throws Exception {
         ComputationState computationState =
@@ -741,6 +775,7 @@ public class NFA<T> {
                         previousEntry,
                         version,
                         startTimestamp,
+                        previousTimestamp,
                         startEventId);
         computationStates.add(computationState);
 

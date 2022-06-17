@@ -28,6 +28,7 @@ import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.TestLogger;
@@ -347,6 +348,26 @@ public class NFACompilerTest extends TestLogger {
     }
 
     @Test
+    public void testWindowTimesCorrectlySet() {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .followedBy("middle")
+                        .within(Time.seconds(10), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("then")
+                        .within(Time.seconds(20), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("end");
+
+        NFACompiler.NFAFactoryCompiler<Event> factory =
+                new NFACompiler.NFAFactoryCompiler<>(pattern);
+        factory.compileFactory();
+
+        Map<String, Long> expectedWindowTimes = new HashMap<>();
+        expectedWindowTimes.put("middle", Time.seconds(10).toMilliseconds());
+        expectedWindowTimes.put("then", Time.seconds(20).toMilliseconds());
+        assertEquals(expectedWindowTimes, factory.getWindowTimes());
+    }
+
+    @Test
     public void testMultipleWindowTimeWithZeroLength() {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
@@ -360,5 +381,25 @@ public class NFACompilerTest extends TestLogger {
                 new NFACompiler.NFAFactoryCompiler<>(pattern);
         factory.compileFactory();
         assertEquals(0, factory.getWindowTime());
+    }
+
+    @Test
+    public void testCheckPatternWindowTimes() {
+        expectedException.expect(MalformedPatternException.class);
+        expectedException.expectMessage(
+                "The window length between the previous and current event cannot be larger than the window length between the first and last event for a Pattern.");
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .followedBy("middle")
+                        .within(Time.seconds(3), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("then")
+                        .within(Time.seconds(1), WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("end")
+                        .within(Time.milliseconds(2));
+
+        NFACompiler.NFAFactoryCompiler<Event> factory =
+                new NFACompiler.NFAFactoryCompiler<>(pattern);
+        factory.compileFactory();
     }
 }
