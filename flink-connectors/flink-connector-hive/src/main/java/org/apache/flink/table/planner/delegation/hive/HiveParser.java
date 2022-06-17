@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.connectors.hive.HiveInternalOptions;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -41,6 +43,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveSetProcessor;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
@@ -57,6 +60,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.processors.HiveCommand;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +76,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -86,6 +92,7 @@ public class HiveParser extends ParserImpl {
     private static final Method getCurrentTSMethod =
             HiveReflectionUtils.tryGetMethod(
                     SessionState.class, "getQueryCurrentTimestamp", new Class[0]);
+    private static final String HIVE_VARIABLE_PREFIX = "__hive.variable__";
 
     // need to maintain the HiveParserASTNode types for DDLs
     private static final Set<Integer> DDL_NODES;
@@ -163,6 +170,8 @@ public class HiveParser extends ParserImpl {
     private final FrameworkConfig frameworkConfig;
     private final SqlFunctionConverter funcConverter;
     private final HiveParserDMLHelper dmlHelper;
+    private final TableConfig tableConfig;
+    private final Map<String, String> hiveVariables;
 
     HiveParser(
             CatalogManager catalogManager,
@@ -183,6 +192,8 @@ public class HiveParser extends ParserImpl {
                         frameworkConfig.getOperatorTable(),
                         catalogReader.nameMatcher());
         this.dmlHelper = new HiveParserDMLHelper(plannerContext, funcConverter, catalogManager);
+        this.tableConfig = plannerContext.getFlinkContext().getTableConfig();
+        this.hiveVariables = tableConfig.get(HiveInternalOptions.HIVE_VARIABLES);
     }
 
     @Override
@@ -193,6 +204,13 @@ public class HiveParser extends ParserImpl {
         if (!(currentCatalog instanceof HiveCatalog)) {
             LOG.warn("Current catalog is not HiveCatalog. Falling back to Flink's planner.");
             return super.parse(statement);
+        }
+
+        Optional<Operation> nonSqlOperation =
+                tryProcessHiveNonSqlStatement(
+                        ((HiveCatalog) currentCatalog).getHiveConf(), statement);
+        if (nonSqlOperation.isPresent()) {
+            return Collections.singletonList(nonSqlOperation.get());
         }
         HiveConf hiveConf = new HiveConf(((HiveCatalog) currentCatalog).getHiveConf());
         hiveConf.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
@@ -209,6 +227,66 @@ public class HiveParser extends ParserImpl {
         } finally {
             clearSessionState();
         }
+    }
+
+    private Optional<Operation> tryProcessHiveNonSqlStatement(HiveConf hiveConf, String statement) {
+        String[] commandTokens = statement.split("\\s+");
+        HiveCommand hiveCommand = HiveCommand.find(commandTokens);
+        if (hiveCommand != null) {
+            if (hiveCommand == HiveCommand.SET) {
+                return Optional.of(
+                        processSetCmd(
+                                hiveConf, statement.substring(commandTokens[0].length()).trim()));
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Operation processSetCmd(HiveConf hiveConf, String setCmdArgs) {
+        String nwcmd = setCmdArgs.trim();
+        // the set command may end with ";" as it won't be removed by Flink SQL CLI,
+        // so, we need to remove ";"
+        if (nwcmd.endsWith(";")) {
+            nwcmd = nwcmd.substring(0, nwcmd.length() - 1);
+        }
+
+        if (nwcmd.equals("")) {
+            String options =
+                    HiveSetProcessor.dumpOptions(
+                            hiveConf.getChangedProperties(), hiveConf, hiveVariables);
+            // todo show the options
+            throw new UnsupportedOperationException("Command 'set' isn't supported currently.");
+        }
+        if (nwcmd.equals("-v")) {
+            String options =
+                    HiveSetProcessor.dumpOptions(
+                            hiveConf.getAllProperties(), hiveConf, hiveVariables);
+            throw new UnsupportedOperationException("Command 'set -v' isn't supported currently.");
+        }
+
+        String[] part = new String[2];
+        int eqIndex = nwcmd.indexOf('=');
+        if (nwcmd.contains("=")) {
+            if (eqIndex == nwcmd.length() - 1) { // x=
+                part[0] = nwcmd.substring(0, nwcmd.length() - 1);
+                part[1] = "";
+            } else { // x=y
+                part[0] = nwcmd.substring(0, eqIndex).trim();
+                part[1] = nwcmd.substring(eqIndex + 1).trim();
+            }
+            if (part[0].equals("silent")) {
+                throw new UnsupportedOperationException("Unsupported command 'set silent'.");
+            }
+            HiveSetProcessor.setVariable(hiveConf, tableConfig, hiveVariables, part[0], part[1]);
+            return new NopOperation();
+        }
+
+        // todo show the option
+        String option = HiveSetProcessor.getVariable(hiveConf, hiveVariables, nwcmd);
+        // for the variable
+        throw new UnsupportedOperationException("Unsupported SET command which misses '='.");
     }
 
     private List<Operation> processCmd(

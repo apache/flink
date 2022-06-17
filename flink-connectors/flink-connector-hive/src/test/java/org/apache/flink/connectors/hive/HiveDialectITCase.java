@@ -64,6 +64,7 @@ import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
@@ -154,6 +155,7 @@ public class HiveDialectITCase {
         assertThat(parser).isInstanceOf(HiveParser.class);
         assertThat(parser.parse("HELP").get(0)).isInstanceOf(HelpOperation.class);
         assertThat(parser.parse("clear").get(0)).isInstanceOf(ClearOperation.class);
+        // todo: fix me
         assertThat(parser.parse("SET").get(0)).isInstanceOf(SetOperation.class);
         assertThat(parser.parse("ResET").get(0)).isInstanceOf(ResetOperation.class);
         assertThat(parser.parse("Exit").get(0)).isInstanceOf(QuitOperation.class);
@@ -973,6 +975,36 @@ public class HiveDialectITCase {
                 .hasRootCauseMessage(
                         "DROP TEMPORARY MACRO doesn't allow \".\" character in the macro name, but the name is \"%s\".",
                         badMacroName);
+    }
+
+    @Test
+    public void testSetCommand() throws Exception {
+        // test set system:
+        tableEnv.executeSql("set system:xxx=5");
+        assertThat(System.getProperty("xxx")).isEqualTo("5");
+        // test set hiveconf:
+        tableEnv.executeSql("set hiveconf:yyy=${system:xxx}");
+        assertThat(hiveCatalog.getHiveConf().get("yyy")).isEqualTo("5");
+        // test set hivevar:
+        tableEnv.executeSql("set hivevar:a=1");
+        tableEnv.executeSql("set hiveconf:zzz=${hivevar:a}");
+        assertThat(hiveCatalog.getHiveConf().get("zzz")).isEqualTo("1");
+        // test set metaconf:
+        tableEnv.executeSql("set metaconf:hive.metastore.try.direct.sql=false");
+        Hive hive = Hive.get(hiveCatalog.getHiveConf());
+        assertThat(hive.getMetaConf("hive.metastore.try.direct.sql")).isEqualTo("false");
+        // test set
+        tableEnv.executeSql("set user.name=hive_test_user");
+        assertThat(hiveCatalog.getHiveConf().get("user.name")).isEqualTo("hive_test_user");
+        // test we can also get the value from Flink's table config
+        assertThat(tableEnv.getConfig().getConfiguration().toMap().get("user.name"))
+                .isEqualTo("hive_test_user");
+        tableEnv.executeSql("set user.name=");
+        assertThat(hiveCatalog.getHiveConf().get("user.name")).isEmpty();
+        // test set env isn't supported
+        assertThatThrownBy(() -> tableEnv.executeSql("set env:xxx=yyy"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("env:* variables can not be set.");
     }
 
     @Test
