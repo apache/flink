@@ -101,7 +101,8 @@ public class KerberosDelegationTokenManagerITCase {
         KerberosDelegationTokenManager delegationTokenManager =
                 new KerberosDelegationTokenManager(configuration, null, null);
 
-        assertEquals(1, delegationTokenManager.delegationTokenProviders.size());
+        assertEquals(2, delegationTokenManager.delegationTokenProviders.size());
+        assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
         assertTrue(delegationTokenManager.isProviderLoaded("test"));
         assertTrue(ExceptionThrowingDelegationTokenProvider.constructed);
         assertFalse(delegationTokenManager.isProviderLoaded("throw"));

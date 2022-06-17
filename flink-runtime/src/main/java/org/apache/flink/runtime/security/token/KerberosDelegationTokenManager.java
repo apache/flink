@@ -21,6 +21,7 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.hadoop.security.Credentials;
@@ -130,12 +131,14 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                             "Delegation token provider {} is disabled so not loaded",
                             provider.serviceName());
                 }
-            } catch (Exception e) {
+            } catch (Exception | NoClassDefFoundError e) {
                 LOG.error(
-                        "Failed to initialize delegation token provider {}.",
+                        "Failed to initialize delegation token provider {}",
                         provider.serviceName(),
                         e);
-                throw e;
+                if (!(e instanceof NoClassDefFoundError)) {
+                    throw new FlinkRuntimeException(e);
+                }
             }
         }
 
@@ -183,21 +186,29 @@ public class KerberosDelegationTokenManager implements DelegationTokenManager {
                 delegationTokenProviders.values().stream()
                         .map(
                                 provider -> {
-                                    Optional<Long> nr = Optional.empty();
-                                    if (provider.delegationTokensRequired()) {
-                                        LOG.debug(
-                                                "Obtaining delegation token for service {}",
-                                                provider.serviceName());
-                                        nr = provider.obtainDelegationTokens(credentials);
-                                        LOG.debug(
-                                                "Obtained delegation token for service {} successfully",
-                                                provider.serviceName());
-                                    } else {
-                                        LOG.debug(
-                                                "Service {} does not need to obtain delegation token",
-                                                provider.serviceName());
+                                    try {
+                                        Optional<Long> nr = Optional.empty();
+                                        if (provider.delegationTokensRequired()) {
+                                            LOG.debug(
+                                                    "Obtaining delegation token for service {}",
+                                                    provider.serviceName());
+                                            nr = provider.obtainDelegationTokens(credentials);
+                                            LOG.debug(
+                                                    "Obtained delegation token for service {} successfully",
+                                                    provider.serviceName());
+                                        } else {
+                                            LOG.debug(
+                                                    "Service {} does not need to obtain delegation token",
+                                                    provider.serviceName());
+                                        }
+                                        return nr;
+                                    } catch (Exception e) {
+                                        LOG.error(
+                                                "Failed to obtain delegation token for provider {}",
+                                                provider.serviceName(),
+                                                e);
+                                        throw new FlinkRuntimeException(e);
                                     }
-                                    return nr;
                                 })
                         .flatMap(nr -> nr.map(Stream::of).orElseGet(Stream::empty))
                         .min(Long::compare);

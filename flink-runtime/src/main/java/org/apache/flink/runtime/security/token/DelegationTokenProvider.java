@@ -39,14 +39,14 @@ public interface DelegationTokenProvider {
      *
      * @param configuration Configuration to initialize the provider.
      */
-    void init(Configuration configuration);
+    void init(Configuration configuration) throws Exception;
 
     /**
      * Return whether delegation tokens are required for this service.
      *
      * @return true if delegation tokens are required.
      */
-    boolean delegationTokensRequired();
+    boolean delegationTokensRequired() throws Exception;
 
     /**
      * Obtain delegation tokens for this service.
@@ -55,5 +55,5 @@ public interface DelegationTokenProvider {
      * @return If the returned tokens are renewable and can be renewed, return the time of the next
      *     renewal, otherwise `Optional.empty()` should be returned.
      */
-    Optional<Long> obtainDelegationTokens(Credentials credentials);
+    Optional<Long> obtainDelegationTokens(Credentials credentials) throws Exception;
 }
