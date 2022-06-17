@@ -35,7 +35,7 @@ Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault
 **注意:** 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
 {{< /hint >}}
 
-To make proper use of savepoints, it's important to understand the differences between [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) and savepoints which is described in [checkpoints vs. savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}).
+为了正确使用 savepoints，了解 [checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) 与 savepoints 之间的区别非常重要，[checkpoints 与 savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}) 中对此进行了描述。
 
 ## 分配算子 ID
 
