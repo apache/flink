@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
@@ -334,10 +335,10 @@ public class NFAITCase extends TestLogger {
 
     /**
      * Tests that the NFA successfully filters out expired elements with respect to the window
-     * length.
+     * length between the first and last event.
      */
     @Test
-    public void testSimplePatternWithTimeWindowNFA() throws Exception {
+    public void testSimplePatternWithTimeWindowNFAWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
 
         final Event startEvent;
@@ -398,11 +399,78 @@ public class NFAITCase extends TestLogger {
     }
 
     /**
-     * Tests that the NFA successfully returns partially matched event sequences when they've timed
-     * out.
+     * Tests that the NFA successfully filters out expired elements with respect to the window
+     * length between the previous and current event.
      */
     @Test
-    public void testSimplePatternWithTimeoutHandling() throws Exception {
+    public void testSimplePatternWithTimeWindowNFAWithinPreviousAndCurrent() throws Exception {
+        List<StreamRecord<Event>> events = new ArrayList<>();
+
+        final Event startEvent1;
+        final Event startEvent2;
+        final Event middleEvent;
+        final Event endEvent;
+
+        events.add(new StreamRecord<>(startEvent1 = new Event(1, "start", 1.0), 1));
+        events.add(new StreamRecord<>(startEvent2 = new Event(2, "start", 1.0), 2));
+        events.add(new StreamRecord<>(middleEvent = new Event(3, "middle", 1.0), 3));
+        events.add(new StreamRecord<>(new Event(4, "foobar", 1.0), 4));
+        events.add(new StreamRecord<>(endEvent = new Event(5, "end", 1.0), 11));
+        events.add(new StreamRecord<>(new Event(6, "end", 1.0), 13));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            7907391379273505897L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            -3268741540234334074L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .followedBy("end")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            -8995174172182138608L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("end");
+                                    }
+                                })
+                        .within(Time.milliseconds(9), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(events, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(startEvent1, middleEvent, endEvent),
+                        Lists.newArrayList(startEvent2, middleEvent, endEvent)));
+    }
+
+    /**
+     * Tests that the NFA successfully returns partially matched event sequences when they've timed
+     * out within the first and last event.
+     */
+    @Test
+    public void testSimplePatternWithTimeoutHandlingWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
         List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
         Set<Tuple2<Map<String, List<Event>>, Long>> resultingTimeoutPatterns = new HashSet<>();
@@ -497,8 +565,109 @@ public class NFAITCase extends TestLogger {
         assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
     }
 
+    /**
+     * Tests that the NFA successfully returns partially matched event sequences when they've timed
+     * out within the previous and current event.
+     */
     @Test
-    public void testPendingStateMatches() throws Exception {
+    public void testSimplePatternWithTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
+        List<StreamRecord<Event>> events = new ArrayList<>();
+        List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
+        Set<Tuple2<Map<String, List<Event>>, Long>> resultingTimeoutPatterns = new HashSet<>();
+        Set<Tuple2<Map<String, List<Event>>, Long>> expectedTimeoutPatterns = new HashSet<>();
+
+        events.add(new StreamRecord<>(new Event(1, "start", 1.0), 1));
+        events.add(new StreamRecord<>(new Event(2, "start", 1.0), 2));
+        events.add(new StreamRecord<>(new Event(3, "middle", 1.0), 3));
+        events.add(new StreamRecord<>(new Event(4, "foobar", 1.0), 4));
+        events.add(new StreamRecord<>(new Event(5, "end", 1.0), 11));
+        events.add(new StreamRecord<>(new Event(6, "end", 1.0), 13));
+
+        Map<String, List<Event>> timeoutPattern1 = new HashMap<>();
+        timeoutPattern1.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
+        timeoutPattern1.put("middle", Collections.singletonList(new Event(3, "middle", 1.0)));
+
+        Map<String, List<Event>> timeoutPattern2 = new HashMap<>();
+        timeoutPattern2.put("start", Collections.singletonList(new Event(2, "start", 1.0)));
+        timeoutPattern2.put("middle", Collections.singletonList(new Event(3, "middle", 1.0)));
+
+        expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern1, 13L));
+        expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern2, 13L));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            7907391379273505897L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            -3268741540234334074L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .followedByAny("end")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            -8995174172182138608L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("end");
+                                    }
+                                })
+                        .within(Time.milliseconds(10), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+
+        NFA<Event> nfa = compile(pattern, true);
+
+        NFAState nfaState = nfa.createInitialNFAState();
+
+        for (StreamRecord<Event> event : events) {
+
+            Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
+                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp()).f1;
+            Collection<Map<String, List<Event>>> matchedPatterns =
+                    nfa.process(
+                            sharedBufferAccessor,
+                            nfaState,
+                            event.getValue(),
+                            event.getTimestamp(),
+                            AfterMatchSkipStrategy.noSkip(),
+                            new TestTimerService());
+
+            resultingPatterns.addAll(matchedPatterns);
+            resultingTimeoutPatterns.addAll(timeoutPatterns);
+        }
+
+        assertEquals(2, resultingPatterns.size());
+        assertEquals(expectedTimeoutPatterns.size(), resultingTimeoutPatterns.size());
+
+        assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
+    }
+
+    @Test
+    public void testPendingStateMatchesWithinFirstAndLast() throws Exception {
+        testPendingStateMatches(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testPendingStateMatchesWithinPreviousAndCurrent() throws Exception {
+        testPendingStateMatches(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testPendingStateMatches(Pattern.WithinType withinType) throws Exception {
         List<StreamRecord<Event>> events = new ArrayList<>();
         Set<Map<String, List<Event>>> resultingPendingMatches = new HashSet<>();
         Set<Map<String, List<Event>>> expectedPendingMatches = new HashSet<>();
@@ -541,7 +710,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("middle");
                                     }
                                 })
-                        .within(Time.milliseconds(5));
+                        .within(Time.milliseconds(5), withinType);
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -3247,7 +3416,16 @@ public class NFAITCase extends TestLogger {
     // ////////////////////////////////////////
 
     @Test
-    public void testTimesClearingBuffer() throws Exception {
+    public void testTimesClearingBufferWithinFirstAndLast() throws Exception {
+        testTimesClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testTimesClearingBufferWithinPreviousAndCurrent() throws Exception {
+        testTimesClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testTimesClearingBuffer(Pattern.WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -3289,7 +3467,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(8));
+                        .within(Time.milliseconds(8), withinType);
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -3311,7 +3489,16 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testOptionalClearingBuffer() throws Exception {
+    public void testOptionalClearingBufferWithinFirstAndLast() throws Exception {
+        testOptionalClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testOptionalClearingBufferWithinPreviousAndCurrent() throws Exception {
+        testOptionalClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testOptionalClearingBuffer(Pattern.WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent = new Event(43, "a", 4.0);
         Event end1 = new Event(44, "b", 5.0);
@@ -3351,7 +3538,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(8));
+                        .within(Time.milliseconds(8), withinType);
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -3370,7 +3557,16 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testAtLeastOneClearingBuffer() throws Exception {
+    public void testAtLeastOneClearingBufferWithinFirstAndLast() throws Exception {
+        testAtLeastOneClearingBuffer(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testAtLeastOneClearingBufferWithPreviousAndCurrent() throws Exception {
+        testAtLeastOneClearingBuffer(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testAtLeastOneClearingBuffer(Pattern.WithinType withinType) throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -3432,7 +3628,7 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testZeroOrMoreClearingBuffer() throws Exception {
+    public void testZeroOrMoreClearingBufferWithinFirstAndLast() throws Exception {
         Event startEvent = new Event(40, "c", 1.0);
         Event middleEvent1 = new Event(41, "a", 2.0);
         Event middleEvent2 = new Event(42, "a", 3.0);
@@ -3492,6 +3688,73 @@ public class NFAITCase extends TestLogger {
 
         assertEquals(1, nfaState.getPartialMatches().size());
         assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
+    }
+
+    @Test
+    public void testZeroOrMoreClearingBufferWithinPreviousAndCurrent() throws Exception {
+        Event startEvent = new Event(40, "c", 1.0);
+        Event middleEvent1 = new Event(41, "a", 2.0);
+        Event middleEvent2 = new Event(42, "a", 3.0);
+        Event end1 = new Event(44, "b", 5.0);
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .oneOrMore()
+                        .allowCombinations()
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                })
+                        .within(Time.milliseconds(8), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        NFAState nfaState = nfa.createInitialNFAState();
+        NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+
+        nfaTestHarness.consumeRecord(new StreamRecord<>(startEvent, 1));
+        nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent1, 3));
+        nfaTestHarness.consumeRecord(new StreamRecord<>(middleEvent2, 4));
+        nfaTestHarness.consumeRecord(new StreamRecord<>(end1, 6));
+
+        // pruning element
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 10);
+
+        assertEquals(3, nfaState.getPartialMatches().size());
+        assertEquals(
+                "middle:0middle:0start",
+                nfaState.getPartialMatches().stream()
+                        .map(c -> c.getCurrentStateName())
+                        .collect(Collectors.joining()));
     }
 
     ///////////////////////////////////////   Skip till next     /////////////////////////////
@@ -4013,7 +4276,16 @@ public class NFAITCase extends TestLogger {
     }
 
     @Test
-    public void testLoopClearing() throws Exception {
+    public void testLoopClearingWithinFirstAndLast() throws Exception {
+        testLoopClearing(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testLoopClearingWithinPreviousAndCurrent() throws Exception {
+        testLoopClearing(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testLoopClearing(Pattern.WithinType withinType) throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
                         .times(4)
@@ -4024,7 +4296,7 @@ public class NFAITCase extends TestLogger {
                                         return value.getName().equals("a");
                                     }
                                 })
-                        .within(Time.milliseconds(3));
+                        .within(Time.milliseconds(3), withinType);
 
         Event a1 = new Event(40, "a", 1.0);
         Event a2 = new Event(40, "a", 1.0);
@@ -4038,6 +4310,8 @@ public class NFAITCase extends TestLogger {
             nfa.advanceTime(accessor, nfaState, 4);
         }
 
-        assertThat(sharedBuffer.getEventsBufferSize(), equalTo(1));
+        assertThat(
+                sharedBuffer.getEventsBufferSize(),
+                equalTo(withinType.equals(Pattern.WithinType.FIRST_AND_LAST) ? 1 : 2));
     }
 }

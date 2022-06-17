@@ -21,6 +21,7 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -29,7 +30,10 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
@@ -105,6 +109,70 @@ public class TimesOrMoreITCase extends TestLogger {
     }
 
     @Test
+    public void testTimesOrMoreWithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        Event startEvent = new Event(40, "c", 1.0);
+        Event middleEvent1 = new Event(41, "a", 2.0);
+        Event middleEvent2 = new Event(42, "a", 3.0);
+        Event middleEvent3 = new Event(43, "a", 4.0);
+        Event end1 = new Event(44, "b", 5.0);
+
+        inputEvents.add(new StreamRecord<>(startEvent, 1));
+        inputEvents.add(new StreamRecord<>(middleEvent1, 2));
+        inputEvents.add(new StreamRecord<>(middleEvent2, 3));
+        inputEvents.add(new StreamRecord<>(middleEvent3, 4));
+        inputEvents.add(new StreamRecord<>(end1, 6));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
+                        .allowCombinations()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1)));
+    }
+
+    @Test
     public void testTimesOrMoreNonStrict() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -141,6 +209,86 @@ public class TimesOrMoreITCase extends TestLogger {
                                     }
                                 })
                         .timesOrMore(2)
+                        .allowCombinations()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreNonStrictWithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
                         .allowCombinations()
                         .followedBy("end1")
                         .where(
@@ -249,6 +397,70 @@ public class TimesOrMoreITCase extends TestLogger {
     }
 
     @Test
+    public void testTimesOrMoreStrictWithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .times(2, Collections.singletonMap(2, Time.milliseconds(2)))
+                        .consecutive()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end)));
+    }
+
+    @Test
     public void testTimesOrMoreStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -285,6 +497,72 @@ public class TimesOrMoreITCase extends TestLogger {
                                     }
                                 })
                         .timesOrMore(2)
+                        .consecutive()
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreStrictOptionalWithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
                         .consecutive()
                         .optional()
                         .followedBy("end1")
@@ -385,6 +663,76 @@ public class TimesOrMoreITCase extends TestLogger {
     }
 
     @Test
+    public void testTimesOrMoreStrictOptional2WithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,}, b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .next("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
+                        .consecutive()
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+    }
+
+    @Test
     public void testTimesOrMoreNonStrictOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -417,6 +765,62 @@ public class TimesOrMoreITCase extends TestLogger {
                                     }
                                 })
                         .timesOrMore(2)
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreNonStrictOptionalWithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
                         .optional()
                         .followedBy("end1")
                         .where(
@@ -477,6 +881,88 @@ public class TimesOrMoreITCase extends TestLogger {
                                     }
                                 })
                         .timesOrMore(2)
+                        .allowCombinations()
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreNonStrictOptional2WithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
                         .allowCombinations()
                         .optional()
                         .followedBy("end1")
@@ -599,6 +1085,82 @@ public class TimesOrMoreITCase extends TestLogger {
     }
 
     @Test
+    public void testTimesOrMoreNonStrictOptional3WithWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 3));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
+                        .optional()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
+    }
+
+    @Test
     public void testTimesOrMoreNonStrictWithNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -674,6 +1236,81 @@ public class TimesOrMoreITCase extends TestLogger {
     }
 
     @Test
+    public void testTimesOrMoreNonStrictWithNextAndWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 2));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 3));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 4));
+        inputEvents.add(new StreamRecord<>(new Event(23, "f", 1.0), 5));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .next("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, getWindowTimes())
+                        .allowCombinations()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end)));
+    }
+
+    @Test
     public void testTimesOrMoreNotStrictWithFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
@@ -708,6 +1345,73 @@ public class TimesOrMoreITCase extends TestLogger {
                                     }
                                 })
                         .timesOrMore(2)
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreNotStrictWithFollowedByAndWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, Collections.singletonMap(2, Time.milliseconds(3)))
                         .followedBy("end1")
                         .where(
                                 new SimpleCondition<Event>() {
@@ -816,6 +1520,91 @@ public class TimesOrMoreITCase extends TestLogger {
                                 ConsecutiveData.middleEvent1,
                                 ConsecutiveData.middleEvent3,
                                 ConsecutiveData.end)));
+    }
+
+    @Test
+    public void testTimesOrMoreNotStrictWithFollowedByAnyAndWindowTimes() throws Exception {
+        List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.startEvent, 1));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent1, 2));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent2, 4));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.middleEvent3, 6));
+        inputEvents.add(new StreamRecord<>(ConsecutiveData.end, 7));
+
+        // c a{2,} b
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("c");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("a");
+                                    }
+                                })
+                        .timesOrMore(2, Collections.singletonMap(2, Time.milliseconds(3)))
+                        .allowCombinations()
+                        .followedBy("end1")
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    private static final long serialVersionUID =
+                                            5726188262756267490L;
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("b");
+                                    }
+                                });
+
+        NFA<Event> nfa = compile(pattern, false);
+
+        List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+        comparePatterns(
+                resultingPatterns,
+                Lists.<List<Event>>newArrayList(
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent2,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end),
+                        Lists.newArrayList(
+                                ConsecutiveData.startEvent,
+                                ConsecutiveData.middleEvent1,
+                                ConsecutiveData.middleEvent3,
+                                ConsecutiveData.end)));
+    }
+
+    private Map<Integer, Time> getWindowTimes() {
+        Map<Integer, Time> windowTimes = new HashMap<>();
+        windowTimes.put(2, Time.milliseconds(2));
+        windowTimes.put(3, Time.milliseconds(1));
+        return windowTimes;
     }
 
     private static class ConsecutiveData {

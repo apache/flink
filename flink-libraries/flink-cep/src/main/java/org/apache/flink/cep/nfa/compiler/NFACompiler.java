@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 
+import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getCurrentTimesFromInternal;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -71,12 +72,17 @@ public class NFACompiler {
             final Pattern<T, ?> pattern, boolean timeoutHandling) {
         if (pattern == null) {
             // return a factory for empty NFAs
-            return new NFAFactoryImpl<>(0, Collections.<State<T>>emptyList(), timeoutHandling);
+            return new NFAFactoryImpl<>(
+                    0,
+                    Collections.<String, Long>emptyMap(),
+                    Collections.<State<T>>emptyList(),
+                    timeoutHandling);
         } else {
             final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
             nfaFactoryCompiler.compileFactory();
             return new NFAFactoryImpl<>(
                     nfaFactoryCompiler.getWindowTime(),
+                    nfaFactoryCompiler.getWindowTimes(),
                     nfaFactoryCompiler.getStates(),
                     timeoutHandling);
         }
@@ -137,6 +143,8 @@ public class NFACompiler {
         private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
         private final Map<String, State<T>> stopStates = new HashMap<>();
         private final List<State<T>> states = new ArrayList<>();
+        private final Map<String, Integer> ignoreTimes = new HashMap<>();
+        private final Map<String, Long> windowTimes = new HashMap<>();
 
         private Optional<Long> windowTime;
         private GroupPattern<T, ?> currentGroupPattern;
@@ -174,6 +182,7 @@ public class NFACompiler {
 
             if (lastPattern.getQuantifier().getConsumingStrategy()
                             == Quantifier.ConsumingStrategy.NOT_FOLLOW
+                    && !windowTimes.containsKey(lastPattern.getName())
                     && getWindowTime() == 0) {
                 throw new MalformedPatternException(
                         "NotFollowedBy is not supported without windowTime as a last part of a Pattern!");
@@ -190,6 +199,10 @@ public class NFACompiler {
 
         long getWindowTime() {
             return windowTime.orElse(0L);
+        }
+
+        Map<String, Long> getWindowTimes() {
+            return windowTimes;
         }
 
         /** Check pattern after match skip strategy. */
@@ -308,9 +321,10 @@ public class NFACompiler {
                 if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
                     // skip notFollow patterns, they are converted into edge conditions
-                    if (getWindowTime() > 0 && lastSink.isFinal()) {
-                        final State<T> notFollow =
-                                createState(currentPattern.getName(), State.StateType.Pending);
+                    if (currentPattern.getWindowTime(Pattern.WithinType.PREVIOUS_AND_CURRENT)
+                                    != null
+                            || getWindowTime() > 0 && lastSink.isFinal()) {
+                        final State<T> notFollow = createState(State.StateType.Pending, false);
                         final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
                         final State<T> stopState =
                                 createStopState(notCondition, currentPattern.getName());
@@ -320,8 +334,7 @@ public class NFACompiler {
                     }
                 } else if (currentPattern.getQuantifier().getConsumingStrategy()
                         == Quantifier.ConsumingStrategy.NOT_NEXT) {
-                    final State<T> notNext =
-                            createState(currentPattern.getName(), State.StateType.Normal);
+                    final State<T> notNext = createState(State.StateType.Normal, false);
                     final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
                     final State<T> stopState =
                             createStopState(notCondition, currentPattern.getName());
@@ -390,10 +403,54 @@ public class NFACompiler {
             return lastSink;
         }
 
+        private State<T> createState(State.StateType stateType, boolean isIgnore) {
+            State<T> state = createState(currentPattern.getName(), stateType);
+            int currentTimes = getCurrentTimesFromInternal(state.getName());
+            if (!isIgnore) {
+                Times patternTimes = currentPattern.getTimes();
+                Map<Integer, Long> stateTimes = getStateTimes();
+                if (patternTimes == null) {
+                    if (stateTimes.containsKey(currentTimes)) {
+                        windowTimes.put(state.getName(), stateTimes.get(currentTimes));
+                    }
+                } else if (patternTimes.getFrom() == patternTimes.getTo()) {
+                    if (stateTimes.containsKey(
+                            currentPattern.getTimes().getFrom() - currentTimes + 1)) {
+                        windowTimes.put(
+                                state.getName(),
+                                stateTimes.get(
+                                        currentPattern.getTimes().getFrom() - currentTimes + 1));
+                    }
+                } else {
+                    if (stateTimes.containsKey(
+                            patternTimes.getTo()
+                                    - currentTimes
+                                    + ignoreTimes.getOrDefault(currentPattern.getName(), 0)
+                                    + 1)) {
+                        windowTimes.put(
+                                state.getName(),
+                                stateTimes.get(
+                                        patternTimes.getTo()
+                                                - currentTimes
+                                                + ignoreTimes.getOrDefault(
+                                                        currentPattern.getName(), 0)
+                                                + 1));
+                    }
+                }
+            } else {
+                ignoreTimes.put(
+                        currentPattern.getName(),
+                        ignoreTimes.getOrDefault(currentPattern.getName(), 0) + 1);
+            }
+            return state;
+        }
+
         /**
          * Creates a state with {@link State.StateType#Normal} and adds it to the collection of
          * created states. Should be used instead of instantiating with new operator.
          *
+         * @param name the name of the state
+         * @param stateType the type of the state
          * @return the created state
          */
         private State<T> createState(String name, State.StateType stateType) {
@@ -401,6 +458,20 @@ public class NFACompiler {
             State<T> state = new State<>(stateName, stateType);
             states.add(state);
             return state;
+        }
+
+        private Map<Integer, Long> getStateTimes() {
+            Map<Integer, Long> stateTimes = new HashMap<>();
+            Time windowTime = currentPattern.getWindowTime(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+            if (windowTime != null) {
+                stateTimes.put(1, windowTime.toMilliseconds());
+            }
+            Times times = currentPattern.getTimes();
+            if (times != null && times.getWindowTimes() != null) {
+                times.getWindowTimes()
+                        .forEach((key, value) -> stateTimes.put(key, value.toMilliseconds()));
+            }
+            return stateTimes;
         }
 
         private State<T> createStopState(
@@ -664,8 +735,7 @@ public class NFACompiler {
                         (GroupPattern) currentPattern, sinkState, proceedState, isOptional);
             }
 
-            final State<T> singletonState =
-                    createState(currentPattern.getName(), State.StateType.Normal);
+            final State<T> singletonState = createState(State.StateType.Normal, false);
             // if event is accepted then all notPatterns previous to the optional states are no
             // longer valid
             final State<T> sink = copyWithoutTransitiveNots(sinkState);
@@ -704,7 +774,7 @@ public class NFACompiler {
             if (ignoreCondition != null) {
                 final State<T> ignoreState;
                 if (isOptional) {
-                    ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
+                    ignoreState = createState(State.StateType.Normal, true);
                     ignoreState.addTake(sink, takeCondition);
                     ignoreState.addIgnore(ignoreCondition);
                     addStopStates(ignoreState);
@@ -767,8 +837,7 @@ public class NFACompiler {
             Pattern<T, ?> oldFollowingPattern = followingPattern;
             GroupPattern<T, ?> oldGroupPattern = currentGroupPattern;
 
-            final State<T> dummyState =
-                    createState(currentPattern.getName(), State.StateType.Normal);
+            final State<T> dummyState = createState(State.StateType.Normal, false);
             State<T> lastSink = dummyState;
             currentGroupPattern = groupPattern;
             currentPattern = groupPattern.getRawPattern();
@@ -807,8 +876,7 @@ public class NFACompiler {
                             getTakeCondition(currentPattern), untilCondition, true);
 
             IterativeCondition<T> proceedCondition = getTrueFunction();
-            final State<T> loopingState =
-                    createState(currentPattern.getName(), State.StateType.Normal);
+            final State<T> loopingState = createState(State.StateType.Normal, false);
 
             if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
                 if (untilCondition != null) {
@@ -833,8 +901,7 @@ public class NFACompiler {
             addStopStateToLooping(loopingState);
 
             if (ignoreCondition != null) {
-                final State<T> ignoreState =
-                        createState(currentPattern.getName(), State.StateType.Normal);
+                final State<T> ignoreState = createState(State.StateType.Normal, true);
                 ignoreState.addTake(loopingState, takeCondition);
                 ignoreState.addIgnore(ignoreCondition);
                 loopingState.addIgnore(ignoreState, ignoreCondition);
@@ -1018,20 +1085,25 @@ public class NFACompiler {
         private static final long serialVersionUID = 8939783698296714379L;
 
         private final long windowTime;
+        private final Map<String, Long> windowTimes;
         private final Collection<State<T>> states;
         private final boolean timeoutHandling;
 
         private NFAFactoryImpl(
-                long windowTime, Collection<State<T>> states, boolean timeoutHandling) {
+                long windowTime,
+                Map<String, Long> windowTimes,
+                Collection<State<T>> states,
+                boolean timeoutHandling) {
 
             this.windowTime = windowTime;
+            this.windowTimes = windowTimes;
             this.states = states;
             this.timeoutHandling = timeoutHandling;
         }
 
         @Override
         public NFA<T> createNFA() {
-            return new NFA<>(states, windowTime, timeoutHandling);
+            return new NFA<>(states, windowTimes, windowTime, timeoutHandling);
         }
     }
 }

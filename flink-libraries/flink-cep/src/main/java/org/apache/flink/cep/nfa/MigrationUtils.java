@@ -112,6 +112,7 @@ class MigrationUtils {
             long timestamp = timestampSerializer.deserialize(source);
             DeweyNumber version = versionSerializer.deserialize(source);
             long startTimestamp = timestampSerializer.deserialize(source);
+            long stateTimestamp = timestampSerializer.deserialize(source);
             int counter = source.readInt();
 
             T event = null;
@@ -131,7 +132,7 @@ class MigrationUtils {
 
             computationStates.add(
                     ComputationState.createState(
-                            state, nodeId, version, startTimestamp, startEventId));
+                            state, nodeId, version, startTimestamp, stateTimestamp, startEventId));
         }
         return computationStates;
     }

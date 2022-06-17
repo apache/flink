@@ -46,6 +46,19 @@ public class NFAStateNameHandler {
     }
 
     /**
+     * Implements the reverse process of the {@link #getUniqueInternalName(String)}.
+     *
+     * @param internalName The name to be decoded.
+     * @return The current times for the state.
+     */
+    public static Integer getCurrentTimesFromInternal(String internalName) {
+        Preconditions.checkNotNull(internalName);
+        return internalName.contains(STATE_NAME_DELIM)
+                ? Integer.parseInt(internalName.split(STATE_NAME_DELIM)[1]) + 2
+                : 1;
+    }
+
+    /**
      * Checks if the given name is already used or not. If yes, it throws a {@link
      * MalformedPatternException}.
      *

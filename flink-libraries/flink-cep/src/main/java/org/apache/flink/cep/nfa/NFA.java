@@ -35,6 +35,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
@@ -92,6 +93,13 @@ public class NFA<T> {
     private final Map<String, State<T>> states;
 
     /**
+     * The lengths of a windowed pattern, as specified using the {@link
+     * org.apache.flink.cep.pattern.Pattern#within(Time, Pattern.WithinType)} Pattern.within(Time,
+     * WithinType)} method with {@code WithinType.PREVIOUS_AND_CURRENT}.
+     */
+    private final Map<String, Long> windowTimes;
+
+    /**
      * The length of a windowed pattern, as specified using the {@link
      * org.apache.flink.cep.pattern.Pattern#within(Time)} Pattern.within(Time)} method.
      */
@@ -105,11 +113,13 @@ public class NFA<T> {
 
     public NFA(
             final Collection<State<T>> validStates,
+            final Map<String, Long> windowTimes,
             final long windowTime,
             final boolean handleTimeout) {
         this.windowTime = windowTime;
         this.handleTimeout = handleTimeout;
         this.states = loadStates(validStates);
+        this.windowTimes = windowTimes;
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
@@ -273,7 +283,21 @@ public class NFA<T> {
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
         for (ComputationState computationState : nfaState.getPartialMatches()) {
-            if (isStateTimedOut(computationState, timestamp)) {
+            String currentStateName = computationState.getCurrentStateName();
+            boolean withinStateTimeout =
+                    windowTimes.containsKey(currentStateName)
+                            && isStateTimedOut(
+                                    computationState,
+                                    timestamp,
+                                    computationState.getStateTimestamp(),
+                                    windowTimes.get(currentStateName));
+            boolean isStateTimeout =
+                    isStateTimedOut(
+                            computationState,
+                            timestamp,
+                            computationState.getStartTimestamp(),
+                            windowTime);
+            if (withinStateTimeout || isStateTimeout) {
                 if (getState(computationState).isPending()) {
                     // extract the Pending State
                     Map<String, List<T>> pendingPattern =
@@ -288,7 +312,11 @@ public class NFA<T> {
                     timeoutResult.add(
                             Tuple2.of(
                                     timedOutPattern,
-                                    computationState.getStartTimestamp() + windowTime));
+                                    withinStateTimeout
+                                            ? computationState.getStateTimestamp()
+                                                    + windowTimes.get(
+                                                            computationState.getCurrentStateName())
+                                            : computationState.getStartTimestamp() + windowTime));
                 }
 
                 sharedBufferAccessor.releaseNode(
@@ -307,10 +335,12 @@ public class NFA<T> {
         return Tuple2.of(pendingMatches, timeoutResult);
     }
 
-    private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
-        return !isStartState(state)
-                && windowTime > 0L
-                && timestamp - state.getStartTimestamp() >= windowTime;
+    private boolean isStateTimedOut(
+            final ComputationState state,
+            final long timestamp,
+            final long startTimestamp,
+            final long windowTime) {
+        return !isStartState(state) && windowTime > 0L && timestamp - startTimestamp >= windowTime;
     }
 
     private Collection<Map<String, List<T>>> doProcess(
@@ -613,6 +643,7 @@ public class NFA<T> {
         int ignoreBranchesToVisit = outgoingEdges.getTotalIgnoreBranches();
         int totalTakeToSkip = Math.max(0, outgoingEdges.getTotalTakeBranches() - 1);
 
+        final long stateTimestamp = event.getTimestamp();
         final List<ComputationState> resultingComputationStates = new ArrayList<>();
         for (StateTransition<T> edge : edges) {
             switch (edge.getAction()) {
@@ -646,6 +677,7 @@ public class NFA<T> {
                                     computationState.getPreviousBufferEntry(),
                                     version,
                                     computationState.getStartTimestamp(),
+                                    computationState.getStateTimestamp(),
                                     computationState.getStartEventID());
                         }
                     }
@@ -685,6 +717,7 @@ public class NFA<T> {
                             newEntry,
                             nextVersion,
                             startTimestamp,
+                            stateTimestamp,
                             startEventId);
 
                     // check if newly created state is optional (have a PROCEED path to Final state)
@@ -698,6 +731,7 @@ public class NFA<T> {
                                 newEntry,
                                 nextVersion,
                                 startTimestamp,
+                                stateTimestamp,
                                 startEventId);
                     }
                     break;
@@ -733,6 +767,7 @@ public class NFA<T> {
             NodeId previousEntry,
             DeweyNumber version,
             long startTimestamp,
+            long stateTimestamp,
             EventId startEventId)
             throws Exception {
         ComputationState computationState =
@@ -741,6 +776,7 @@ public class NFA<T> {
                         previousEntry,
                         version,
                         startTimestamp,
+                        stateTimestamp,
                         startEventId);
         computationStates.add(computationState);
 

@@ -18,9 +18,11 @@
 
 package org.apache.flink.cep.pattern;
 
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -187,8 +189,9 @@ public class Quantifier {
     public static class Times {
         private final int from;
         private final int to;
+        private final Map<Integer, Time> windowTimes;
 
-        private Times(int from, int to) {
+        private Times(int from, int to, Map<Integer, Time> windowTimes) {
             Preconditions.checkArgument(
                     from > 0, "The from should be a positive number greater than 0.");
             Preconditions.checkArgument(
@@ -196,6 +199,7 @@ public class Quantifier {
                     "The to should be a number greater than or equal to from: " + from + ".");
             this.from = from;
             this.to = to;
+            this.windowTimes = windowTimes;
         }
 
         public int getFrom() {
@@ -206,12 +210,16 @@ public class Quantifier {
             return to;
         }
 
-        public static Times of(int from, int to) {
-            return new Times(from, to);
+        public Map<Integer, Time> getWindowTimes() {
+            return windowTimes;
         }
 
-        public static Times of(int times) {
-            return new Times(times, times);
+        public static Times of(int from, int to, Map<Integer, Time> windowTimes) {
+            return new Times(from, to, windowTimes);
+        }
+
+        public static Times of(int times, Map<Integer, Time> windowTimes) {
+            return new Times(times, times, windowTimes);
         }
 
         @Override
@@ -223,12 +231,17 @@ public class Quantifier {
                 return false;
             }
             Times times = (Times) o;
-            return from == times.from && to == times.to;
+            return from == times.from
+                    && to == times.to
+                    && ((windowTimes == null && times.windowTimes == null)
+                            || (windowTimes != null
+                                    && times.windowTimes != null
+                                    && windowTimes.equals(times.windowTimes)));
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(from, to);
+            return Objects.hash(from, to, windowTimes);
         }
     }
 }

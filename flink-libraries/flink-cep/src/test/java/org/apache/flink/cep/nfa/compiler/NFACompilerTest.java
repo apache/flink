@@ -347,6 +347,26 @@ public class NFACompilerTest extends TestLogger {
     }
 
     @Test
+    public void testWindowTimesCorrectlySet() {
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .followedBy("middle")
+                        .within(Time.seconds(10), Pattern.WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("then")
+                        .within(Time.seconds(20), Pattern.WithinType.PREVIOUS_AND_CURRENT)
+                        .followedBy("end");
+
+        NFACompiler.NFAFactoryCompiler<Event> factory =
+                new NFACompiler.NFAFactoryCompiler<>(pattern);
+        factory.compileFactory();
+
+        Map<String, Long> expectedWindowTimes = new HashMap<>();
+        expectedWindowTimes.put("middle", Time.seconds(10).toMilliseconds());
+        expectedWindowTimes.put("then", Time.seconds(20).toMilliseconds());
+        assertEquals(expectedWindowTimes, factory.getWindowTimes());
+    }
+
+    @Test
     public void testMultipleWindowTimeWithZeroLength() {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")

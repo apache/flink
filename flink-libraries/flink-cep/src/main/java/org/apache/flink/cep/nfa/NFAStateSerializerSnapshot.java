@@ -22,12 +22,17 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
+import org.apache.flink.core.memory.DataInputView;
+
+import java.io.IOException;
 
 /** Snapshot class for {@link NFAStateSerializer}. */
 public class NFAStateSerializerSnapshot
         extends CompositeTypeSerializerSnapshot<NFAState, NFAStateSerializer> {
 
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
+
+    private boolean supportsStateTimestamp;
 
     /** Constructor for read instantiation. */
     public NFAStateSerializerSnapshot() {
@@ -67,6 +72,15 @@ public class NFAStateSerializerSnapshot
         @SuppressWarnings("unchecked")
         TypeSerializer<EventId> eventIdSerializer = (TypeSerializer<EventId>) nestedSerializers[2];
 
-        return new NFAStateSerializer(versionSerializer, nodeIdSerializer, eventIdSerializer);
+        return new NFAStateSerializer(
+                versionSerializer, nodeIdSerializer, eventIdSerializer, supportsStateTimestamp);
+    }
+
+    @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        super.readOuterSnapshot(readOuterSnapshotVersion, in, userCodeClassLoader);
+        supportsStateTimestamp = readOuterSnapshotVersion == CURRENT_VERSION;
     }
 }

@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -489,7 +490,16 @@ public class CEPITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testProcessingTimeWithWindow() throws Exception {
+    public void testProcessingTimeWithinBetweenFirstAndLast() throws Exception {
+        testProcessingTimeWithWindow(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testProcessingTimeWithinPreviousAndCurrent() throws Exception {
+        testProcessingTimeWithWindow(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    private void testProcessingTimeWithWindow(Pattern.WithinType withinType) throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
@@ -497,7 +507,9 @@ public class CEPITCase extends AbstractTestBase {
         DataStream<Integer> input = env.fromElements(1, 2);
 
         Pattern<Integer, ?> pattern =
-                Pattern.<Integer>begin("start").followedByAny("end").within(Time.days(1));
+                Pattern.<Integer>begin("start")
+                        .followedByAny("end")
+                        .within(Time.days(1), withinType);
 
         DataStream<Integer> result =
                 CEP.pattern(input, pattern)
@@ -520,7 +532,7 @@ public class CEPITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTimeoutHandling() throws Exception {
+    public void testTimeoutHandlingWithinFirstAndLast() throws Exception {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
@@ -618,7 +630,7 @@ public class CEPITCase extends AbstractTestBase {
 
         DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-        resultList.sort(Comparator.comparing(either -> either.toString()));
+        resultList.sort(Comparator.comparing(Object::toString));
 
         List<Either<String, String>> expected =
                 Arrays.asList(
@@ -626,6 +638,363 @@ public class CEPITCase extends AbstractTestBase {
                         Either.Left.of("2.0"),
                         Either.Left.of("2.0"),
                         Either.Right.of("2.0,2.0,2.0"));
+
+        assertEquals(expected, resultList);
+    }
+
+    @Test
+    public void testTimeoutHandlingWithinPreviousAndCurrent() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
+        env.setParallelism(1);
+
+        // (Event, timestamp)
+        DataStream<Event> input =
+                env.fromElements(
+                                Tuple2.of(new Event(1, "start", 1.0), 1L),
+                                Tuple2.of(new Event(1, "middle", 2.0), 5L),
+                                Tuple2.of(new Event(1, "start", 2.0), 4L),
+                                Tuple2.of(new Event(1, "end", 2.0), 6L))
+                        .assignTimestampsAndWatermarks(
+                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+                                    @Override
+                                    public long extractTimestamp(
+                                            Tuple2<Event, Long> element, long currentTimestamp) {
+                                        return element.f1;
+                                    }
+
+                                    @Override
+                                    public Watermark checkAndGetNextWatermark(
+                                            Tuple2<Event, Long> lastElement,
+                                            long extractedTimestamp) {
+                                        return new Watermark(lastElement.f1 - 5);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Tuple2<Event, Long>, Event>() {
+
+                                    @Override
+                                    public Event map(Tuple2<Event, Long> value) throws Exception {
+                                        return value.f0;
+                                    }
+                                });
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .followedByAny("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .followedByAny("end")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("end");
+                                    }
+                                })
+                        .within(Time.milliseconds(3), Pattern.WithinType.PREVIOUS_AND_CURRENT);
+
+        DataStream<Either<String, String>> result =
+                CEP.pattern(input, pattern)
+                        .select(
+                                new PatternTimeoutFunction<Event, String>() {
+                                    @Override
+                                    public String timeout(
+                                            Map<String, List<Event>> pattern, long timeoutTimestamp)
+                                            throws Exception {
+                                        return pattern.get("start").get(0).getPrice() + "";
+                                    }
+                                },
+                                new PatternSelectFunction<Event, String>() {
+
+                                    @Override
+                                    public String select(Map<String, List<Event>> pattern) {
+                                        StringBuilder builder = new StringBuilder();
+
+                                        builder.append(pattern.get("start").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("middle").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("end").get(0).getPrice());
+
+                                        return builder.toString();
+                                    }
+                                });
+
+        List<Either<String, String>> resultList = new ArrayList<>();
+
+        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+        resultList.sort(Comparator.comparing(Object::toString));
+
+        List<Either<String, String>> expected =
+                Arrays.asList(
+                        Either.Left.of("1.0"),
+                        Either.Left.of("2.0"),
+                        Either.Right.of("1.0,2.0,2.0"),
+                        Either.Right.of("2.0,2.0,2.0"));
+
+        assertEquals(expected, resultList);
+    }
+
+    @Test
+    public void testTimesTimeoutHandlingWithTimes() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
+        env.setParallelism(1);
+
+        // (Event, timestamp)
+        DataStream<Event> input =
+                env.fromElements(
+                                Tuple2.of(new Event(1, "start", 1.0), 1L),
+                                Tuple2.of(new Event(1, "middle", 2.0), 2L),
+                                Tuple2.of(new Event(1, "middle", 3.0), 3L),
+                                Tuple2.of(new Event(1, "middle", 4.0), 5L),
+                                Tuple2.of(new Event(1, "end", 5.0), 7L),
+                                Tuple2.of(new Event(1, "start", 6.0), 8L),
+                                Tuple2.of(new Event(1, "middle", 7.0), 9L),
+                                Tuple2.of(new Event(1, "middle", 8.0), 12L),
+                                Tuple2.of(new Event(1, "middle", 9.0), 13L),
+                                Tuple2.of(new Event(1, "start", 10.0), 14L),
+                                Tuple2.of(new Event(1, "middle", 11.0), 15L),
+                                Tuple2.of(new Event(1, "middle", 12.0), 16L),
+                                Tuple2.of(new Event(1, "middle", 13.0), 20L))
+                        .assignTimestampsAndWatermarks(
+                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+                                    @Override
+                                    public long extractTimestamp(
+                                            Tuple2<Event, Long> element, long currentTimestamp) {
+                                        return element.f1;
+                                    }
+
+                                    @Override
+                                    public Watermark checkAndGetNextWatermark(
+                                            Tuple2<Event, Long> lastElement,
+                                            long extractedTimestamp) {
+                                        return new Watermark(lastElement.f1 - 5);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Tuple2<Event, Long>, Event>() {
+
+                                    @Override
+                                    public Event map(Tuple2<Event, Long> value) throws Exception {
+                                        return value.f0;
+                                    }
+                                });
+
+        Map<Integer, Time> windowTimes = new HashMap<>();
+        windowTimes.put(2, Time.milliseconds(2));
+        windowTimes.put(3, Time.milliseconds(3));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .times(3, windowTimes)
+                        .followedBy("end")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("end");
+                                    }
+                                });
+
+        DataStream<Either<String, String>> result =
+                CEP.pattern(input, pattern)
+                        .select(
+                                new PatternTimeoutFunction<Event, String>() {
+                                    @Override
+                                    public String timeout(
+                                            Map<String, List<Event>> pattern, long timeoutTimestamp)
+                                            throws Exception {
+                                        return pattern.get("start").get(0).getPrice() + "";
+                                    }
+                                },
+                                new PatternSelectFunction<Event, String>() {
+
+                                    @Override
+                                    public String select(Map<String, List<Event>> pattern) {
+                                        StringBuilder builder = new StringBuilder();
+
+                                        builder.append(pattern.get("start").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("middle").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("end").get(0).getPrice());
+
+                                        return builder.toString();
+                                    }
+                                });
+
+        List<Either<String, String>> resultList = new ArrayList<>();
+
+        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+        resultList.sort(Comparator.comparing(Object::toString));
+
+        List<Either<String, String>> expected =
+                Arrays.asList(
+                        Either.Left("10.0"), Either.Left("6.0"), Either.Right.of("1.0,2.0,5.0"));
+
+        assertEquals(expected, resultList);
+    }
+
+    @Test
+    public void testTimesTimeoutHandlingWithFromTo() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
+        env.setParallelism(1);
+
+        // (Event, timestamp)
+        DataStream<Event> input =
+                env.fromElements(
+                                Tuple2.of(new Event(1, "start", 1.0), 1L),
+                                Tuple2.of(new Event(1, "middle", 2.0), 2L),
+                                Tuple2.of(new Event(1, "middle", 3.0), 3L),
+                                Tuple2.of(new Event(1, "middle", 4.0), 5L),
+                                Tuple2.of(new Event(1, "end", 5.0), 7L),
+                                Tuple2.of(new Event(1, "start", 6.0), 8L),
+                                Tuple2.of(new Event(1, "middle", 7.0), 9L),
+                                Tuple2.of(new Event(1, "middle", 8.0), 12L),
+                                Tuple2.of(new Event(1, "middle", 9.0), 13L),
+                                Tuple2.of(new Event(1, "middle", 9.0), 13L),
+                                Tuple2.of(new Event(1, "start", 10.0), 14L),
+                                Tuple2.of(new Event(1, "middle", 11.0), 15L),
+                                Tuple2.of(new Event(1, "middle", 12.0), 16L),
+                                Tuple2.of(new Event(1, "middle", 13.0), 20L))
+                        .assignTimestampsAndWatermarks(
+                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+
+                                    @Override
+                                    public long extractTimestamp(
+                                            Tuple2<Event, Long> element, long currentTimestamp) {
+                                        return element.f1;
+                                    }
+
+                                    @Override
+                                    public Watermark checkAndGetNextWatermark(
+                                            Tuple2<Event, Long> lastElement,
+                                            long extractedTimestamp) {
+                                        return new Watermark(lastElement.f1 - 5);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<Tuple2<Event, Long>, Event>() {
+
+                                    @Override
+                                    public Event map(Tuple2<Event, Long> value) throws Exception {
+                                        return value.f0;
+                                    }
+                                });
+
+        Map<Integer, Time> windowTimes = new HashMap<>();
+        windowTimes.put(2, Time.milliseconds(2));
+        windowTimes.put(3, Time.milliseconds(3));
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .followedBy("middle")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("middle");
+                                    }
+                                })
+                        .times(2, 3, windowTimes)
+                        .followedBy("end")
+                        .where(
+                                new SimpleCondition<Event>() {
+
+                                    @Override
+                                    public boolean filter(Event value) throws Exception {
+                                        return value.getName().equals("end");
+                                    }
+                                });
+
+        DataStream<Either<String, String>> result =
+                CEP.pattern(input, pattern)
+                        .select(
+                                new PatternTimeoutFunction<Event, String>() {
+                                    @Override
+                                    public String timeout(
+                                            Map<String, List<Event>> pattern, long timeoutTimestamp)
+                                            throws Exception {
+                                        return pattern.get("start").get(0).getPrice() + "";
+                                    }
+                                },
+                                new PatternSelectFunction<Event, String>() {
+
+                                    @Override
+                                    public String select(Map<String, List<Event>> pattern) {
+                                        StringBuilder builder = new StringBuilder();
+
+                                        builder.append(pattern.get("start").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("middle").get(0).getPrice())
+                                                .append(",")
+                                                .append(pattern.get("end").get(0).getPrice());
+
+                                        return builder.toString();
+                                    }
+                                });
+
+        List<Either<String, String>> resultList = new ArrayList<>();
+
+        DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+        resultList.sort(Comparator.comparing(Object::toString));
+
+        List<Either<String, String>> expected =
+                Arrays.asList(
+                        Either.Left("10.0"),
+                        Either.Left("6.0"),
+                        Either.Right.of("1.0,2.0,5.0"),
+                        Either.Right.of("1.0,2.0,5.0"));
 
         assertEquals(expected, resultList);
     }

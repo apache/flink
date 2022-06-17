@@ -1512,7 +1512,16 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByWithInAtEnd() throws Exception {
+    public void testNotFollowedByWithinFirstAndLastAtEnd() throws Exception {
+        testNotFollowedByWithinAtEnd(Pattern.WithinType.FIRST_AND_LAST);
+    }
+
+    @Test
+    public void testNotFollowedByWithinPreviousAndCurrentAtEnd() throws Exception {
+        testNotFollowedByWithinAtEnd(Pattern.WithinType.PREVIOUS_AND_CURRENT);
+    }
+
+    public void testNotFollowedByWithinAtEnd(Pattern.WithinType withinType) throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -1520,8 +1529,8 @@ public class NotPatternITCase extends TestLogger {
         Event a2 = new Event(42, "a", 3.0);
         Event c = new Event(43, "c", 4.0);
         Event b2 = new Event(44, "b", 5.0);
-        Event a3 = new Event(46, "a", 7.0);
-        Event b3 = new Event(47, "b", 8.0);
+        Event a3 = new Event(45, "a", 7.0);
+        Event b3 = new Event(46, "b", 8.0);
 
         inputEvents.add(new StreamRecord<>(a1, 1));
         inputEvents.add(new StreamRecord<>(b1, 2));
@@ -1550,7 +1559,7 @@ public class NotPatternITCase extends TestLogger {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(3));
+                        .within(Time.milliseconds(3), withinType);
 
         NFA<Event> nfa = compile(pattern, false);
 
@@ -1560,7 +1569,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowByBeforeTimesWithIn() throws Exception {
+    public void testNotFollowByBeforeTimesWithin() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -1568,8 +1577,8 @@ public class NotPatternITCase extends TestLogger {
         Event a2 = new Event(42, "a", 3.0);
         Event c1 = new Event(43, "c", 4.0);
         Event c2 = new Event(44, "c", 5.0);
-        Event a3 = new Event(46, "a", 7.0);
-        Event c3 = new Event(47, "c", 8.0);
+        Event a3 = new Event(45, "a", 7.0);
+        Event c3 = new Event(46, "c", 8.0);
         Event c4 = new Event(47, "c", 8.0);
 
         inputEvents.add(new StreamRecord<>(a1, 1));
@@ -1624,6 +1633,6 @@ public class NotPatternITCase extends TestLogger {
                         Lists.newArrayList(a2, c1),
                         Lists.newArrayList(a2, c1, c2),
                         Lists.newArrayList(a3),
-                        Lists.newArrayList(a3, c4)));
+                        Lists.newArrayList(a3, c3)));
     }
 }
