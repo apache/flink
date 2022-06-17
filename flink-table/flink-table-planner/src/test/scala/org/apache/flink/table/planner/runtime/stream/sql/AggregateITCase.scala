@@ -898,6 +898,15 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
     val expected = List("1,1,A", "2,2,B", "3,2,B", "4,3,C", "5,3,C")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
+
+    // test single value for char type
+    val tc = tEnv.fromValues(DataTypes.ROW(DataTypes.FIELD("a", DataTypes.CHAR(3))), Row.of("AA"))
+    tEnv.registerTable("tc", tc)
+    val tr = tEnv.sqlQuery("SELECT * FROM tc WHERE tc.a = (SELECT a FROM tc)")
+    val sink1 = new TestingRetractSink
+    tr.toRetractStream[Row].addSink(sink1).setParallelism(1)
+    env.execute()
+    assertEquals(List("AA "), sink1.getRetractResults.sorted)
   }
 
   @Test
