@@ -140,7 +140,7 @@ function stop_kafka_cluster {
 }
 
 function create_kafka_topic {
-  $KAFKA_DIR/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor $1 --partitions $2 --topic $3
+  $KAFKA_DIR/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor $1 --partitions $2 --topic $3
 }
 
 function send_messages_to_kafka {
@@ -168,11 +168,11 @@ function read_messages_from_kafka_avro {
 }
 
 function modify_num_partitions {
-  $KAFKA_DIR/bin/kafka-topics.sh --alter --topic $1 --partitions $2 --zookeeper localhost:2181
+  $KAFKA_DIR/bin/kafka-topics.sh --alter --topic $1 --partitions $2 --bootstrap-server localhost:9092
 }
 
 function get_num_partitions {
-  $KAFKA_DIR/bin/kafka-topics.sh --describe --topic $1 --zookeeper localhost:2181 | grep -Eo "PartitionCount:[0-9]+" | cut -d ":" -f 2
+  $KAFKA_DIR/bin/kafka-topics.sh --describe --topic $1 --bootstrap-server localhost:9092 | grep -Eo "PartitionCount:[0-9]+" | cut -d ":" -f 2
 }
 
 function get_partition_end_offset {
