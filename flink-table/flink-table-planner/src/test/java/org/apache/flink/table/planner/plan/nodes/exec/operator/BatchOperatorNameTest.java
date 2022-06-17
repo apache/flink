@@ -70,9 +70,9 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
         verifyQuery("SELECT a, " + "count(distinct b) as b " + "FROM MyTable GROUP BY a");
     }
 
-    /** Verify SortWindowAggregate. */
+    /** Verify HashWindowAggregate. */
     @Test
-    public void testSortWindowAggregate() {
+    public void testHashWindowAggregate() {
         createSourceWithTimeAttribute();
         verifyQuery(
                 "SELECT\n"

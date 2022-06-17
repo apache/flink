@@ -33,7 +33,7 @@ import java.util.List;
  * Base test case for built-in FIRST_VALUE and LAST_VALUE (with retract) aggregate function. This
  * class tests `accumulate` method with order argument.
  */
-public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
+public abstract class FirstLastValueAggOldFunctionWithOrderTestBase<T, ACC>
         extends AggFunctionTestBase<T, ACC> {
 
     protected Method getAccumulateFunc() throws NoSuchMethodException {

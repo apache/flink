@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.sql.SqlFirstLastValueAggFunction;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -35,7 +37,10 @@ import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
+import java.util.Arrays;
 import java.util.Collections;
+
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_LAST_VALUE_BEHAVIOUR;
 
 /**
  * Custom Flink {@link SqlRexConvertletTable} to add custom {@link SqlNode} to {@link RexNode}
@@ -44,14 +49,20 @@ import java.util.Collections;
 @Internal
 public class FlinkConvertletTable implements SqlRexConvertletTable {
 
-    public static final FlinkConvertletTable INSTANCE = new FlinkConvertletTable();
+    private final TableConfig tableConfig;
 
-    private FlinkConvertletTable() {}
+    public FlinkConvertletTable(TableConfig tableConfig) {
+        this.tableConfig = tableConfig;
+    }
 
     @Override
     public SqlRexConvertlet get(SqlCall call) {
         if (call.getOperator().isName("TRY_CAST", false)) {
             return this::convertTryCast;
+        } else if (call.getOperator() instanceof SqlFirstLastValueAggFunction
+                && call.getOperandList().size() == 1
+                && tableConfig.get(TABLE_EXEC_LEGACY_LAST_VALUE_BEHAVIOUR)) {
+            return this::convertLegacyLastValue;
         }
         return StandardConvertletTable.INSTANCE.get(call);
     }
@@ -87,5 +98,15 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         return cx.getRexBuilder()
                 .makeCall(
                         type, FlinkSqlOperatorTable.TRY_CAST, Collections.singletonList(valueRex));
+    }
+
+    private RexNode convertLegacyLastValue(SqlRexContext cx, final SqlCall call) {
+        // legacy last_value(field) function will ignore null value,
+        // convert the function to last_value(field, true)
+        final RexNode fist = cx.convertExpression(call.operand(0));
+        return cx.getRexBuilder()
+                .makeCall(
+                        call.getOperator(),
+                        Arrays.asList(fist, cx.getRexBuilder().makeLiteral(true)));
     }
 }

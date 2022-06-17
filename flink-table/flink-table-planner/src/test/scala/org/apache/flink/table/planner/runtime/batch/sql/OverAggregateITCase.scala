@@ -2708,6 +2708,12 @@ class OverAggregateITCase extends BatchTestBase {
   }
 
   @Test
+  def testLastValue(): Unit = {
+    val sqlQuery = "select last_value(false) OVER () from Table5"
+    checkResult(sqlQuery, Seq())
+  }
+
+  @Test
   def testAggWithLiteral(): Unit = {
     val sqlQuery =
       """

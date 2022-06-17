@@ -34,11 +34,11 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 
 /** Built-in LAST_VALUE aggregate function. */
 @Internal
-public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
+public final class LastValueAggOldFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
     private final transient DataType valueDataType;
 
-    public LastValueAggFunction(LogicalType valueType) {
+    public LastValueAggOldFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 

@@ -286,7 +286,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 
     /** Test base for {@link FirstValueWithRetractAggFunction} with order. */
     public abstract static class FirstValueWithRetractAggFunctionWithOrderTestBase<T>
-            extends FirstLastValueAggFunctionWithOrderTestBase<
+            extends FirstLastValueAggOldFunctionWithOrderTestBase<
                     T, FirstValueWithRetractAccumulator<T>> {
 
         @Override

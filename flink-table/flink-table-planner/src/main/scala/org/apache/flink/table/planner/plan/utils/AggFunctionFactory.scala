@@ -25,9 +25,10 @@ import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFu
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
+import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggOldFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggOldFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.utils.DataTypeUtils
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
@@ -480,14 +481,7 @@ class AggFunctionFactory(
               s"support type: ''$t''.\nPlease re-check the data type.")
       }
     } else {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new FirstValueAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"FIRST_VALUE aggregate function does not support " +
-              s"type: ''$t''.\nPlease re-check the data type.")
-      }
+      new FirstValueAggFunctionNew(DataTypeUtils.toInternalDataType(valueType));
     }
   }
 
@@ -505,14 +499,7 @@ class AggFunctionFactory(
               s"support type: ''$t''.\nPlease re-check the data type.")
       }
     } else {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new LastValueAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"LAST_VALUE aggregate function does not support " +
-              s"type: ''$t''.\nPlease re-check the data type.")
-      }
+      new LastValueAggFunctionNew(DataTypeUtils.toInternalDataType(valueType))
     }
   }
 
