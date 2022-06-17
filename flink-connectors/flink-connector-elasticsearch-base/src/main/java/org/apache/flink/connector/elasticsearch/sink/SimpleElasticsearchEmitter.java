@@ -23,44 +23,65 @@ import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 
-import java.io.Serializable;
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-/** A ElasticsearchEmitter that is currently used Python Flink Connector. */
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/** A simple ElasticsearchEmitter which is currently used in PyFlink ES connector. */
 public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<String, Object>> {
 
     private static final long serialVersionUID = 1L;
-    private BiConsumer<Map<String, Object>, RequestIndexer> requestGenerator;
+
+    private final String index;
+    private @Nullable final String documentType;
+    private @Nullable final String idFieldName;
+    private final boolean isDynamicIndex;
+
+    private transient BiConsumer<Map<String, Object>, RequestIndexer> requestGenerator;
 
     public SimpleElasticsearchEmitter(
-            String index, String documentType, String idFieldName, boolean isDynamicIndex) {
+            String index,
+            @Nullable String documentType,
+            @Nullable String idFieldName,
+            boolean isDynamicIndex) {
+        this.index = checkNotNull(index);
+        this.documentType = documentType;
+        this.idFieldName = idFieldName;
+        this.isDynamicIndex = isDynamicIndex;
+    }
+
+    @Override
+    public void open() throws Exception {
         // If this issue resolve https://issues.apache.org/jira/browse/MSHADE-260
         // we can replace requestGenerator with lambda.
         // Other corresponding issues https://issues.apache.org/jira/browse/FLINK-18857 and
         // https://issues.apache.org/jira/browse/FLINK-18006
         if (isDynamicIndex) {
-            this.requestGenerator =
-                    new DynamicIndexRequestGenerator(index, documentType, idFieldName);
+            requestGenerator = new DynamicIndexRequestGenerator(index, documentType, idFieldName);
         } else {
-            this.requestGenerator =
-                    new StaticIndexRequestGenerator(index, documentType, idFieldName);
+            requestGenerator = new StaticIndexRequestGenerator(index, documentType, idFieldName);
         }
     }
 
+    @Override
     public void emit(
             Map<String, Object> element, SinkWriter.Context context, RequestIndexer indexer) {
         requestGenerator.accept(element, indexer);
     }
 
     private static class StaticIndexRequestGenerator
-            implements BiConsumer<Map<String, Object>, RequestIndexer>, Serializable {
-        private String index;
-        private String documentType;
-        private String idFieldName;
+            implements BiConsumer<Map<String, Object>, RequestIndexer> {
 
-        public StaticIndexRequestGenerator(String index, String documentType, String idFieldName) {
-            this.index = index;
+        private final String index;
+        private final @Nullable String documentType;
+        private final @Nullable String idFieldName;
+
+        public StaticIndexRequestGenerator(
+                String index, @Nullable String documentType, @Nullable String idFieldName) {
+            this.index = checkNotNull(index);
             this.documentType = documentType;
             this.idFieldName = idFieldName;
         }
@@ -80,13 +101,17 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
     }
 
     private static class DynamicIndexRequestGenerator
-            implements BiConsumer<Map<String, Object>, RequestIndexer>, Serializable {
-        private String index;
-        private String documentType;
-        private String idFieldName;
+            implements BiConsumer<Map<String, Object>, RequestIndexer> {
 
-        public DynamicIndexRequestGenerator(String index, String documentType, String idFieldName) {
-            this.index = index;
+        private final String indexFieldName;
+        private final @Nullable String documentType;
+        private final @Nullable String idFieldName;
+
+        public DynamicIndexRequestGenerator(
+                String indexFieldName,
+                @Nullable String documentType,
+                @Nullable String idFieldName) {
+            this.indexFieldName = checkNotNull(indexFieldName);
             this.documentType = documentType;
             this.idFieldName = idFieldName;
         }
@@ -95,7 +120,7 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
             if (idFieldName != null) {
                 final UpdateRequest updateRequest =
                         new UpdateRequest(
-                                        doc.get(index).toString(),
+                                        doc.get(indexFieldName).toString(),
                                         documentType,
                                         doc.get(idFieldName).toString())
                                 .doc(doc)
@@ -103,7 +128,8 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
                 indexer.add(updateRequest);
             } else {
                 final IndexRequest indexRequest =
-                        new IndexRequest(doc.get(index).toString(), documentType).source(doc);
+                        new IndexRequest(doc.get(indexFieldName).toString(), documentType)
+                                .source(doc);
                 indexer.add(indexRequest);
             }
         }
