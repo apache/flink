@@ -113,11 +113,17 @@ object SearchOperatorGen {
         .map(RangeSets.map(_, rangeToExpression))
 
       if (sarg.containsNull) {
-        rangeChecks = Seq(generateIsNull(target)) ++ rangeChecks
+        rangeChecks =
+          Seq(generateIsNull(target, new BooleanType(target.resultType.isNullable))) ++ rangeChecks
       }
 
       val generatedRangeChecks = rangeChecks
-        .reduce((left, right) => generateOr(left, right))
+        .reduce(
+          (left, right) =>
+            generateOr(
+              left,
+              right,
+              new BooleanType(left.resultType.isNullable || right.resultType.isNullable)))
 
       // Add the target expression code
       val finalCode =
@@ -137,64 +143,72 @@ object SearchOperatorGen {
       target: GeneratedExpression)
     extends RangeSets.Handler[C, GeneratedExpression] {
 
+    final val resultTypeForBoolExpr = new BooleanType(
+      boundType.isNullable
+        || target.resultType.isNullable)
+
     override def all(): GeneratedExpression = {
-      generateLiteral(ctx, true, new BooleanType())
+      generateLiteral(ctx, true, new BooleanType(false))
     }
 
     /** lower <= target */
     override def atLeast(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", lit(lower), target)
+      generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr)
     }
 
     /** target <= upper */
     override def atMost(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<=", target, lit(upper))
+      generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr)
     }
 
     /** lower < target */
     override def greaterThan(lower: C): GeneratedExpression = {
-      generateComparison(ctx, "<", lit(lower), target)
+      generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr)
     }
 
     /** target < upper */
     override def lessThan(upper: C): GeneratedExpression = {
-      generateComparison(ctx, "<", target, lit(upper))
+      generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr)
     }
 
     /** value == target */
     override def singleton(value: C): GeneratedExpression = {
-      generateComparison(ctx, "==", lit(value), target)
+      generateComparison(ctx, "==", lit(value), target, resultTypeForBoolExpr)
     }
 
     /** lower <= target && target <= upper */
     override def closed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower <= target && target < upper */
     override def closedOpen(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<=", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<=", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower < target && target <= upper */
     override def openClosed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<=", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<=", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 
     /** lower < target && target < upper */
     override def open(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        generateComparison(ctx, "<", lit(lower), target),
-        generateComparison(ctx, "<", target, lit(upper))
+        generateComparison(ctx, "<", lit(lower), target, resultTypeForBoolExpr),
+        generateComparison(ctx, "<", target, lit(upper), resultTypeForBoolExpr),
+        resultTypeForBoolExpr
       )
     }
 

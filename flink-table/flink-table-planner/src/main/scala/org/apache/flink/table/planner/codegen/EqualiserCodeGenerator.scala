@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateEquals
 import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
-import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{BooleanType, DistinctType, LogicalType, RowType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
 
@@ -157,7 +157,8 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType], classLoader: ClassL
     } else {
       val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
       val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
-      val gen = generateEquals(ctx, left, right)
+      val resultType = new BooleanType(fieldType.isNullable)
+      val gen = generateEquals(ctx, left, right, resultType)
       (gen.code, gen.resultTerm)
     }
   }
