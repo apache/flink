@@ -142,6 +142,42 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
 
         ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
 
+    def test_es_sink_key_none(self):
+        ds = self.env.from_collection(
+            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+            type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+        es_sink = Elasticsearch7SinkBuilder() \
+            .set_emitter(ElasticsearchEmitter.static_index('foo')) \
+            .set_hosts(['localhost:9200']) \
+            .build()
+
+        j_emitter = get_field_value(es_sink.get_java_function(), 'emitter')
+        self.assertTrue(
+            is_instance_of(
+                j_emitter,
+                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+
+        ds.sink_to(es_sink).name('es sink')
+
+    def test_es_sink_dynamic_key_none(self):
+        ds = self.env.from_collection(
+            [{'name': 'ada', 'id': '1'}, {'name': 'luna', 'id': '2'}],
+            type_info=Types.MAP(Types.STRING(), Types.STRING()))
+
+        es_dynamic_index_sink = Elasticsearch7SinkBuilder() \
+            .set_emitter(ElasticsearchEmitter.dynamic_index('name')) \
+            .set_hosts(['localhost:9200']) \
+            .build()
+
+        j_emitter = get_field_value(es_dynamic_index_sink.get_java_function(), 'emitter')
+        self.assertTrue(
+            is_instance_of(
+                j_emitter,
+                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+
+        ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
+
 
 class FlinkKafkaTest(ConnectorTestBase):
 

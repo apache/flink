@@ -20,17 +20,18 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.connector.sink2.SinkWriter;
 
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 
 import java.io.Serializable;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 
 /** A ElasticsearchEmitter that is currently used Python Flink Connector. */
 public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<String, Object>> {
 
     private static final long serialVersionUID = 1L;
-    private Function<Map<String, Object>, UpdateRequest> requestGenerator;
+    private BiConsumer<Map<String, Object>, RequestIndexer> requestGenerator;
 
     public SimpleElasticsearchEmitter(
             String index, String documentType, String idFieldName, boolean isDynamicIndex) {
@@ -49,11 +50,11 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
 
     public void emit(
             Map<String, Object> element, SinkWriter.Context context, RequestIndexer indexer) {
-        indexer.add(requestGenerator.apply(element));
+        requestGenerator.accept(element, indexer);
     }
 
     private static class StaticIndexRequestGenerator
-            implements Function<Map<String, Object>, UpdateRequest>, Serializable {
+            implements BiConsumer<Map<String, Object>, RequestIndexer>, Serializable {
         private String index;
         private String documentType;
         private String idFieldName;
@@ -64,15 +65,22 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
             this.idFieldName = idFieldName;
         }
 
-        public UpdateRequest apply(Map<String, Object> doc) {
-            return new UpdateRequest(index, documentType, doc.get(idFieldName).toString())
-                    .doc(doc)
-                    .upsert(doc);
+        public void accept(Map<String, Object> doc, RequestIndexer indexer) {
+            if (idFieldName != null) {
+                final UpdateRequest updateRequest =
+                        new UpdateRequest(index, documentType, doc.get(idFieldName).toString())
+                                .doc(doc)
+                                .upsert(doc);
+                indexer.add(updateRequest);
+            } else {
+                final IndexRequest indexRequest = new IndexRequest(index, documentType).source(doc);
+                indexer.add(indexRequest);
+            }
         }
     }
 
     private static class DynamicIndexRequestGenerator
-            implements Function<Map<String, Object>, UpdateRequest>, Serializable {
+            implements BiConsumer<Map<String, Object>, RequestIndexer>, Serializable {
         private String index;
         private String documentType;
         private String idFieldName;
@@ -83,13 +91,21 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
             this.idFieldName = idFieldName;
         }
 
-        public UpdateRequest apply(Map<String, Object> doc) {
-            return new UpdateRequest(
-                            doc.get(index).toString(),
-                            documentType,
-                            doc.get(idFieldName).toString())
-                    .doc(doc)
-                    .upsert(doc);
+        public void accept(Map<String, Object> doc, RequestIndexer indexer) {
+            if (idFieldName != null) {
+                final UpdateRequest updateRequest =
+                        new UpdateRequest(
+                                        doc.get(index).toString(),
+                                        documentType,
+                                        doc.get(idFieldName).toString())
+                                .doc(doc)
+                                .upsert(doc);
+                indexer.add(updateRequest);
+            } else {
+                final IndexRequest indexRequest =
+                        new IndexRequest(doc.get(index).toString(), documentType).source(doc);
+                indexer.add(indexRequest);
+            }
         }
     }
 }
