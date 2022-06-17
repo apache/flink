@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.JarUtils;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
@@ -45,8 +46,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader;
-
 /** A manager for dealing with all user defined resource. */
 @Internal
 public class ResourceManager implements Closeable {
@@ -55,9 +54,9 @@ public class ResourceManager implements Closeable {
 
     private final Path localResourceDir;
     private final Map<ResourceUri, URL> resourceInfos;
-    private final SafetyNetWrapperClassLoader userClassLoader;
+    private final MutableURLClassLoader userClassLoader;
 
-    public ResourceManager(Configuration config, SafetyNetWrapperClassLoader userClassLoader) {
+    public ResourceManager(Configuration config, MutableURLClassLoader userClassLoader) {
         this.localResourceDir =
                 new Path(
                         config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),

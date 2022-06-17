@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.BeforeClass;
@@ -153,12 +154,12 @@ public class ResourceManagerTest {
 
     private ResourceManager createResourceManager(URL[] urls) {
         Configuration configuration = new Configuration();
-        FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader mutableURLClassLoader =
+        MutableURLClassLoader mutableURLClassLoader =
                 createClassLoader(configuration, urls, getClass().getClassLoader());
         return new ResourceManager(configuration, mutableURLClassLoader);
     }
 
-    private FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader createClassLoader(
+    private MutableURLClassLoader createClassLoader(
             Configuration configuration, URL[] urls, ClassLoader parentClassLoader) {
         final String[] alwaysParentFirstLoaderPatterns =
                 CoreOptions.getParentFirstLoaderPatterns(configuration);
@@ -170,13 +171,12 @@ public class ResourceManagerTest {
                 configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
         FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
                 FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-        return (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                FlinkUserCodeClassLoaders.create(
-                        resolveOrder,
-                        urls,
-                        parentClassLoader,
-                        alwaysParentFirstLoaderPatterns,
-                        NOOP_EXCEPTION_HANDLER,
-                        true);
+        return FlinkUserCodeClassLoaders.create(
+                resolveOrder,
+                urls,
+                parentClassLoader,
+                alwaysParentFirstLoaderPatterns,
+                NOOP_EXCEPTION_HANDLER,
+                true);
     }
 }

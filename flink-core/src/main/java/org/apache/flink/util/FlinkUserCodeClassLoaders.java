@@ -24,10 +24,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.Enumeration;
 import java.util.function.Consumer;
 
@@ -37,7 +35,7 @@ public class FlinkUserCodeClassLoaders {
 
     private FlinkUserCodeClassLoaders() {}
 
-    public static URLClassLoader parentFirst(
+    public static MutableURLClassLoader parentFirst(
             URL[] urls,
             ClassLoader parent,
             Consumer<Throwable> classLoadingExceptionHandler,
@@ -47,7 +45,7 @@ public class FlinkUserCodeClassLoaders {
         return wrapWithSafetyNet(classLoader, checkClassLoaderLeak);
     }
 
-    public static URLClassLoader childFirst(
+    public static MutableURLClassLoader childFirst(
             URL[] urls,
             ClassLoader parent,
             String[] alwaysParentFirstPatterns,
@@ -59,7 +57,7 @@ public class FlinkUserCodeClassLoaders {
         return wrapWithSafetyNet(classLoader, checkClassLoaderLeak);
     }
 
-    public static URLClassLoader create(
+    public static MutableURLClassLoader create(
             ResolveOrder resolveOrder,
             URL[] urls,
             ClassLoader parent,
@@ -84,7 +82,7 @@ public class FlinkUserCodeClassLoaders {
         }
     }
 
-    private static URLClassLoader wrapWithSafetyNet(
+    private static MutableURLClassLoader wrapWithSafetyNet(
             FlinkUserCodeClassLoader classLoader, boolean check) {
         return check
                 ? new SafetyNetWrapperClassLoader(classLoader, classLoader.getParent())
@@ -131,8 +129,7 @@ public class FlinkUserCodeClassLoaders {
      * delegate is nulled and can be garbage collected. Additional class resolution will be resolved
      * solely through the bootstrap classloader and most likely result in ClassNotFound exceptions.
      */
-    @Internal
-    public static class SafetyNetWrapperClassLoader extends URLClassLoader implements Closeable {
+    private static class SafetyNetWrapperClassLoader extends MutableURLClassLoader {
         private static final Logger LOG =
                 LoggerFactory.getLogger(SafetyNetWrapperClassLoader.class);
 
