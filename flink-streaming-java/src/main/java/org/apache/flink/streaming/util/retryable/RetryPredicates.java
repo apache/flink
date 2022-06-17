@@ -44,11 +44,6 @@ public class RetryPredicates {
         return new ExceptionTypePredicate(exceptionClass);
     }
 
-    public static ExceptionTypePredicate exceptionTypePredicate(
-            @Nonnull Class<? extends Throwable> exceptionClass) {
-        return new ExceptionTypePredicate(exceptionClass);
-    }
-
     private static final class EmptyResultPredicate<T>
             implements Predicate<Collection<T>>, Serializable {
         private static final long serialVersionUID = 1L;
