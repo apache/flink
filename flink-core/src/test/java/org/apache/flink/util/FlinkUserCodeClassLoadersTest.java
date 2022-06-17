@@ -211,13 +211,13 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
                 startsWith("Cannot access classloader info due to an exception."));
     }
 
-    private static URLClassLoader createParentFirstClassLoader(
+    private static MutableURLClassLoader createParentFirstClassLoader(
             URL childCodePath, ClassLoader parentClassLoader) {
         return FlinkUserCodeClassLoaders.parentFirst(
                 new URL[] {childCodePath}, parentClassLoader, NOOP_EXCEPTION_HANDLER, true);
     }
 
-    private static URLClassLoader createChildFirstClassLoader(
+    private static MutableURLClassLoader createChildFirstClassLoader(
             URL childCodePath, ClassLoader parentClassLoader) {
         return FlinkUserCodeClassLoaders.childFirst(
                 new URL[] {childCodePath},
@@ -262,15 +262,12 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
         // RocksDB itself
         final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader parentClassLoader =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader1 =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createParentFirstClassLoader(childCodePath, parentClassLoader);
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader2 =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createParentFirstClassLoader(childCodePath, parentClassLoader);
+        final MutableURLClassLoader parentClassLoader =
+                createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
+        final MutableURLClassLoader childClassLoader1 =
+                createParentFirstClassLoader(childCodePath, parentClassLoader);
+        final MutableURLClassLoader childClassLoader2 =
+                createParentFirstClassLoader(childCodePath, parentClassLoader);
 
         // test class loader before add user jar ulr to ClassLoader
         assertClassNotFoundException(USER_CLASS, false, parentClassLoader);
@@ -300,15 +297,12 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
         // RocksDB itself
         final URL childCodePath = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader parentClassLoader =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader1 =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createChildFirstClassLoader(childCodePath, parentClassLoader);
-        final FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader childClassLoader2 =
-                (FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader)
-                        createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final MutableURLClassLoader parentClassLoader =
+                createChildFirstClassLoader(childCodePath, getClass().getClassLoader());
+        final MutableURLClassLoader childClassLoader1 =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
+        final MutableURLClassLoader childClassLoader2 =
+                createChildFirstClassLoader(childCodePath, parentClassLoader);
 
         // test class loader before add user jar ulr to ClassLoader
         assertClassNotFoundException(USER_CLASS, false, parentClassLoader);
