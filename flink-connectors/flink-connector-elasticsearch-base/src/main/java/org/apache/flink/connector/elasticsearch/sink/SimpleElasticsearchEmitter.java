@@ -55,14 +55,46 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
 
     @Override
     public void open() throws Exception {
-        // If this issue resolve https://issues.apache.org/jira/browse/MSHADE-260
-        // we can replace requestGenerator with lambda.
-        // Other corresponding issues https://issues.apache.org/jira/browse/FLINK-18857 and
-        // https://issues.apache.org/jira/browse/FLINK-18006
         if (isDynamicIndex) {
-            requestGenerator = new DynamicIndexRequestGenerator(index, documentType, idFieldName);
+            final String indexFieldName = index;
+            requestGenerator =
+                    (doc, indexer) -> {
+                        if (idFieldName != null) {
+                            final UpdateRequest updateRequest =
+                                    new UpdateRequest(
+                                                    doc.get(indexFieldName).toString(),
+                                                    documentType,
+                                                    doc.get(idFieldName).toString())
+                                            .doc(doc)
+                                            .upsert(doc);
+                            indexer.add(updateRequest);
+                        } else {
+                            final IndexRequest indexRequest =
+                                    new IndexRequest(
+                                                    doc.get(indexFieldName).toString(),
+                                                    documentType)
+                                            .source(doc);
+                            indexer.add(indexRequest);
+                        }
+                    };
         } else {
-            requestGenerator = new StaticIndexRequestGenerator(index, documentType, idFieldName);
+            requestGenerator =
+                    (doc, indexer) -> {
+                        if (idFieldName != null) {
+                            final UpdateRequest updateRequest =
+                                    new UpdateRequest(
+                                                    index,
+                                                    documentType,
+                                                    doc.get(idFieldName).toString())
+                                            .doc(doc)
+                                            .upsert(doc);
+                            indexer.add(updateRequest);
+                        } else {
+                            final IndexRequest indexRequest =
+                                    new IndexRequest(index, documentType).source(doc);
+                            indexer.add(indexRequest);
+                        }
+                    };
         }
     }
 
@@ -70,68 +102,5 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
     public void emit(
             Map<String, Object> element, SinkWriter.Context context, RequestIndexer indexer) {
         requestGenerator.accept(element, indexer);
-    }
-
-    private static class StaticIndexRequestGenerator
-            implements BiConsumer<Map<String, Object>, RequestIndexer> {
-
-        private final String index;
-        private final @Nullable String documentType;
-        private final @Nullable String idFieldName;
-
-        public StaticIndexRequestGenerator(
-                String index, @Nullable String documentType, @Nullable String idFieldName) {
-            this.index = checkNotNull(index);
-            this.documentType = documentType;
-            this.idFieldName = idFieldName;
-        }
-
-        public void accept(Map<String, Object> doc, RequestIndexer indexer) {
-            if (idFieldName != null) {
-                final UpdateRequest updateRequest =
-                        new UpdateRequest(index, documentType, doc.get(idFieldName).toString())
-                                .doc(doc)
-                                .upsert(doc);
-                indexer.add(updateRequest);
-            } else {
-                final IndexRequest indexRequest = new IndexRequest(index, documentType).source(doc);
-                indexer.add(indexRequest);
-            }
-        }
-    }
-
-    private static class DynamicIndexRequestGenerator
-            implements BiConsumer<Map<String, Object>, RequestIndexer> {
-
-        private final String indexFieldName;
-        private final @Nullable String documentType;
-        private final @Nullable String idFieldName;
-
-        public DynamicIndexRequestGenerator(
-                String indexFieldName,
-                @Nullable String documentType,
-                @Nullable String idFieldName) {
-            this.indexFieldName = checkNotNull(indexFieldName);
-            this.documentType = documentType;
-            this.idFieldName = idFieldName;
-        }
-
-        public void accept(Map<String, Object> doc, RequestIndexer indexer) {
-            if (idFieldName != null) {
-                final UpdateRequest updateRequest =
-                        new UpdateRequest(
-                                        doc.get(indexFieldName).toString(),
-                                        documentType,
-                                        doc.get(idFieldName).toString())
-                                .doc(doc)
-                                .upsert(doc);
-                indexer.add(updateRequest);
-            } else {
-                final IndexRequest indexRequest =
-                        new IndexRequest(doc.get(indexFieldName).toString(), documentType)
-                                .source(doc);
-                indexer.add(indexRequest);
-            }
-        }
     }
 }
