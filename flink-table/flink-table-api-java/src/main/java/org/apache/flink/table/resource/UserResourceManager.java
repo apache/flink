@@ -195,6 +195,11 @@ public class UserResourceManager implements Closeable {
 
     @Override
     public void close() throws IOException {
+        // close classloader
+        userClassLoader.close();
+        // clear the map
+        resourceInfos.clear();
+        // delete the local resource
         FileSystem fileSystem = localResourceDir.getFileSystem();
         if (fileSystem.exists(localResourceDir)) {
             fileSystem.delete(localResourceDir, true);
