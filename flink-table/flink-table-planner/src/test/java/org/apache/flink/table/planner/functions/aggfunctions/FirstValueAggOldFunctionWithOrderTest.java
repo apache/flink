@@ -24,7 +24,7 @@ import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggOldFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -42,22 +42,23 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test case for built-in FIRST_VALUE aggregate function. This class tests `accumulate` method
- * without order argument.
+ * Test case for built-in FIRST_VALUE aggregate function. This class tests `accumulate` method with
+ * order argument.
  */
 @RunWith(Enclosed.class)
-public final class FirstValueAggFunctionWithoutOrderTest {
+public final class FirstValueAggOldFunctionWithOrderTest {
 
     // --------------------------------------------------------------------------------------------
     // Test sets for a particular type being aggregated
     //
     // Actual tests are implemented in:
-    //  - AggFunctionTestBase
+    //  - FirstLastValueAggFunctionWithOrderTestBase -> tests specific for FirstValue and LastValue
+    //  - AggFunctionTestBase -> tests that apply to all aggregate functions
     // --------------------------------------------------------------------------------------------
 
     /** Test for {@link TinyIntType}. */
-    public static final class ByteFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Byte> {
+    public static final class ByteFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Byte> {
 
         @Override
         protected Byte getValue(String v) {
@@ -66,13 +67,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Byte, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.TINYINT().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.TINYINT().getLogicalType());
         }
     }
 
     /** Test for {@link ShortType}. */
-    public static final class ShortFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Short> {
+    public static final class ShortFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Short> {
 
         @Override
         protected Short getValue(String v) {
@@ -81,13 +82,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Short, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.SMALLINT().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.SMALLINT().getLogicalType());
         }
     }
 
     /** Test for {@link IntType}. */
-    public static final class IntFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Integer> {
+    public static final class IntFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Integer> {
 
         @Override
         protected Integer getValue(String v) {
@@ -96,13 +97,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Integer, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.INT().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.INT().getLogicalType());
         }
     }
 
     /** Test for {@link BigIntType}. */
-    public static final class LongFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Long> {
+    public static final class LongFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Long> {
 
         @Override
         protected Long getValue(String v) {
@@ -111,13 +112,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Long, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.BIGINT().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.BIGINT().getLogicalType());
         }
     }
 
     /** Test for {@link FloatType}. */
-    public static final class FloatFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Float> {
+    public static final class FloatFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Float> {
 
         @Override
         protected Float getValue(String v) {
@@ -126,13 +127,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Float, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.FLOAT().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.FLOAT().getLogicalType());
         }
     }
 
     /** Test for {@link DoubleType}. */
-    public static final class DoubleFirstValueAggFunctionWithoutOrderTest
-            extends NumberFirstValueAggFunctionWithoutOrderTest<Double> {
+    public static final class DoubleFirstValueAggOldFunctionWithOrderTest
+            extends NumberFirstValueAggOldFunctionWithOrderTestBase<Double> {
 
         @Override
         protected Double getValue(String v) {
@@ -141,13 +142,13 @@ public final class FirstValueAggFunctionWithoutOrderTest {
 
         @Override
         protected AggregateFunction<Double, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.DOUBLE().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.DOUBLE().getLogicalType());
         }
     }
 
     /** Test for {@link BooleanType}. */
-    public static final class BooleanFirstValueAggFunctionWithoutOrderTest
-            extends FirstValueAggFunctionWithoutOrderTestBase<Boolean> {
+    public static final class BooleanFirstValueAggOldFunctionWithOrderTest
+            extends FirstValueAggOldFunctionWithOrderTestBase<Boolean> {
 
         @Override
         protected List<List<Boolean>> getInputValueSets() {
@@ -160,19 +161,29 @@ public final class FirstValueAggFunctionWithoutOrderTest {
         }
 
         @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(6L, 2L, 3L),
+                    Arrays.asList(1L, 2L, 3L),
+                    Arrays.asList(10L, 2L, 5L, 11L, 3L, 7L, 5L),
+                    Arrays.asList(6L, 9L, 5L),
+                    Arrays.asList(4L, 3L));
+        }
+
+        @Override
         protected List<Boolean> getExpectedResults() {
-            return Arrays.asList(false, true, true, null, true);
+            return Arrays.asList(false, true, false, null, true);
         }
 
         @Override
         protected AggregateFunction<Boolean, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.BOOLEAN().getLogicalType());
         }
     }
 
     /** Test for {@link DecimalType}. */
-    public static final class DecimalFirstValueAggFunctionWithoutOrderTest
-            extends FirstValueAggFunctionWithoutOrderTestBase<DecimalData> {
+    public static final class DecimalFirstValueAggOldFunctionWithOrderTest
+            extends FirstValueAggOldFunctionWithOrderTestBase<DecimalData> {
 
         private int precision = 20;
         private int scale = 6;
@@ -195,23 +206,31 @@ public final class FirstValueAggFunctionWithoutOrderTest {
         }
 
         @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 1L, 5L, null, 3L, 1L, 5L, 2L),
+                    Arrays.asList(6L, 5L, null, 8L, null),
+                    Arrays.asList(8L, 6L));
+        }
+
+        @Override
         protected List<DecimalData> getExpectedResults() {
             return Arrays.asList(
-                    DecimalDataUtils.castFrom("1", precision, scale),
+                    DecimalDataUtils.castFrom("-1", precision, scale),
                     null,
                     DecimalDataUtils.castFrom("0", precision, scale));
         }
 
         @Override
         protected AggregateFunction<DecimalData, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(
+            return new FirstValueAggOldFunction<>(
                     DataTypes.DECIMAL(precision, scale).getLogicalType());
         }
     }
 
     /** Test for {@link VarCharType}. */
-    public static final class StringFirstValueAggFunctionWithoutOrderTest
-            extends FirstValueAggFunctionWithoutOrderTestBase<StringData> {
+    public static final class StringFirstValueAggOldFunctionWithOrderTest
+            extends FirstValueAggOldFunctionWithOrderTestBase<StringData> {
 
         @Override
         protected List<List<StringData>> getInputValueSets() {
@@ -230,30 +249,38 @@ public final class FirstValueAggFunctionWithoutOrderTest {
         }
 
         @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 5L, null, 3L, 1L, 5L),
+                    Arrays.asList(6L, 5L),
+                    Arrays.asList(8L, 6L),
+                    Arrays.asList(6L, 4L, 3L));
+        }
+
+        @Override
         protected List<StringData> getExpectedResults() {
             return Arrays.asList(
-                    StringData.fromString("abc"),
+                    StringData.fromString("def"),
                     null,
                     StringData.fromString("a"),
-                    StringData.fromString("x"));
+                    StringData.fromString("e"));
         }
 
         @Override
         protected AggregateFunction<StringData, RowData> getAggregator() {
-            return new FirstValueAggFunction<>(DataTypes.STRING().getLogicalType());
+            return new FirstValueAggOldFunction<>(DataTypes.STRING().getLogicalType());
         }
     }
 
     // --------------------------------------------------------------------------------------------
     // This section contain base classes that provide:
     //  - common inputs
-    //  - accumulator class
     // for tests declared above.
     // --------------------------------------------------------------------------------------------
 
-    /** Test base for {@link FirstValueAggFunction} without order. */
-    public abstract static class FirstValueAggFunctionWithoutOrderTestBase<T>
-            extends AggFunctionTestBase<T, RowData> {
+    /** Test base for {@link FirstValueAggOldFunction}. */
+    public abstract static class FirstValueAggOldFunctionWithOrderTestBase<T>
+            extends FirstLastValueAggOldFunctionWithOrderTestBase<T, RowData> {
 
         @Override
         protected Class<?> getAccClass() {
@@ -261,23 +288,39 @@ public final class FirstValueAggFunctionWithoutOrderTest {
         }
     }
 
-    /** Test base for {@link FirstValueAggFunction} with number types. */
-    public abstract static class NumberFirstValueAggFunctionWithoutOrderTest<T>
-            extends FirstValueAggFunctionWithoutOrderTestBase<T> {
+    /** Test base for {@link FirstValueAggOldFunction} with number types. */
+    public abstract static class NumberFirstValueAggOldFunctionWithOrderTestBase<T>
+            extends FirstValueAggOldFunctionWithOrderTestBase<T> {
 
         protected abstract T getValue(String v);
 
         @Override
         protected List<List<T>> getInputValueSets() {
             return Arrays.asList(
-                    Arrays.asList(getValue("1"), null, getValue("-99"), getValue("3"), null),
+                    Arrays.asList(
+                            getValue("1"),
+                            null,
+                            getValue("-99"),
+                            getValue("3"),
+                            null,
+                            getValue("3"),
+                            getValue("2"),
+                            getValue("-99")),
                     Arrays.asList(null, null, null, null),
-                    Arrays.asList(null, getValue("10"), null, getValue("3")));
+                    Arrays.asList(null, getValue("10"), null, getValue("5")));
+        }
+
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 5L, 6L, 11L, 3L, 7L, 5L),
+                    Arrays.asList(8L, 6L, 9L, 5L),
+                    Arrays.asList(null, 6L, 4L, 3L));
         }
 
         @Override
         protected List<T> getExpectedResults() {
-            return Arrays.asList(getValue("1"), null, getValue("10"));
+            return Arrays.asList(getValue("3"), null, getValue("5"));
         }
     }
 }

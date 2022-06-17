@@ -1906,7 +1906,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=true]">
+  <TestCase name="testHashWindowAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
@@ -1916,16 +1916,16 @@ LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
-+- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
-+- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
@@ -1938,24 +1938,24 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Sort[]",
+    "type" : "HashWindowAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
-    "parallelism" : 2,
+    "contents" : "[]:LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])",
+    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "HASH[b]",
+      "ship_strategy" : "FORWARD",
       "side" : "second"
     } ]
   }, {
     "id" : ,
-    "type" : "SortWindowAggregate[]",
+    "type" : "HashWindowAggregate[]",
     "pact" : "Operator",
-    "contents" : "[]:SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "contents" : "[]:HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
-      "ship_strategy" : "FORWARD",
+      "ship_strategy" : "HASH[b]",
       "side" : "second"
     } ]
   }, {
@@ -2029,7 +2029,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=false]">
+  <TestCase name="testHashWindowAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
@@ -2039,16 +2039,16 @@ LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
 
 == Optimized Physical Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
-+- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
-+- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
@@ -2061,9 +2061,20 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "type" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])",
     "pact" : "Operator",
-    "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "contents" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_FIRST_VALUE(a) AS (firstValue$0, valueSet$1)])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])",
+    "pact" : "Operator",
+    "contents" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_FIRST_VALUE(firstValue$0, valueSet$1) AS EXPR$2])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -2072,75 +2083,10 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     } ]
   }, {
     "id" : ,
-    "type" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
-    "pact" : "Operator",
-    "contents" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
-    "parallelism" : 2,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
     "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "pact" : "Operator",
     "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
     "parallelism" : 2,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  } ]
-}]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testMatch[isNameSimplifyEnabled=false]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(aid=[$0], bid=[$1], cid=[$2])
-+- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-
-== Optimized Physical Plan ==
-Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
-+- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
-   +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
-
-== Optimized Execution Plan ==
-Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])
-+- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
-   +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
-
-== Physical Execution Plan ==
-{
-  "nodes" : [ {
-    "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
-    "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
-    "pact" : "Operator",
-    "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "GLOBAL",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
-    "pact" : "Operator",
-    "contents" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".a) AS aid, FINAL(l.a) AS bid, FINAL(C.a) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$0, 0), 1), l==(LAST(*.$1, 0), 2), C==(LAST(*.$2, 0), _UTF-16LE'c')}])",
-    "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
       "ship_strategy" : "FORWARD",

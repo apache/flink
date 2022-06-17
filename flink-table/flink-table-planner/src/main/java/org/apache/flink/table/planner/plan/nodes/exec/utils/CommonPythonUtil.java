@@ -36,6 +36,8 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunctionNew;
+import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunctionNew;
 import org.apache.flink.table.planner.functions.aggfunctions.ListAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinAggFunction;
@@ -53,9 +55,7 @@ import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
-import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.FirstValueWithRetractAggFunction;
-import org.apache.flink.table.runtime.functions.aggregate.LastValueAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.LastValueWithRetractAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.ListAggWithRetractAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.ListAggWsWithRetractAggFunction;
@@ -466,13 +466,13 @@ public class CommonPythonUtil {
         if (javaBuiltInAggregateFunction instanceof CountAggFunction) {
             return BuiltInPythonAggregateFunction.COUNT;
         }
-        if (javaBuiltInAggregateFunction instanceof FirstValueAggFunction) {
+        if (javaBuiltInAggregateFunction instanceof FirstValueAggFunctionNew) {
             return BuiltInPythonAggregateFunction.FIRST_VALUE;
         }
         if (javaBuiltInAggregateFunction instanceof FirstValueWithRetractAggFunction) {
             return BuiltInPythonAggregateFunction.FIRST_VALUE_RETRACT;
         }
-        if (javaBuiltInAggregateFunction instanceof LastValueAggFunction) {
+        if (javaBuiltInAggregateFunction instanceof LastValueAggFunctionNew) {
             return BuiltInPythonAggregateFunction.LAST_VALUE;
         }
         if (javaBuiltInAggregateFunction instanceof LastValueWithRetractAggFunction) {
