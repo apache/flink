@@ -565,7 +565,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 new RetractableTopNFunction(
                         ttlConfig,
                         InternalTypeInfo.ofFields(
-                                VarCharType.STRING_TYPE, new BigIntType(), new IntType()),
+                                new VarCharType(), new BigIntType(), new IntType()),
                         comparableRecordComparator,
                         sortKeySelector,
                         RankType.ROW_NUMBER,
