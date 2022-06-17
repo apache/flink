@@ -261,7 +261,6 @@ public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSpl
         private int remainingInBatch;
 
         TrackingFsDataInputStream(FSDataInputStream stream, long fileLength, int batchSize) {
-            checkArgument(fileLength > 0L);
             checkArgument(batchSize > 0);
             this.stream = stream;
             this.fileLength = fileLength;
