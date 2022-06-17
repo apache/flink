@@ -26,38 +26,41 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.JarUtils;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.jar.JarFile;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader;
 
 /** A manager for dealing with all user defined resource. */
 @Internal
-public class UserResourceManager {
+public class UserResourceManager implements Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(UserResourceManager.class);
 
     private final SafetyNetWrapperClassLoader userClassLoader;
     private final Map<ResourceUri, URL> resourceInfos;
-    private final String localTmpDir;
+    private final Path localResourceDir;
 
     public UserResourceManager(Configuration config, SafetyNetWrapperClassLoader userClassLoader) {
-        this.localTmpDir = config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR);
+        this.localResourceDir =
+                new Path(
+                        config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
+                        String.format("flink-table-%s", UUID.randomUUID()));
         this.userClassLoader = userClassLoader;
         this.resourceInfos = new HashMap<>();
     }
@@ -79,7 +82,7 @@ public class UserResourceManager {
         // here can check whether the resource path is valid
         Path path = new Path(resourceUri.getUri());
         // check resource firstly
-        checkResource(resourceUri.getResourceType(), path);
+        checkResource(path);
 
         URL localUrl;
         // check resource scheme
@@ -93,13 +96,17 @@ public class UserResourceManager {
 
         // only need add jar resource to classloader
         if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
-            // check whether we can open the Jar file firstly. Due to jar file maybe in remote, so
-            // valid it in here
-            checkJarFile(localUrl);
+            // check the Jar file firstly
+            try {
+                JarUtils.checkJarFile(localUrl);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException(
+                        String.format("Failed to check jar resource [%s].", localUrl), e);
+            }
 
             // add it to classloader
             userClassLoader.addURL(localUrl);
-            LOG.info("Added jar resource [{}] to class path.", localUrl.toString());
+            LOG.info("Added jar resource [{}] to class path.", localUrl);
         }
 
         resourceInfos.put(resourceUri, localUrl);
@@ -117,7 +124,7 @@ public class UserResourceManager {
                 .collect(Collectors.toSet());
     }
 
-    private void checkResource(ResourceType resourceType, Path path) {
+    private void checkResource(Path path) {
         try {
             FileSystem fs = path.getFileSystem();
             // check resource exists firstly
@@ -125,22 +132,11 @@ public class UserResourceManager {
                 throw new IllegalArgumentException(String.format("Resource [%s] not found.", path));
             }
 
-            if (ResourceType.JAR.equals(resourceType)) {
-                // register directory is not allowed for jar resource
-                if (fs.getFileStatus(path).isDir()) {
-                    throw new IllegalArgumentException(
-                            String.format(
-                                    "Directory [%s] is not allowed for registering jar resource.",
-                                    path));
-                }
-
-                // Jar resource must ends with '.jar' suffix
-                if (!path.getName().toLowerCase().endsWith(".jar")) {
-                    throw new IllegalArgumentException(
-                            String.format(
-                                    "Registering jar resource [%s] must ends with '.jar' suffix.",
-                                    path));
-                }
+            // register directory is not allowed for resource
+            if (fs.getFileStatus(path).isDir()) {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Directory [%s] is not allowed for registering resource.", path));
             }
         } catch (IOException e) {
             throw new FlinkRuntimeException(
@@ -151,22 +147,36 @@ public class UserResourceManager {
     @VisibleForTesting
     protected URL downloadResource(Path remotePath) {
         // get local resource path
-        java.nio.file.Path path = Paths.get(localTmpDir, remotePath.getName()).toAbsolutePath();
-        Path localResourcePath = new Path(path.toUri());
+        Path localPath = getResourceLocalPath(remotePath);
         try {
-            FileUtils.copy(remotePath, localResourcePath, true);
+            FileUtils.copy(remotePath, localPath, true);
             LOG.info(
                     "Download resource [{}] to local path [{}] successfully.",
                     remotePath,
-                    localResourcePath);
+                    localPath);
         } catch (IOException e) {
             throw new FlinkRuntimeException(
                     String.format(
                             "Failed to download resource [%s] to local path [%s].",
-                            remotePath, localTmpDir),
+                            remotePath, localPath),
                     e);
         }
-        return getURLFromPath(localResourcePath);
+        return getURLFromPath(localPath);
+    }
+
+    private Path getResourceLocalPath(Path remotePath) {
+        String fileName = remotePath.getName();
+        // add UUID suffix to avoid conflicts
+        String fileNameWithUUID;
+        if (fileName.toLowerCase().endsWith(".jar")) {
+            fileNameWithUUID =
+                    String.format(
+                            "%s-%s.jar",
+                            fileName.substring(0, fileName.length() - 4), UUID.randomUUID());
+        } else {
+            fileNameWithUUID = String.format("%s-%s", fileName, UUID.randomUUID());
+        }
+        return new Path(localResourceDir, new Path(fileNameWithUUID));
     }
 
     @VisibleForTesting
@@ -183,13 +193,11 @@ public class UserResourceManager {
         }
     }
 
-    private void checkJarFile(URL jarUrl) {
-        try {
-            // verify that we can open the Jar file
-            new JarFile(new File(jarUrl.toURI()));
-        } catch (Exception e) {
-            throw new FlinkRuntimeException(
-                    String.format("Error while opening jar file '%s'.", jarUrl), e);
+    @Override
+    public void close() throws IOException {
+        FileSystem fileSystem = localResourceDir.getFileSystem();
+        if (fileSystem.exists(localResourceDir)) {
+            fileSystem.delete(localResourceDir, true);
         }
     }
 }

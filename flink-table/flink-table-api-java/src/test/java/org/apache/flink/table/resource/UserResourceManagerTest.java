@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
@@ -40,11 +39,10 @@ import java.net.URLClassLoader;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.assertj.core.api.Assertions.fail;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link UserResourceManager}. */
 public class UserResourceManagerTest {
@@ -81,11 +79,10 @@ public class UserResourceManagerTest {
         URLClassLoader userClassLoader = userResourceManager.getUserClassLoader();
 
         // test class loading before register resource
-        try {
-            Class.forName(LOWER_UDF_CLASS, false, userClassLoader);
-            fail("Should fail.");
-        } catch (ClassNotFoundException e) {
-        }
+        CommonTestUtils.assertThrows(
+                String.format("LowerUDF"),
+                ClassNotFoundException.class,
+                () -> Class.forName(LOWER_UDF_CLASS, false, userClassLoader));
 
         // register the same jar repeatedly
         userResourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
@@ -104,6 +101,8 @@ public class UserResourceManagerTest {
         final Class<?> clazz2 = Class.forName(LOWER_UDF_CLASS, false, userClassLoader);
 
         assertEquals(clazz1, clazz2);
+
+        userResourceManager.close();
     }
 
     @Test
@@ -111,7 +110,8 @@ public class UserResourceManagerTest {
         UserResourceManager userResourceManager = createResourceManager(new URL[0]);
 
         // test register non-exist file
-        final String fileUri = temporaryFolder.getRoot().getPath() + Path.SEPARATOR + "test-file";
+        final String fileUri =
+                temporaryFolder.getRoot().getPath() + Path.SEPARATOR + "test-non-exist-file";
 
         CommonTestUtils.assertThrows(
                 String.format("Resource [%s] not found.", fileUri),
@@ -126,13 +126,14 @@ public class UserResourceManagerTest {
         final String jarUri = temporaryFolder.newFolder("test-jar-dir").getPath();
 
         CommonTestUtils.assertThrows(
-                String.format(
-                        "Directory [%s] is not allowed for registering jar resource.", jarUri),
+                String.format("Directory [%s] is not allowed for registering resource.", jarUri),
                 IllegalArgumentException.class,
                 () -> {
                     userResourceManager.registerResource(new ResourceUri(ResourceType.JAR, jarUri));
                     return null;
                 });
+
+        userResourceManager.close();
     }
 
     @Test
@@ -143,20 +144,16 @@ public class UserResourceManagerTest {
         // test download resource to local path
         URL localUrl = userResourceManager.downloadResource(srcPath);
 
-        String expected = new String(FileUtils.readAllBytes(udfJar.toPath()));
-        String actual = new String(FileUtils.readAllBytes(Paths.get(localUrl.toURI())));
+        byte[] expected = FileUtils.readAllBytes(udfJar.toPath());
+        byte[] actual = FileUtils.readAllBytes(Paths.get(localUrl.toURI()));
 
-        assertEquals(expected, actual);
+        assertArrayEquals(expected, actual);
+
+        userResourceManager.close();
     }
 
-    private UserResourceManager createResourceManager(URL[] urls) throws Exception {
+    private UserResourceManager createResourceManager(URL[] urls) {
         Configuration configuration = new Configuration();
-        // override RESOURCE_DOWNLOAD_DIR option for test
-        configuration.set(
-                TableConfigOptions.RESOURCE_DOWNLOAD_DIR,
-                temporaryFolder
-                        .newFolder(String.format("resource-%s", UUID.randomUUID()))
-                        .getPath());
         FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader mutableURLClassLoader =
                 createClassLoader(configuration, urls, getClass().getClassLoader());
         return new UserResourceManager(configuration, mutableURLClassLoader);
