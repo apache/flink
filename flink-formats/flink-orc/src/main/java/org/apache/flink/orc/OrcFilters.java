@@ -18,6 +18,7 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -379,6 +380,7 @@ public class OrcFilters {
     // --------------------------------------------------------------------------------------------
 
     /** A filter predicate that can be evaluated by the OrcInputFormat. */
+    @PublicEvolving
     public abstract static class Predicate implements Serializable {
         public abstract SearchArgument.Builder add(SearchArgument.Builder builder);
     }

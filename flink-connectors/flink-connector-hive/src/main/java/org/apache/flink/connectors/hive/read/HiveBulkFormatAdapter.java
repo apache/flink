@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -35,6 +36,7 @@ public class HiveBulkFormatAdapter extends HiveInputFormat {
             DataType[] fieldTypes,
             String hiveVersion,
             RowType producedRowType,
+            List<OrcFilters.Predicate> orcFilters,
             boolean useMapRedReader) {
         super(
                 jobConfWrapper,
@@ -43,6 +45,7 @@ public class HiveBulkFormatAdapter extends HiveInputFormat {
                 fieldTypes,
                 hiveVersion,
                 producedRowType,
+                orcFilters,
                 useMapRedReader);
     }
 }

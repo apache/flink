@@ -34,6 +34,7 @@ import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -91,6 +92,7 @@ public class HiveSourceBuilder {
     private int[] projectedFields;
     private Long limit;
     private List<HiveTablePartition> partitions;
+    private List<OrcFilters.Predicate> orcFilters;
 
     /**
      * Creates a builder to read a hive table.
@@ -275,6 +277,12 @@ public class HiveSourceBuilder {
         return this;
     }
 
+    /** Sets the orc filters for scanning Hive source. */
+    public HiveSourceBuilder setOrcFilters(List<OrcFilters.Predicate> orcFilters) {
+        this.orcFilters = orcFilters;
+        return this;
+    }
+
     private static void validateScanConfigurations(Map<String, String> configurations) {
         String partitionInclude =
                 configurations.getOrDefault(
@@ -324,6 +332,7 @@ public class HiveSourceBuilder {
                         fullSchema.getFieldDataTypes(),
                         hiveVersion,
                         getProducedRowType(),
+                        orcFilters,
                         fallbackMappedReader),
                 limit);
     }

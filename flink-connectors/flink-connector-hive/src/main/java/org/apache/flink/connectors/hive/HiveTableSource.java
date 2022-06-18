@@ -36,6 +36,7 @@ import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -52,12 +53,15 @@ import org.apache.flink.table.connector.format.FileBasedStatisticsReportableInpu
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsStatisticReport;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
@@ -72,6 +76,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +94,8 @@ public class HiveTableSource
                 SupportsPartitionPushDown,
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown,
-                SupportsStatisticReport {
+                SupportsStatisticReport,
+                SupportsFilterPushDown {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
     private static final String HIVE_TRANSFORMATION = "hive";
@@ -104,6 +110,8 @@ public class HiveTableSource
     // Remaining partition specs after partition pruning is performed. Null if pruning is not pushed
     // down.
     @Nullable private List<Map<String, String>> remainingPartitions = null;
+    // filters pushed down. Null if no filter is pushed down.
+    @Nullable private List<ResolvedExpression> filters;
     protected int[] projectedFields;
     private Long limit = null;
 
@@ -145,7 +153,8 @@ public class HiveTableSource
         HiveSourceBuilder sourceBuilder =
                 new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
                         .setProjectedFields(projectedFields)
-                        .setLimit(limit);
+                        .setLimit(limit)
+                        .setOrcFilters(createOrcFilters(filters));
 
         if (isStreamingSource()) {
             DataStreamSource<RowData> sourceStream =
@@ -184,6 +193,19 @@ public class HiveTableSource
                                     .buildWithDefaultBulkFormat())
                     .setParallelism(parallelism);
         }
+    }
+
+    private List<OrcFilters.Predicate> createOrcFilters(List<ResolvedExpression> filters) {
+        List<OrcFilters.Predicate> orcFilters = new ArrayList<>();
+        if (filters != null) {
+            for (Expression pred : filters) {
+                OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+                if (orcPred != null) {
+                    orcFilters.add(orcPred);
+                }
+            }
+        }
+        return orcFilters;
     }
 
     private DataStreamSource<RowData> toDataStreamSource(
@@ -255,6 +277,12 @@ public class HiveTableSource
     @Override
     public void applyProjection(int[][] projectedFields, DataType producedDataType) {
         this.projectedFields = Arrays.stream(projectedFields).mapToInt(value -> value[0]).toArray();
+    }
+
+    @Override
+    public Result applyFilters(List<ResolvedExpression> filters) {
+        this.filters = new ArrayList<>(filters);
+        return Result.of(new ArrayList<>(filters), new ArrayList<>(filters));
     }
 
     @Override

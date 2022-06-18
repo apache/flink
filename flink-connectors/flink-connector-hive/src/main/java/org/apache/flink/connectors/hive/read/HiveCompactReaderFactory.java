@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -97,6 +98,7 @@ public class HiveCompactReaderFactory implements CompactReader.Factory<RowData> 
                         fieldTypes,
                         hiveVersion,
                         producedRowType,
+                        Collections.emptyList(),
                         useMapRedReader);
         BulkFormat.Reader<RowData> reader = format.createReader(context.getConfig(), split);
         return new CompactBulkReader<>(reader);

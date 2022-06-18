@@ -29,6 +29,7 @@ import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
 import org.apache.flink.orc.OrcColumnarRowInputFormat;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -50,7 +51,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -82,6 +82,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
     private final RowType producedRowType;
     private final boolean useMapRedReader;
     private final PartitionFieldExtractor<HiveSourceSplit> partitionFieldExtractor;
+    private final List<OrcFilters.Predicate> orcFilters;
 
     public HiveInputFormat(
             JobConfWrapper jobConfWrapper,
@@ -90,6 +91,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
             DataType[] fieldTypes,
             String hiveVersion,
             RowType producedRowType,
+            List<OrcFilters.Predicate> orcFilters,
             boolean useMapRedReader) {
         this.jobConfWrapper = jobConfWrapper;
         this.partitionKeys = partitionKeys;
@@ -98,6 +100,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
         this.hiveVersion = hiveVersion;
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.producedRowType = producedRowType;
+        this.orcFilters = orcFilters;
         this.useMapRedReader = useMapRedReader;
         this.partitionFieldExtractor =
                 new PartitionFieldExtractorImpl(
@@ -171,7 +174,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         partitionKeys,
                         partitionFieldExtractor,
                         computeSelectedFields(),
-                        Collections.emptyList(),
+                        orcFilters,
                         DEFAULT_SIZE,
                         InternalTypeInfo::of)
                 : OrcColumnarRowInputFormat.createPartitionedFormat(
@@ -181,7 +184,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                         partitionKeys,
                         partitionFieldExtractor,
                         computeSelectedFields(),
-                        Collections.emptyList(),
+                        orcFilters,
                         DEFAULT_SIZE,
                         InternalTypeInfo::of);
     }
