@@ -26,7 +26,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 import javax.annotation.Nullable;
 
 import java.util.Map;
-import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,8 +39,7 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
     private @Nullable final String documentType;
     private @Nullable final String idFieldName;
     private final boolean isDynamicIndex;
-
-    private transient BiConsumer<Map<String, Object>, RequestIndexer> requestGenerator;
+    private transient Function<Map<String, Object>, String> indexProvider;
 
     public SimpleElasticsearchEmitter(
             String index,
@@ -56,51 +55,27 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
     @Override
     public void open() throws Exception {
         if (isDynamicIndex) {
-            final String indexFieldName = index;
-            requestGenerator =
-                    (doc, indexer) -> {
-                        if (idFieldName != null) {
-                            final UpdateRequest updateRequest =
-                                    new UpdateRequest(
-                                                    doc.get(indexFieldName).toString(),
-                                                    documentType,
-                                                    doc.get(idFieldName).toString())
-                                            .doc(doc)
-                                            .upsert(doc);
-                            indexer.add(updateRequest);
-                        } else {
-                            final IndexRequest indexRequest =
-                                    new IndexRequest(
-                                                    doc.get(indexFieldName).toString(),
-                                                    documentType)
-                                            .source(doc);
-                            indexer.add(indexRequest);
-                        }
-                    };
+            indexProvider = doc -> doc.get(index).toString();
         } else {
-            requestGenerator =
-                    (doc, indexer) -> {
-                        if (idFieldName != null) {
-                            final UpdateRequest updateRequest =
-                                    new UpdateRequest(
-                                                    index,
-                                                    documentType,
-                                                    doc.get(idFieldName).toString())
-                                            .doc(doc)
-                                            .upsert(doc);
-                            indexer.add(updateRequest);
-                        } else {
-                            final IndexRequest indexRequest =
-                                    new IndexRequest(index, documentType).source(doc);
-                            indexer.add(indexRequest);
-                        }
-                    };
+            indexProvider = doc -> index;
         }
     }
 
     @Override
-    public void emit(
-            Map<String, Object> element, SinkWriter.Context context, RequestIndexer indexer) {
-        requestGenerator.accept(element, indexer);
+    public void emit(Map<String, Object> doc, SinkWriter.Context context, RequestIndexer indexer) {
+        if (idFieldName != null) {
+            final UpdateRequest updateRequest =
+                    new UpdateRequest(
+                                    indexProvider.apply(doc),
+                                    documentType,
+                                    doc.get(idFieldName).toString())
+                            .doc(doc)
+                            .upsert(doc);
+            indexer.add(updateRequest);
+        } else {
+            final IndexRequest indexRequest =
+                    new IndexRequest(indexProvider.apply(doc), documentType).source(doc);
+            indexer.add(indexRequest);
+        }
     }
 }
