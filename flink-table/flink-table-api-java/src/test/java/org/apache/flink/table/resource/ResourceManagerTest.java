@@ -44,8 +44,8 @@ import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HAND
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Tests for {@link UserResourceManager}. */
-public class UserResourceManagerTest {
+/** Tests for {@link ResourceManager}. */
+public class ResourceManagerTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -75,8 +75,8 @@ public class UserResourceManagerTest {
 
     @Test
     public void testRegisterResource() throws Exception {
-        UserResourceManager userResourceManager = createResourceManager(new URL[0]);
-        URLClassLoader userClassLoader = userResourceManager.getUserClassLoader();
+        ResourceManager resourceManager = createResourceManager(new URL[0]);
+        URLClassLoader userClassLoader = resourceManager.getUserClassLoader();
 
         // test class loading before register resource
         CommonTestUtils.assertThrows(
@@ -85,16 +85,16 @@ public class UserResourceManagerTest {
                 () -> Class.forName(LOWER_UDF_CLASS, false, userClassLoader));
 
         // register the same jar repeatedly
-        userResourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
-        userResourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
+        resourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
+        resourceManager.registerResource(new ResourceUri(ResourceType.JAR, udfJar.getPath()));
 
         // assert resource infos
         Map<ResourceUri, URL> expected =
                 Collections.singletonMap(
                         new ResourceUri(ResourceType.JAR, udfJar.getPath()),
-                        userResourceManager.getURLFromPath(new Path(udfJar.getPath())));
+                        resourceManager.getURLFromPath(new Path(udfJar.getPath())));
 
-        assertEquals(expected, userResourceManager.getResources());
+        assertEquals(expected, resourceManager.getResources());
 
         // test load class
         final Class<?> clazz1 = Class.forName(LOWER_UDF_CLASS, false, userClassLoader);
@@ -102,12 +102,12 @@ public class UserResourceManagerTest {
 
         assertEquals(clazz1, clazz2);
 
-        userResourceManager.close();
+        resourceManager.close();
     }
 
     @Test
     public void testRegisterInvalidResource() throws Exception {
-        UserResourceManager userResourceManager = createResourceManager(new URL[0]);
+        ResourceManager resourceManager = createResourceManager(new URL[0]);
 
         // test register non-exist file
         final String fileUri =
@@ -117,8 +117,7 @@ public class UserResourceManagerTest {
                 String.format("Resource [%s] not found.", fileUri),
                 IllegalArgumentException.class,
                 () -> {
-                    userResourceManager.registerResource(
-                            new ResourceUri(ResourceType.FILE, fileUri));
+                    resourceManager.registerResource(new ResourceUri(ResourceType.FILE, fileUri));
                     return null;
                 });
 
@@ -129,34 +128,34 @@ public class UserResourceManagerTest {
                 String.format("Directory [%s] is not allowed for registering resource.", jarUri),
                 IllegalArgumentException.class,
                 () -> {
-                    userResourceManager.registerResource(new ResourceUri(ResourceType.JAR, jarUri));
+                    resourceManager.registerResource(new ResourceUri(ResourceType.JAR, jarUri));
                     return null;
                 });
 
-        userResourceManager.close();
+        resourceManager.close();
     }
 
     @Test
     public void testDownloadResource() throws Exception {
         Path srcPath = new Path(udfJar.getPath());
-        UserResourceManager userResourceManager = createResourceManager(new URL[0]);
+        ResourceManager resourceManager = createResourceManager(new URL[0]);
 
         // test download resource to local path
-        URL localUrl = userResourceManager.downloadResource(srcPath);
+        URL localUrl = resourceManager.downloadResource(srcPath);
 
         byte[] expected = FileUtils.readAllBytes(udfJar.toPath());
         byte[] actual = FileUtils.readAllBytes(Paths.get(localUrl.toURI()));
 
         assertArrayEquals(expected, actual);
 
-        userResourceManager.close();
+        resourceManager.close();
     }
 
-    private UserResourceManager createResourceManager(URL[] urls) {
+    private ResourceManager createResourceManager(URL[] urls) {
         Configuration configuration = new Configuration();
         FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader mutableURLClassLoader =
                 createClassLoader(configuration, urls, getClass().getClassLoader());
-        return new UserResourceManager(configuration, mutableURLClassLoader);
+        return new ResourceManager(configuration, mutableURLClassLoader);
     }
 
     private FlinkUserCodeClassLoaders.SafetyNetWrapperClassLoader createClassLoader(

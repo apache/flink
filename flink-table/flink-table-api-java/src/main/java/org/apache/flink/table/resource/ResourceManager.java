@@ -48,21 +48,21 @@ import static org.apache.flink.util.FlinkUserCodeClassLoaders.SafetyNetWrapperCl
 
 /** A manager for dealing with all user defined resource. */
 @Internal
-public class UserResourceManager implements Closeable {
+public class ResourceManager implements Closeable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(UserResourceManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ResourceManager.class);
 
-    private final SafetyNetWrapperClassLoader userClassLoader;
-    private final Map<ResourceUri, URL> resourceInfos;
     private final Path localResourceDir;
+    private final Map<ResourceUri, URL> resourceInfos;
+    private final SafetyNetWrapperClassLoader userClassLoader;
 
-    public UserResourceManager(Configuration config, SafetyNetWrapperClassLoader userClassLoader) {
+    public ResourceManager(Configuration config, SafetyNetWrapperClassLoader userClassLoader) {
         this.localResourceDir =
                 new Path(
                         config.get(TableConfigOptions.RESOURCE_DOWNLOAD_DIR),
                         String.format("flink-table-%s", UUID.randomUUID()));
-        this.userClassLoader = userClassLoader;
         this.resourceInfos = new HashMap<>();
+        this.userClassLoader = userClassLoader;
     }
 
     public URLClassLoader getUserClassLoader() {
@@ -176,7 +176,7 @@ public class UserResourceManager implements Closeable {
         } else {
             fileNameWithUUID = String.format("%s-%s", fileName, UUID.randomUUID());
         }
-        return new Path(localResourceDir, new Path(fileNameWithUUID));
+        return new Path(localResourceDir, fileNameWithUUID);
     }
 
     @VisibleForTesting
