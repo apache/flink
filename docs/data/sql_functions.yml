@@ -983,8 +983,10 @@ aggregate:
   - sql: LAG(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
   - sql: FIRST_VALUE(expression)
+    table: FIELD.firstValue
     description: Returns the first value in an ordered set of values.
   - sql: LAST_VALUE(expression)
+    table: FIELD.lastValue
     description: Returns the last value in an ordered set of values.
   - sql: LISTAGG(expression [, separator])
     description: Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of separator is ','.

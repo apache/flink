@@ -790,6 +790,20 @@ class Expression(Generic[T]):
         return _unary_op("avg")(self)
 
     @property
+    def first_value(self) -> 'Expression':
+        """
+        Returns the first value of field across all input values.
+        """
+        return _unary_op("firstValue")(self)
+
+    @property
+    def last_value(self) -> 'Expression':
+        """
+        Returns the last value of field across all input values.
+        """
+        return _unary_op("lastValue")(self)
+
+    @property
     def stddev_pop(self) -> 'Expression':
         return _unary_op("stddevPop")(self)
 

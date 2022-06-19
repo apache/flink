@@ -115,34 +115,6 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
-  def testFirstLastValue(): Unit = {
-    val data = new mutable.MutableList[(Int, Int, String)]
-    data.+=((1, 1, "A"))
-    data.+=((2, 2, "B"))
-    data.+=((2, 2, "B"))
-    data.+=((4, 3, "C"))
-    data.+=((5, 3, "C"))
-    data.+=((4, 3, "C"))
-    data.+=((7, 3, "B"))
-    data.+=((1, 4, "A"))
-    data.+=((9, 4, "D"))
-    data.+=((4, 1, "A"))
-    data.+=((3, 2, "B"))
-
-    val t = failingDataSource(data)
-      .toTable(tEnv, 'a, 'b, 'c)
-      .groupBy('c)
-      .select('c, call("FIRST_VALUE", 'a), call("last_value", col("a")))
-
-    val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = mutable.MutableList("A,1,4", "B,2,3", "C,4,4", "D,9,9")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
   def testDistinctAggregateMixedWithNonDistinct(): Unit = {
     val t = failingDataSource(tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
@@ -269,21 +241,21 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = failingDataSource(tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
-      .select('c.min, 'e, 'a.avg, 'd.count)
+      .select('c.min, 'e, 'a.avg, 'd.count, 'b.firstValue(), call("LAST_VALUE", col("c")))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
-      s"0,1,1,1",
-      s"7,1,4,2",
-      s"2,1,3,2",
-      s"3,2,3,3",
-      s"1,2,3,3",
-      s"14,2,5,1",
-      s"12,3,5,1",
-      s"5,3,4,2")
+      s"0,1,1,1,1,0",
+      s"7,1,4,2,8,10",
+      s"2,1,3,2,3,8",
+      s"3,2,3,3,4,9",
+      s"1,2,3,3,2,13",
+      s"14,2,5,1,15,14",
+      s"12,3,5,1,13,12",
+      s"5,3,4,2,6,11")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

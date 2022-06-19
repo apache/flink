@@ -76,6 +76,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIRST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLOOR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FROM_BASE64;
@@ -97,6 +98,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRU
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
@@ -443,6 +445,16 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns the average (arithmetic mean) of the numeric field across all input values. */
     public OutType avg() {
         return toApiSpecificExpression(unresolvedCall(AVG, toExpr()));
+    }
+
+    /** Returns the first value of field across all input values. */
+    public OutType firstValue() {
+        return toApiSpecificExpression(unresolvedCall(FIRST_VALUE, toExpr()));
+    }
+
+    /** Returns the last value of field across all input values. */
+    public OutType lastValue() {
+        return toApiSpecificExpression(unresolvedCall(LAST_VALUE, toExpr()));
     }
 
     /** Returns the population standard deviation of an expression (the square root of varPop()). */
