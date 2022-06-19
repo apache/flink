@@ -28,12 +28,12 @@ import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Paths;
@@ -48,8 +48,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ResourceManagerTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
 
     public static final String LOWER_UDF_CLASS = "LowerUDF";
     public static final String LOWER_UDF_CODE =
@@ -115,7 +113,7 @@ public class ResourceManagerTest {
 
         CommonTestUtils.assertThrows(
                 String.format("Resource [%s] not found.", fileUri),
-                IllegalArgumentException.class,
+                FileNotFoundException.class,
                 () -> {
                     resourceManager.registerResource(new ResourceUri(ResourceType.FILE, fileUri));
                     return null;
@@ -125,8 +123,10 @@ public class ResourceManagerTest {
         final String jarUri = temporaryFolder.newFolder("test-jar-dir").getPath();
 
         CommonTestUtils.assertThrows(
-                String.format("Directory [%s] is not allowed for registering resource.", jarUri),
-                IllegalArgumentException.class,
+                String.format(
+                        "The resource [%s] is a directory, however, the directory is not allowed for registering resource.",
+                        jarUri),
+                IOException.class,
                 () -> {
                     resourceManager.registerResource(new ResourceUri(ResourceType.JAR, jarUri));
                     return null;

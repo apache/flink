@@ -25,16 +25,17 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.JarUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
@@ -69,7 +70,7 @@ public class ResourceManager implements Closeable {
         return userClassLoader;
     }
 
-    public void registerResource(ResourceUri resourceUri) {
+    public void registerResource(ResourceUri resourceUri) throws IOException {
         // check whether the resource has been registered
         if (resourceInfos.containsKey(resourceUri)) {
             LOG.info(
@@ -97,12 +98,7 @@ public class ResourceManager implements Closeable {
         // only need add jar resource to classloader
         if (ResourceType.JAR.equals(resourceUri.getResourceType())) {
             // check the Jar file firstly
-            try {
-                JarUtils.checkJarFile(localUrl);
-            } catch (IOException e) {
-                throw new FlinkRuntimeException(
-                        String.format("Failed to check jar resource [%s].", localUrl), e);
-            }
+            JarUtils.checkJarFile(localUrl);
 
             // add it to classloader
             userClassLoader.addURL(localUrl);
@@ -124,28 +120,24 @@ public class ResourceManager implements Closeable {
                 .collect(Collectors.toSet());
     }
 
-    private void checkResource(Path path) {
-        try {
-            FileSystem fs = path.getFileSystem();
-            // check resource exists firstly
-            if (!fs.exists(path)) {
-                throw new IllegalArgumentException(String.format("Resource [%s] not found.", path));
-            }
+    private void checkResource(Path path) throws IOException {
+        FileSystem fs = path.getFileSystem();
+        // check resource exists firstly
+        if (!fs.exists(path)) {
+            throw new FileNotFoundException(String.format("Resource [%s] not found.", path));
+        }
 
-            // register directory is not allowed for resource
-            if (fs.getFileStatus(path).isDir()) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Directory [%s] is not allowed for registering resource.", path));
-            }
-        } catch (IOException e) {
-            throw new FlinkRuntimeException(
-                    String.format("Failed to check resource [%s].", path), e);
+        // register directory is not allowed for resource
+        if (fs.getFileStatus(path).isDir()) {
+            throw new IOException(
+                    String.format(
+                            "The resource [%s] is a directory, however, the directory is not allowed for registering resource.",
+                            path));
         }
     }
 
     @VisibleForTesting
-    protected URL downloadResource(Path remotePath) {
+    protected URL downloadResource(Path remotePath) throws IOException {
         // get local resource path
         Path localPath = getResourceLocalPath(remotePath);
         try {
@@ -155,7 +147,7 @@ public class ResourceManager implements Closeable {
                     remotePath,
                     localPath);
         } catch (IOException e) {
-            throw new FlinkRuntimeException(
+            throw new IOException(
                     String.format(
                             "Failed to download resource [%s] to local path [%s].",
                             remotePath, localPath),
@@ -166,31 +158,29 @@ public class ResourceManager implements Closeable {
 
     private Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
+        String fileExtension = Files.getFileExtension(fileName);
         // add UUID suffix to avoid conflicts
         String fileNameWithUUID;
-        if (fileName.toLowerCase().endsWith(".jar")) {
+        if (StringUtils.isEmpty(fileExtension)) {
+            fileNameWithUUID = String.format("%s-%s", fileName, UUID.randomUUID());
+        } else {
             fileNameWithUUID =
                     String.format(
-                            "%s-%s.jar",
-                            fileName.substring(0, fileName.length() - 4), UUID.randomUUID());
-        } else {
-            fileNameWithUUID = String.format("%s-%s", fileName, UUID.randomUUID());
+                            "%s-%s.%s",
+                            Files.getNameWithoutExtension(fileName),
+                            UUID.randomUUID(),
+                            fileExtension);
         }
         return new Path(localResourceDir, fileNameWithUUID);
     }
 
     @VisibleForTesting
-    protected URL getURLFromPath(Path path) {
-        try {
-            // if scheme is null, rewrite it to file
-            if (path.toUri().getScheme() == null) {
-                path = path.makeQualified(FileSystem.getLocalFileSystem());
-            }
-            return path.toUri().toURL();
-        } catch (MalformedURLException e) {
-            throw new FlinkRuntimeException(
-                    String.format("Failed to convert the resource path [%s] to URL.", path), e);
+    protected URL getURLFromPath(Path path) throws IOException {
+        // if scheme is null, rewrite it to file
+        if (path.toUri().getScheme() == null) {
+            path = path.makeQualified(FileSystem.getLocalFileSystem());
         }
+        return path.toUri().toURL();
     }
 
     @Override
