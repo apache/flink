@@ -86,7 +86,7 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
     }
 
     @Test
-    public void testReadEmptyFile() throws IOException {
+    void testReadEmptyFile() throws IOException {
         final StreamFormatAdapter<Integer> format =
                 new StreamFormatAdapter<>(new CheckpointedIntFormat());
 
