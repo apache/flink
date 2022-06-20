@@ -47,9 +47,6 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFa
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
-
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
-
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -57,6 +54,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
