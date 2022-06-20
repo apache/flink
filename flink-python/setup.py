@@ -303,7 +303,7 @@ try:
                         'protobuf<3.18',
                         'pemja==0.1.5;'
                         'python_full_version >= "3.7" and platform_system != "Windows"',
-                        'httplib2>=0.8,<0.19.0', apache_flink_libraries_dependency]
+                        'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
 
     if sys.version_info < (3, 7):
         # python 3.6 upper and lower limit
