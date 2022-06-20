@@ -494,7 +494,8 @@ class DataStream(object):
     def connect(self, ds: 'BroadcastStream') -> 'BroadcastConnectedStream':
         pass
 
-    def connect(self, ds):
+    def connect(self, ds: Union['DataStream', 'BroadcastStream']) \
+            -> Union['ConnectedStreams', 'BroadcastConnectedStream']:
         """
         If ds is a :class:`DataStream`, creates a new :class:`ConnectedStreams` by connecting
         DataStream outputs of (possible) different types with each other. The DataStreams connected
@@ -503,10 +504,13 @@ class DataStream(object):
         If ds is a :class:`BroadcastStream`, creates a new :class:`BroadcastConnectedStream` by
         connecting the current :class:`DataStream` with a :class:`BroadcastStream`. The latter can
         be created using the :meth:`broadcast` method. The resulting stream can be further processed
-        using the :meth:`BroadcastConnectedStream.process` method. This is added in version 1.16.0.
+        using the :meth:`BroadcastConnectedStream.process` method.
 
         :param ds: The DataStream or BroadcastStream with which this stream will be connected.
         :return: The ConnectedStreams or BroadcastConnectedStream.
+
+        .. versionchanged:: 1.16.0
+            Support connect BroadcastStream
         """
         if isinstance(ds, BroadcastStream):
             return BroadcastConnectedStream(
@@ -585,17 +589,20 @@ class DataStream(object):
         pass
 
     @overload
-    def broadcast(self, *broadcast_state_descriptors: MapStateDescriptor) -> 'BroadcastStream':
+    def broadcast(self, broadcast_state_descriptor: MapStateDescriptor,
+                  *other_broadcast_state_descriptors: MapStateDescriptor) -> 'BroadcastStream':
         pass
 
-    def broadcast(self, *args):
+    def broadcast(self, broadcast_state_descriptor: Optional[MapStateDescriptor] = None,
+                  *other_broadcast_state_descriptors: MapStateDescriptor) \
+            -> Union['DataStream', 'BroadcastStream']:
         """
         Sets the partitioning of the DataStream so that the output elements are broadcasted to every
         parallel instance of the next operation.
 
-        If args are :class:`~state.MapStateDescriptor` s, it returns a
+        If :class:`~state.MapStateDescriptor` s are passed in, it returns a
         :class:`BroadcastStream` with :class:`~state.BroadcastState` s implicitly created as the
-        descriptors specified. This is added in version 1.16.0.
+        descriptors specified.
 
         Example:
         ::
@@ -605,12 +612,19 @@ class DataStream(object):
             >>> broadcast_stream = ds1.broadcast(map_state_desc1, map_state_desc2)
             >>> broadcast_connected_stream = ds2.connect(broadcast_stream)
 
-        :param args: optionally to be a list of MapStateDescriptors describing BroadcastStates.
+        :param broadcast_state_descriptor: the first MapStateDescriptor describing BroadcastState.
+        :param other_broadcast_state_descriptors: the rest of MapStateDescriptors describing
+            BroadcastStates, if any.
         :return: The DataStream with broadcast partitioning set or a BroadcastStream which can be
             used in :meth:`connect` to create a BroadcastConnectedStream for further processing of
             the elements.
+
+        .. versionchanged:: 1.16.0
+            Support return BroadcastStream
         """
-        if args:
+        if broadcast_state_descriptor is not None:
+            args = [broadcast_state_descriptor]
+            args.extend(other_broadcast_state_descriptors)
             for arg in args:
                 if not isinstance(arg, MapStateDescriptor):
                     raise TypeError("broadcast_state_descriptor must be MapStateDescriptor")
@@ -1623,11 +1637,18 @@ class KeyedStream(DataStream):
     def connect(self, ds: 'DataStream') -> 'ConnectedStreams':
         pass
 
-    def connect(self, ds):
+    @overload
+    def connect(self, ds: 'BroadcastStream') -> 'BroadcastConnectedStream':
+        pass
+
+    def connect(self, ds: Union['DataStream', 'BroadcastStream']) \
+            -> Union['ConnectedStreams', 'BroadcastConnectedStream']:
         """
         If ds is a :class:`DataStream`, creates a new :class:`ConnectedStreams` by connecting
         DataStream outputs of (possible) different types with each other. The DataStreams connected
         using this operator can be used with CoFunctions to apply joint transformations.
+
+        Currently, connect(BroadcastStream) is not supported.
 
         :param ds: The DataStream with which this stream will be connected.
         :return: The ConnectedStreams.
