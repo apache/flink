@@ -585,7 +585,7 @@ class DataStream(object):
         pass
 
     @overload
-    def broadcast(self, *args) -> 'BroadcastStream':
+    def broadcast(self, *broadcast_state_descriptors: MapStateDescriptor) -> 'BroadcastStream':
         pass
 
     def broadcast(self, *args):
@@ -1619,6 +1619,21 @@ class KeyedStream(DataStream):
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
 
+    @overload
+    def connect(self, ds: 'DataStream') -> 'ConnectedStreams':
+        pass
+
+    def connect(self, ds):
+        """
+        If ds is a :class:`DataStream`, creates a new :class:`ConnectedStreams` by connecting
+        DataStream outputs of (possible) different types with each other. The DataStreams connected
+        using this operator can be used with CoFunctions to apply joint transformations.
+
+        :param ds: The DataStream with which this stream will be connected.
+        :return: The ConnectedStreams.
+        """
+        return super().connect(ds)
+
     def shuffle(self) -> 'DataStream':
         raise Exception('Cannot override partitioning for KeyedStream.')
 
@@ -1635,6 +1650,9 @@ class KeyedStream(DataStream):
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def broadcast(self, *args):
+        """
+        Not supported, partitioning for KeyedStream cannot be overridden.
+        """
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def partition_custom(self, partitioner: Union[Callable, Partitioner],
