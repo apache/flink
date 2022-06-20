@@ -56,7 +56,7 @@ import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
-class OrcColumnarRowSplitReaderTest {
+public class OrcColumnarRowSplitReaderTest {
 
     protected static final int BATCH_SIZE = 10;
 

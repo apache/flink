@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
-public class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest {
+class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest {
 
     @Override
     protected void prepareReadFileWithTypes(String file, int rowSize) throws IOException {
