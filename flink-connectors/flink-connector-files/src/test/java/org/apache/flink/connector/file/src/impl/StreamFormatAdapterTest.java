@@ -102,7 +102,7 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
         final List<Integer> result = new ArrayList<>();
         readNumbers(reader, result, 0);
 
-        assertThat(result).hasSize(0);
+        assertThat(result).isEmpty();
     }
 
     private void simpleReadTest(int batchSize) throws IOException {
