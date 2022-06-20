@@ -114,7 +114,8 @@ public class PbFormatUtils {
 
     public static Descriptors.Descriptor getDescriptor(String className) {
         try {
-            Class<?> pbClass = Class.forName(className);
+            Class<?> pbClass =
+                    Class.forName(className, true, Thread.currentThread().getContextClassLoader());
             return (Descriptors.Descriptor)
                     pbClass.getMethod(PbConstant.PB_METHOD_GET_DESCRIPTOR).invoke(null);
         } catch (Exception y) {
