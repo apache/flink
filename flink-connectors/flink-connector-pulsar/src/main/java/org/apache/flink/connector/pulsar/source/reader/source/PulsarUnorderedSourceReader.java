@@ -82,6 +82,9 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
 
     @Override
     protected void onSplitFinished(Map<String, PulsarPartitionSplitState> finishedSplitIds) {
+        // Close all the finished splits.
+        closeFinishedSplits(finishedSplitIds.keySet());
+
         // We don't require new splits, all the splits are pre-assigned by source enumerator.
         if (LOG.isDebugEnabled()) {
             LOG.debug("onSplitFinished event: {}", finishedSplitIds);
@@ -141,5 +144,13 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
                 transactionsToCommit.remove(currentCheckpointId);
             }
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // Abort all the pending transactions.
+
+        // Close the pulsar client finally.
+        super.close();
     }
 }
