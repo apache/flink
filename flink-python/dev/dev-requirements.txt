@@ -14,5 +14,5 @@
 # limitations under the License.
 setuptools>=18.0
 wheel
-apache-beam==2.27.0
-cython==0.29.16
+apache-beam==2.30.0+lyft202205161652748117
+cython==0.28.1

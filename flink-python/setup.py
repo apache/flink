@@ -179,6 +179,8 @@ except IOError:
           file=sys.stderr)
     sys.exit(-1)
 VERSION = __version__  # noqa
+APACHE_FLINK_VERSION = '1.13.0'
+
 
 with io.open(os.path.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
     long_description = f.read()
@@ -252,15 +254,7 @@ try:
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-    if VERSION.find('dev0') != -1:
-        apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
-    else:
-        split_versions = VERSION.split('.')
-        split_versions[-1] = str(int(split_versions[-1]) + 1)
-        NEXT_VERSION = '.'.join(split_versions)
-        apache_flink_libraries_dependency = 'apache-flink-libraries>=%s,<%s' % \
-                                            (VERSION, NEXT_VERSION)
-
+    apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % APACHE_FLINK_VERSION
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
     scripts.append("pyflink/find_flink_home.py")
@@ -307,10 +301,10 @@ try:
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.6',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
+        python_requires='>3.6',
+        install_requires=['py4j>=0.10.8.1,<=0.10.9.5', 'python-dateutil>=2.8.1', 'apache-beam==2.30.0+lyft202205161652748117',
                           'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                          'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
+                          'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<=8.0.0',
                           'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
                           apache_flink_libraries_dependency],
         cmdclass={'build_ext': build_ext},
