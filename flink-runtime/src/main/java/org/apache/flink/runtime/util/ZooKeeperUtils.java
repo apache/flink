@@ -47,6 +47,9 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFa
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
+
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -150,6 +153,7 @@ public class ZooKeeperUtils {
                         .sessionTimeoutMs(sessionTimeout)
                         .connectionTimeoutMs(connectionTimeout)
                         .retryPolicy(new ExponentialBackoffRetry(retryWait, maxRetryAttempts))
+                        .connectionStateErrorPolicy(new SessionConnectionStateErrorPolicy())
                         // Curator prepends a '/' manually and throws an Exception if the
                         // namespace starts with a '/'.
                         .namespace(
