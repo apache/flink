@@ -31,7 +31,7 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A simple ElasticsearchEmitter which is currently used in PyFlink ES connector. */
-public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<String, Object>> {
+public class MapElasticsearchEmitter implements ElasticsearchEmitter<Map<String, Object>> {
 
     private static final long serialVersionUID = 1L;
 
@@ -41,7 +41,7 @@ public class SimpleElasticsearchEmitter implements ElasticsearchEmitter<Map<Stri
     private final boolean isDynamicIndex;
     private transient Function<Map<String, Object>, String> indexProvider;
 
-    public SimpleElasticsearchEmitter(
+    public MapElasticsearchEmitter(
             String index,
             @Nullable String documentType,
             @Nullable String idFieldName,

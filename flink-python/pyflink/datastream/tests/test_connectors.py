@@ -96,7 +96,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertTrue(
             is_instance_of(
                 j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+                'org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter'))
         self.assertEqual(
             get_field_value(
                 es_sink.get_java_function(), 'hosts')[0].toString(), 'http://localhost:9200')
@@ -138,7 +138,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertTrue(
             is_instance_of(
                 j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+                'org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter'))
 
         ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
 
@@ -156,7 +156,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertTrue(
             is_instance_of(
                 j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+                'org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter'))
 
         ds.sink_to(es_sink).name('es sink')
 
@@ -174,7 +174,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
         self.assertTrue(
             is_instance_of(
                 j_emitter,
-                'org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter'))
+                'org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter'))
 
         ds.sink_to(es_dynamic_index_sink).name('es dynamic index sink')
 

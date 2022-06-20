@@ -75,9 +75,9 @@ class ElasticsearchEmitter(object):
         Creates an emitter with static index which is invoked on every record to convert it to
         Elasticsearch actions.
         """
-        JSimpleElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
-        j_emitter = JSimpleElasticsearchEmitter(index, doc_type, key_field, False)
+        JMapElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        j_emitter = JMapElasticsearchEmitter(index, doc_type, key_field, False)
         return ElasticsearchEmitter(j_emitter)
 
     @staticmethod
@@ -87,9 +87,9 @@ class ElasticsearchEmitter(object):
         Creates an emitter with dynamic index which is invoked on every record to convert it to
         Elasticsearch actions.
         """
-        JSimpleElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
-        j_emitter = JSimpleElasticsearchEmitter(index_field, doc_type, key_field, True)
+        JMapElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.MapElasticsearchEmitter
+        j_emitter = JMapElasticsearchEmitter(index_field, doc_type, key_field, True)
         return ElasticsearchEmitter(j_emitter)
 
 
