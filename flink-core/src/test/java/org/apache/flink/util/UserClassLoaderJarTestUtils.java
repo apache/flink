@@ -40,7 +40,7 @@ public class UserClassLoaderJarTestUtils {
         throw new RuntimeException();
     }
 
-    /** Pack the generated UDF class into a JAR and return the path of the JAR. */
+    /** Pack the generated class into a JAR and return the path of the JAR. */
     public static File createJarFile(File tmpDir, String jarName, String className, String javaCode)
             throws IOException {
         // write class source code to file
