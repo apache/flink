@@ -174,8 +174,8 @@ public class GlobFilePathFilterTest {
 
         GlobFilePathFilter matcherCopy = CommonTestUtils.createCopySerializable(matcher);
 
-        assertThat(matcher.filterPath(new Path("a"))).isFalse();
-        assertThat(matcher.filterPath(new Path("a/b"))).isFalse();
-        assertThat(matcher.filterPath(new Path("a/b/c"))).isFalse();
+        assertThat(matcherCopy.filterPath(new Path("a"))).isFalse();
+        assertThat(matcherCopy.filterPath(new Path("a/b"))).isFalse();
+        assertThat(matcherCopy.filterPath(new Path("a/b/c"))).isFalse();
     }
 }
