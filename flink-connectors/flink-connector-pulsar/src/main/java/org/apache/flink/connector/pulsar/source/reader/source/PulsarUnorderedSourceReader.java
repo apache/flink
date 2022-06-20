@@ -118,6 +118,9 @@ public class PulsarUnorderedSourceReader<OUT> extends PulsarSourceReaderBase<OUT
 
     @Override
     protected void onSplitFinished(Map<String, PulsarPartitionSplitState> finishedSplitIds) {
+        // Close all the finished splits.
+        closeFinishedSplits(finishedSplitIds.keySet());
+
         // We don't require new splits, all the splits are pre-assigned by source enumerator.
         if (LOG.isDebugEnabled()) {
             LOG.debug("onSplitFinished event: {}", finishedSplitIds);

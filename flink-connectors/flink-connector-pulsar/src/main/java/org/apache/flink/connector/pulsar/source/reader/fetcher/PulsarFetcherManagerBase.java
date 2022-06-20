@@ -86,6 +86,18 @@ public abstract class PulsarFetcherManagerBase<T>
         }
     }
 
+    /** Close the finished split related fetcher. */
+    public void closeFetcher(String splitId) {
+        Integer fetchId = splitFetcherMapping.remove(splitId);
+        if (fetchId != null) {
+            fetcherStatus.remove(fetchId);
+            SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher = fetchers.remove(fetchId);
+            if (fetcher != null) {
+                fetcher.shutdown();
+            }
+        }
+    }
+
     protected SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> getOrCreateFetcher(
             String splitId) {
         SplitFetcher<PulsarMessage<T>, PulsarPartitionSplit> fetcher;
