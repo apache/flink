@@ -71,4 +71,16 @@ public class SimpleRowToProtoTest {
         assertFalse(simpleTest.hasG());
         assertFalse(simpleTest.hasH());
     }
+
+    @Test
+    public void testEnumAsInt() throws Exception {
+        RowData row =
+                GenericRowData.of(
+                        null, null, null, null, null, null, null, 2, // CORPUS: IMAGE
+                        null);
+
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class, true);
+        SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
+        assertEquals(SimpleTest.Corpus.IMAGES, simpleTest.getH());
+    }
 }

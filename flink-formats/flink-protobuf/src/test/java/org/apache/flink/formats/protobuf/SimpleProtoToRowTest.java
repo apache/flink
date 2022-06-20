@@ -57,14 +57,12 @@ public class SimpleProtoToRowTest {
                         .build();
 
         RowData row = deserializationSchema.deserialize(simple.toByteArray());
-        row =
-                ProtobufTestHelper.validateRow(
-                        row, PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor()));
+        row = ProtobufTestHelper.validateRow(row, rowType);
 
         assertEquals(9, row.getArity());
         assertEquals(1, row.getInt(0));
         assertEquals(2L, row.getLong(1));
-        assertFalse((boolean) row.getBoolean(2));
+        assertFalse(row.getBoolean(2));
         assertEquals(Float.valueOf(0.1f), Float.valueOf(row.getFloat(3)));
         assertEquals(Double.valueOf(0.01d), Double.valueOf(row.getDouble(4)));
         assertEquals("haha", row.getString(5).toString());
@@ -122,11 +120,29 @@ public class SimpleProtoToRowTest {
         assertFalse(row.isNullAt(7));
         assertEquals(10, row.getInt(0));
         assertEquals(100L, row.getLong(1));
-        assertEquals(false, row.getBoolean(2));
+        assertFalse(row.getBoolean(2));
         assertEquals(0.0f, row.getFloat(3), 0.0001);
         assertEquals(0.0d, row.getDouble(4), 0.0001);
         assertEquals("f", row.getString(5).toString());
         assertArrayEquals(ByteString.EMPTY.toByteArray(), row.getBinary(6));
         assertEquals(SimpleTest.Corpus.UNIVERSAL.toString(), row.getString(7).toString());
+    }
+
+    @Test
+    public void testIntEnum() throws Exception {
+        RowType rowType =
+                PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor(), true);
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(SimpleTest.class.getName(), false, false, "");
+        PbRowDataDeserializationSchema deserializationSchema =
+                new PbRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
+
+        SimpleTest simple = SimpleTest.newBuilder().setH(SimpleTest.Corpus.IMAGES).build();
+
+        RowData row = deserializationSchema.deserialize(simple.toByteArray());
+        row = ProtobufTestHelper.validateRow(row, rowType);
+
+        assertEquals(2, row.getInt(7));
     }
 }

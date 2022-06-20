@@ -32,7 +32,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import java.util.EnumMap;
 import java.util.EnumSet;
 
-/** Validation class to verify protobuf definition and flink DDL schema. */
+/** Validation class to verify protobuf definition and flink schema. */
 public class PbSchemaValidator {
     private Descriptors.Descriptor descriptor;
     private RowType rowType;
@@ -48,7 +48,14 @@ public class PbSchemaValidator {
         TYPE_MATCH_MAP.put(JavaType.DOUBLE, EnumSet.of(LogicalTypeRoot.DOUBLE));
         TYPE_MATCH_MAP.put(JavaType.FLOAT, EnumSet.of(LogicalTypeRoot.FLOAT));
         TYPE_MATCH_MAP.put(
-                JavaType.ENUM, EnumSet.of(LogicalTypeRoot.VARCHAR, LogicalTypeRoot.CHAR));
+                JavaType.ENUM,
+                EnumSet.of(
+                        LogicalTypeRoot.VARCHAR,
+                        LogicalTypeRoot.CHAR,
+                        LogicalTypeRoot.TINYINT,
+                        LogicalTypeRoot.SMALLINT,
+                        LogicalTypeRoot.INTEGER,
+                        LogicalTypeRoot.BIGINT));
         TYPE_MATCH_MAP.put(
                 JavaType.STRING, EnumSet.of(LogicalTypeRoot.VARCHAR, LogicalTypeRoot.CHAR));
         TYPE_MATCH_MAP.put(JavaType.INT, EnumSet.of(LogicalTypeRoot.INTEGER));
@@ -176,8 +183,7 @@ public class PbSchemaValidator {
                     "Protobuf field type does not match column type, "
                             + fd.getJavaType()
                             + "(protobuf) is not compatible of "
-                            + logicalTypeRoot
-                            + "(table DDL)");
+                            + logicalTypeRoot);
         }
     }
 }

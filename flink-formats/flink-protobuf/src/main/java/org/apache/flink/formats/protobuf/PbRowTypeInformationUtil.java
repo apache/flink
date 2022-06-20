@@ -38,6 +38,10 @@ import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 /** Generate Row type information according to pb descriptors. */
 public class PbRowTypeInformationUtil {
     public static RowType generateRowType(Descriptors.Descriptor root) {
+        return generateRowType(root, false);
+    }
+
+    public static RowType generateRowType(Descriptors.Descriptor root, boolean enumAsInt) {
         int size = root.getFields().size();
         LogicalType[] types = new LogicalType[size];
         String[] rowFieldNames = new String[size];
@@ -45,12 +49,13 @@ public class PbRowTypeInformationUtil {
         for (int i = 0; i < size; i++) {
             FieldDescriptor field = root.getFields().get(i);
             rowFieldNames[i] = field.getName();
-            types[i] = generateFieldTypeInformation(field);
+            types[i] = generateFieldTypeInformation(field, enumAsInt);
         }
         return RowType.of(types, rowFieldNames);
     }
 
-    public static LogicalType generateFieldTypeInformation(FieldDescriptor field) {
+    public static LogicalType generateFieldTypeInformation(
+            FieldDescriptor field, boolean enumAsInt) {
         JavaType fieldType = field.getJavaType();
         LogicalType type;
         if (fieldType.equals(JavaType.MESSAGE)) {
@@ -59,10 +64,12 @@ public class PbRowTypeInformationUtil {
                         new MapType(
                                 generateFieldTypeInformation(
                                         field.getMessageType()
-                                                .findFieldByName(PbConstant.PB_MAP_KEY_NAME)),
+                                                .findFieldByName(PbConstant.PB_MAP_KEY_NAME),
+                                        enumAsInt),
                                 generateFieldTypeInformation(
                                         field.getMessageType()
-                                                .findFieldByName(PbConstant.PB_MAP_VALUE_NAME)));
+                                                .findFieldByName(PbConstant.PB_MAP_VALUE_NAME),
+                                        enumAsInt));
                 return mapType;
             } else if (field.isRepeated()) {
                 return new ArrayType(generateRowType(field.getMessageType()));
@@ -83,7 +90,11 @@ public class PbRowTypeInformationUtil {
             } else if (fieldType.equals(JavaType.FLOAT)) {
                 type = new FloatType();
             } else if (fieldType.equals(JavaType.ENUM)) {
-                type = new VarCharType(Integer.MAX_VALUE);
+                if (enumAsInt) {
+                    type = new IntType();
+                } else {
+                    type = new VarCharType(Integer.MAX_VALUE);
+                }
             } else if (fieldType.equals(JavaType.BYTE_STRING)) {
                 type = new VarBinaryType(Integer.MAX_VALUE);
             } else {

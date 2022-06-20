@@ -46,11 +46,7 @@ public class ProtobufTestHelper {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         StreamTableEnvironment tableEnv =
                 StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                        env, EnvironmentSettings.newInstance().inStreamingMode().build());
 
         DataType rowDataType = fromLogicalToDataType(rowType);
         Row row =
@@ -68,16 +64,31 @@ public class ProtobufTestHelper {
     }
 
     public static byte[] rowToPbBytes(RowData row, Class messageClass) throws Exception {
+        return rowToPbBytes(row, messageClass, false);
+    }
+
+    public static byte[] rowToPbBytes(RowData row, Class messageClass, boolean enumAsInt)
+            throws Exception {
         return rowToPbBytes(
-                row, messageClass, new PbFormatConfig(messageClass.getName(), false, false, ""));
+                row,
+                messageClass,
+                new PbFormatConfig(messageClass.getName(), false, false, ""),
+                enumAsInt);
     }
 
     public static byte[] rowToPbBytes(RowData row, Class messageClass, PbFormatConfig formatConfig)
             throws Exception {
+        return rowToPbBytes(row, messageClass, formatConfig, false);
+    }
+
+    public static byte[] rowToPbBytes(
+            RowData row, Class messageClass, PbFormatConfig formatConfig, boolean enumAsInt)
+            throws Exception {
         RowType rowType =
                 PbRowTypeInformationUtil.generateRowType(
                         org.apache.flink.formats.protobuf.PbFormatUtils.getDescriptor(
-                                messageClass.getName()));
+                                messageClass.getName()),
+                        enumAsInt);
         row = validateRow(row, rowType);
         PbRowDataSerializationSchema serializationSchema =
                 new PbRowDataSerializationSchema(rowType, formatConfig);

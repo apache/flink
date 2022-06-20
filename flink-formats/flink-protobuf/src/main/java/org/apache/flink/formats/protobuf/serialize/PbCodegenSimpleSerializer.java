@@ -47,16 +47,33 @@ public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
      */
     @Override
     public String codegen(String returnPbVarName, String internalDataGetStr) {
+        PbCodegenAppender appender = new PbCodegenAppender();
         switch (type.getTypeRoot()) {
-            case INTEGER:
             case BIGINT:
             case FLOAT:
             case DOUBLE:
             case BOOLEAN:
                 return returnPbVarName + " = " + internalDataGetStr + ";";
+            case INTEGER:
+                if (fd.getJavaType() == JavaType.ENUM) {
+                    String enumTypeStr = PbFormatUtils.getFullJavaName(fd.getEnumType());
+                    appender.appendLine(
+                            returnPbVarName
+                                    + " = "
+                                    + enumTypeStr
+                                    + ".forNumber((int)"
+                                    + internalDataGetStr
+                                    + ")");
+                    // choose the first enum element as default value if such value is invalid enum
+                    appender.appendSegment("if(null == " + returnPbVarName + "){");
+                    appender.appendLine(returnPbVarName + " = " + enumTypeStr + ".values()[0]");
+                    appender.appendSegment("}");
+                    return appender.code();
+                } else {
+                    return returnPbVarName + " = " + internalDataGetStr + ";";
+                }
             case VARCHAR:
             case CHAR:
-                PbCodegenAppender appender = new PbCodegenAppender();
                 int uid = PbCodegenVarId.getInstance().getAndIncrement();
                 String fromVar = "fromVar" + uid;
                 appender.appendLine("String " + fromVar);

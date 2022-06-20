@@ -38,7 +38,7 @@ public class PbCodegenDeserializeFactory {
         if (type instanceof RowType) {
             return new PbCodegenRowDeserializer(fd.getMessageType(), (RowType) type, formatConfig);
         } else if (PbFormatUtils.isSimpleType(type)) {
-            return new PbCodegenSimpleDeserializer(fd);
+            return new PbCodegenSimpleDeserializer(fd, type);
         } else if (type instanceof ArrayType) {
             return new PbCodegenArrayDeserializer(
                     fd, ((ArrayType) type).getElementType(), formatConfig);
