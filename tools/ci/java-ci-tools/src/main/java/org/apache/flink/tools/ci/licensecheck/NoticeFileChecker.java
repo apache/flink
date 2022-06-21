@@ -29,9 +29,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -133,23 +137,25 @@ public class NoticeFileChecker {
     private static int checkNoticeFile(
             Multimap<String, IncludedDependency> modulesWithShadedDependencies, Path noticeFile)
             throws IOException {
-        int severeIssueCount = 0;
         String moduleName = getModuleFromNoticeFile(noticeFile);
 
         // 1st line contains module name
         List<String> noticeContents = Files.readAllLines(noticeFile);
 
+        final Map<Severity, List<String>> problemsBySeverity = new HashMap<>();
+
         if (noticeContents.isEmpty()) {
-            LOG.error("Notice file empty {}", noticeFile);
-            severeIssueCount++;
+            addProblem(problemsBySeverity, Severity.CRITICAL, "The NOTICE file was empty.");
         }
 
         // first line must be the module name.
         if (!noticeContents.get(0).equals(moduleName)) {
-            LOG.warn(
-                    "Expected first file of notice file to start with module name. moduleName={}, firstLine={}",
-                    moduleName,
-                    noticeContents.get(0));
+            addProblem(
+                    problemsBySeverity,
+                    Severity.TOLERATED,
+                    String.format(
+                            "First line does not start with module name. firstLine=%s",
+                            noticeContents.get(0)));
         }
 
         // collect all declared dependencies from NOTICE file
@@ -167,48 +173,86 @@ public class NoticeFileChecker {
                 }
                 IncludedDependency toAdd = IncludedDependency.create(groupId, artifactId, version);
                 if (!declaredDependencies.add(toAdd)) {
-                    LOG.error(
-                            "Dependency {} has been declared twice in module {}",
-                            toAdd,
-                            moduleName);
-                    severeIssueCount++;
+                    addProblem(
+                            problemsBySeverity,
+                            Severity.CRITICAL,
+                            String.format("Dependency %s is declared twice.", toAdd));
                 }
             }
         }
-        // print all dependencies missing from NOTICE file
+        // find all dependencies missing from NOTICE file
         Collection<IncludedDependency> expectedDependencies =
                 modulesWithShadedDependencies.get(moduleName);
         for (IncludedDependency expectedDependency : expectedDependencies) {
             if (!declaredDependencies.contains(expectedDependency)) {
-                LOG.error(
-                        "Could not find dependency {} in NOTICE file {}",
-                        expectedDependency,
-                        noticeFile);
-                severeIssueCount++;
+                addProblem(
+                        problemsBySeverity,
+                        Severity.CRITICAL,
+                        String.format("Dependency %s is not listed.", expectedDependency));
             }
         }
 
         boolean moduleDefinesExcessDependencies =
                 MODULES_DEFINING_EXCESS_DEPENDENCIES.contains(moduleName);
 
-        // print all dependencies defined in NOTICE file, which were not expected
+        // find all dependencies defined in NOTICE file, which were not expected
         for (IncludedDependency declaredDependency : declaredDependencies) {
             if (!expectedDependencies.contains(declaredDependency)) {
-                if (moduleDefinesExcessDependencies) {
-                    LOG.debug(
-                            "Dependency {} is mentioned in NOTICE file {}, but was not mentioned by the build output as a bundled dependency",
-                            declaredDependency,
-                            noticeFile);
-                } else {
-                    LOG.warn(
-                            "Dependency {} is mentioned in NOTICE file {}, but is not expected there",
-                            declaredDependency,
-                            noticeFile);
-                }
+                final Severity severity =
+                        moduleDefinesExcessDependencies ? Severity.SUPPRESSED : Severity.TOLERATED;
+                addProblem(
+                        problemsBySeverity,
+                        severity,
+                        String.format(
+                                "Dependency %s is not bundled, but listed.", declaredDependency));
             }
         }
 
-        return severeIssueCount;
+        final List<String> severeProblems =
+                problemsBySeverity.getOrDefault(Severity.CRITICAL, Collections.emptyList());
+
+        if (!problemsBySeverity.isEmpty()) {
+            final List<String> toleratedProblems =
+                    problemsBySeverity.getOrDefault(Severity.TOLERATED, Collections.emptyList());
+            final List<String> expectedProblems =
+                    problemsBySeverity.getOrDefault(Severity.SUPPRESSED, Collections.emptyList());
+
+            LOG.info(
+                    "Problems were detected for a NOTICE file.\n" + "\t{}:\n" + "{}{}{}",
+                    moduleName,
+                    convertProblemsToIndentedString(
+                            severeProblems,
+                            "These issue are legally problematic and MUST be fixed:"),
+                    convertProblemsToIndentedString(
+                            toleratedProblems,
+                            "These issues are mistakes that aren't legally problematic. They SHOULD be fixed at some point, but we don't have to:"),
+                    convertProblemsToIndentedString(
+                            expectedProblems, "These issues are assumed to be false-positives:"));
+        }
+
+        return severeProblems.size();
+    }
+
+    private static void addProblem(
+            Map<Severity, List<String>> problemsBySeverity, Severity severity, String problem) {
+        problemsBySeverity.computeIfAbsent(severity, ignored -> new ArrayList<>()).add(problem);
+    }
+
+    private enum Severity {
+        /** Issues that a legally problematic which must be fixed. */
+        CRITICAL,
+        /** Issues that affect the correctness but aren't legally problematic. */
+        TOLERATED,
+        /** Issues where we intentionally break the rules. */
+        SUPPRESSED
+    }
+
+    private static String convertProblemsToIndentedString(List<String> problems, String header) {
+        return problems.isEmpty()
+                ? ""
+                : problems.stream()
+                        .map(s -> "\t\t\t" + s)
+                        .collect(Collectors.joining("\n", "\t\t " + header + " \n", "\n"));
     }
 
     private static List<Path> findNoticeFiles(Path root) throws IOException {
