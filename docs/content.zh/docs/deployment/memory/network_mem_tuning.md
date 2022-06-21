@@ -122,8 +122,8 @@ Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
 
 For each output subtask can also request up to `taskmanager.network.memory.max-overdraft-buffers-per-gate`
 (by default 5) extra overdraft buffers. Those buffers are only used, if the subtask is backpressured
-by downstream subtasks but the subtask can not gracefully pause its current process. This can happen
-in situations like:
+by downstream subtasks and the subtask requires more than a single network buffer to finish what its
+currently doing. This can happen in situations like:
 - Serializing very large records, that do not fit into a single network buffer.
 - Flat Map like operator, that produces many output records per single input record.
 - Operators that output many records either periodically or on a reaction to some events (for
