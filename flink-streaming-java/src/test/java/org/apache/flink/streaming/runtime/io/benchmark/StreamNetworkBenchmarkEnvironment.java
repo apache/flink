@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -274,7 +275,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
                                 taskMetricGroup),
                         gateIndex,
                         gateDescriptor,
-                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
+                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
+                        InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 
         return new InputGateWithMetrics(singleGate, new SimpleCounter());
     }
