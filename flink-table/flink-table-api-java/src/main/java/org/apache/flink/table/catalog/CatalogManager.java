@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -82,7 +83,7 @@ public final class CatalogManager {
     // The name of the built-in catalog
     private final String builtInCatalogName;
 
-    private final ClassLoader userClassLoader;
+    private final Supplier<ClassLoader> classLoaderSupplier;
 
     private final DataTypeFactory typeFactory;
 
@@ -91,7 +92,7 @@ public final class CatalogManager {
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
-            ClassLoader userClassLoader,
+            Supplier<ClassLoader> classLoaderSupplier,
             DataTypeFactory typeFactory,
             ManagedTableListener managedTableListener) {
         checkArgument(
@@ -108,7 +109,7 @@ public final class CatalogManager {
         // right now the default catalog is always the built-in one
         builtInCatalogName = defaultCatalogName;
 
-        this.userClassLoader = userClassLoader;
+        this.classLoaderSupplier = classLoaderSupplier;
         this.typeFactory = typeFactory;
         this.managedTableListener = managedTableListener;
     }
@@ -120,7 +121,7 @@ public final class CatalogManager {
     /** Builder for a fluent definition of a {@link CatalogManager}. */
     public static final class Builder {
 
-        private @Nullable ClassLoader classLoader;
+        private @Nullable Supplier<ClassLoader> classLoaderSupplier;
 
         private @Nullable ReadableConfig config;
 
@@ -132,8 +133,8 @@ public final class CatalogManager {
 
         private @Nullable DataTypeFactory dataTypeFactory;
 
-        public Builder classLoader(ClassLoader classLoader) {
-            this.classLoader = classLoader;
+        public Builder classLoaderSupplier(Supplier<ClassLoader> classLoaderSupplier) {
+            this.classLoaderSupplier = classLoaderSupplier;
             return this;
         }
 
@@ -159,16 +160,16 @@ public final class CatalogManager {
         }
 
         public CatalogManager build() {
-            checkNotNull(classLoader, "Class loader cannot be null");
+            checkNotNull(classLoaderSupplier, "Class loader supplier cannot be null");
             checkNotNull(config, "Config cannot be null");
             return new CatalogManager(
                     defaultCatalogName,
                     defaultCatalog,
-                    classLoader,
+                    classLoaderSupplier,
                     dataTypeFactory != null
                             ? dataTypeFactory
-                            : new DataTypeFactoryImpl(classLoader, config, executionConfig),
-                    new ManagedTableListener(classLoader, config));
+                            : new DataTypeFactoryImpl(classLoaderSupplier, config, executionConfig),
+                    new ManagedTableListener(classLoaderSupplier, config));
         }
     }
 
@@ -956,6 +957,6 @@ public final class CatalogManager {
     }
 
     public ClassLoader getUserClassLoader() {
-        return userClassLoader;
+        return classLoaderSupplier.get();
     }
 }

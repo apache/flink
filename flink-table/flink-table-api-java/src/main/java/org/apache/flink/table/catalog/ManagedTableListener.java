@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.factories.ManagedTableFactory.discoverManagedTableFactory;
 
@@ -41,12 +42,12 @@ import static org.apache.flink.table.factories.ManagedTableFactory.discoverManag
 @Internal
 public class ManagedTableListener {
 
-    private final ClassLoader classLoader;
+    private final Supplier<ClassLoader> classLoaderSupplier;
 
     private final ReadableConfig config;
 
-    public ManagedTableListener(ClassLoader classLoader, ReadableConfig config) {
-        this.classLoader = classLoader;
+    public ManagedTableListener(Supplier<ClassLoader> classLoaderSupplier, ReadableConfig config) {
+        this.classLoaderSupplier = classLoaderSupplier;
         this.config = config;
     }
 
@@ -59,7 +60,7 @@ public class ManagedTableListener {
             boolean ignoreIfExists) {
         if (isManagedTable(catalog, table)) {
             ResolvedCatalogTable managedTable = enrichOptions(identifier, table, isTemporary);
-            discoverManagedTableFactory(classLoader)
+            discoverManagedTableFactory(classLoaderSupplier.get())
                     .onCreateTable(
                             createTableFactoryContext(identifier, managedTable, isTemporary),
                             ignoreIfExists);
@@ -76,7 +77,7 @@ public class ManagedTableListener {
             boolean isTemporary,
             boolean ignoreIfNotExists) {
         if (isManagedTable(catalog, table)) {
-            discoverManagedTableFactory(classLoader)
+            discoverManagedTableFactory(classLoaderSupplier.get())
                     .onDropTable(
                             createTableFactoryContext(
                                     identifier, (ResolvedCatalogTable) table, isTemporary),
@@ -95,7 +96,7 @@ public class ManagedTableListener {
             if (RuntimeExecutionMode.STREAMING.equals(config.get(ExecutionOptions.RUNTIME_MODE))) {
                 throw new ValidationException("Compact managed table only works under batch mode.");
             }
-            return discoverManagedTableFactory(classLoader)
+            return discoverManagedTableFactory(classLoaderSupplier.get())
                     .onCompactTable(
                             createTableFactoryContext(
                                     identifier, (ResolvedCatalogTable) table, isTemporary),
@@ -159,7 +160,7 @@ public class ManagedTableListener {
         }
         ResolvedCatalogTable resolvedTable = (ResolvedCatalogTable) table;
         Map<String, String> newOptions =
-                discoverManagedTableFactory(classLoader)
+                discoverManagedTableFactory(classLoaderSupplier.get())
                         .enrichOptions(
                                 createTableFactoryContext(identifier, resolvedTable, isTemporary));
         return resolvedTable.copy(newOptions);
@@ -168,6 +169,11 @@ public class ManagedTableListener {
     private DynamicTableFactory.Context createTableFactoryContext(
             ObjectIdentifier identifier, ResolvedCatalogTable table, boolean isTemporary) {
         return new FactoryUtil.DefaultDynamicTableContext(
-                identifier, table, Collections.emptyMap(), config, classLoader, isTemporary);
+                identifier,
+                table,
+                Collections.emptyMap(),
+                config,
+                classLoaderSupplier.get(),
+                isTemporary);
     }
 }

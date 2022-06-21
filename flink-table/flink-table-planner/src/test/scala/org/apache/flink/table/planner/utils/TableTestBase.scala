@@ -1527,13 +1527,14 @@ object TestingTableEnvironment {
     tableConfig.setRootConfiguration(executor.getConfiguration)
     tableConfig.addConfiguration(settings.getConfiguration)
 
+    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
 
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
         CatalogManager.newBuilder
-          .classLoader(userClassLoader)
+          .classLoaderSupplier(() => resourceManager.getUserClassLoader)
           .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
@@ -1543,10 +1544,8 @@ object TestingTableEnvironment {
           .build
     }
 
-    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
-
     val functionCatalog =
-      new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager, resourceManager)
+      new FunctionCatalog(settings.getConfiguration, resourceManager, catalogMgr, moduleManager)
 
     val planner = PlannerFactoryUtil
       .createPlanner(

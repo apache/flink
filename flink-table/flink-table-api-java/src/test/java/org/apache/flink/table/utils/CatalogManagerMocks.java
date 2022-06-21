@@ -52,7 +52,7 @@ public final class CatalogManagerMocks {
 
     public static CatalogManager.Builder preparedCatalogManager() {
         return CatalogManager.newBuilder()
-                .classLoader(CatalogManagerMocks.class.getClassLoader())
+                .classLoaderSupplier(() -> CatalogManagerMocks.class.getClassLoader())
                 .config(new Configuration())
                 .defaultCatalog(DEFAULT_CATALOG, createEmptyCatalog())
                 .executionConfig(new ExecutionConfig());

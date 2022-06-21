@@ -111,7 +111,7 @@ public class ExecutionContext {
         StreamExecutionEnvironment streamExecEnv =
                 new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
 
-        final Executor executor = lookupExecutor(streamExecEnv);
+        final Executor executor = lookupExecutor(streamExecEnv, classLoader);
 
         // Updates the classloader of ResourceManager by the new classloader to solve
         // ClassNotFound exception when call add jar syntax case
@@ -127,7 +127,7 @@ public class ExecutionContext {
                 classLoader);
     }
 
-    private StreamTableEnvironment createStreamTableEnvironment(
+    private static StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
             Executor executor,
@@ -162,11 +162,14 @@ public class ExecutionContext {
                 settings.isStreamingMode());
     }
 
-    private Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {
+    private static Executor lookupExecutor(
+            StreamExecutionEnvironment executionEnvironment, ClassLoader userClassLoader) {
         try {
             final ExecutorFactory executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
+                            userClassLoader,
+                            ExecutorFactory.class,
+                            ExecutorFactory.DEFAULT_IDENTIFIER);
             final Method createMethod =
                     executorFactory
                             .getClass()

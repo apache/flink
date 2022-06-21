@@ -308,10 +308,10 @@ object StreamTableEnvironmentImpl {
     tableConfig.setRootConfiguration(executor.getConfiguration)
     tableConfig.addConfiguration(settings.getConfiguration)
 
+    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
-
     val catalogManager = CatalogManager.newBuilder
-      .classLoader(userClassLoader)
+      .classLoaderSupplier(() => resourceManager.getUserClassLoader)
       .config(tableConfig)
       .defaultCatalog(
         settings.getBuiltInCatalogName,
@@ -319,10 +319,8 @@ object StreamTableEnvironmentImpl {
       .executionConfig(executionEnvironment.getConfig)
       .build
 
-    val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
-
     val functionCatalog =
-      new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager)
+      new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager)
 
     val planner = PlannerFactoryUtil.createPlanner(
       executor,

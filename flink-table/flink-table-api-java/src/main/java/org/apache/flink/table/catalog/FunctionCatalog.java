@@ -67,9 +67,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class FunctionCatalog {
     private final ReadableConfig config;
+    private final ResourceManager resourceManager;
     private final CatalogManager catalogManager;
     private final ModuleManager moduleManager;
-    private final ResourceManager resourceManager;
 
     private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions =
@@ -83,13 +83,13 @@ public final class FunctionCatalog {
 
     public FunctionCatalog(
             ReadableConfig config,
+            ResourceManager resourceManager,
             CatalogManager catalogManager,
-            ModuleManager moduleManager,
-            ResourceManager resourceManager) {
+            ModuleManager moduleManager) {
         this.config = checkNotNull(config);
+        this.resourceManager = checkNotNull(resourceManager);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
-        this.resourceManager = resourceManager;
     }
 
     public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {

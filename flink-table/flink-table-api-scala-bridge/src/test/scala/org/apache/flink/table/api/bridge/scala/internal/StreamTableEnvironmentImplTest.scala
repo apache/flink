@@ -76,7 +76,7 @@ class StreamTableEnvironmentImplTest {
       catalogManager,
       moduleManager,
       resourceManager,
-      new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager),
+      new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager),
       tableConfig,
       env,
       new TestPlanner(elements.javaStream.getTransformation),

@@ -89,14 +89,14 @@ class FunctionCatalogTest {
         functionCatalog =
                 new FunctionCatalog(
                         configuration,
-                        CatalogManagerMocks.preparedCatalogManager()
-                                .defaultCatalog(DEFAULT_CATALOG, catalog)
-                                .build(),
-                        moduleManager,
                         ResourceManagerMocks.createResourceManager(
                                 new URL[0],
                                 FunctionCatalogTest.class.getClassLoader(),
-                                configuration));
+                                configuration),
+                        CatalogManagerMocks.preparedCatalogManager()
+                                .defaultCatalog(DEFAULT_CATALOG, catalog)
+                                .build(),
+                        moduleManager);
     }
 
     @Test

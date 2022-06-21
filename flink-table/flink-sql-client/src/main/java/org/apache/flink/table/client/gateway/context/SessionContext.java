@@ -214,14 +214,15 @@ public class SessionContext {
         // Init session state
         // --------------------------------------------------------------------------------------------------------------
 
-        ModuleManager moduleManager = new ModuleManager();
+        final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
+        final ModuleManager moduleManager = new ModuleManager();
 
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
-        CatalogManager catalogManager =
+        final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(userClassLoader)
+                        .classLoaderSupplier(() -> resourceManager.getUserClassLoader())
                         .config(configuration)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -230,11 +231,9 @@ public class SessionContext {
                                         settings.getBuiltInDatabaseName()))
                         .build();
 
-        final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
-
-        FunctionCatalog functionCatalog =
-                new FunctionCatalog(configuration, catalogManager, moduleManager, resourceManager);
-        SessionState sessionState =
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
+        final SessionState sessionState =
                 new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
 
         // --------------------------------------------------------------------------------------------------------------
@@ -340,7 +339,6 @@ public class SessionContext {
                 new ArrayList<>(newDependencies),
                 URL::toString);
 
-        // TODO: update the classloader in CatalogManager.
         classLoader =
                 ClassLoaderUtil.buildSafetyNetWrapperClassLoader(
                         new ArrayList<>(newDependencies).toArray(new URL[0]),

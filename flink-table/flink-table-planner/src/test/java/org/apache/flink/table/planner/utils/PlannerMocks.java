@@ -60,8 +60,8 @@ public class PlannerMocks {
     private PlannerMocks(
             boolean isBatchMode,
             TableConfig tableConfig,
-            CatalogManager catalogManager,
             ResourceManager resourceManager,
+            CatalogManager catalogManager,
             List<RelTraitDef> traitDefs,
             CalciteSchema rootSchema) {
         this.catalogManager = catalogManager;
@@ -70,7 +70,7 @@ public class PlannerMocks {
         final ModuleManager moduleManager = new ModuleManager();
 
         this.functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager);
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         this.plannerContext =
                 new PlannerContext(
@@ -176,13 +176,13 @@ public class PlannerMocks {
             return this;
         }
 
-        public Builder withCatalogManager(CatalogManager catalogManager) {
-            this.catalogManager = catalogManager;
+        public Builder withResourceManager(ResourceManager resourceManager) {
+            this.resourceManager = resourceManager;
             return this;
         }
 
-        public Builder withResourceManager(ResourceManager resourceManager) {
-            this.resourceManager = resourceManager;
+        public Builder withCatalogManager(CatalogManager catalogManager) {
+            this.catalogManager = catalogManager;
             return this;
         }
 
@@ -198,7 +198,7 @@ public class PlannerMocks {
 
         public PlannerMocks build() {
             return new PlannerMocks(
-                    batchMode, tableConfig, catalogManager, resourceManager, traitDefs, rootSchema);
+                    batchMode, tableConfig, resourceManager, catalogManager, traitDefs, rootSchema);
         }
     }
 

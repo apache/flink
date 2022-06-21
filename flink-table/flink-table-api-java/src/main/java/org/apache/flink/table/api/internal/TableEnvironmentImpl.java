@@ -284,11 +284,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         tableConfig.setRootConfiguration(executor.getConfiguration());
         tableConfig.addConfiguration(settings.getConfiguration());
 
+        final ResourceManager resourceManager =
+                new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
-
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(userClassLoader)
+                        .classLoaderSupplier(() -> resourceManager.getUserClassLoader())
                         .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -297,11 +298,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         settings.getBuiltInDatabaseName()))
                         .build();
 
-        final ResourceManager resourceManager =
-                new ResourceManager(settings.getConfiguration(), userClassLoader);
-
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager, resourceManager);
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(

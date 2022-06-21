@@ -50,11 +50,11 @@ import scala.collection.JavaConverters._
 
 /** Test for [[RexNodeExtractor]]. */
 class RexNodeExtractorTest extends RexNodeTestBase {
+  val resourceManager = ResourceManagerMocks.createEmptyResourceManager();
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val moduleManager = new ModuleManager
-  val resourceManager = ResourceManagerMocks.createEmptyResourceManager();
   private val functionCatalog =
-    new FunctionCatalog(TableConfig.getDefault, catalogManager, moduleManager, resourceManager)
+    new FunctionCatalog(TableConfig.getDefault, resourceManager, catalogManager, moduleManager)
 
   @Test
   def testExtractRefInputFields(): Unit = {
