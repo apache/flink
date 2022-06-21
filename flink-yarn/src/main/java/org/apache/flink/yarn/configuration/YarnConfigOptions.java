@@ -116,7 +116,7 @@ public class YarnConfigOptions {
                                                     + "Set this value to -1 in order to count globally. "
                                                     + "See %s for more information.",
                                             link(
-                                                    "https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API",
                                                     "here"))
                                     .build());
 
