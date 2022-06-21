@@ -304,7 +304,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==3.7.9 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install flake8 failed \
         please try to exec the script again.\
