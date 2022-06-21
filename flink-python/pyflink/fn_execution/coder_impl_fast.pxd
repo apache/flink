@@ -184,3 +184,9 @@ cdef class CountWindowCoderImpl(FieldCoderImpl):
 cdef class DataViewFilterCoderImpl(FieldCoderImpl):
     cdef object _udf_data_view_specs
     cdef PickleCoderImpl _pickle_coder
+
+cdef class AvroCoderImpl(FieldCoderImpl):
+    cdef object _buffer_wrapper
+    cdef object _decoder
+    cdef object _schema
+    cdef object _reader

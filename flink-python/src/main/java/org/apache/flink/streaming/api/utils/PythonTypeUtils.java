@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -55,6 +56,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
@@ -66,6 +68,7 @@ import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -170,6 +173,18 @@ public class PythonTypeUtils {
                 return toTypeInfoProto(
                         LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
                                 ((ExternalTypeInfo<?>) typeInformation).getDataType()));
+            }
+
+            if (typeInformation
+                    .getClass()
+                    .getCanonicalName()
+                    .equals("org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
+                try {
+                    return buildAvroTypeProto((GenericRecordAvroTypeInfo) typeInformation);
+                } catch (Exception e) {
+                    throw new RuntimeException(
+                            "Error when building proto for GenericRecordAvroTypeInfo", e);
+                }
             }
 
             throw new UnsupportedOperationException(
@@ -298,6 +313,18 @@ public class PythonTypeUtils {
             return FlinkFnApi.TypeInfo.newBuilder()
                     .setTypeName(getTypeName(listTypeInfo))
                     .setCollectionElementType(toTypeInfoProto(listTypeInfo.getElementTypeInfo()))
+                    .build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildAvroTypeProto(
+                GenericRecordAvroTypeInfo avroTypeInfo) throws Exception {
+            Field schemaField = avroTypeInfo.getClass().getDeclaredField("schema");
+            schemaField.setAccessible(true);
+            String schema = schemaField.get(avroTypeInfo).toString();
+            return FlinkFnApi.TypeInfo.newBuilder()
+                    .setTypeName(FlinkFnApi.TypeInfo.TypeName.AVRO)
+                    .setAvroTypeInfo(
+                            FlinkFnApi.TypeInfo.AvroTypeInfo.newBuilder().setSchema(schema).build())
                     .build();
         }
 
@@ -546,6 +573,14 @@ public class PythonTypeUtils {
                             typeInfoSerializerConverter(
                                     LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
                                             ((ExternalTypeInfo<?>) typeInformation).getDataType()));
+                }
+
+                if (typeInformation
+                        .getClass()
+                        .getCanonicalName()
+                        .equals(
+                                "org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
+                    return typeInformation.createSerializer(new ExecutionConfig());
                 }
             }
 

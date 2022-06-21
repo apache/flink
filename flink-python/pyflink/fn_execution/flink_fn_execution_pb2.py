@@ -36,7 +36,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='flink-fn-execution.proto',
   package='org.apache.flink.fn_execution.v1',
   syntax='proto3',
-  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"\xa8\x01\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12\x14\n\x0cwindow_index\x18\x03 \x01(\x05\x12\x1a\n\x12takes_row_as_input\x18\x04 \x01(\x08\x12\x15\n\ris_pandas_udf\x18\x05 \x01(\x08\"\xcb\x01\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12=\n\x07windows\x18\x03 \x03(\x0b\x32,.org.apache.flink.fn_execution.v1.OverWindow\x12\x17\n\x0fprofile_enabled\x18\x04 \x01(\x08\"\xdd\x02\n\nOverWindow\x12L\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x37.org.apache.flink.fn_execution.v1.OverWindow.WindowType\x12\x16\n\x0elower_boundary\x18\x02 \x01(\x03\x12\x16\n\x0eupper_boundary\x18\x03 \x01(\x03\"\xd0\x01\n\nWindowType\x12\x13\n\x0fRANGE_UNBOUNDED\x10\x00\x12\x1d\n\x19RANGE_UNBOUNDED_PRECEDING\x10\x01\x12\x1d\n\x19RANGE_UNBOUNDED_FOLLOWING\x10\x02\x12\x11\n\rRANGE_SLIDING\x10\x03\x12\x11\n\rROW_UNBOUNDED\x10\x04\x12\x1b\n\x17ROW_UNBOUNDED_PRECEDING\x10\x05\x12\x1b\n\x17ROW_UNBOUNDED_FOLLOWING\x10\x06\x12\x0f\n\x0bROW_SLIDING\x10\x07\"\x8b\x06\n\x1cUserDefinedAggregateFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12Z\n\x05specs\x18\x03 \x03(\x0b\x32K.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec\x12\x12\n\nfilter_arg\x18\x04 \x01(\x05\x12\x10\n\x08\x64istinct\x18\x05 \x01(\x08\x12\x1a\n\x12takes_row_as_input\x18\x06 \x01(\x08\x1a\x82\x04\n\x0c\x44\x61taViewSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x66ield_index\x18\x02 \x01(\x05\x12i\n\tlist_view\x18\x03 \x01(\x0b\x32T.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListViewH\x00\x12g\n\x08map_view\x18\x04 \x01(\x0b\x32S.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapViewH\x00\x1aT\n\x08ListView\x12H\n\x0c\x65lement_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x97\x01\n\x07MapView\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeB\x0b\n\tdata_view\"\xac\x04\n\x0bGroupWindow\x12M\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x38.org.apache.flink.fn_execution.v1.GroupWindow.WindowType\x12\x16\n\x0eis_time_window\x18\x02 \x01(\x08\x12\x14\n\x0cwindow_slide\x18\x03 \x01(\x03\x12\x13\n\x0bwindow_size\x18\x04 \x01(\x03\x12\x12\n\nwindow_gap\x18\x05 \x01(\x03\x12\x13\n\x0bis_row_time\x18\x06 \x01(\x08\x12\x18\n\x10time_field_index\x18\x07 \x01(\x05\x12\x17\n\x0f\x61llowedLateness\x18\x08 \x01(\x03\x12U\n\x0fnamedProperties\x18\t \x03(\x0e\x32<.org.apache.flink.fn_execution.v1.GroupWindow.WindowProperty\x12\x16\n\x0eshift_timezone\x18\n \x01(\t\"[\n\nWindowType\x12\x19\n\x15TUMBLING_GROUP_WINDOW\x10\x00\x12\x18\n\x14SLIDING_GROUP_WINDOW\x10\x01\x12\x18\n\x14SESSION_GROUP_WINDOW\x10\x02\"c\n\x0eWindowProperty\x12\x10\n\x0cWINDOW_START\x10\x00\x12\x0e\n\nWINDOW_END\x10\x01\x12\x16\n\x12ROW_TIME_ATTRIBUTE\x10\x02\x12\x17\n\x13PROC_TIME_ATTRIBUTE\x10\x03\"\x96\x04\n\x1dUserDefinedAggregateFunctions\x12L\n\x04udfs\x18\x01 \x03(\x0b\x32>.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12\x10\n\x08grouping\x18\x03 \x03(\x05\x12\x1e\n\x16generate_update_before\x18\x04 \x01(\x08\x12\x44\n\x08key_type\x18\x05 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x1b\n\x13index_of_count_star\x18\x06 \x01(\x05\x12\x1e\n\x16state_cleaning_enabled\x18\x07 \x01(\x08\x12\x18\n\x10state_cache_size\x18\x08 \x01(\x05\x12!\n\x19map_state_read_cache_size\x18\t \x01(\x05\x12\"\n\x1amap_state_write_cache_size\x18\n \x01(\x05\x12\x1b\n\x13\x63ount_star_inserted\x18\x0b \x01(\x08\x12\x43\n\x0cgroup_window\x18\x0c \x01(\x0b\x32-.org.apache.flink.fn_execution.v1.GroupWindow\x12\x17\n\x0fprofile_enabled\x18\r \x01(\x08\"\xec\x0f\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapInfo\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x1d\n\x08TimeInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\"\n\rTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a,\n\x17LocalZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\'\n\x12ZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a/\n\x0b\x44\x65\x63imalInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x12\r\n\x05scale\x18\x02 \x01(\x05\x1a\x1c\n\nBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1f\n\rVarBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1a\n\x08\x43harInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1d\n\x0bVarCharInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\xb0\x08\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_info\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapInfoH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x12L\n\x0c\x64\x65\x63imal_info\x18\x06 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.DecimalInfoH\x00\x12\x46\n\ttime_info\x18\x07 \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.TimeInfoH\x00\x12P\n\x0etimestamp_info\x18\x08 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.TimestampInfoH\x00\x12\x66\n\x1alocal_zoned_timestamp_info\x18\t \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.Schema.LocalZonedTimestampInfoH\x00\x12[\n\x14zoned_timestamp_info\x18\n \x01(\x0b\x32;.org.apache.flink.fn_execution.v1.Schema.ZonedTimestampInfoH\x00\x12J\n\x0b\x62inary_info\x18\x0b \x01(\x0b\x32\x33.org.apache.flink.fn_execution.v1.Schema.BinaryInfoH\x00\x12Q\n\x0fvar_binary_info\x18\x0c \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.VarBinaryInfoH\x00\x12\x46\n\tchar_info\x18\r \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.CharInfoH\x00\x12M\n\rvar_char_info\x18\x0e \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.VarCharInfoH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xa1\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\r\n\tTIMESTAMP\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x12\x19\n\x15LOCAL_ZONED_TIMESTAMP\x10\x13\x12\x13\n\x0fZONED_TIMESTAMP\x10\x14\"\xf7\x08\n\x08TypeInfo\x12\x46\n\ttype_name\x18\x01 \x01(\x0e\x32\x33.org.apache.flink.fn_execution.v1.TypeInfo.TypeName\x12M\n\x17\x63ollection_element_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x12O\n\rrow_type_info\x18\x03 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.TypeInfo.RowTypeInfoH\x00\x12S\n\x0ftuple_type_info\x18\x04 \x01(\x0b\x32\x38.org.apache.flink.fn_execution.v1.TypeInfo.TupleTypeInfoH\x00\x12O\n\rmap_type_info\x18\x05 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.TypeInfo.MapTypeInfoH\x00\x1a\x8b\x01\n\x0bMapTypeInfo\x12<\n\x08key_type\x18\x01 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x12>\n\nvalue_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x1a\xb8\x01\n\x0bRowTypeInfo\x12L\n\x06\x66ields\x18\x01 \x03(\x0b\x32<.org.apache.flink.fn_execution.v1.TypeInfo.RowTypeInfo.Field\x1a[\n\x05\x46ield\x12\x12\n\nfield_name\x18\x01 \x01(\t\x12>\n\nfield_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x1aP\n\rTupleTypeInfo\x12?\n\x0b\x66ield_types\x18\x01 \x03(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\"\xb4\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\n\n\x06STRING\x10\x01\x12\x08\n\x04\x42YTE\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\t\n\x05SHORT\x10\x04\x12\x07\n\x03INT\x10\x05\x12\x08\n\x04LONG\x10\x06\x12\t\n\x05\x46LOAT\x10\x07\x12\n\n\x06\x44OUBLE\x10\x08\x12\x08\n\x04\x43HAR\x10\t\x12\x0b\n\x07\x42IG_INT\x10\n\x12\x0b\n\x07\x42IG_DEC\x10\x0b\x12\x0c\n\x08SQL_DATE\x10\x0c\x12\x0c\n\x08SQL_TIME\x10\r\x12\x11\n\rSQL_TIMESTAMP\x10\x0e\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x0f\x12\x13\n\x0fPRIMITIVE_ARRAY\x10\x10\x12\t\n\x05TUPLE\x10\x11\x12\x08\n\x04LIST\x10\x12\x12\x07\n\x03MAP\x10\x13\x12\x11\n\rPICKLED_BYTES\x10\x14\x12\x10\n\x0cOBJECT_ARRAY\x10\x15\x12\x0b\n\x07INSTANT\x10\x16\x42\x0b\n\ttype_info\"\xfb\x07\n\x1dUserDefinedDataStreamFunction\x12\x63\n\rfunction_type\x18\x01 \x01(\x0e\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.FunctionType\x12g\n\x0fruntime_context\x18\x02 \x01(\x0b\x32N.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.RuntimeContext\x12\x0f\n\x07payload\x18\x03 \x01(\x0c\x12\x16\n\x0emetric_enabled\x18\x04 \x01(\x08\x12\x41\n\rkey_type_info\x18\x05 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x12\x17\n\x0fprofile_enabled\x18\x06 \x01(\x08\x12\x17\n\x0fhas_side_output\x18\x07 \x01(\x08\x12\x18\n\x10state_cache_size\x18\x08 \x01(\x05\x12!\n\x19map_state_read_cache_size\x18\t \x01(\x05\x12\"\n\x1amap_state_write_cache_size\x18\n \x01(\x05\x1a*\n\x0cJobParameter\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x1a\xd0\x02\n\x0eRuntimeContext\x12\x11\n\ttask_name\x18\x01 \x01(\t\x12\x1f\n\x17task_name_with_subtasks\x18\x02 \x01(\t\x12#\n\x1bnumber_of_parallel_subtasks\x18\x03 \x01(\x05\x12\'\n\x1fmax_number_of_parallel_subtasks\x18\x04 \x01(\x05\x12\x1d\n\x15index_of_this_subtask\x18\x05 \x01(\x05\x12\x16\n\x0e\x61ttempt_number\x18\x06 \x01(\x05\x12\x64\n\x0ejob_parameters\x18\x07 \x03(\x0b\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.JobParameter\x12\x1f\n\x17in_batch_execution_mode\x18\x08 \x01(\x08\"\x8d\x01\n\x0c\x46unctionType\x12\x0b\n\x07PROCESS\x10\x00\x12\x0e\n\nCO_PROCESS\x10\x01\x12\x11\n\rKEYED_PROCESS\x10\x02\x12\x14\n\x10KEYED_CO_PROCESS\x10\x03\x12\n\n\x06WINDOW\x10\x04\x12\x18\n\x14\x43O_BROADCAST_PROCESS\x10\x05\x12\x11\n\rREVISE_OUTPUT\x10\x64\"\xe4\x0e\n\x0fStateDescriptor\x12\x12\n\nstate_name\x18\x01 \x01(\t\x12Z\n\x10state_ttl_config\x18\x02 \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig\x1a\xe0\r\n\x0eStateTTLConfig\x12`\n\x0bupdate_type\x18\x01 \x01(\x0e\x32K.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.UpdateType\x12j\n\x10state_visibility\x18\x02 \x01(\x0e\x32P.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.StateVisibility\x12w\n\x17ttl_time_characteristic\x18\x03 \x01(\x0e\x32V.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.TtlTimeCharacteristic\x12\x0b\n\x03ttl\x18\x04 \x01(\x03\x12n\n\x12\x63leanup_strategies\x18\x05 \x01(\x0b\x32R.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies\x1a\xca\x08\n\x11\x43leanupStrategies\x12 \n\x18is_cleanup_in_background\x18\x01 \x01(\x08\x12y\n\nstrategies\x18\x02 \x03(\x0b\x32\x65.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry\x1aX\n\x1aIncrementalCleanupStrategy\x12\x14\n\x0c\x63leanup_size\x18\x01 \x01(\x05\x12$\n\x1crun_cleanup_for_every_record\x18\x02 \x01(\x08\x1aK\n#RocksdbCompactFilterCleanupStrategy\x12$\n\x1cquery_time_after_num_entries\x18\x01 \x01(\x03\x1a\xe0\x04\n\x12MapStrategiesEntry\x12o\n\x08strategy\x18\x01 \x01(\x0e\x32].org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies\x12\x81\x01\n\x0e\x65mpty_strategy\x18\x02 \x01(\x0e\x32g.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.EmptyCleanupStrategyH\x00\x12\x95\x01\n\x1cincremental_cleanup_strategy\x18\x03 \x01(\x0b\x32m.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.IncrementalCleanupStrategyH\x00\x12\xa9\x01\n\'rocksdb_compact_filter_cleanup_strategy\x18\x04 \x01(\x0b\x32v.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategyH\x00\x42\x11\n\x0f\x43leanupStrategy\"b\n\nStrategies\x12\x1c\n\x18\x46ULL_STATE_SCAN_SNAPSHOT\x10\x00\x12\x17\n\x13INCREMENTAL_CLEANUP\x10\x01\x12\x1d\n\x19ROCKSDB_COMPACTION_FILTER\x10\x02\"*\n\x14\x45mptyCleanupStrategy\x12\x12\n\x0e\x45MPTY_STRATEGY\x10\x00\"D\n\nUpdateType\x12\x0c\n\x08\x44isabled\x10\x00\x12\x14\n\x10OnCreateAndWrite\x10\x01\x12\x12\n\x0eOnReadAndWrite\x10\x02\"J\n\x0fStateVisibility\x12\x1f\n\x1bReturnExpiredIfNotCleanedUp\x10\x00\x12\x16\n\x12NeverReturnExpired\x10\x01\"+\n\x15TtlTimeCharacteristic\x12\x12\n\x0eProcessingTime\x10\x00\"\xf1\x07\n\x13\x43oderInfoDescriptor\x12`\n\x10\x66latten_row_type\x18\x01 \x01(\x0b\x32\x44.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.FlattenRowTypeH\x00\x12Q\n\x08row_type\x18\x02 \x01(\x0b\x32=.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.RowTypeH\x00\x12U\n\narrow_type\x18\x03 \x01(\x0b\x32?.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.ArrowTypeH\x00\x12k\n\x16over_window_arrow_type\x18\x04 \x01(\x0b\x32I.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.OverWindowArrowTypeH\x00\x12Q\n\x08raw_type\x18\x05 \x01(\x0b\x32=.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.RawTypeH\x00\x12H\n\x04mode\x18\x06 \x01(\x0e\x32:.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.Mode\x12\"\n\x1aseparated_with_end_message\x18\x07 \x01(\x08\x1aJ\n\x0e\x46lattenRowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1a\x43\n\x07RowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1a\x45\n\tArrowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1aO\n\x13OverWindowArrowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1aH\n\x07RawType\x12=\n\ttype_info\x18\x01 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\" \n\x04Mode\x12\n\n\x06SINGLE\x10\x00\x12\x0c\n\x08MULTIPLE\x10\x01\x42\x0b\n\tdata_typeB-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
+  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"\xa8\x01\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12\x14\n\x0cwindow_index\x18\x03 \x01(\x05\x12\x1a\n\x12takes_row_as_input\x18\x04 \x01(\x08\x12\x15\n\ris_pandas_udf\x18\x05 \x01(\x08\"\xcb\x01\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12=\n\x07windows\x18\x03 \x03(\x0b\x32,.org.apache.flink.fn_execution.v1.OverWindow\x12\x17\n\x0fprofile_enabled\x18\x04 \x01(\x08\"\xdd\x02\n\nOverWindow\x12L\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x37.org.apache.flink.fn_execution.v1.OverWindow.WindowType\x12\x16\n\x0elower_boundary\x18\x02 \x01(\x03\x12\x16\n\x0eupper_boundary\x18\x03 \x01(\x03\"\xd0\x01\n\nWindowType\x12\x13\n\x0fRANGE_UNBOUNDED\x10\x00\x12\x1d\n\x19RANGE_UNBOUNDED_PRECEDING\x10\x01\x12\x1d\n\x19RANGE_UNBOUNDED_FOLLOWING\x10\x02\x12\x11\n\rRANGE_SLIDING\x10\x03\x12\x11\n\rROW_UNBOUNDED\x10\x04\x12\x1b\n\x17ROW_UNBOUNDED_PRECEDING\x10\x05\x12\x1b\n\x17ROW_UNBOUNDED_FOLLOWING\x10\x06\x12\x0f\n\x0bROW_SLIDING\x10\x07\"\x8b\x06\n\x1cUserDefinedAggregateFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12Z\n\x05specs\x18\x03 \x03(\x0b\x32K.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec\x12\x12\n\nfilter_arg\x18\x04 \x01(\x05\x12\x10\n\x08\x64istinct\x18\x05 \x01(\x08\x12\x1a\n\x12takes_row_as_input\x18\x06 \x01(\x08\x1a\x82\x04\n\x0c\x44\x61taViewSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x66ield_index\x18\x02 \x01(\x05\x12i\n\tlist_view\x18\x03 \x01(\x0b\x32T.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListViewH\x00\x12g\n\x08map_view\x18\x04 \x01(\x0b\x32S.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapViewH\x00\x1aT\n\x08ListView\x12H\n\x0c\x65lement_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x97\x01\n\x07MapView\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeB\x0b\n\tdata_view\"\xac\x04\n\x0bGroupWindow\x12M\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x38.org.apache.flink.fn_execution.v1.GroupWindow.WindowType\x12\x16\n\x0eis_time_window\x18\x02 \x01(\x08\x12\x14\n\x0cwindow_slide\x18\x03 \x01(\x03\x12\x13\n\x0bwindow_size\x18\x04 \x01(\x03\x12\x12\n\nwindow_gap\x18\x05 \x01(\x03\x12\x13\n\x0bis_row_time\x18\x06 \x01(\x08\x12\x18\n\x10time_field_index\x18\x07 \x01(\x05\x12\x17\n\x0f\x61llowedLateness\x18\x08 \x01(\x03\x12U\n\x0fnamedProperties\x18\t \x03(\x0e\x32<.org.apache.flink.fn_execution.v1.GroupWindow.WindowProperty\x12\x16\n\x0eshift_timezone\x18\n \x01(\t\"[\n\nWindowType\x12\x19\n\x15TUMBLING_GROUP_WINDOW\x10\x00\x12\x18\n\x14SLIDING_GROUP_WINDOW\x10\x01\x12\x18\n\x14SESSION_GROUP_WINDOW\x10\x02\"c\n\x0eWindowProperty\x12\x10\n\x0cWINDOW_START\x10\x00\x12\x0e\n\nWINDOW_END\x10\x01\x12\x16\n\x12ROW_TIME_ATTRIBUTE\x10\x02\x12\x17\n\x13PROC_TIME_ATTRIBUTE\x10\x03\"\x96\x04\n\x1dUserDefinedAggregateFunctions\x12L\n\x04udfs\x18\x01 \x03(\x0b\x32>.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12\x10\n\x08grouping\x18\x03 \x03(\x05\x12\x1e\n\x16generate_update_before\x18\x04 \x01(\x08\x12\x44\n\x08key_type\x18\x05 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x1b\n\x13index_of_count_star\x18\x06 \x01(\x05\x12\x1e\n\x16state_cleaning_enabled\x18\x07 \x01(\x08\x12\x18\n\x10state_cache_size\x18\x08 \x01(\x05\x12!\n\x19map_state_read_cache_size\x18\t \x01(\x05\x12\"\n\x1amap_state_write_cache_size\x18\n \x01(\x05\x12\x1b\n\x13\x63ount_star_inserted\x18\x0b \x01(\x08\x12\x43\n\x0cgroup_window\x18\x0c \x01(\x0b\x32-.org.apache.flink.fn_execution.v1.GroupWindow\x12\x17\n\x0fprofile_enabled\x18\r \x01(\x08\"\xec\x0f\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapInfo\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x1d\n\x08TimeInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\"\n\rTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a,\n\x17LocalZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\'\n\x12ZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a/\n\x0b\x44\x65\x63imalInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x12\r\n\x05scale\x18\x02 \x01(\x05\x1a\x1c\n\nBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1f\n\rVarBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1a\n\x08\x43harInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1d\n\x0bVarCharInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\xb0\x08\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_info\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapInfoH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x12L\n\x0c\x64\x65\x63imal_info\x18\x06 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.DecimalInfoH\x00\x12\x46\n\ttime_info\x18\x07 \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.TimeInfoH\x00\x12P\n\x0etimestamp_info\x18\x08 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.TimestampInfoH\x00\x12\x66\n\x1alocal_zoned_timestamp_info\x18\t \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.Schema.LocalZonedTimestampInfoH\x00\x12[\n\x14zoned_timestamp_info\x18\n \x01(\x0b\x32;.org.apache.flink.fn_execution.v1.Schema.ZonedTimestampInfoH\x00\x12J\n\x0b\x62inary_info\x18\x0b \x01(\x0b\x32\x33.org.apache.flink.fn_execution.v1.Schema.BinaryInfoH\x00\x12Q\n\x0fvar_binary_info\x18\x0c \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.VarBinaryInfoH\x00\x12\x46\n\tchar_info\x18\r \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.CharInfoH\x00\x12M\n\rvar_char_info\x18\x0e \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.VarCharInfoH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xa1\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\r\n\tTIMESTAMP\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x12\x19\n\x15LOCAL_ZONED_TIMESTAMP\x10\x13\x12\x13\n\x0fZONED_TIMESTAMP\x10\x14\"\xf4\t\n\x08TypeInfo\x12\x46\n\ttype_name\x18\x01 \x01(\x0e\x32\x33.org.apache.flink.fn_execution.v1.TypeInfo.TypeName\x12M\n\x17\x63ollection_element_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x12O\n\rrow_type_info\x18\x03 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.TypeInfo.RowTypeInfoH\x00\x12S\n\x0ftuple_type_info\x18\x04 \x01(\x0b\x32\x38.org.apache.flink.fn_execution.v1.TypeInfo.TupleTypeInfoH\x00\x12O\n\rmap_type_info\x18\x05 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.TypeInfo.MapTypeInfoH\x00\x12Q\n\x0e\x61vro_type_info\x18\x06 \x01(\x0b\x32\x37.org.apache.flink.fn_execution.v1.TypeInfo.AvroTypeInfoH\x00\x1a\x8b\x01\n\x0bMapTypeInfo\x12<\n\x08key_type\x18\x01 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x12>\n\nvalue_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x1a\xb8\x01\n\x0bRowTypeInfo\x12L\n\x06\x66ields\x18\x01 \x03(\x0b\x32<.org.apache.flink.fn_execution.v1.TypeInfo.RowTypeInfo.Field\x1a[\n\x05\x46ield\x12\x12\n\nfield_name\x18\x01 \x01(\t\x12>\n\nfield_type\x18\x02 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x1aP\n\rTupleTypeInfo\x12?\n\x0b\x66ield_types\x18\x01 \x03(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x1a\x1e\n\x0c\x41vroTypeInfo\x12\x0e\n\x06schema\x18\x01 \x01(\t\"\xbe\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\n\n\x06STRING\x10\x01\x12\x08\n\x04\x42YTE\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\t\n\x05SHORT\x10\x04\x12\x07\n\x03INT\x10\x05\x12\x08\n\x04LONG\x10\x06\x12\t\n\x05\x46LOAT\x10\x07\x12\n\n\x06\x44OUBLE\x10\x08\x12\x08\n\x04\x43HAR\x10\t\x12\x0b\n\x07\x42IG_INT\x10\n\x12\x0b\n\x07\x42IG_DEC\x10\x0b\x12\x0c\n\x08SQL_DATE\x10\x0c\x12\x0c\n\x08SQL_TIME\x10\r\x12\x11\n\rSQL_TIMESTAMP\x10\x0e\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x0f\x12\x13\n\x0fPRIMITIVE_ARRAY\x10\x10\x12\t\n\x05TUPLE\x10\x11\x12\x08\n\x04LIST\x10\x12\x12\x07\n\x03MAP\x10\x13\x12\x11\n\rPICKLED_BYTES\x10\x14\x12\x10\n\x0cOBJECT_ARRAY\x10\x15\x12\x0b\n\x07INSTANT\x10\x16\x12\x08\n\x04\x41VRO\x10\x17\x42\x0b\n\ttype_info\"\xfb\x07\n\x1dUserDefinedDataStreamFunction\x12\x63\n\rfunction_type\x18\x01 \x01(\x0e\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.FunctionType\x12g\n\x0fruntime_context\x18\x02 \x01(\x0b\x32N.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.RuntimeContext\x12\x0f\n\x07payload\x18\x03 \x01(\x0c\x12\x16\n\x0emetric_enabled\x18\x04 \x01(\x08\x12\x41\n\rkey_type_info\x18\x05 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\x12\x17\n\x0fprofile_enabled\x18\x06 \x01(\x08\x12\x17\n\x0fhas_side_output\x18\x07 \x01(\x08\x12\x18\n\x10state_cache_size\x18\x08 \x01(\x05\x12!\n\x19map_state_read_cache_size\x18\t \x01(\x05\x12\"\n\x1amap_state_write_cache_size\x18\n \x01(\x05\x1a*\n\x0cJobParameter\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x1a\xd0\x02\n\x0eRuntimeContext\x12\x11\n\ttask_name\x18\x01 \x01(\t\x12\x1f\n\x17task_name_with_subtasks\x18\x02 \x01(\t\x12#\n\x1bnumber_of_parallel_subtasks\x18\x03 \x01(\x05\x12\'\n\x1fmax_number_of_parallel_subtasks\x18\x04 \x01(\x05\x12\x1d\n\x15index_of_this_subtask\x18\x05 \x01(\x05\x12\x16\n\x0e\x61ttempt_number\x18\x06 \x01(\x05\x12\x64\n\x0ejob_parameters\x18\x07 \x03(\x0b\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.JobParameter\x12\x1f\n\x17in_batch_execution_mode\x18\x08 \x01(\x08\"\x8d\x01\n\x0c\x46unctionType\x12\x0b\n\x07PROCESS\x10\x00\x12\x0e\n\nCO_PROCESS\x10\x01\x12\x11\n\rKEYED_PROCESS\x10\x02\x12\x14\n\x10KEYED_CO_PROCESS\x10\x03\x12\n\n\x06WINDOW\x10\x04\x12\x18\n\x14\x43O_BROADCAST_PROCESS\x10\x05\x12\x11\n\rREVISE_OUTPUT\x10\x64\"\xe4\x0e\n\x0fStateDescriptor\x12\x12\n\nstate_name\x18\x01 \x01(\t\x12Z\n\x10state_ttl_config\x18\x02 \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig\x1a\xe0\r\n\x0eStateTTLConfig\x12`\n\x0bupdate_type\x18\x01 \x01(\x0e\x32K.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.UpdateType\x12j\n\x10state_visibility\x18\x02 \x01(\x0e\x32P.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.StateVisibility\x12w\n\x17ttl_time_characteristic\x18\x03 \x01(\x0e\x32V.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.TtlTimeCharacteristic\x12\x0b\n\x03ttl\x18\x04 \x01(\x03\x12n\n\x12\x63leanup_strategies\x18\x05 \x01(\x0b\x32R.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies\x1a\xca\x08\n\x11\x43leanupStrategies\x12 \n\x18is_cleanup_in_background\x18\x01 \x01(\x08\x12y\n\nstrategies\x18\x02 \x03(\x0b\x32\x65.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry\x1aX\n\x1aIncrementalCleanupStrategy\x12\x14\n\x0c\x63leanup_size\x18\x01 \x01(\x05\x12$\n\x1crun_cleanup_for_every_record\x18\x02 \x01(\x08\x1aK\n#RocksdbCompactFilterCleanupStrategy\x12$\n\x1cquery_time_after_num_entries\x18\x01 \x01(\x03\x1a\xe0\x04\n\x12MapStrategiesEntry\x12o\n\x08strategy\x18\x01 \x01(\x0e\x32].org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies\x12\x81\x01\n\x0e\x65mpty_strategy\x18\x02 \x01(\x0e\x32g.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.EmptyCleanupStrategyH\x00\x12\x95\x01\n\x1cincremental_cleanup_strategy\x18\x03 \x01(\x0b\x32m.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.IncrementalCleanupStrategyH\x00\x12\xa9\x01\n\'rocksdb_compact_filter_cleanup_strategy\x18\x04 \x01(\x0b\x32v.org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategyH\x00\x42\x11\n\x0f\x43leanupStrategy\"b\n\nStrategies\x12\x1c\n\x18\x46ULL_STATE_SCAN_SNAPSHOT\x10\x00\x12\x17\n\x13INCREMENTAL_CLEANUP\x10\x01\x12\x1d\n\x19ROCKSDB_COMPACTION_FILTER\x10\x02\"*\n\x14\x45mptyCleanupStrategy\x12\x12\n\x0e\x45MPTY_STRATEGY\x10\x00\"D\n\nUpdateType\x12\x0c\n\x08\x44isabled\x10\x00\x12\x14\n\x10OnCreateAndWrite\x10\x01\x12\x12\n\x0eOnReadAndWrite\x10\x02\"J\n\x0fStateVisibility\x12\x1f\n\x1bReturnExpiredIfNotCleanedUp\x10\x00\x12\x16\n\x12NeverReturnExpired\x10\x01\"+\n\x15TtlTimeCharacteristic\x12\x12\n\x0eProcessingTime\x10\x00\"\xf1\x07\n\x13\x43oderInfoDescriptor\x12`\n\x10\x66latten_row_type\x18\x01 \x01(\x0b\x32\x44.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.FlattenRowTypeH\x00\x12Q\n\x08row_type\x18\x02 \x01(\x0b\x32=.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.RowTypeH\x00\x12U\n\narrow_type\x18\x03 \x01(\x0b\x32?.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.ArrowTypeH\x00\x12k\n\x16over_window_arrow_type\x18\x04 \x01(\x0b\x32I.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.OverWindowArrowTypeH\x00\x12Q\n\x08raw_type\x18\x05 \x01(\x0b\x32=.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.RawTypeH\x00\x12H\n\x04mode\x18\x06 \x01(\x0e\x32:.org.apache.flink.fn_execution.v1.CoderInfoDescriptor.Mode\x12\"\n\x1aseparated_with_end_message\x18\x07 \x01(\x08\x1aJ\n\x0e\x46lattenRowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1a\x43\n\x07RowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1a\x45\n\tArrowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1aO\n\x13OverWindowArrowType\x12\x38\n\x06schema\x18\x01 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.Schema\x1aH\n\x07RawType\x12=\n\ttype_info\x18\x01 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfo\" \n\x04Mode\x12\n\n\x06SINGLE\x10\x00\x12\x0c\n\x08MULTIPLE\x10\x01\x42\x0b\n\tdata_typeB-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
 )
 
 
@@ -339,11 +339,15 @@ _TYPEINFO_TYPENAME = _descriptor.EnumDescriptor(
       name='INSTANT', index=22, number=22,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='AVRO', index=23, number=23,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
-  serialized_start=5660,
-  serialized_end=5968,
+  serialized_start=5775,
+  serialized_end=6093,
 )
 _sym_db.RegisterEnumDescriptor(_TYPEINFO_TYPENAME)
 
@@ -384,8 +388,8 @@ _USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=6862,
-  serialized_end=7003,
+  serialized_start=6987,
+  serialized_end=7128,
 )
 _sym_db.RegisterEnumDescriptor(_USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE)
 
@@ -410,8 +414,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_STRATEGIES = _descriptor.EnumD
   ],
   containing_type=None,
   options=None,
-  serialized_start=8565,
-  serialized_end=8663,
+  serialized_start=8690,
+  serialized_end=8788,
 )
 _sym_db.RegisterEnumDescriptor(_STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_STRATEGIES)
 
@@ -428,8 +432,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_EMPTYCLEANUPSTRATEGY = _descri
   ],
   containing_type=None,
   options=None,
-  serialized_start=8665,
-  serialized_end=8707,
+  serialized_start=8790,
+  serialized_end=8832,
 )
 _sym_db.RegisterEnumDescriptor(_STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_EMPTYCLEANUPSTRATEGY)
 
@@ -454,8 +458,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_UPDATETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=8709,
-  serialized_end=8777,
+  serialized_start=8834,
+  serialized_end=8902,
 )
 _sym_db.RegisterEnumDescriptor(_STATEDESCRIPTOR_STATETTLCONFIG_UPDATETYPE)
 
@@ -476,8 +480,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_STATEVISIBILITY = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=8779,
-  serialized_end=8853,
+  serialized_start=8904,
+  serialized_end=8978,
 )
 _sym_db.RegisterEnumDescriptor(_STATEDESCRIPTOR_STATETTLCONFIG_STATEVISIBILITY)
 
@@ -494,8 +498,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_TTLTIMECHARACTERISTIC = _descriptor.EnumDescript
   ],
   containing_type=None,
   options=None,
-  serialized_start=8855,
-  serialized_end=8898,
+  serialized_start=8980,
+  serialized_end=9023,
 )
 _sym_db.RegisterEnumDescriptor(_STATEDESCRIPTOR_STATETTLCONFIG_TTLTIMECHARACTERISTIC)
 
@@ -516,8 +520,8 @@ _CODERINFODESCRIPTOR_MODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=9865,
-  serialized_end=9897,
+  serialized_start=9990,
+  serialized_end=10022,
 )
 _sym_db.RegisterEnumDescriptor(_CODERINFODESCRIPTOR_MODE)
 
@@ -1672,8 +1676,8 @@ _TYPEINFO_MAPTYPEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5249,
-  serialized_end=5388,
+  serialized_start=5332,
+  serialized_end=5471,
 )
 
 _TYPEINFO_ROWTYPEINFO_FIELD = _descriptor.Descriptor(
@@ -1709,8 +1713,8 @@ _TYPEINFO_ROWTYPEINFO_FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5484,
-  serialized_end=5575,
+  serialized_start=5567,
+  serialized_end=5658,
 )
 
 _TYPEINFO_ROWTYPEINFO = _descriptor.Descriptor(
@@ -1739,8 +1743,8 @@ _TYPEINFO_ROWTYPEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5391,
-  serialized_end=5575,
+  serialized_start=5474,
+  serialized_end=5658,
 )
 
 _TYPEINFO_TUPLETYPEINFO = _descriptor.Descriptor(
@@ -1769,8 +1773,38 @@ _TYPEINFO_TUPLETYPEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5577,
-  serialized_end=5657,
+  serialized_start=5660,
+  serialized_end=5740,
+)
+
+_TYPEINFO_AVROTYPEINFO = _descriptor.Descriptor(
+  name='AvroTypeInfo',
+  full_name='org.apache.flink.fn_execution.v1.TypeInfo.AvroTypeInfo',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='schema', full_name='org.apache.flink.fn_execution.v1.TypeInfo.AvroTypeInfo.schema', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=5742,
+  serialized_end=5772,
 )
 
 _TYPEINFO = _descriptor.Descriptor(
@@ -1815,10 +1849,17 @@ _TYPEINFO = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='avro_type_info', full_name='org.apache.flink.fn_execution.v1.TypeInfo.avro_type_info', index=5,
+      number=6, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[_TYPEINFO_MAPTYPEINFO, _TYPEINFO_ROWTYPEINFO, _TYPEINFO_TUPLETYPEINFO, ],
+  nested_types=[_TYPEINFO_MAPTYPEINFO, _TYPEINFO_ROWTYPEINFO, _TYPEINFO_TUPLETYPEINFO, _TYPEINFO_AVROTYPEINFO, ],
   enum_types=[
     _TYPEINFO_TYPENAME,
   ],
@@ -1832,7 +1873,7 @@ _TYPEINFO = _descriptor.Descriptor(
       index=0, containing_type=None, fields=[]),
   ],
   serialized_start=4838,
-  serialized_end=5981,
+  serialized_end=6106,
 )
 
 
@@ -1869,8 +1910,8 @@ _USERDEFINEDDATASTREAMFUNCTION_JOBPARAMETER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6478,
-  serialized_end=6520,
+  serialized_start=6603,
+  serialized_end=6645,
 )
 
 _USERDEFINEDDATASTREAMFUNCTION_RUNTIMECONTEXT = _descriptor.Descriptor(
@@ -1948,8 +1989,8 @@ _USERDEFINEDDATASTREAMFUNCTION_RUNTIMECONTEXT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=6523,
-  serialized_end=6859,
+  serialized_start=6648,
+  serialized_end=6984,
 )
 
 _USERDEFINEDDATASTREAMFUNCTION = _descriptor.Descriptor(
@@ -2042,8 +2083,8 @@ _USERDEFINEDDATASTREAMFUNCTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=5984,
-  serialized_end=7003,
+  serialized_start=6109,
+  serialized_end=7128,
 )
 
 
@@ -2080,8 +2121,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_INCREMENTALCLEANUPSTRATEGY = _
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7787,
-  serialized_end=7875,
+  serialized_start=7912,
+  serialized_end=8000,
 )
 
 _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_ROCKSDBCOMPACTFILTERCLEANUPSTRATEGY = _descriptor.Descriptor(
@@ -2110,8 +2151,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_ROCKSDBCOMPACTFILTERCLEANUPSTR
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7877,
-  serialized_end=7952,
+  serialized_start=8002,
+  serialized_end=8077,
 )
 
 _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_MAPSTRATEGIESENTRY = _descriptor.Descriptor(
@@ -2164,8 +2205,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES_MAPSTRATEGIESENTRY = _descript
       name='CleanupStrategy', full_name='org.apache.flink.fn_execution.v1.StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry.CleanupStrategy',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=7955,
-  serialized_end=8563,
+  serialized_start=8080,
+  serialized_end=8688,
 )
 
 _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES = _descriptor.Descriptor(
@@ -2203,8 +2244,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG_CLEANUPSTRATEGIES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7609,
-  serialized_end=8707,
+  serialized_start=7734,
+  serialized_end=8832,
 )
 
 _STATEDESCRIPTOR_STATETTLCONFIG = _descriptor.Descriptor(
@@ -2264,8 +2305,8 @@ _STATEDESCRIPTOR_STATETTLCONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7138,
-  serialized_end=8898,
+  serialized_start=7263,
+  serialized_end=9023,
 )
 
 _STATEDESCRIPTOR = _descriptor.Descriptor(
@@ -2301,8 +2342,8 @@ _STATEDESCRIPTOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=7006,
-  serialized_end=8898,
+  serialized_start=7131,
+  serialized_end=9023,
 )
 
 
@@ -2332,8 +2373,8 @@ _CODERINFODESCRIPTOR_FLATTENROWTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=9494,
-  serialized_end=9568,
+  serialized_start=9619,
+  serialized_end=9693,
 )
 
 _CODERINFODESCRIPTOR_ROWTYPE = _descriptor.Descriptor(
@@ -2362,8 +2403,8 @@ _CODERINFODESCRIPTOR_ROWTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=9570,
-  serialized_end=9637,
+  serialized_start=9695,
+  serialized_end=9762,
 )
 
 _CODERINFODESCRIPTOR_ARROWTYPE = _descriptor.Descriptor(
@@ -2392,8 +2433,8 @@ _CODERINFODESCRIPTOR_ARROWTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=9639,
-  serialized_end=9708,
+  serialized_start=9764,
+  serialized_end=9833,
 )
 
 _CODERINFODESCRIPTOR_OVERWINDOWARROWTYPE = _descriptor.Descriptor(
@@ -2422,8 +2463,8 @@ _CODERINFODESCRIPTOR_OVERWINDOWARROWTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=9710,
-  serialized_end=9789,
+  serialized_start=9835,
+  serialized_end=9914,
 )
 
 _CODERINFODESCRIPTOR_RAWTYPE = _descriptor.Descriptor(
@@ -2452,8 +2493,8 @@ _CODERINFODESCRIPTOR_RAWTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=9791,
-  serialized_end=9863,
+  serialized_start=9916,
+  serialized_end=9988,
 )
 
 _CODERINFODESCRIPTOR = _descriptor.Descriptor(
@@ -2528,8 +2569,8 @@ _CODERINFODESCRIPTOR = _descriptor.Descriptor(
       name='data_type', full_name='org.apache.flink.fn_execution.v1.CoderInfoDescriptor.data_type',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=8901,
-  serialized_end=9910,
+  serialized_start=9026,
+  serialized_end=10035,
 )
 
 _INPUT.fields_by_name['udf'].message_type = _USERDEFINEDFUNCTION
@@ -2645,11 +2686,13 @@ _TYPEINFO_ROWTYPEINFO.fields_by_name['fields'].message_type = _TYPEINFO_ROWTYPEI
 _TYPEINFO_ROWTYPEINFO.containing_type = _TYPEINFO
 _TYPEINFO_TUPLETYPEINFO.fields_by_name['field_types'].message_type = _TYPEINFO
 _TYPEINFO_TUPLETYPEINFO.containing_type = _TYPEINFO
+_TYPEINFO_AVROTYPEINFO.containing_type = _TYPEINFO
 _TYPEINFO.fields_by_name['type_name'].enum_type = _TYPEINFO_TYPENAME
 _TYPEINFO.fields_by_name['collection_element_type'].message_type = _TYPEINFO
 _TYPEINFO.fields_by_name['row_type_info'].message_type = _TYPEINFO_ROWTYPEINFO
 _TYPEINFO.fields_by_name['tuple_type_info'].message_type = _TYPEINFO_TUPLETYPEINFO
 _TYPEINFO.fields_by_name['map_type_info'].message_type = _TYPEINFO_MAPTYPEINFO
+_TYPEINFO.fields_by_name['avro_type_info'].message_type = _TYPEINFO_AVROTYPEINFO
 _TYPEINFO_TYPENAME.containing_type = _TYPEINFO
 _TYPEINFO.oneofs_by_name['type_info'].fields.append(
   _TYPEINFO.fields_by_name['collection_element_type'])
@@ -2663,6 +2706,9 @@ _TYPEINFO.fields_by_name['tuple_type_info'].containing_oneof = _TYPEINFO.oneofs_
 _TYPEINFO.oneofs_by_name['type_info'].fields.append(
   _TYPEINFO.fields_by_name['map_type_info'])
 _TYPEINFO.fields_by_name['map_type_info'].containing_oneof = _TYPEINFO.oneofs_by_name['type_info']
+_TYPEINFO.oneofs_by_name['type_info'].fields.append(
+  _TYPEINFO.fields_by_name['avro_type_info'])
+_TYPEINFO.fields_by_name['avro_type_info'].containing_oneof = _TYPEINFO.oneofs_by_name['type_info']
 _USERDEFINEDDATASTREAMFUNCTION_JOBPARAMETER.containing_type = _USERDEFINEDDATASTREAMFUNCTION
 _USERDEFINEDDATASTREAMFUNCTION_RUNTIMECONTEXT.fields_by_name['job_parameters'].message_type = _USERDEFINEDDATASTREAMFUNCTION_JOBPARAMETER
 _USERDEFINEDDATASTREAMFUNCTION_RUNTIMECONTEXT.containing_type = _USERDEFINEDDATASTREAMFUNCTION
@@ -2950,6 +2996,13 @@ TypeInfo = _reflection.GeneratedProtocolMessageType('TypeInfo', (_message.Messag
     # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.TypeInfo.TupleTypeInfo)
     ))
   ,
+
+  AvroTypeInfo = _reflection.GeneratedProtocolMessageType('AvroTypeInfo', (_message.Message,), dict(
+    DESCRIPTOR = _TYPEINFO_AVROTYPEINFO,
+    __module__ = 'flink_fn_execution_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.TypeInfo.AvroTypeInfo)
+    ))
+  ,
   DESCRIPTOR = _TYPEINFO,
   __module__ = 'flink_fn_execution_pb2'
   # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.TypeInfo)
@@ -2959,6 +3012,7 @@ _sym_db.RegisterMessage(TypeInfo.MapTypeInfo)
 _sym_db.RegisterMessage(TypeInfo.RowTypeInfo)
 _sym_db.RegisterMessage(TypeInfo.RowTypeInfo.Field)
 _sym_db.RegisterMessage(TypeInfo.TupleTypeInfo)
+_sym_db.RegisterMessage(TypeInfo.AvroTypeInfo)
 
 UserDefinedDataStreamFunction = _reflection.GeneratedProtocolMessageType('UserDefinedDataStreamFunction', (_message.Message,), dict(
 

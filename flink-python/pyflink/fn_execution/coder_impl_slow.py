@@ -22,11 +22,14 @@ from abc import ABC, abstractmethod
 from typing import List
 
 import cloudpickle
+import avro.schema as avro_schema
 
 from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
+from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
+    FlinkAvroBufferWrapper
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -834,3 +837,20 @@ class DataViewFilterCoderImpl(FieldCoderImpl):
                 row[i][spec.field_index] = None
             i += 1
         return row
+
+
+class AvroCoderImpl(FieldCoderImpl):
+
+    def __init__(self, schema_string: str):
+        self._buffer_wrapper = FlinkAvroBufferWrapper()
+        self._decoder = FlinkAvroDecoder(self._buffer_wrapper)
+        self._schema = avro_schema.parse(schema_string)
+        self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        raise NotImplementedError()
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        # Since writer_schema equals reader_schema, in_stream does not need to support seek and tell
+        self._buffer_wrapper.switch_stream(in_stream)
+        return self._reader.read(self._decoder)
