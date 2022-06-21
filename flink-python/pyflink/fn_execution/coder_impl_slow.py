@@ -17,16 +17,19 @@
 ################################################################################
 import datetime
 import decimal
+import io
 import pickle
 from abc import ABC, abstractmethod
 from typing import List
 
 import cloudpickle
+import avro.schema as avro_schema
 
 from pyflink.common import Row, RowKind
 from pyflink.common.time import Instant
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
+from pyflink.fn_execution.formats import FlinkAvroDecoder, FlinkAvroDatumReader
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -834,3 +837,26 @@ class DataViewFilterCoderImpl(FieldCoderImpl):
                 row[i][spec.field_index] = None
             i += 1
         return row
+
+
+class AvroCoderImpl(FieldCoderImpl):
+
+    def __init__(self, schema_string: str):
+        self._bytes_io = io.BytesIO()
+        self._decoder = FlinkAvroDecoder(self._bytes_io)
+        self._schema = avro_schema.parse(schema_string)
+        self._reader = FlinkAvroDatumReader(writer_schema=self._schema, reader_schema=self._schema)
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        raise NotImplementedError()
+
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
+        length = in_stream.read_int32()
+        if length <= 0:
+            return None
+        data = in_stream.read(length)
+        self._bytes_io.seek(0)
+        self._bytes_io.truncate(0)
+        self._bytes_io.write(data)
+        self._bytes_io.seek(0)
+        return self._reader.read(self._decoder)
