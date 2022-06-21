@@ -107,7 +107,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<hadoop.version>2.8.5</hadoop.version>
+		<flink.hadoop.version>2.8.5</flink.hadoop.version>
 		<flink.XmxMax>3072m</flink.XmxMax>
 		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>1536m</flink.XmxITCase>
@@ -378,7 +378,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -398,7 +398,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -418,7 +418,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-mapreduce-client-core</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -438,7 +438,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-common</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -458,7 +458,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-yarn-client</artifactId>
-				<version>${hadoop.version}</version>
+				<version>${flink.hadoop.version}</version>
 				<exclusions>
 					<exclusion>
 						<groupId>jdk.tools</groupId>
@@ -1616,7 +1616,7 @@ under the License.
 						<!-- $$ ensures that surefire resolves this to the current forkNumber,
 						 	instead of maven during initialization -->
 						<mvn.forkNumber>$${surefire.forkNumber}</mvn.forkNumber>
-						<hadoop.version>${hadoop.version}</hadoop.version>
+						<hadoop.version>${flink.hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
 						<user.country>US</user.country>
